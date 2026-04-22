@@ -8,8 +8,7 @@ import { VideoInstitucionalService } from '../../core/services/administracion/vi
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
-import { environment } from '../../../environments/environment';
-
+import { environment } from '../../../environments/environment';import { RedesSocialesService, DtoRedesSociales } from '../../core/services/administracion/redes-sociales.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -53,12 +52,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
 
-  socialLinks: SocialLink[] = [
-    { name: 'Facebook', icon: 'fa-facebook-f', url: 'https://www.facebook.com/PoliciaColombia', color: '#1877F2' },
-    { name: 'X', icon: 'fa-x-twitter', url: 'https://twitter.com/PoliciaColombia', color: '#000000' },
-    { name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/policiacolombia', color: '#E4405F' },
-    { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
-  ];
+  socialLinks: SocialLink[] = [];
 
   constructor(
     private sliderService: SliderService,
@@ -66,7 +60,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private videoUnidadService: VideoUnidadService,
     private videoInstitucionalService: VideoInstitucionalService,
     private lineaMandoService: LineaMandoService,
-    private noticiaService: NoticiaService
+    private noticiaService: NoticiaService,
+    private redesSocialesService: RedesSocialesService
   ) {}
 
   ngOnInit(): void {
@@ -76,6 +71,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadVideoInstitucional();
     this.loadLineaMando();
     this.loadNoticias();
+    this.loadSocialLinks();
   }
 
   loadNoticias(): void {
@@ -478,6 +474,50 @@ export class HomeComponent implements OnInit, OnDestroy {
       liked.push(noticiaId);
       sessionStorage.setItem('likedNews', JSON.stringify(liked));
     }
+  }
+
+  private loadSocialLinks(): void {
+    this.redesSocialesService.getAll().subscribe({
+      next: (data) => {
+        this.socialLinks = (data ?? []).map(rs => ({
+          name: rs.nombreCuenta,
+          icon: this.getSocialIcon(rs.redSocial),
+          url: rs.urlCuenta,
+          color: this.getSocialColor(rs.redSocial)
+        }));
+      },
+      error: () => {
+        // Fallback to hardcoded if error
+        this.socialLinks = [
+          { name: 'Facebook', icon: 'fa-facebook-f', url: 'https://www.facebook.com/PoliciaColombia', color: '#1877F2' },
+          { name: 'X', icon: 'fa-x-twitter', url: 'https://twitter.com/PoliciaColombia', color: '#000000' },
+          { name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/policiacolombia', color: '#E4405F' },
+          { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
+        ];
+      }
+    });
+  }
+
+  private getSocialIcon(nombreRed: string): string {
+    const lower = nombreRed.toLowerCase();
+    if (lower.includes('facebook')) return 'fa-facebook-f';
+    if (lower.includes('twitter') || lower.includes('x')) return 'fa-x-twitter';
+    if (lower.includes('instagram')) return 'fa-instagram';
+    if (lower.includes('youtube')) return 'fa-youtube';
+    if (lower.includes('linkedin')) return 'fa-linkedin-in';
+    if (lower.includes('tiktok')) return 'fa-tiktok';
+    return 'fa-share-nodes'; // default
+  }
+
+  private getSocialColor(nombreRed: string): string {
+    const lower = nombreRed.toLowerCase();
+    if (lower.includes('facebook')) return '#1877F2';
+    if (lower.includes('twitter') || lower.includes('x')) return '#000000';
+    if (lower.includes('instagram')) return '#E4405F';
+    if (lower.includes('youtube')) return '#FF0000';
+    if (lower.includes('linkedin')) return '#0077B5';
+    if (lower.includes('tiktok')) return '#000000';
+    return '#666'; // default
   }
 
   @HostListener('document:keydown.escape')

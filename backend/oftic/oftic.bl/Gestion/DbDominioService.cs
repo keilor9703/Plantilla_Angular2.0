@@ -1,4 +1,5 @@
-﻿using Comun.Dtos.Dominio;
+﻿using DtoUnidad = Comun.Dtos.DtoUnidad;
+using Comun.Dtos.Dominio;
 using Comun.Dtos.LineasMando;
 using Datos.Interfaz;
 using Negocio.Interfaz;
@@ -22,6 +23,12 @@ namespace Negocio.Gestion
         {
             return await _repository.GetAllAsync(ct);
         }
+
+        public async Task<List<DtoUnidad>> GetUnidadesAsync(CancellationToken ct)
+        {
+            return await _repository.GetUnidadesAsync(ct);
+        }
+
         public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             if (request == null)

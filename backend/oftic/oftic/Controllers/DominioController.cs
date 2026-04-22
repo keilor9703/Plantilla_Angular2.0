@@ -28,6 +28,13 @@ namespace Api.Controllers
             return Ok(result);
         }
 
+        [HttpGet("unidades")]
+        public async Task<ActionResult> GetUnidades()
+        {
+            var result = await _service.GetUnidadesAsync(CancellationToken.None);
+            return Ok(result);
+        }
+
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] DtoDominioRequest request)
         {
