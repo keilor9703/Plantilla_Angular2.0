@@ -24,19 +24,34 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
-// CORS
+// CORS - Políticas separadas para desarrollo y producción
 builder.Services.AddCors(options =>
 {
+    // Política Dev: solo localhost
     options.AddPolicy("DevCors", p =>
         p.WithOrigins("http://localhost:4200", "https://localhost:4200", "http://localhost:4300", "https://localhost:4300")
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowCredentials());
+
+    // Política Pública: permite cualquier origen para endpoints públicos
+    options.AddPolicy("PublicCors", p =>
+        p.SetIsOriginAllowed(_ => true)
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials());
 });
 
 // JWT Authentication
-var jwtKey = "EstaEsUnaClaveSecretaMuyLargaParaJWT2024!";
-var jwtIssuer = "oftic.api";
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "oftic.api";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
+
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Configuracion insegura: Jwt:Key no configurada o demasiado corta. Defina una clave de al menos 32 caracteres en appsettings o variables de entorno.");
+}
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -48,7 +63,7 @@ builder.Services.AddAuthentication("Bearer")
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
-            ValidAudience = jwtIssuer,
+            ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
@@ -110,10 +125,40 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
+
+builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
+builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
+builder.Services.AddScoped<IDbRadioService, DbRadioService>();
+builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
+
+builder.Services.AddScoped<IDbDominioService, DbDominioService>();
+builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
+
+builder.Services.AddScoped<IDbVideoService, DbVideoService>();
+builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
+
+builder.Services.AddScoped<IDbVideoInstitucionalService, DbVideoInstitucionalService>();
+builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucionalRepository>();
+
+builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
+builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
+
+builder.Services.AddScoped<IDbModalService, DbModalService>();
+builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
+
 var app = builder.Build();
 
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
 Directory.CreateDirectory(uploadsRoot);
+
+var radioLogosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "radio");
+Directory.CreateDirectory(radioLogosRoot);
+
+var noticiasRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "noticias");
+Directory.CreateDirectory(noticiasRoot);
+
+var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
+Directory.CreateDirectory(modalesRoot);
 
 app.UseCors("DevCors");
 
@@ -127,6 +172,18 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsRoot),
     RequestPath = "/uploads/sliders"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(radioLogosRoot),
+    RequestPath = "/uploads/radio"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(noticiasRoot),
+    RequestPath = "/uploads/noticias"
 });
 
 app.UseAuthentication();
