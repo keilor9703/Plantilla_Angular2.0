@@ -48,6 +48,7 @@ backend/*.zip
 !.vscode/launch.json
 !.vscode/extensions.json
 .history/
+.agent.md
 
 # =====================
 # Logs y temporales
