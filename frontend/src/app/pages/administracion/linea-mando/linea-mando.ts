@@ -321,9 +321,10 @@ export class LineaMandoAdminComponent implements OnInit {
             this.toast.warning('Guardar', resp.message);
           }
         },
-        error: () => {
+        error: (err: any) => {
           this.saving = false;
-          this.toast.error('Guardar', 'Error al actualizar');
+          const message = err?.error?.message || err?.message || 'Error al actualizar';
+          this.toast.error('Guardar', message);
         }
       });
     } else {
@@ -338,9 +339,10 @@ export class LineaMandoAdminComponent implements OnInit {
             this.toast.warning('Guardar', resp.message);
           }
         },
-        error: () => {
+        error: (err: any) => {
           this.saving = false;
-          this.toast.error('Guardar', 'Error al crear');
+          const message = err?.error?.message || err?.message || 'Error al crear';
+          this.toast.error('Guardar', message);
         }
       });
     }

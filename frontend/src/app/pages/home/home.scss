@@ -837,6 +837,65 @@ h3.title-cards {
     width: min(780px, 96vw);
 }
 
+.ui-modal__dialog--social {
+    width: min(760px, 96vw);
+}
+
+.social-modal {
+    display: grid;
+    gap: 10px;
+}
+
+.social-modal__item {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    background: rgba(255, 255, 255, .88);
+}
+
+.social-modal__logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--social-color, var(--policia-medio));
+    color: #fff;
+    font-size: 22px;
+}
+
+.social-modal__info {
+    min-width: 0;
+}
+
+.social-modal__network {
+    color: var(--policia-neutral-medio);
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+.social-modal__name {
+    color: var(--policia-oscuro);
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.social-modal__link {
+    color: var(--policia-medio);
+    text-decoration: none;
+    font-size: 13px;
+    word-break: break-all;
+}
+
+.social-modal__link:hover {
+    text-decoration: underline;
+}
+
 .news-modal__img {
     width: 100%;
     border-radius: var(--ui-radius-sm);
@@ -999,10 +1058,12 @@ h3.title-cards {
     justify-content: center;
     gap: 8px;
     padding: 12px;
+    border: 0;
     border-radius: 12px;
     text-decoration: none;
     font-weight: 600;
     font-size: 13px;
+    cursor: pointer;
     color: white;
     background: var(--social-color, var(--policia-medio));
     transition: transform 0.2s, box-shadow 0.2s;

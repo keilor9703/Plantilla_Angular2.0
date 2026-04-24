@@ -1,6 +1,7 @@
-﻿import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
 import { HomeService, HomeStats } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
@@ -9,7 +10,7 @@ import { DtoLineaMando, LineaMandoService } from '../../core/services/administra
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 import { environment } from '../../../environments/environment';
-import { RedesSocialesService, DtoRedesSociales } from '../../core/services/gestion-digital/redes-sociales.service';
+import { RedesSocialesService, DtoDominio, DtoRedesSociales } from '../../core/services/gestion-digital/redes-sociales.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -24,11 +25,20 @@ interface NewsItem {
   megusta: number;
 }
 
-interface SocialLink {
-  name: string;
+interface SocialAccount {
+  id: number;
+  networkName: string;
+  accountName: string;
   icon: string;
   url: string;
   color: string;
+}
+
+interface SocialNetworkGroup {
+  networkName: string;
+  icon: string;
+  color: string;
+  accounts: SocialAccount[];
 }
 
 @Component({
@@ -53,7 +63,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
 
-  socialLinks: SocialLink[] = [];
+  socialGroups: SocialNetworkGroup[] = [];
+  socialModalOpen = false;
+  selectedSocialGroup: SocialNetworkGroup | null = null;
 
   constructor(
     private sliderService: SliderService,
@@ -72,7 +84,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadVideoInstitucional();
     this.loadLineaMando();
     this.loadNoticias();
-    this.loadSocialLinks();
+    this.loadSocialNetworks();
   }
 
   loadNoticias(): void {
@@ -277,7 +289,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen) {
+    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.socialModalOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }
@@ -477,26 +489,144 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadSocialLinks(): void {
-    this.redesSocialesService.getAll().subscribe({
-      next: (data) => {
-        this.socialLinks = (data ?? []).map(rs => ({
-          name: rs.nombreCuenta,
-          icon: this.getSocialIcon(rs.redSocial),
-          url: rs.urlCuenta,
-          color: this.getSocialColor(rs.redSocial)
-        }));
+  private loadSocialNetworks(): void {
+    forkJoin({
+      redes: this.redesSocialesService.getAll(),
+      dominios: this.redesSocialesService.getDominios()
+    }).subscribe({
+      next: ({ redes, dominios }) => {
+        this.socialGroups = this.groupSocialAccounts(redes ?? [], dominios ?? []);
       },
       error: () => {
-        // Fallback to hardcoded if error
-        this.socialLinks = [
-          { name: 'Facebook', icon: 'fa-facebook-f', url: 'https://www.facebook.com/PoliciaColombia', color: '#1877F2' },
-          { name: 'X', icon: 'fa-x-twitter', url: 'https://twitter.com/PoliciaColombia', color: '#000000' },
-          { name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/policiacolombia', color: '#E4405F' },
-          { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
-        ];
+        this.socialGroups = this.getFallbackSocialGroups();
       }
     });
+  }
+
+  openSocialGroup(group: SocialNetworkGroup): void {
+    this.selectedSocialGroup = group;
+    this.socialModalOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closeSocialModal(): void {
+    this.socialModalOpen = false;
+    this.selectedSocialGroup = null;
+    this.syncBodyModalClass();
+  }
+
+  private groupSocialAccounts(redes: DtoRedesSociales[], dominios: DtoDominio[]): SocialNetworkGroup[] {
+    const map = new Map<string, SocialAccount[]>();
+
+    for (const item of redes) {
+      if (Number(item?.vigente ?? 1) !== 1) {
+        continue;
+      }
+
+      const networkName = this.resolveSocialNetworkName(item.redSocial, dominios);
+      const accountName = (item?.nombreCuenta ?? '').trim();
+      const url = (item?.urlCuenta ?? '').trim();
+
+      if (!networkName || !accountName || !url) {
+        continue;
+      }
+
+      const normalizedKey = networkName.toLowerCase();
+      const current = map.get(normalizedKey) ?? [];
+      current.push({
+        id: Number(item?.id ?? 0),
+        networkName,
+        accountName,
+        url,
+        icon: this.getSocialIcon(networkName),
+        color: this.getSocialColor(networkName)
+      });
+      map.set(normalizedKey, current);
+    }
+
+    return Array.from(map.values())
+      .map((accounts) => {
+        const first = accounts[0];
+        return {
+          networkName: first.networkName,
+          icon: first.icon,
+          color: first.color,
+          accounts: accounts.sort((a, b) => a.accountName.localeCompare(b.accountName, 'es', { sensitivity: 'base' }))
+        };
+      })
+      .sort((a, b) => a.networkName.localeCompare(b.networkName, 'es', { sensitivity: 'base' }));
+  }
+
+  private resolveSocialNetworkName(value: string, dominios: DtoDominio[]): string {
+    const raw = (value ?? '').trim();
+    if (!raw) {
+      return '';
+    }
+
+    const id = Number(raw);
+    if (Number.isNaN(id)) {
+      return raw;
+    }
+
+    const dominio = dominios.find((d) => (d.id ?? d.idDominio) === id);
+    return (dominio?.descripcion ?? raw).trim();
+  }
+
+  private getFallbackSocialGroups(): SocialNetworkGroup[] {
+    return [
+      {
+        networkName: 'Facebook',
+        icon: 'fa-facebook-f',
+        color: '#1877F2',
+        accounts: [{
+          id: 1,
+          networkName: 'Facebook',
+          accountName: 'Policia Colombia',
+          icon: 'fa-facebook-f',
+          url: 'https://www.facebook.com/PoliciaColombia',
+          color: '#1877F2'
+        }]
+      },
+      {
+        networkName: 'X',
+        icon: 'fa-x-twitter',
+        color: '#000000',
+        accounts: [{
+          id: 2,
+          networkName: 'X',
+          accountName: 'Policia Colombia',
+          icon: 'fa-x-twitter',
+          url: 'https://twitter.com/PoliciaColombia',
+          color: '#000000'
+        }]
+      },
+      {
+        networkName: 'Instagram',
+        icon: 'fa-instagram',
+        color: '#E4405F',
+        accounts: [{
+          id: 3,
+          networkName: 'Instagram',
+          accountName: 'Policia Colombia',
+          icon: 'fa-instagram',
+          url: 'https://www.instagram.com/policiacolombia',
+          color: '#E4405F'
+        }]
+      },
+      {
+        networkName: 'YouTube',
+        icon: 'fa-youtube',
+        color: '#FF0000',
+        accounts: [{
+          id: 4,
+          networkName: 'YouTube',
+          accountName: 'Policia Nacional Colombia',
+          icon: 'fa-youtube',
+          url: 'https://www.youtube.com/@PoliciaNacionalCol',
+          color: '#FF0000'
+        }]
+      }
+    ];
   }
 
   private getSocialIcon(nombreRed: string): string {
@@ -523,6 +653,11 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEsc(): void {
+    if (this.socialModalOpen) {
+      this.closeSocialModal();
+      return;
+    }
+
     if (this.lineaMandoLightboxOpen) {
       this.closeLineaMandoLightbox();
       return;
@@ -533,4 +668,5 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 }
+
 

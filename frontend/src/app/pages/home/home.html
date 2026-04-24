@@ -112,16 +112,15 @@
             </h3>
             <hr />
             <div class="social-hub">
-              <a 
-                *ngFor="let social of socialLinks"
-                [href]="social.url"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                *ngFor="let group of socialGroups"
+                (click)="openSocialGroup(group)"
                 class="social-btn"
-                [style.--social-color]="social.color">
-                <i [class]="'fa-brands ' + social.icon"></i>
-                <span>{{ social.name }}</span>
-              </a>
+                [style.--social-color]="group.color">
+                <i [class]="'fa-brands ' + group.icon"></i>
+                <span>{{ group.networkName }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -313,6 +312,42 @@
     </div>
     <div class="ui-modal__foot">
       <button class="ui-btn outline" type="button" (click)="closeNews()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Redes Sociales Modal -->
+<div class="ui-modal" *ngIf="socialModalOpen" (click)="closeSocialModal()">
+  <div class="ui-modal__dialog ui-modal__dialog--social" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-share-nodes"></i>
+        {{ selectedSocialGroup?.networkName || 'Red social' }}
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="closeSocialModal()" aria-label="Cerrar redes sociales">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body">
+      <div class="social-modal" *ngIf="selectedSocialGroup as group">
+        <div class="social-modal__item" *ngFor="let account of group.accounts">
+          <div class="social-modal__logo" [style.--social-color]="group.color">
+            <i [class]="'fa-brands ' + account.icon"></i>
+          </div>
+          <div class="social-modal__info">
+            <div class="social-modal__network">{{ account.networkName }}</div>
+            <div class="social-modal__name">{{ account.accountName }}</div>
+            <a class="social-modal__link" [href]="account.url" target="_blank" rel="noopener noreferrer">
+              {{ account.url }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ui-modal__foot">
+      <button class="ui-btn outline" type="button" (click)="closeSocialModal()">Cerrar</button>
     </div>
   </div>
 </div>
