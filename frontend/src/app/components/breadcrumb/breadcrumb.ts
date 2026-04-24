@@ -91,6 +91,9 @@ export class BreadcrumbComponent {
     '/administracion/admin-multimedia': 'Configuración Sistema',
     '/administracion/video-unidad': 'Configuración Sistema',
     '/administracion/configuracion-imagen-sitio': 'Configuración Sistema',
+    '/gestion-digital': 'Gestión Digital',
+    '/gestion-digital/inicio': 'Gestión Digital',
+    '/gestion-digital/redes-sociales': 'Redes Sociales',
     '/noticias': 'Noticias'
   };
 

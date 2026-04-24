@@ -7,6 +7,7 @@ using Negocio.Interfaz;
 namespace Api.Controllers;
 
 [ApiController]
+[Route("api/gestion-digital/redes-sociales")]
 [Route("api/[controller]")]
 [Authorize]
 public class RedesSocialesController : ControllerBase

@@ -8,7 +8,8 @@ import { VideoInstitucionalService } from '../../core/services/administracion/vi
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
-import { environment } from '../../../environments/environment';import { RedesSocialesService, DtoRedesSociales } from '../../core/services/administracion/redes-sociales.service';
+import { environment } from '../../../environments/environment';
+import { RedesSocialesService, DtoRedesSociales } from '../../core/services/gestion-digital/redes-sociales.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 

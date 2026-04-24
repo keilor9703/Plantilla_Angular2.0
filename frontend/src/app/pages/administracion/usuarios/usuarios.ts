@@ -1,8 +1,10 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import { DtoRolCatalogo, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 type TabKey = 'datos' | 'roles';
 type RolEstado = 'Vigente' | 'Vencido';
@@ -54,7 +56,9 @@ interface UserProfile {
 export class UsuariosComponent implements OnInit, OnDestroy {
   constructor(
     private toast: ToastService,
-    private usuarioAdminService: UsuarioAdminService
+    private usuarioAdminService: UsuarioAdminService,
+    private authService: AuthService,
+    private router: Router
   ) {}
 
   minimized = false;
@@ -470,6 +474,38 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.deletingUser = false;
         this.toast.error('Usuarios', err?.error?.detail ?? err?.error?.message ?? 'Error eliminando usuario.');
+      }
+    });
+  }
+
+  impersonarDesdeListado(item: UsuarioListadoItem): void {
+    const username = String(item?.username ?? '').trim();
+    if (!username) {
+      this.toast.warning('Impersonación', 'El usuario seleccionado no tiene username válido.');
+      return;
+    }
+
+    const userActual = (this.authService.getUsuario() ?? '').trim().toLowerCase();
+    if (userActual && userActual === username.toLowerCase()) {
+      this.toast.info('Impersonación', 'Ya estás autenticado con ese usuario.');
+      return;
+    }
+
+    this.authService.startImpersonation(username).subscribe({
+      next: (resp) => {
+        if (!this.authService.isLoginSuccessful(resp) || !resp?.token) {
+          this.toast.error('Impersonación', resp?.message ?? 'No fue posible iniciar impersonación.');
+          return;
+        }
+
+        this.toast.success('Impersonación', `Ahora navegas como ${username}.`);
+        this.router.navigate(['/home']).then(() => window.location.reload());
+      },
+      error: (err) => {
+        this.toast.error(
+          'Impersonación',
+          err?.error?.message ?? err?.error?.detail ?? 'No fue posible iniciar impersonación.'
+        );
       }
     });
   }

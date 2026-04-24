@@ -1,3 +1,40 @@
+.impersonation-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #fff3cd;
+  color: #5c4500;
+  border-bottom: 1px solid #ffe69c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.impersonation-stop-btn {
+  margin-left: auto;
+  border: 1px solid #b88a00;
+  background: #ffd24d;
+  color: #3a2b00;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.impersonation-stop-btn:hover {
+  filter: brightness(0.96);
+}
+
+.impersonation-banner + .modern-header {
+  top: 38px;
+}
+
 .modern-header {
   position: fixed;
   top: 0;

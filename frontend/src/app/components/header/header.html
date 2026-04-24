@@ -1,4 +1,10 @@
-﻿<header class="modern-header">
+<div class="impersonation-banner" *ngIf="isImpersonating()">
+    <i class="fa-solid fa-user-secret"></i>
+    <span>Sesión en modo impersonación. Usuario original: <strong>{{ getImpersonationOriginalUser() }}</strong></span>
+    <button type="button" class="impersonation-stop-btn" (click)="stopImpersonation()">Salir de impersonación</button>
+</div>
+
+<header class="modern-header">
     <!-- Logo y Marca -->
     <!-- <div class="header-brand">
         <div class="logo-container">
@@ -74,6 +80,10 @@
                 Configuración
             </a>
             <div class="dropdown-divider"></div>
+            <a *ngIf="isImpersonating()" (click)="stopImpersonation()" class="dropdown-item">
+                <i class="fa-solid fa-user-secret"></i>
+                Salir de impersonación
+            </a>
             <a (click)="onLogout()" class="dropdown-item logout">
                 <i class="fa-solid fa-sign-out-alt"></i>
                 Cerrar Sesión
@@ -111,4 +121,6 @@
     </ng-template>
   </div>
 </div>
+
+
 

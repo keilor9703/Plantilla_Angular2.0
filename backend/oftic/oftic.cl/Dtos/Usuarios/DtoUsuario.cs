@@ -59,12 +59,19 @@ namespace Comun.Dtos
         public string? Contrasena { get; set; }
     }
 
+    public class DtoImpersonateRequest
+    {
+        public string? Usuario { get; set; }
+    }
+
     public class DtoTokenResponse
     {
         public string? token { get; set; }
         public string? usuario { get; set; }
         public bool success { get; set; }
         public string? message { get; set; }
+        public bool impersonating { get; set; }
+        public string? impersonatedBy { get; set; }
     }
 
     public class DtoUsuarioRequest

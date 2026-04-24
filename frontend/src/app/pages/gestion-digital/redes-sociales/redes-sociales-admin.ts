@@ -8,7 +8,7 @@ import {
   DtoRedesSocialesRequest,
   DtoDominio,
   DtoUnidad,
-} from '../../../core/services/administracion/redes-sociales.service';
+} from '../../../core/services/gestion-digital/redes-sociales.service';
 
 interface GrupoRedSocial {
   redSocial: string;

@@ -224,7 +224,7 @@ html.dark-mode {
       background: #252f45;
       color: var(--ui-text);
       border-color: var(--ui-border);
-
+      margin: 10px;
       &:hover {
         background: #2a3450;
       }
@@ -237,7 +237,7 @@ html.dark-mode {
 
     &.ui-btn--primary {
       background: var(--policia-cielo);
-      color: #0a0f1b;
+  
 
       &:hover {
         background: #06849b;

@@ -124,6 +124,26 @@ export class HeaderComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
+  isImpersonating(): boolean {
+    return this.authService.isImpersonating();
+  }
+
+  getImpersonationOriginalUser(): string {
+    return this.authService.getOriginalUser();
+  }
+
+  stopImpersonation(): void {
+    const restored = this.authService.stopImpersonation();
+    this.closeUserDropdown();
+    if (!restored) {
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    this.userName = this.authService.getUsuario();
+    this.router.navigate(['/home']).then(() => window.location.reload());
+  }
+
   private loadMyPhoto(): void {
     this.http
       .get(`${environment.apiBaseUrl}/Usuario/MiFoto`, { responseType: 'text' })

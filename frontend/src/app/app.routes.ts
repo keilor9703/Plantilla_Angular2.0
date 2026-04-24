@@ -16,7 +16,8 @@ import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { VideoInstitucionalComponent } from './pages/administracion/video-institucional/video-institucional';
 import { NoticiasAdminComponent } from './pages/administracion/noticias/noticias';
 import { ModalAdminComponent } from './pages/administracion/modal/modal-admin';
-import { RedesSocialesAdminComponent } from './pages/administracion/redes-sociales/redes-sociales-admin';
+import { RedesSocialesAdminComponent } from './pages/gestion-digital/redes-sociales/redes-sociales-admin';
+import { GestionDigitalInicioComponent } from './pages/gestion-digital/gestion-digital-inicio/gestion-digital-inicio';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -30,29 +31,38 @@ export const routes: Routes = [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       { path: 'home', component: HomeComponent },
       { path: 'noticias', component: NoticiasWeb },
-{
-      path: 'administracion',
-      children: [
-        { path: '', component: AdministracionInicioComponent },
-        { path: 'inicio', component: AdministracionInicioComponent },
-        { path: 'formularios', component: Formularios },
-        { path: 'usuarios', component: UsuariosComponent },
-        { path: 'roles', component: RolesAdminComponent },
-        { path: 'sliders', component: SlidersComponent },
-        { path: 'menu', component: MenuAdminComponent },
-        { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent },
-        { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
-        { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
-        { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
-        { path: 'linea-mando', component: LineaMandoAdminComponent },
-        { path: 'radio', component: RadioAdminComponent },
-        { path: 'dominio', component: DominioAdminComponent },
-        { path: 'video-institucional', component: VideoInstitucionalComponent },
-        { path: 'noticias', component: NoticiasAdminComponent },
-        { path: 'modal', component: ModalAdminComponent },
-        { path: 'redes-sociales', component: RedesSocialesAdminComponent }
-      ]
-    },
+      {
+        path: 'gestion-digital',
+        children: [
+          { path: '', component: GestionDigitalInicioComponent },
+          { path: 'inicio', component: GestionDigitalInicioComponent },
+          { path: 'redes-sociales', component: RedesSocialesAdminComponent },
+        ],
+      },
+      {
+        path: 'administracion',
+        children: [
+          { path: '', component: AdministracionInicioComponent },
+          { path: 'inicio', component: AdministracionInicioComponent },
+          { path: 'formularios', component: Formularios },
+          { path: 'usuarios', component: UsuariosComponent },
+          { path: 'roles', component: RolesAdminComponent },
+          { path: 'sliders', component: SlidersComponent },
+          { path: 'menu', component: MenuAdminComponent },
+          { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent },
+          { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'linea-mando', component: LineaMandoAdminComponent },
+          { path: 'radio', component: RadioAdminComponent },
+          { path: 'dominio', component: DominioAdminComponent },
+          { path: 'video-institucional', component: VideoInstitucionalComponent },
+          { path: 'noticias', component: NoticiasAdminComponent },
+          { path: 'modal', component: ModalAdminComponent },
+          { path: 'redes-sociales', redirectTo: '/gestion-digital/redes-sociales', pathMatch: 'full' },
+          { path: 'gestion-digital', redirectTo: '/gestion-digital', pathMatch: 'full' },
+        ],
+      },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
       { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },
       { path: 'roles', redirectTo: 'administracion/roles', pathMatch: 'full' },
@@ -66,8 +76,9 @@ export const routes: Routes = [
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
       { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
       { path: 'video-institucional', redirectTo: 'administracion/video-institucional', pathMatch: 'full' },
-    ]
+      { path: 'redes-sociales', redirectTo: 'gestion-digital/redes-sociales', pathMatch: 'full' },
+    ],
   },
-  { path: '**', redirectTo: 'login' }
+  { path: '**', redirectTo: 'login' },
 ];
 

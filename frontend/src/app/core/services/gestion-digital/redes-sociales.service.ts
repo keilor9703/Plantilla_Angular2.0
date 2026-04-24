@@ -49,7 +49,7 @@ export interface DtoRedesSocialesRequest {
 
 @Injectable({ providedIn: 'root' })
 export class RedesSocialesService {
-  private readonly baseUrl = `${environment.apiBaseUrl}/RedesSociales`;
+  private readonly baseUrl = `${environment.apiBaseUrl}/gestion-digital/redes-sociales`;
 
   constructor(private http: HttpClient) {}
 
