@@ -43,10 +43,25 @@ namespace Comun.Dtos
         public string? justificacion { get; set; }
     }
 
+    public class DtoUsuarioListadoItem
+    {
+        public long idUsuario { get; set; }
+        public string identificacion { get; set; } = string.Empty;
+        public string username { get; set; } = string.Empty;
+        public string nombreCompleto { get; set; } = string.Empty;
+        public string rol { get; set; } = string.Empty;
+        public string? fechaFinRol { get; set; }
+    }
+
     public class DtoTokenRequest
     {
         public string? Usuario { get; set; }
         public string? Contrasena { get; set; }
+    }
+
+    public class DtoImpersonateRequest
+    {
+        public string? Usuario { get; set; }
     }
 
     public class DtoTokenResponse
@@ -55,6 +70,8 @@ namespace Comun.Dtos
         public string? usuario { get; set; }
         public bool success { get; set; }
         public string? message { get; set; }
+        public bool impersonating { get; set; }
+        public string? impersonatedBy { get; set; }
     }
 
     public class DtoUsuarioRequest

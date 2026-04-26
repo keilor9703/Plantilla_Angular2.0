@@ -1,15 +1,23 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './pages/login/login';
 import { HomeComponent } from './pages/home/home';
-import { Formularios } from './pages/formularios/formularios';
-import { UsuariosComponent } from './pages/usuarios/usuarios';
-import { SlidersComponent } from './pages/sliders/sliders';
-import { MenuAdminComponent } from './pages/menu-admin/menu-admin';
-import { AdminMultimediaComponent } from './pages/admin-multimedia/admin-multimedia';
-import { RolesAdminComponent } from './pages/roles-admin/roles-admin';
+import { Formularios } from './pages/administracion/formularios/formularios';
+import { UsuariosComponent } from './pages/administracion/usuarios/usuarios';
+import { SlidersComponent } from './pages/administracion/sliders/sliders';
+import { MenuAdminComponent } from './pages/administracion/menu-admin/menu-admin';
+import { ConfiguracionSistemaComponent } from './pages/administracion/configuracion-sistema/configuracion-sistema';
+import { RolesAdminComponent } from './pages/administracion/roles-admin/roles-admin';
 import { LayoutComponent } from './layout/layout';
-import { Noticias } from './pages/noticias/noticias';
-import { LineaMandoAdminComponent } from './pages/linea-mando/linea-mando';
+import { NoticiasWeb } from './pages/noticias/noticias';
+import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/linea-mando';
+import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
+import { RadioAdminComponent } from './pages/administracion/radio/radio';
+import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
+import { VideoInstitucionalComponent } from './pages/administracion/video-institucional/video-institucional';
+import { NoticiasAdminComponent } from './pages/administracion/noticias/noticias';
+import { ModalAdminComponent } from './pages/administracion/modal/modal-admin';
+import { RedesSocialesAdminComponent } from './pages/gestion-digital/redes-sociales/redes-sociales-admin';
+import { GestionDigitalInicioComponent } from './pages/gestion-digital/gestion-digital-inicio/gestion-digital-inicio';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -22,32 +30,55 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       { path: 'home', component: HomeComponent },
-{
-      path: 'administracion',
-      children: [
-        { path: '', redirectTo: 'usuarios', pathMatch: 'full' },
-        { path: 'formularios', component: Formularios },
-        { path: 'usuarios', component: UsuariosComponent },
-        { path: 'roles', component: RolesAdminComponent },
-        { path: 'sliders', component: SlidersComponent },
-        { path: 'menu', component: MenuAdminComponent },
-        { path: 'admin-multimedia', component: AdminMultimediaComponent },
-        { path: 'video-unidad', component: AdminMultimediaComponent },
-        { path: 'configuracion-imagen-sitio', component: AdminMultimediaComponent },
-        { path: 'linea-mando', component: LineaMandoAdminComponent }
-      ]
-    },
+      { path: 'noticias', component: NoticiasWeb },
+      {
+        path: 'gestion-digital',
+        children: [
+          { path: '', component: GestionDigitalInicioComponent },
+          { path: 'inicio', component: GestionDigitalInicioComponent },
+          { path: 'redes-sociales', component: RedesSocialesAdminComponent },
+        ],
+      },
+      {
+        path: 'administracion',
+        children: [
+          { path: '', component: AdministracionInicioComponent },
+          { path: 'inicio', component: AdministracionInicioComponent },
+          { path: 'formularios', component: Formularios },
+          { path: 'usuarios', component: UsuariosComponent },
+          { path: 'roles', component: RolesAdminComponent },
+          { path: 'sliders', component: SlidersComponent },
+          { path: 'menu', component: MenuAdminComponent },
+          { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent },
+          { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'linea-mando', component: LineaMandoAdminComponent },
+          { path: 'radio', component: RadioAdminComponent },
+          { path: 'dominio', component: DominioAdminComponent },
+          { path: 'video-institucional', component: VideoInstitucionalComponent },
+          { path: 'noticias', component: NoticiasAdminComponent },
+          { path: 'modal', component: ModalAdminComponent },
+          { path: 'redes-sociales', redirectTo: '/gestion-digital/redes-sociales', pathMatch: 'full' },
+          { path: 'gestion-digital', redirectTo: '/gestion-digital', pathMatch: 'full' },
+        ],
+      },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
       { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },
       { path: 'roles', redirectTo: 'administracion/roles', pathMatch: 'full' },
       { path: 'sliders', redirectTo: 'administracion/sliders', pathMatch: 'full' },
       { path: 'menu', redirectTo: 'administracion/menu', pathMatch: 'full' },
-      { path: 'admin-multimedia', redirectTo: 'administracion/admin-multimedia', pathMatch: 'full' },
-      { path: 'video-unidad', redirectTo: 'administracion/video-unidad', pathMatch: 'full' },
-      { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-imagen-sitio', pathMatch: 'full' },
+      { path: 'configuracion-sistema', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'admin-multimedia', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'video-unidad', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
-      { path: 'noticias', component: Noticias },
-    ]
+      { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
+      { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
+      { path: 'video-institucional', redirectTo: 'administracion/video-institucional', pathMatch: 'full' },
+      { path: 'redes-sociales', redirectTo: 'gestion-digital/redes-sociales', pathMatch: 'full' },
+    ],
   },
-  { path: '**', redirectTo: 'login' }
+  { path: '**', redirectTo: 'login' },
 ];
+

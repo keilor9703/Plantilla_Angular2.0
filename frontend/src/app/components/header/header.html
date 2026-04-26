@@ -1,3 +1,9 @@
+<div class="impersonation-banner" *ngIf="isImpersonating()">
+    <i class="fa-solid fa-user-secret"></i>
+    <span>Sesión en modo impersonación. Usuario original: <strong>{{ getImpersonationOriginalUser() }}</strong></span>
+    <button type="button" class="impersonation-stop-btn" (click)="stopImpersonation()">Salir de impersonación</button>
+</div>
+
 <header class="modern-header">
     <!-- Logo y Marca -->
     <!-- <div class="header-brand">
@@ -14,11 +20,11 @@
   
      <button class="menu-trigger" type="button" (click)="toggleMenu()">
         <i class="fa-solid fa-bars"></i>
-        <span>Ver menú</span>
+         <span>Ver menú</span>
     </button>
     <!-- Barra de Búsqueda -->
     <div class="header-search">
-        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <!-- <i class="fa-solid fa-magnifying-glass search-icon"></i> -->
         <input 
             type="text" 
             placeholder="Buscar..."
@@ -69,11 +75,15 @@
                 <i class="fa-solid fa-user-circle"></i>
                 Mi Perfil
             </a>
-            <a routerLink="/administracion/usuarios" class="dropdown-item">
+            <a routerLink="/administracion" class="dropdown-item">
                 <i class="fa-solid fa-cog"></i>
                 Configuración
             </a>
             <div class="dropdown-divider"></div>
+            <a *ngIf="isImpersonating()" (click)="stopImpersonation()" class="dropdown-item">
+                <i class="fa-solid fa-user-secret"></i>
+                Salir de impersonación
+            </a>
             <a (click)="onLogout()" class="dropdown-item logout">
                 <i class="fa-solid fa-sign-out-alt"></i>
                 Cerrar Sesión
@@ -111,3 +121,6 @@
     </ng-template>
   </div>
 </div>
+
+
+

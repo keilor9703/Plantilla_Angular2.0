@@ -71,6 +71,15 @@ namespace Negocio.Gestion
                 };
             }
 
+            if (!string.IsNullOrEmpty(request.FotoBase64) && !EsBase64Valido(request.FotoBase64))
+            {
+                return new DtoLineaMandoResult
+                {
+                    Success = false,
+                    Message = "El formato de la imagen es inválido"
+                };
+            }
+
             return await _repository.CreateAsync(request, usuarioAuditoria, maquinaAuditoria, ct);
         }
 
@@ -103,7 +112,54 @@ namespace Negocio.Gestion
                 };
             }
 
+            if (!string.IsNullOrEmpty(request.FotoBase64) && !EsBase64Valido(request.FotoBase64))
+            {
+                return new DtoLineaMandoResult
+                {
+                    Success = false,
+                    Message = "El formato de la imagen es inválido"
+                };
+            }
+
             return await _repository.UpdateAsync(id, request, usuarioAuditoria, maquinaAuditoria, ct);
+        }
+
+        private static bool EsBase64Valido(string base64)
+        {
+            if (string.IsNullOrWhiteSpace(base64))
+                return true;
+
+            var cleanBase64 = base64.Trim();
+            var dataPart = cleanBase64;
+
+            if (cleanBase64.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            {
+                var commaIndex = cleanBase64.IndexOf(',');
+                if (commaIndex < 0 || commaIndex >= cleanBase64.Length - 1)
+                    return false;
+
+                dataPart = cleanBase64.Substring(commaIndex + 1);
+            }
+            else if (cleanBase64.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                // Si trae data-uri pero no es imagen, se rechaza.
+                return false;
+            }
+
+            dataPart = dataPart
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty)
+                .Trim();
+
+            try
+            {
+                Convert.FromBase64String(dataPart);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
@@ -118,6 +174,25 @@ namespace Negocio.Gestion
             }
 
             return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
+        }
+
+        public async Task<DtoLineaMandoResult> SetVigenteAsync(long id, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        {
+            if (id <= 0)
+            {
+                return new DtoLineaMandoResult
+                {
+                    Success = false,
+                    Message = "ID inválido"
+                };
+            }
+
+            if (vigente == 0)
+            {
+                return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
+            }
+
+            return await _repository.SetVigenteAsync(id, vigente, usuarioAuditoria, maquinaAuditoria, ct);
         }
     }
 }

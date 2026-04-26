@@ -9,6 +9,12 @@ namespace Negocio.Interfaz
     public interface IJwtService
     {
         string CreateToken(long idUsuario, string usuario, List<long> roles);
+        string CreateImpersonationToken(
+            long idUsuario,
+            string usuario,
+            List<long> roles,
+            long actorId,
+            string actorUsuario);
         string GenerateToken(string usuario);
     }
 }
