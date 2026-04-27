@@ -29,7 +29,7 @@ public class DbRedesSocialesRepository : IDbRedesSocialesRepository
             using (var connection = new OracleConnection(_cs))
             {
                 await connection.OpenAsync();
-                using (var command = new OracleCommand("PK_MEDIOS_DIGITALES.P_GET_REDES_SOCIALES", connection))
+                using (var command = new OracleCommand("PK_APIS.P_GET_REDES_SOCIALES", connection))
                 {
                     command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.Add("P_IdRedSocial", OracleDbType.Int32).Value = DBNull.Value;
@@ -63,7 +63,7 @@ public class DbRedesSocialesRepository : IDbRedesSocialesRepository
             using (var connection = new OracleConnection(_cs))
             {
                 await connection.OpenAsync();
-                using (var command = new OracleCommand("PK_MEDIOS_DIGITALES.P_GET_REDES_SOCIALES", connection))
+                using (var command = new OracleCommand("PK_APIS.P_GET_REDES_SOCIALES", connection))
                 {
                     command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.Add("P_IdRedSocial", OracleDbType.Int32).Value = id;
