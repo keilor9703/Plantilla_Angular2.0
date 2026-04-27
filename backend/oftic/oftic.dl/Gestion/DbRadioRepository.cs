@@ -15,8 +15,7 @@ namespace Datos.Gestion
         {
             _cs = configuration.GetConnectionString("DbCoest")!;
         }
-
-        public async Task<List<DtoRadioEmisora>> GetAllAsync(int? soloActivos, CancellationToken ct)
+        public async Task<List<DtoRadioEmisora>> GetAllAsync(CancellationToken ct)
         {
             var result = new List<DtoRadioEmisora>();
 
@@ -26,9 +25,9 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.BindByName = true;
             cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_RADIO_EMISORAS.P_GET_ALL";
-            cmd.Parameters.Add("p_solo_activos", OracleDbType.Int32).Value = soloActivos.HasValue ? soloActivos.Value : DBNull.Value;
+            cmd.CommandText = "PK_APIS.P_GET_ALL_RADIO";
             cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -55,7 +54,7 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.BindByName = true;
             cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_RADIO_EMISORAS.P_GET_BY_ID";
+            cmd.CommandText = "PK_APIS.P_GET_BY_ID_RADIO";
             cmd.Parameters.Add("p_id_emisora", OracleDbType.Int64).Value = idEmisora;
             cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
 

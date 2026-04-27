@@ -276,7 +276,7 @@ namespace Datos.Gestion
                 cmd.CommandTimeout = 30;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.SP_LIKE_NOTICIA";
+                cmd.CommandText = "PK_APIS.SP_LIKE_NOTICIA";
 
                 cmd.Parameters.Add("P_ID_NOTICIA", OracleDbType.Int64).Value = id;
 
