@@ -93,14 +93,24 @@ export const CATEGORIA_PRIORIDAD: Record<string, number> = {
 
 const CATEGORIA_CLAVE: Record<string, string> = {
   'oficiales': 'oficial',
+  'oficial': 'oficial',
+  'suboficiales': 'suboficial',
   'suboficial': 'suboficial',
   'mandos de nivel ejecutivo': 'nivel ejecutivo',
   'nivel ejecutivo': 'nivel ejecutivo',
+  'nivel ejecutivo policia': 'nivel ejecutivo',
+  'mandos nivel ejecutivo': 'nivel ejecutivo',
   'patrulleros': 'patrullero',
+  'patrullero': 'patrullero',
   'agentes': 'agente',
+  'agente': 'agente',
   'estudiantes': 'estudiante',
+  'estudiante': 'estudiante',
   'auxiliares de policia': 'auxiliar',
+  'auxiliar de policia': 'auxiliar',
+  'auxiliar': 'auxiliar',
   'no uniformados': 'no uniformado',
+  'no uniformado': 'no uniformado',
 };
 
 export const GRADO_ORDEN_OFICIAL = [
@@ -139,9 +149,21 @@ export const GRADO_ORDEN_PATRULLEROS = [
 ];
 
 export function getCategoriaClaveYPrioridad(descripcion: string): { clave: string; prioridad: number } {
-  let d = (descripcion ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  let d = (descripcion ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   d = d.replace(/^categoria\s+/, '').trim();
-  const clave = CATEGORIA_CLAVE[d] ?? '';
+  // Buscar coincidencia exacta o parcial para robustez
+  let clave = CATEGORIA_CLAVE[d];
+  if (!clave) {
+    // Buscar por inclusión si no hay coincidencia exacta
+    const parcial = Object.keys(CATEGORIA_CLAVE).find(k => d.includes(k));
+    clave = parcial ? CATEGORIA_CLAVE[parcial] : '';
+  }
   return { clave, prioridad: CATEGORIA_PRIORIDAD[clave] ?? 99 };
 }
 

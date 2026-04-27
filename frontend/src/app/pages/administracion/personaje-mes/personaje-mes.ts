@@ -96,7 +96,7 @@ loading = false;
     this.dominioService.getAll().subscribe({
       next: (data) => {
         this.categorias = (data ?? [])
-          .filter((item) => Number(item.idPadre) === 1 && Number(item.vigente) === 1)
+          .filter((item) => Number(item.idPadre) === 153 && Number(item.vigente) === 1)
           .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
         this.cargarPersonajes();
         this.cargarEquipos();

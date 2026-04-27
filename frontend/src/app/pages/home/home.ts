@@ -203,7 +203,7 @@ export class HomeComponent implements OnInit, OnDestroy {
      this.dominioService.getAll().subscribe({
        next: (items) => {
          this.categoriasPersonajeMes = (items ?? [])
-           .filter((item) => Number(item?.idPadre ?? 0) === 1 && Number(item?.vigente ?? 0) === 1)
+           .filter((item) => Number(item?.idPadre ?? 0) === 153 && Number(item?.vigente ?? 0) === 1)
            .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
           if (this.personajesMes.length > 0) {
             this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));

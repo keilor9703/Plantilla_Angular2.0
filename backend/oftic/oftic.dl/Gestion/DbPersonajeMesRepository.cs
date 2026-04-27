@@ -19,7 +19,7 @@ namespace Datos.Gestion
 
         public DbPersonajeMesRepository(IConfiguration configuration, ILogger<DbPersonajeMesRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 
