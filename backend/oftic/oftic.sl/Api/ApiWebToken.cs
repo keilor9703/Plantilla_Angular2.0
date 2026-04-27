@@ -233,6 +233,40 @@ namespace Servicios.Api
                 return new DtoFuncionario();
             }
         }
+        public async Task<DtoFuncionario> GetFuncionarioPersonajeMesAsync(string token, string identificacion)
+        {
+            try
+            {
+                var client = _factory.CreateClient("AuthClient");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+
+                var url = _cfg["ApiSettings:ConsultaFuncionarios"] ?? "https://internalpip.policia.gov.co:8080/api/Icahu/FuncionarioPorIdentificacion";
+                url = $"{url}{identificacion}";
+
+                var resp = await client.GetAsync(url);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("GetFuncionarioPersonajeMes request failed: {StatusCode}", resp.StatusCode);
+                    return new DtoFuncionario();
+                }
+
+                var json = await resp.Content.ReadAsStringAsync();
+                var funcionario = TryExtractFuncionario(json);
+                if (funcionario is null)
+                {
+                    _logger.LogWarning("GetFuncionarioPersonajeMes returned 200 but could not parse payload. Body: {Body}", json);
+                    return new DtoFuncionario();
+                }
+
+                return funcionario;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting employee for PersonajeMes");
+                return new DtoFuncionario();
+            }
+        }
 
         public async Task<string> GetFotoFuncionarioAsync(string token, string identificacion)
         {
@@ -392,6 +426,8 @@ namespace Servicios.Api
                 // No viene "codigoCargo" explícito; usamos ordenamiento como fallback numérico.
                 codigoCargo = Pick(obj, "codigoCargo", "CodigoCargo", "codigocargo", "idCargo", "IdCargo", "cargoCodigo", "CargoCodigo", "ordenamiento", "Ordenamiento"),
                 cargo = Pick(obj, "cargo", "Cargo", "rolCargo", "RolCargo"),
+                idCategoria = PickLong(obj, "idCategoria", "IdCategoria", "categoriaId", "CategoriaId", "idcategoria", "Idcategoria"),
+                categoriaDescripcion = Pick(obj, "categoriaDescripcion", "CategoriaDescripcion", "descripcionCategoria", "DescripcionCategoria", "categoria", "Categoria"),
                 activo = PickBool(obj, "activo", "Activo", "vigente", "Vigente")
             };
         }
@@ -417,6 +453,8 @@ namespace Servicios.Api
             primary.funcionarioCodigo ??= fallback.funcionarioCodigo;
             primary.undeLaborandoCodigo ??= fallback.undeLaborandoCodigo;
             primary.codigoCargo ??= fallback.codigoCargo;
+            primary.idCategoria ??= fallback.idCategoria;
+            primary.categoriaDescripcion ??= fallback.categoriaDescripcion;
 
             return primary;
         }
@@ -430,6 +468,18 @@ namespace Servicios.Api
                     return value.Trim();
                 }
             }
+            return null;
+        }
+        private static long? PickLong(JsonElement obj, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                if (TryGetLongProp(obj, n, out var value))
+                {
+                    return value;
+                }
+            }
+
             return null;
         }
 
@@ -559,6 +609,32 @@ namespace Servicios.Api
                 if (int.TryParse(raw, out var parsedInt))
                 {
                     value = parsedInt != 0;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        private static bool TryGetLongProp(JsonElement root, string propName, out long value)
+        {
+            value = 0;
+            if (!TryGetPropertyIgnoreCase(root, propName, out var prop))
+            {
+                return false;
+            }
+
+            if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt64(out var number))
+            {
+                value = number;
+                return true;
+            }
+
+            if (prop.ValueKind == JsonValueKind.String)
+            {
+                var raw = (prop.GetString() ?? string.Empty).Trim();
+                if (long.TryParse(raw, out var parsedLong))
+                {
+                    value = parsedLong;
                     return true;
                 }
             }

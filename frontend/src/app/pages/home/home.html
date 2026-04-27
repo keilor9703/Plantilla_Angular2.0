@@ -176,7 +176,8 @@
       <p style="color: #666; margin: 10px;">No hay movimientos recientes en tu cuenta.</p>
     </div>
 
-    <!-- Spotlight: Personajes del Mes y Línea de Mando -->
+      
+      <!-- Spotlight: Personajes del Mes -->
     <section class="home-spotlight mt-4">
       <div class="card-view rounded-xl shadow-subtle">
         <div class="card-head card-head--dark">
@@ -186,83 +187,80 @@
           </div>
         </div>
         <div class="card-body">
-          <div class="spotlight-grid">
-            <article class="spotlight-card">
+          <div class="spotlight-grid mb-4">
+            <article class="spotlight-card" *ngFor="let item of personajesMes">                       
               <div class="spotlight-card__top">
-                <span class="spotlight-tag">Oficial</span>
+                <span class="spotlight-tag">{{ getPersonajeMesCategoriaDisplay(item) }}</span>
                 <span class="spotlight-mini">
-                  <i class="fa-solid fa-shield"></i> Grupo: Radios
+                  <i class="fa-solid fa-users"></i> {{ getPersonajeMesCargoDisplay(item) }}
                 </span>
               </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/of-personaje-mes.jpeg" alt="Foto personaje" />
+              <div class="spotlight-person">                
+                <img class="spotlight-avatar" [src]="getPersonajeMesFotoUrl(item)" [alt]="getPersonajeMesNombre(item)" />
                 <div class="spotlight-person__info">
-                  <div class="spotlight-name">My. Yesid Alexander Ahumada Torres</div>
-                  <div class="spotlight-role">Coordinador de Turnos</div>
-                  <div class="spotlight-group">Grupo: Gestion Radios</div>
-                </div>
-              </div>
-            </article>
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">Mando Ejecutivo</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-users"></i> Grupo: GUTIC
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/me-peronaje-mes.png" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">Ij. Fabio Elias Munoz Saldana</div>
-                  <div class="spotlight-role">Analista de Calidad</div>
-                  <div class="spotlight-group">Grupo: Mejora Continua</div>
-                </div>
-              </div>
-            </article>
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">Patrullero</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-headset"></i> Grupo: Atencion
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/pt-personaje-mes.png" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">Pt. Luis Rojas</div>
-                  <div class="spotlight-role">Soporte Operativo</div>
-                  <div class="spotlight-group">Grupo: Mesa de Ayuda</div>
-                </div>
-              </div>
-            </article>
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">No Uniformado</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-lightbulb"></i> Grupo: Desarrollo
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/policia.jpg" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">Ing. Carlos Diaz</div>
-                  <div class="spotlight-role">Desarrollador Front</div>
-                  <div class="spotlight-group">Grupo: UI/UX</div>
+                  <div class="spotlight-name">{{ item.grado || 'Sin grado' }}</div>    
+                  <div class="spotlight-grade">{{ getPersonajeMesNombre(item) || 'Sin nombre' }}</div>                  
                 </div>
               </div>
             </article>
           </div>
-        </div>
+          
+          <div class="spotlight-grid">
+            <article class="spotlight-card spotlight-card--double" *ngFor="let grupo of equiposAltoRendimiento">
+              <div class="spotlight-card__top">
+                <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>
+                
+              </div>
+              <div class="spotlight-person">
+                <img class="spotlight-avatar" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo" />
+                <div class="spotlight-person__info">
+                  <div class="spotlight-name">{{ grupo.nombreGrupo }}</div>
+                  <div class="spotlight-grade">
+                    <ul style="margin:0; padding-left: 18px;">
+                      <li *ngFor="let integrante of grupo.integrantes">
+                        {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <div *ngIf="!equiposAltoRendimiento || equiposAltoRendimiento.length === 0" class="news-state">
+              No hay equipos o grupos configurados.
+            </div>
+          </div>
+          
+          <!-- <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">
+            <article class="cmd-item" *ngFor="let item of personajesMes">
+              <button
+                class="cmd-photo-btn"
+                type="button"
+                (click)="openPersonajeMesLightbox(item)"
+                [attr.aria-label]="'Ampliar foto de ' + getPersonajeMesNombre(item)">
+                <img class="cmd-photo-lg" [src]="getPersonajeMesFotoUrl(item)" [alt]="getPersonajeMesNombre(item)" />
+              </button>
+              <div class="cmd-grade">{{ item.grado || 'Sin grado' }}</div>
+              <div class="cmd-name">{{ getPersonajeMesNombre(item) || 'Sin nombre' }}</div>
+              <div class="cmd-role"> {{ getPersonajeMesCargoDisplay(item) }}</div>
+              <div class="cmd-role">{{ getPersonajeMesCategoriaDisplay(item) }}</div>
+            </article>
+          </div> -->
+
+          <ng-template #emptyPersonajesMesTpl>
+            <div class="news-state">No hay personajes del mes activos.</div>
+          </ng-template>          
+        </div>        
       </div>
 
-      <div class="card-view rounded-xl shadow-subtle">
-        <div class="card-head card-head--dark">
-          <div class="card-title">
-            <i class="fa-solid fa-user-group"></i>
-            <span>Linea de mando</span>
-          </div>
-        </div>
-        <div class="card-body">
+      <!-- Spotlight:  Línea de Mando -->
+       <div class="card-view rounded-xl shadow-subtle">
+         <div class="card-head card-head--dark">
+           <div class="card-title">
+             <i class="fa-solid fa-user-group"></i>
+             <span>Linea de mando</span>
+           </div>
+         </div>
+         <div class="card-body">
           <div class="cmd-row" *ngIf="lineaMando.length > 0; else emptyLineaMandoTpl">
             <article class="cmd-item" *ngFor="let item of lineaMando">
               <button

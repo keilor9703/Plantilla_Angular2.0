@@ -11,6 +11,8 @@ import { NoticiaService, DtoNoticia } from '../../core/services/administracion/n
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 import { environment } from '../../../environments/environment';
 import { RedesSocialesService, DtoDominio, DtoRedesSociales } from '../../core/services/gestion-digital/redes-sociales.service';
+import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
+import { DominioService } from '../../core/services/administracion/dominio.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -49,43 +51,53 @@ interface SocialNetworkGroup {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  banners: DtoSliders[] = [];
-  stats: HomeStats = {
-    usuariosActivos: 0,
-    reportesGenerados: 0,
-    alertasSistema: 0
-  };
-  currentBannerIndex = 0;
-  private bannerTimer: ReturnType<typeof setInterval> | null = null;
-  videoUnidadUrl = '';
-  videoInstitucionalUrl = '';
-  lineaMando: DtoLineaMando[] = [];
-  lineaMandoLightboxOpen = false;
-  lineaMandoLightboxItem: DtoLineaMando | null = null;
+   banners: DtoSliders[] = [];
+   stats: HomeStats = {
+     usuariosActivos: 0,
+     reportesGenerados: 0,
+     alertasSistema: 0
+   };
+   currentBannerIndex = 0;
+   private bannerTimer: ReturnType<typeof setInterval> | null = null;
+   videoUnidadUrl = '';
+   videoInstitucionalUrl = '';
+   lineaMando: DtoLineaMando[] = [];
+   lineaMandoLightboxOpen = false;
+   lineaMandoLightboxItem: DtoLineaMando | null = null;
+    personajesMes: DtoPersonajeMes[] = [];
+    equiposAltoRendimiento: any[] = [];
+    personajeMesLightboxOpen = false;
+    personajeMesLightboxItem: DtoPersonajeMes | null = null;
+    categoriasPersonajeMes: DtoDominio[] = [];
 
-  socialGroups: SocialNetworkGroup[] = [];
-  socialModalOpen = false;
-  selectedSocialGroup: SocialNetworkGroup | null = null;
+   socialGroups: SocialNetworkGroup[] = [];
+   socialModalOpen = false;
+   selectedSocialGroup: SocialNetworkGroup | null = null;
 
-  constructor(
-    private sliderService: SliderService,
-    private homeService: HomeService,
-    private videoUnidadService: VideoUnidadService,
-    private videoInstitucionalService: VideoInstitucionalService,
-    private lineaMandoService: LineaMandoService,
-    private noticiaService: NoticiaService,
-    private redesSocialesService: RedesSocialesService
-  ) {}
+   constructor(
+     private sliderService: SliderService,
+     private homeService: HomeService,
+     private videoUnidadService: VideoUnidadService,
+     private videoInstitucionalService: VideoInstitucionalService,
+     private lineaMandoService: LineaMandoService,
+     private noticiaService: NoticiaService,
+     private redesSocialesService: RedesSocialesService,
+     private personajeMesService: PersonajeMesService,
+     private dominioService: DominioService
+   ) {}
 
-  ngOnInit(): void {
-    this.loadBanners();
-    this.loadStats();
-    this.loadVideoUnidad();
-    this.loadVideoInstitucional();
-    this.loadLineaMando();
-    this.loadNoticias();
-    this.loadSocialNetworks();
-  }
+    ngOnInit(): void {
+      this.loadBanners();
+      this.loadStats();
+      this.loadVideoUnidad();
+      this.loadVideoInstitucional();
+      this.loadLineaMando();
+      this.loadNoticias();
+      this.loadSocialNetworks();
+      this.loadPersonajesMes();
+      this.loadEquiposAltoRendimiento();
+      this.loadCategoriasPersonajeMes();
+    }
 
   loadNoticias(): void {
     this.noticiaService.getActivas().subscribe({
@@ -133,12 +145,96 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    this.stopBannerRotation();
-    document.body.classList.remove('ui-modal-open');
+   ngOnDestroy(): void {
+     this.stopBannerRotation();
+     document.body.classList.remove('ui-modal-open');
+   }
+
+   private loadPersonajesMes(): void {
+     this.personajeMesService.getAll().subscribe({
+        next: (items) => {
+          this.personajesMes = sortPersonajesMes(
+            (items ?? []).filter((x) => Number(x?.vigente ?? 1) === 1),
+            this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion }))
+          );
+        },
+       error: () => {
+         this.personajesMes = [];
+       }
+     });
+   }
+
+   private loadEquiposAltoRendimiento(): void {
+     this.personajeMesService.getAllGrupo().subscribe({
+       next: (grupos) => {
+         if (!grupos || !Array.isArray(grupos)) {
+           this.equiposAltoRendimiento = [];
+           return;
+         }
+         // Para cada grupo, obtener sus integrantes
+         const requests = grupos.map((grupo: any) =>
+           this.personajeMesService.getByGrupo(grupo.idPersonajeGrupo).toPromise().then((integrantes: import('../../core/services/administracion/personaje-mes.service').DtoPersonajeMes[] | undefined) => {
+             const integrantesList = Array.isArray(integrantes) ? integrantes : [];
+             return {
+               nombreGrupo: grupo.nombreGrupo || grupo.NombreGrupo,
+               fotoGrupo: grupo.fotoGrupo || grupo.FotoGrupo,
+               numeroActa: grupo.numeroActa || grupo.NumeroActa,
+               mes: grupo.mes || grupo.Mes,
+               anio: grupo.anio || grupo.Anio,
+               integrantes: integrantesList.map(integrante => ({
+                 nombres: integrante.nombres,
+                 apellidos: integrante.apellidos,
+                 grado: integrante.grado
+               }))
+             };
+           })
+         );
+         Promise.all(requests).then((result) => {
+           this.equiposAltoRendimiento = result;
+         });
+       },
+       error: () => {
+         this.equiposAltoRendimiento = [];
+       }
+     });
+   }
+
+   private loadCategoriasPersonajeMes(): void {
+     this.dominioService.getAll().subscribe({
+       next: (items) => {
+         this.categoriasPersonajeMes = (items ?? [])
+           .filter((item) => Number(item?.idPadre ?? 0) === 153 && Number(item?.vigente ?? 0) === 1)
+           .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
+          if (this.personajesMes.length > 0) {
+            this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));
+          }
+       },
+       error: () => {
+         this.categoriasPersonajeMes = [];
+       }
+     });
+   }
+
+   getPersonajeMesCategoriaDisplay(item: DtoPersonajeMes): string {
+     const idCategoria = Number(item?.idCategoria ?? 0);
+     if (!idCategoria) {
+       return 'Sin categoría';
+     }
+
+     const categoria = this.categoriasPersonajeMes.find(
+       (dominio) => Number(dominio?.idDominio ?? 0) === idCategoria
+     );
+
+     return (categoria?.descripcion ?? '').trim() || 'Sin categoría';
+   }
+
+   
+   getPersonajeMesCargoDisplay(item: DtoPersonajeMes): string {
+    const unidad = (item?.unidad ?? '').trim();
+    return unidad ? this.toTitleCase(unidad) : 'Sin unidad';
   }
 
-  private loadBanners(): void {
+   private loadBanners(): void {
     this.sliderService.getPublicos().subscribe({
       next: (items) => {
         const now = new Date();
@@ -396,18 +492,74 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  private looksLikeUrl(value: string): boolean {
-    const v = value.trim().toLowerCase();
-    return v.startsWith('http://')
-      || v.startsWith('https://')
-      || v.startsWith('www.')
-      || v.startsWith('/')
-      || v.startsWith('/api/')
-      || v.startsWith('/uploads/')
-      || v.startsWith('api/')
-      || v.startsWith('uploads/')
-      || /^[^/]+\.(jpg|jpeg|png|webp|gif)$/i.test(value.trim());
-  }
+   private looksLikeUrl(value: string): boolean {
+     const v = value.trim().toLowerCase();
+     return v.startsWith('http://')
+       || v.startsWith('https://')
+       || v.startsWith('www.')
+       || v.startsWith('/')
+       || v.startsWith('/api/')
+       || v.startsWith('/uploads/')
+       || v.startsWith('api/')
+       || v.startsWith('uploads/')
+       || /^[^/]+\.(jpg|jpeg|png|webp|gif)$/i.test(value.trim());
+   }
+
+   getFotoUrl(item: DtoPersonajeMes): string {
+     const raw = (item?.fotoModificada ?? '').trim();
+     if (!raw) {
+       return 'imagenes/policia.jpg';
+     }
+
+     if (
+       raw.startsWith('http://') ||
+       raw.startsWith('https://') ||
+       raw.startsWith('/api/') ||
+       raw.startsWith('data:image/')
+     ) {
+       return raw;
+     }
+
+     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+     return fileName ? `/api/PersonajeMesUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/policia.jpg';
+   }
+
+   getNombreCompleto(item: DtoPersonajeMes): string {
+     return `${item?.nombres ?? ''} ${item?.apellidos ?? ''}`.replace(/\s+/g, ' ').trim();
+   }
+
+   getGrupoFotoUrl(grupo: any): string {
+     const raw = (grupo?.fotoGrupo ?? '').trim();
+     if (!raw) {
+       return 'imagenes/policia.jpg';
+     }
+
+     if (
+       raw.startsWith('http://') ||
+       raw.startsWith('https://') ||
+       raw.startsWith('/api/') ||
+       raw.startsWith('data:image/')
+     ) {
+       return raw;
+     }
+
+     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+     return fileName ? `/api/PersonajeMesUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/policia.jpg';
+   }
+
+    getGrupoNombre(grupoId: number): string {
+      // This would ideally come from the grupos data, but for now return a placeholder
+      // In a real implementation, you'd look up the grupo by ID from the gruposAltoRendimiento data
+      return `Grupo ${grupoId}`;
+    }
+
+    getPersonajeMesFotoUrl(item: DtoPersonajeMes): string {
+      return this.getFotoUrl(item);
+    }
+
+    getPersonajeMesNombre(item: DtoPersonajeMes): string {
+      return this.getNombreCompleto(item);
+    }
 
   private startBannerRotation(): void {
     this.stopBannerRotation();
