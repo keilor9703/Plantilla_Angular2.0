@@ -21,6 +21,8 @@ export interface DtoFuncionario {
   undeLaborandoCodigo?: string | null;
   codigoCargo?: string | null;
   cargo?: string | null;
+  idCategoria?: number | null;
+  categoriaDescripcion?: string | null;
   activo?: boolean;
 }
 
@@ -171,35 +173,60 @@ export class UsuarioAdminService {
     return this.http.delete<EliminarUsuarioResponse>(`${this.baseUrl}/${idUsuario}`);
   }
 
-  private normalizeFotoResponse(raw: string | null): string | null {
-    if (!raw) {
-      return null;
-    }
+   private normalizeFotoResponse(raw: string | null): string | null {
+     if (!raw) {
+       return null;
+     }
+ 
+     const trimmed = raw.trim();
+     if (!trimmed) {
+       return null;
+     }
+ 
+     // Si backend responde JSON string ("..."), quitar envoltura.
+     let decoded = trimmed;
+     try {
+       if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+         decoded = JSON.parse(trimmed);
+       }
+     } catch {
+       decoded = trimmed;
+     }
+ 
+     if (!decoded || decoded.length < 20) {
+       return null;
+     }
+ 
+     if (decoded.startsWith('data:image/')) {
+       return decoded;
+     }
+ 
+     return `data:image/jpeg;base64,${decoded}`;
+   }
 
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      return null;
-    }
-
-    // Si backend responde JSON string ("..."), quitar envoltura.
-    let decoded = trimmed;
-    try {
-      if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-        decoded = JSON.parse(trimmed);
-      }
-    } catch {
-      decoded = trimmed;
-    }
-
-    if (!decoded || decoded.length < 20) {
-      return null;
-    }
-
-    if (decoded.startsWith('data:image/')) {
-      return decoded;
-    }
-
-    return `data:image/jpeg;base64,${decoded}`;
+   consultarFuncionarioPersonajeMes(identificacion: string): Observable<{ funcionario: DtoFuncionario; fotoBase64: string | null }> {
+    const id = identificacion.trim();
+    return this.http
+      .get<DtoFuncionario>(`${this.baseUrl}/GetFuncionarioPersonajeMes`, {
+        params: { identificacion: id }
+      })
+      .pipe(
+        map((funcionario) => funcionario ?? {}),
+        switchMap((funcionario) =>
+          forkJoin({
+            funcionario: of(funcionario),
+            fotoBase64: this.http
+              .get(`${this.baseUrl}/Foto`, {
+                params: { identificacion: id },
+                responseType: 'text'
+              })
+              .pipe(
+                map((raw) => this.normalizeFotoResponse(raw)),
+                catchError(() => of(null))
+              )
+          })
+        )
+      );
   }
-}
+ }
 
