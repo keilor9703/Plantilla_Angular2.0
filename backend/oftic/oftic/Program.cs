@@ -138,9 +138,6 @@ builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 
-builder.Services.AddScoped<IDbBrandingService, DbBrandingService>();
-builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
-
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 

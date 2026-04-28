@@ -191,9 +191,9 @@
 }
 
 .btn-slider {
-    background: var(--policia-oscuro);
+    background: transparent;
     border: 2px solid var(--policia-acento);
-    color: #fff;
+    color: var(--policia-neutral-claro);
     padding: 10px 25px;
     border-radius: var(--ui-radius-sm);
     font-weight: bold;
@@ -202,8 +202,8 @@
 }
 
 .btn-slider:hover {
-    background: transparent;
-    color: var(--policia-acento);
+    background: var(--policia-cielo);
+    color: #fdfdfd;
 }
 
 @keyframes zoomImage {
