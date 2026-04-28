@@ -1,11 +1,18 @@
-.spotlight-person__info ul {
+// Scroll visual tipo créditos para integrantes de grupo
+.integrantes-list-outer {
     max-height: 72px; /* 3 items x 24px aprox */
     overflow: hidden;
-    transition: max-height 0.3s;
     margin: 0;
     padding-left: 18px;
+    position: relative;
 }
-.spotlight-person__info li {
+.integrantes-list-inner {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    transition: transform 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.integrantes-list-inner li {
     height: 24px;
     line-height: 24px;
     font-size: 13px;
@@ -13,6 +20,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    padding: 0;
 }
 // Margen inferior utilitario para separación de tarjetas
 .mb-4 {

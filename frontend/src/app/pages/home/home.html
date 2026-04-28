@@ -216,11 +216,13 @@
                 <div class="spotlight-person__info">
                   <div class="spotlight-name">{{ grupo.nombreGrupo }}</div>
                   <div class="spotlight-grade">
-                    <ul style="margin:0; padding-left: 18px;">
-                      <li *ngFor="let integrante of getIntegrantesVisibles(grupo)">
-                        {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
-                      </li>
-                    </ul>
+                    <div class="integrantes-list-outer">
+                      <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(grupo)">
+                        <li *ngFor="let integrante of grupo.integrantes">
+                          {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
