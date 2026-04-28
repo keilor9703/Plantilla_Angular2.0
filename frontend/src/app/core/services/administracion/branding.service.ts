@@ -6,6 +6,7 @@ import { environment } from '../../../../environments/environment';
 export interface BrandingPublicConfig {
   sistema?: string;
   nombreSistema?: string;
+  unidadSistemaId?: number | null;
   systemName: string;
   logoUrl?: string | null;
   faviconUrl?: string | null;
@@ -51,7 +52,7 @@ export class BrandingService {
     return this.http.post<BrandingUploadResponse>(`${this.baseUrl}/upload-favicon`, formData);
   }
 
-  saveConfig(payload: { sistema: string; nombreSistema: string; logoFileName?: string | null; faviconFileName?: string | null }): Observable<{ success: boolean; message: string; detail?: string }> {
+  saveConfig(payload: { sistema: string; nombreSistema: string; unidadSistemaId?: number | null; logoFileName?: string | null; faviconFileName?: string | null }): Observable<{ success: boolean; message: string; detail?: string }> {
     return this.http.post<{ success: boolean; message: string; detail?: string }>(`${this.baseUrl}/save-config`, payload);
   }
 }
