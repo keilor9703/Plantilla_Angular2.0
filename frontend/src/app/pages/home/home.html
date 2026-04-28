@@ -177,7 +177,7 @@
     </div>
 
       
-      <!-- Spotlight: Personajes del Mes -->
+      <!-- Spotlight: Personajes del Mes y grupo  -->
     <section class="home-spotlight mt-4">
       <div class="card-view rounded-xl shadow-subtle">
         <div class="card-head card-head--dark">
@@ -217,7 +217,7 @@
                   <div class="spotlight-name">{{ grupo.nombreGrupo }}</div>
                   <div class="spotlight-grade">
                     <ul style="margin:0; padding-left: 18px;">
-                      <li *ngFor="let integrante of grupo.integrantes">
+                      <li *ngFor="let integrante of getIntegrantesVisibles(grupo)">
                         {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
                       </li>
                     </ul>

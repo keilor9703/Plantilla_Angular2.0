@@ -1,6 +1,22 @@
+.spotlight-person__info ul {
+    max-height: 72px; /* 3 items x 24px aprox */
+    overflow: hidden;
+    transition: max-height 0.3s;
+    margin: 0;
+    padding-left: 18px;
+}
+.spotlight-person__info li {
+    height: 24px;
+    line-height: 24px;
+    font-size: 13px;
+    color: var(--policia-neutral-medio);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
 // Margen inferior utilitario para separación de tarjetas
 .mb-4 {
-    margin-bottom: 20px;
+    margin-bottom: 5px;
 }
 // Tarjeta doble para equipos de alto rendimiento
 .spotlight-card--double {
@@ -502,7 +518,7 @@ h3.title-cards {
 .spotlight-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 5px;
     grid-auto-rows: 1fr;
 }
 

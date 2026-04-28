@@ -52,8 +52,52 @@ interface SocialNetworkGroup {
 })
 export class HomeComponent implements OnInit, OnDestroy {
 
+  // Scroll automático para integrantes de grupo
+  grupoScrollIndex: number = 0;
+  grupoScrollTimer: any = null;
+
   grupoLightboxOpen = false;
   grupoLightboxItem: any = null;
+
+  personajeMesLightboxOpen = false;
+  personajeMesLightboxItem: DtoPersonajeMes | null = null;
+  categoriasPersonajeMes: DtoDominio[] = [];
+
+  socialGroups: SocialNetworkGroup[] = [];
+  socialModalOpen = false;
+  selectedSocialGroup: SocialNetworkGroup | null = null;
+
+  banners: DtoSliders[] = [];
+  stats: HomeStats = {
+    usuariosActivos: 0,
+    reportesGenerados: 0,
+    alertasSistema: 0
+  };
+  currentBannerIndex = 0;
+  private bannerTimer: ReturnType<typeof setInterval> | null = null;
+  videoUnidadUrl = '';
+  videoInstitucionalUrl = '';
+  lineaMando: DtoLineaMando[] = [];
+  lineaMandoLightboxOpen = false;
+  lineaMandoLightboxItem: DtoLineaMando | null = null;
+  personajesMes: DtoPersonajeMes[] = [];
+  equiposAltoRendimiento: any[] = [];
+
+  news: NewsItem[] = [];
+  newsModalOpen = false;
+  selectedNews: NewsItem | null = null;
+
+  constructor(
+    private sliderService: SliderService,
+    private homeService: HomeService,
+    private videoUnidadService: VideoUnidadService,
+    private videoInstitucionalService: VideoInstitucionalService,
+    private lineaMandoService: LineaMandoService,
+    private noticiaService: NoticiaService,
+    private redesSocialesService: RedesSocialesService,
+    private personajeMesService: PersonajeMesService,
+    private dominioService: DominioService
+  ) {}
 
   openGrupoLightbox(grupo: any): void {
     this.grupoLightboxItem = grupo;
@@ -67,64 +111,61 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.syncBodyModalClass();
   }
 
-    openPersonajeMesLightbox(item: DtoPersonajeMes): void {
-      this.personajeMesLightboxItem = item;
-      this.personajeMesLightboxOpen = true;
-      this.syncBodyModalClass();
+  openPersonajeMesLightbox(item: DtoPersonajeMes): void {
+    this.personajeMesLightboxItem = item;
+    this.personajeMesLightboxOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closePersonajeMesLightbox(): void {
+    this.personajeMesLightboxOpen = false;
+    this.personajeMesLightboxItem = null;
+    this.syncBodyModalClass();
+  }
+
+
+  ngAfterViewInit(): void {
+    this.startGrupoScroll();
+  }
+
+  startGrupoScroll(): void {
+    if (this.grupoScrollTimer) {
+      clearInterval(this.grupoScrollTimer);
     }
+    this.grupoScrollTimer = setInterval(() => {
+      if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length === 0) return;
+      // Si hay al menos un grupo con más de 3 integrantes, avanzar el scroll
+      let maxIntegrantes = Math.max(...this.equiposAltoRendimiento.map(g => g.integrantes.length));
+      if (maxIntegrantes > 3) {
+        this.grupoScrollIndex = (this.grupoScrollIndex + 1) % (maxIntegrantes - 2);
+      } else {
+        this.grupoScrollIndex = 0;
+      }
+    }, 2000); // Cambia cada 2 segundos
+  }
 
-    closePersonajeMesLightbox(): void {
-      this.personajeMesLightboxOpen = false;
-      this.personajeMesLightboxItem = null;
-      this.syncBodyModalClass();
+  getIntegrantesVisibles(grupo: any): any[] {
+    if (!grupo.integrantes || grupo.integrantes.length <= 3) {
+      return grupo.integrantes;
     }
-   banners: DtoSliders[] = [];
-   stats: HomeStats = {
-     usuariosActivos: 0,
-     reportesGenerados: 0,
-     alertasSistema: 0
-   };
-   currentBannerIndex = 0;
-   private bannerTimer: ReturnType<typeof setInterval> | null = null;
-   videoUnidadUrl = '';
-   videoInstitucionalUrl = '';
-   lineaMando: DtoLineaMando[] = [];
-   lineaMandoLightboxOpen = false;
-   lineaMandoLightboxItem: DtoLineaMando | null = null;
-    personajesMes: DtoPersonajeMes[] = [];
-    equiposAltoRendimiento: any[] = [];
-    personajeMesLightboxOpen = false;
-    personajeMesLightboxItem: DtoPersonajeMes | null = null;
-    categoriasPersonajeMes: DtoDominio[] = [];
+    // Scroll automático: mostrar 3 a partir del índice
+    const start = this.grupoScrollIndex;
+    return grupo.integrantes.slice(start, start + 3);
+  }
 
-   socialGroups: SocialNetworkGroup[] = [];
-   socialModalOpen = false;
-   selectedSocialGroup: SocialNetworkGroup | null = null;
+  ngOnInit(): void {
+    this.loadBanners();
+    this.loadStats();
+    this.loadVideoUnidad();
+    this.loadVideoInstitucional();
+    this.loadLineaMando();
+    this.loadNoticias();
+    this.loadSocialNetworks();
+    this.loadPersonajesMes();
+    this.loadEquiposAltoRendimiento();
+    this.loadCategoriasPersonajeMes();
+  }
 
-   constructor(
-     private sliderService: SliderService,
-     private homeService: HomeService,
-     private videoUnidadService: VideoUnidadService,
-     private videoInstitucionalService: VideoInstitucionalService,
-     private lineaMandoService: LineaMandoService,
-     private noticiaService: NoticiaService,
-     private redesSocialesService: RedesSocialesService,
-     private personajeMesService: PersonajeMesService,
-     private dominioService: DominioService
-   ) {}
-
-    ngOnInit(): void {
-      this.loadBanners();
-      this.loadStats();
-      this.loadVideoUnidad();
-      this.loadVideoInstitucional();
-      this.loadLineaMando();
-      this.loadNoticias();
-      this.loadSocialNetworks();
-      this.loadPersonajesMes();
-      this.loadEquiposAltoRendimiento();
-      this.loadCategoriasPersonajeMes();
-    }
 
   loadNoticias(): void {
     this.noticiaService.getActivas().subscribe({
@@ -614,10 +655,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     ];
   }
 
-  news: NewsItem[] = [];
-
-  newsModalOpen = false;
-  selectedNews: NewsItem | null = null;
 
   openNews(item: NewsItem): void {
     this.selectedNews = item;
