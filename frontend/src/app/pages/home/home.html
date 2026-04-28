@@ -107,7 +107,7 @@
 
           <div class="card-view rounded-xl shadow-subtle social-col">
             <h3 class="title-cards">
-              <i class="fa-solid fa-share-nodes"></i> Redes Sociales
+              <i class="fa-solid fa-share-nodes"></i> Próximos eventos
             </h3>
             <hr />
             <div class="video-placeholder small">
@@ -293,7 +293,35 @@
     </div>
     <div class="ui-modal__body">
       <div class="news-modal" *ngIf="selectedNews">
-        <img class="news-modal__img" [src]="selectedNews.image" [alt]="selectedNews.title" />
+        <div class="news-modal__gallery">
+          <img class="news-modal__img" [src]="getCurrentNewsModalImage()" [alt]="selectedNews.title" />
+          <button
+            *ngIf="(selectedNews.images?.length ?? 0) > 1"
+            type="button"
+            class="news-modal__nav news-modal__nav--prev"
+            (click)="prevNewsModalImage()"
+            aria-label="Imagen anterior">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button
+            *ngIf="(selectedNews.images?.length ?? 0) > 1"
+            type="button"
+            class="news-modal__nav news-modal__nav--next"
+            (click)="nextNewsModalImage()"
+            aria-label="Imagen siguiente">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <div class="news-modal__dots" *ngIf="(selectedNews.images?.length ?? 0) > 1">
+            <button
+              type="button"
+              *ngFor="let img of selectedNews.images; let i = index"
+              class="news-modal__dot"
+              [class.is-active]="i === newsModalImageIndex"
+              (click)="goToNewsModalImage(i)"
+              [attr.aria-label]="'Ir a imagen ' + (i + 1)">
+            </button>
+          </div>
+        </div>
         <div class="news-modal__meta">
           <span class="news-modal__date">
             <i class="fa-regular fa-calendar"></i> {{ selectedNews.date }}

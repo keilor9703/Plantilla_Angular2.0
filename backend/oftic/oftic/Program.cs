@@ -156,6 +156,9 @@ builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
 builder.Services.AddScoped<IDbRedesSocialesService, DbRedesSocialesService>();
 builder.Services.AddScoped<IDbRedesSocialesRepository, DbRedesSocialesRepository>();
 
+builder.Services.AddScoped<IDbUbicacionService, DbUbicacionService>();
+builder.Services.AddScoped<IDbUbicacionRepository, DbUbicacionRepository>();
+
 var app = builder.Build();
 
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");

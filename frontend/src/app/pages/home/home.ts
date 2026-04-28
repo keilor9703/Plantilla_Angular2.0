@@ -23,6 +23,7 @@ interface NewsItem {
   lead: string;     
   content: string;  
   image: string;
+  images: string[];
   megusta: number;
 }
 
@@ -65,6 +66,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   news: NewsItem[] = [];
   newsModalOpen = false;
   selectedNews: NewsItem | null = null;
+  newsModalImageIndex = 0;
 
   constructor(
     private sliderService: SliderService,
@@ -154,16 +156,20 @@ export class HomeComponent implements OnInit, OnDestroy {
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
         ).slice(0, 5);
         
-        this.news = sorted.map(n => ({
-          id: n.idNoticia,
-          date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
-          tag: this.mapSeccionToTag(n.seccion),
-          title: n.titulo,
-          lead: n.subtitulo || '',
-          content: n.contenido || '',
-          image: this.getNoticiaImageUrl(n.imagenNoticia),
-          megusta: n.megusta || 0
-        }));
+        this.news = sorted.map(n => {
+          const images = this.getNoticiaImageUrls(n.imagenNoticia);
+          return {
+            id: n.idNoticia,
+            date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
+            tag: this.mapSeccionToTag(n.seccion),
+            title: n.titulo,
+            lead: n.subtitulo || '',
+            content: n.contenido || '',
+            image: images[0] ?? '',
+            images,
+            megusta: n.megusta || 0
+          };
+        });
         console.log('News mapeadas:', this.news);
       },
       error: (err) => {
@@ -173,12 +179,29 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  private getNoticiaImageUrl(imagenNoticia: string | null | undefined): string {
-    const raw = (imagenNoticia ?? '').trim();
+  private getNoticiaImageUrl(raw: string): string {
     if (!raw) return '';
     if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/') || raw.startsWith('data:')) return raw;
     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
     return fileName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
+  }
+
+  private getNoticiaImageUrls(imagenNoticia: string | null | undefined): string[] {
+    const raw = (imagenNoticia ?? '').trim();
+    if (!raw) {
+      return [];
+    }
+
+    const parts = raw
+      .split('|')
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    const urls = (parts.length > 0 ? parts : [raw])
+      .map((x) => this.getNoticiaImageUrl(x))
+      .filter(Boolean);
+
+    return urls.length > 0 ? urls : [];
   }
 
   private mapSeccionToTag(seccion: string): NewsTag {
@@ -635,6 +658,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   openNews(item: NewsItem): void {
     this.selectedNews = item;
+    this.newsModalImageIndex = 0;
     this.newsModalOpen = true;
     this.syncBodyModalClass();
   }
@@ -642,7 +666,35 @@ export class HomeComponent implements OnInit, OnDestroy {
   closeNews(): void {
     this.newsModalOpen = false;
     this.selectedNews = null;
+    this.newsModalImageIndex = 0;
     this.syncBodyModalClass();
+  }
+
+  getCurrentNewsModalImage(): string {
+    const images = this.selectedNews?.images ?? [];
+    if (!images.length) {
+      return this.selectedNews?.image ?? '';
+    }
+    const safeIndex = Math.min(Math.max(this.newsModalImageIndex, 0), images.length - 1);
+    return images[safeIndex];
+  }
+
+  prevNewsModalImage(): void {
+    const images = this.selectedNews?.images ?? [];
+    if (images.length <= 1) return;
+    this.newsModalImageIndex = (this.newsModalImageIndex - 1 + images.length) % images.length;
+  }
+
+  nextNewsModalImage(): void {
+    const images = this.selectedNews?.images ?? [];
+    if (images.length <= 1) return;
+    this.newsModalImageIndex = (this.newsModalImageIndex + 1) % images.length;
+  }
+
+  goToNewsModalImage(index: number): void {
+    const images = this.selectedNews?.images ?? [];
+    if (index < 0 || index >= images.length) return;
+    this.newsModalImageIndex = index;
   }
 
   likeNoticia(item: NewsItem, event: Event): void {

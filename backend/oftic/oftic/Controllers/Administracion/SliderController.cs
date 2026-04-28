@@ -85,11 +85,11 @@ namespace ofic.Controllers.Administracion
 
                 if (string.IsNullOrWhiteSpace(request.titulo))
                 {
-                    return BadRequest(new { success = false, message = "TÃ­tulo requerido" });
+                    return BadRequest(new { success = false, message = "Titulo requerido" });
                 }
                 if (!SecurityGuards.IsSafeText(request.titulo, 120))
                 {
-                    return BadRequest(new { success = false, message = "TÃ­tulo con caracteres no permitidos." });
+                    return BadRequest(new { success = false, message = "Titulo con caracteres no permitidos." });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.urlImagen))
@@ -98,7 +98,7 @@ namespace ofic.Controllers.Administracion
                 }
                 if (SecurityGuards.HasPotentialHtml(request.urlImagen))
                 {
-                    return BadRequest(new { success = false, message = "URL de imagen invÃ¡lida." });
+                    return BadRequest(new { success = false, message = "URL de imagen inválida." });
                 }
 
                 if (request.orden <= 0)
