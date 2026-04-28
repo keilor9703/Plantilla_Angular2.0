@@ -20,6 +20,156 @@ import { UsuarioAdminService } from '../../../core/services/administracion/usuar
   styleUrls: ['./personaje-mes.scss']
 })
 export class PersonajeMesAdminComponent implements OnInit {
+    // --- EDICIÓN Y ELIMINACIÓN DE EQUIPOS DE ALTO RENDIMIENTO ---
+    modoEdicionEquipo = false;
+    idEditandoEquipo: number | null = null;
+
+    editarEquipo(grupo: any): void {
+      // Cargar datos del grupo en la modal
+      this.modoEdicionEquipo = true;
+      this.idEditandoEquipo = grupo.idPersonajeGrupo || grupo.IdPersonajeGrupo;
+      this.nombreGrupoEquipo = grupo.nombreGrupo;
+      this.fotoPreviewEquipo = this.getImageUrl(grupo.fotoGrupo);
+      this.fotoModificadaEquipo = grupo.fotoGrupo;
+      this.datosFijosEquipo = {
+        NumeroActa: grupo.numeroActa,
+        Mes: grupo.mes,
+        Anio: grupo.anio
+      };
+      // Cargar integrantes (ya están en grupo.integrantes)
+      this.integrantesEquipo = (grupo.integrantes || []).map((i: any) => ({
+        identificacion: i.identificacion,
+        nombres: i.nombres,
+        apellidos: i.apellidos,
+        grado: i.grado,
+        cargo: i.cargo,
+        unidad: i.unidad,
+        IdCategoria: i.IdCategoria || 0,
+        NumeroActa: grupo.numeroActa,
+        FotoModificada: i.FotoModificada || '',
+        Mes: grupo.mes,
+        Anio: grupo.anio
+      }));
+      this.mostrarModalEquipoAltoRendimiento = true;
+    }
+
+    eliminarEquipo(grupo: any): void {
+      if (confirm('¿Está seguro que desea eliminar este equipo? Esta acción no se puede deshacer.')) {
+        const idGrupo = grupo.idPersonajeGrupo || grupo.IdPersonajeGrupo;
+        this.saving = true;
+        this.personajeMesService.deleteGrupo(idGrupo).subscribe({
+          next: (resp) => {
+            this.saving = false;
+            if (resp.success) {
+              this.toast.success('Equipo', resp.message || 'Equipo eliminado correctamente');
+              this.cargarEquipos();
+            } else {
+              this.toast.error('Equipo', resp.message || 'No se pudo eliminar el equipo');
+            }
+          },
+          error: (err) => {
+            this.saving = false;
+            this.toast.error('Equipo', err?.error?.message || 'Error al eliminar el equipo');
+          }
+        });
+      }
+    }
+
+    // Al guardar equipo, si está en modo edición, actualizar; si no, crear
+    guardarEquipoAltoRendimiento(): void {
+      if (this.integrantesEquipo.length === 0) {
+        this.toast.warning('Equipo', 'Debe agregar al menos un integrante');
+        return;
+      }
+      if (!this.fotoModificadaEquipo?.trim()) {
+        this.toast.warning('Equipo', 'Debe subir una foto del equipo');
+        return;
+      }
+      if (!this.nombreGrupoEquipo?.trim()) {
+        this.toast.warning('Equipo', 'Debe ingresar el número de grupo o equipo');
+        return;
+      }
+      this.saving = true;
+      const grupoRequest = {
+        NombreGrupo: this.nombreGrupoEquipo.trim(),
+        FotoGrupo: this.fotoModificadaEquipo,
+        NumeroActa: this.datosFijosEquipo.NumeroActa,
+        Mes: this.datosFijosEquipo.Mes,
+        Anio: this.datosFijosEquipo.Anio
+      };
+      if (this.modoEdicionEquipo && this.idEditandoEquipo) {
+        // Actualizar grupo existente
+        this.personajeMesService.updateGrupo(this.idEditandoEquipo, grupoRequest).subscribe({
+          next: (grupoResp) => {
+            if (!grupoResp.success) {
+              this.saving = false;
+              this.toast.error('Equipo', grupoResp.message ?? 'Error al actualizar el grupo');
+              return;
+            }
+            // Actualizar integrantes (opcional: lógica para actualizar integrantes si aplica)
+            // Aquí podrías actualizar integrantes si la API lo permite
+            this.saving = false;
+            this.toast.success('Equipo', grupoResp.message ?? 'Equipo actualizado correctamente');
+            this.cerrarModalEquipoAltoRendimiento();
+            this.cargarEquipos();
+          },
+          error: (err) => {
+            this.saving = false;
+            this.toast.error('Equipo', err?.error?.message ?? 'Error al actualizar el grupo');
+          }
+        });
+      } else {
+        // Crear grupo nuevo (flujo original)
+        this.personajeMesService.createGrupo(grupoRequest).subscribe({
+          next: (grupoResp) => {
+            if (!grupoResp.success) {
+              this.saving = false;
+              this.toast.error('Equipo', grupoResp.message ?? 'Error al crear el grupo');
+              return;
+            }
+            const integrantesConGrupoId = this.integrantesEquipo.map(integrante => ({
+              ...integrante,
+              IdPersonajeGrupo: grupoResp.id
+            }));
+            this.personajeMesService.createBulk(integrantesConGrupoId).subscribe({
+              next: (bulkResp) => {
+                this.saving = false;
+                if (!bulkResp.success) {
+                  this.toast.error('Equipo', bulkResp.message ?? 'Error al guardar los integrantes');
+                  return;
+                }
+                this.toast.success('Equipo', bulkResp.message ?? 'Registros guardados correctamente');
+                this.cerrarModalEquipoAltoRendimiento();
+                this.cargarPersonajes();
+                this.cargarEquipos();
+              },
+              error: (err) => {
+                this.saving = false;
+                this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar los integrantes');
+              }
+            });
+          },
+          error: (err) => {
+            this.saving = false;
+            this.toast.error('Equipo', err?.error?.message ?? 'Error al crear el grupo');
+          }
+        });
+      }
+    }
+
+    cerrarModalEquipoAltoRendimiento(): void {
+      this.mostrarModalEquipoAltoRendimiento = false;
+      this.integrantesEquipo = [];
+      this.searchIdentificacionEquipo = '';
+      this.datosFijosEquipo = { Mes: 0, Anio: 0, NumeroActa: '' };
+      this.idCategoriaEquipo = 0;
+      this.fotoPreviewEquipo = 'imagenes/policia.jpg';
+      this.fotoModificadaEquipo = '';
+      this.uploadingEquipo = false;
+      this.nombreGrupoEquipo = '';
+      this.modoEdicionEquipo = false;
+      this.idEditandoEquipo = null;
+    }
   personajes: DtoPersonajeMes[] = [];
   categorias: DtoDominio[] = [];
   equipos: any[] = [];
@@ -892,17 +1042,6 @@ getMesDescripcion(mes: number | null | undefined): string {
     this.mostrarModalEquipoAltoRendimiento = true;
   }
 
-  cerrarModalEquipoAltoRendimiento(): void {
-    this.mostrarModalEquipoAltoRendimiento = false;
-    this.integrantesEquipo = [];
-    this.searchIdentificacionEquipo = '';
-    this.datosFijosEquipo = { Mes: 0, Anio: 0, NumeroActa: '' };
-    this.idCategoriaEquipo = 0;
-    this.fotoPreviewEquipo = 'imagenes/policia.jpg';
-    this.fotoModificadaEquipo = '';
-    this.uploadingEquipo = false;
-    this.nombreGrupoEquipo = '';
-  }
 
   buscarFuncionarioEquipo(): void {
     const doc = this.searchIdentificacionEquipo.trim();
@@ -974,71 +1113,4 @@ getMesDescripcion(mes: number | null | undefined): string {
     this.integrantesEquipo.splice(index, 1);
   }
 
-   guardarEquipoAltoRendimiento(): void {
-     if (this.integrantesEquipo.length === 0) {
-       this.toast.warning('Equipo', 'Debe agregar al menos un integrante');
-       return;
-     }
-
-     if (!this.fotoModificadaEquipo?.trim()) {
-       this.toast.warning('Equipo', 'Debe subir una foto del equipo');
-       return;
-     }
-
-     if (!this.nombreGrupoEquipo?.trim()) {
-       this.toast.warning('Equipo', 'Debe ingresar el número de grupo o equipo');
-       return;
-     }
-
-     this.saving = true;
-
-     // Primero crear el grupo
-     const grupoRequest = {
-       NombreGrupo: this.nombreGrupoEquipo.trim(),
-       FotoGrupo: this.fotoModificadaEquipo,
-       NumeroActa: this.datosFijosEquipo.NumeroActa,
-       Mes: this.datosFijosEquipo.Mes,
-       Anio: this.datosFijosEquipo.Anio
-     };
-
-     this.personajeMesService.createGrupo(grupoRequest).subscribe({
-       next: (grupoResp) => {
-         if (!grupoResp.success) {
-           this.saving = false;
-           this.toast.error('Equipo', grupoResp.message ?? 'Error al crear el grupo');
-           return;
-         }
-
-         // Asignar el ID del grupo a todos los integrantes
-         const integrantesConGrupoId = this.integrantesEquipo.map(integrante => ({
-           ...integrante,
-           IdPersonajeGrupo: grupoResp.id
-         }));
-
-         // Luego guardar todos los integrantes con el ID del grupo
-         this.personajeMesService.createBulk(integrantesConGrupoId).subscribe({
-           next: (bulkResp) => {
-             this.saving = false;
-             if (!bulkResp.success) {
-               this.toast.error('Equipo', bulkResp.message ?? 'Error al guardar los integrantes');
-               return;
-             }
-
-             this.toast.success('Equipo', bulkResp.message ?? 'Registros guardados correctamente');
-             this.cerrarModalEquipoAltoRendimiento();
-             this.cargarPersonajes();
-             this.cargarEquipos(); // Refresca la lista de equipos/grupos
-           },
-           error: (err) => {
-             this.saving = false;
-             this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar los integrantes');
-           }
-         });
-       },
-       error: (err) => {
-         this.saving = false;
-         this.toast.error('Equipo', err?.error?.message ?? 'Error al crear el grupo');
-       }
-     });
-   }
 }

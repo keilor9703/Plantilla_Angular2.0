@@ -51,6 +51,33 @@ interface SocialNetworkGroup {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+
+  grupoLightboxOpen = false;
+  grupoLightboxItem: any = null;
+
+  openGrupoLightbox(grupo: any): void {
+    this.grupoLightboxItem = grupo;
+    this.grupoLightboxOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closeGrupoLightbox(): void {
+    this.grupoLightboxOpen = false;
+    this.grupoLightboxItem = null;
+    this.syncBodyModalClass();
+  }
+
+    openPersonajeMesLightbox(item: DtoPersonajeMes): void {
+      this.personajeMesLightboxItem = item;
+      this.personajeMesLightboxOpen = true;
+      this.syncBodyModalClass();
+    }
+
+    closePersonajeMesLightbox(): void {
+      this.personajeMesLightboxOpen = false;
+      this.personajeMesLightboxItem = null;
+      this.syncBodyModalClass();
+    }
    banners: DtoSliders[] = [];
    stats: HomeStats = {
      usuariosActivos: 0,
@@ -385,7 +412,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.socialModalOpen) {
+    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.socialModalOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }

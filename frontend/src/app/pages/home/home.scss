@@ -559,8 +559,16 @@ h3.title-cards {
 }
 
 .spotlight-avatar {
-    width: 54px;
+    width: 44px;
     height: 54px;
+    border-radius: var(--ui-radius-sm);
+    object-fit: cover;
+    border: 1px solid var(--ui-border);
+    background: rgba(21, 27, 59, .04);
+}
+.spotlight-avatar-group {
+    width: 160px;
+    height: 100px;
     border-radius: var(--ui-radius-sm);
     object-fit: cover;
     border: 1px solid var(--ui-border);
@@ -800,6 +808,10 @@ h3.title-cards {
     width: min(560px, 94vw);
 }
 
+.ui-modal__dialog--lightbox_group {
+    width: min(1000px, 94vw);
+}
+
 .cmd-lightbox {
     display: grid;
     gap: 14px;
@@ -807,7 +819,7 @@ h3.title-cards {
 
 .cmd-lightbox__img {
     width: 100%;
-    max-height: 72vh;
+    max-height: 82vh;
     object-fit: contain;
     border-radius: var(--ui-radius-sm);
     border: 1px solid var(--ui-border);

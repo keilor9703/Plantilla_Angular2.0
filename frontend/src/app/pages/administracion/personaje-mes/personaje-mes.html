@@ -133,6 +133,8 @@
                   <th>Mes</th>
                   <th>Año</th>
                   <th>Integrantes</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,6 +150,19 @@
                     <ul style="margin:0; padding-left: 18px;">
                       <li *ngFor="let integrante of grupo.integrantes">{{ integrante.nombres }} {{ integrante.apellidos }} ({{ integrante.grado }})</li>
                     </ul>
+                  </td>
+                  <td>
+                    <span class="ui-badge" [class.success]="grupo.vigente === 1" [class.warning]="grupo.vigente !== 1">
+                      {{ grupo.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="ui-mini-btn" type="button" title="Editar" (click)="editarEquipo(grupo)">
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminarEquipo(grupo)">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
                   </td>
                 </tr>
               </tbody>
