@@ -207,6 +207,13 @@ export function sortPersonajesMes(lista: DtoPersonajeMes[], categorias: { idDomi
 
 @Injectable({ providedIn: 'root' })
 export class PersonajeMesService {
+      updateGrupo(id: number, payload: any) {
+        return this.http.put<any>(`${this.baseUrl}/grupo/${id}`, payload);
+      }
+
+      deleteGrupo(id: number) {
+        return this.http.delete<any>(`${this.baseUrl}/grupo/${id}`);
+      }
     /**
      * Obtiene los personajes del mes asociados a un grupo específico
      */

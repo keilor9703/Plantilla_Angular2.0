@@ -177,7 +177,7 @@
     </div> -->
 
       
-      <!-- Spotlight: Personajes del Mes -->
+      <!-- Spotlight: Personajes del Mes y grupo  -->
     <section class="home-spotlight mt-4">
       <div class="card-view rounded-xl shadow-subtle">
         <div class="card-head card-head--dark">
@@ -191,12 +191,12 @@
             <article class="spotlight-card" *ngFor="let item of personajesMes">                       
               <div class="spotlight-card__top">
                 <span class="spotlight-tag">{{ getPersonajeMesCategoriaDisplay(item) }}</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-users"></i> {{ getPersonajeMesCargoDisplay(item) }}
+                <span class="spotlight-mini">                  
+                  <td>{{ item.cargo }}</td>
                 </span>
               </div>
               <div class="spotlight-person">                
-                <img class="spotlight-avatar" [src]="getPersonajeMesFotoUrl(item)" [alt]="getPersonajeMesNombre(item)" />
+                <img class="spotlight-avatar" [src]="getPersonajeMesFotoUrl(item)" [alt]="getPersonajeMesNombre(item)" (click)="openPersonajeMesLightbox(item)" style="cursor: zoom-in;" />
                 <div class="spotlight-person__info">
                   <div class="spotlight-name">{{ item.grado || 'Sin grado' }}</div>    
                   <div class="spotlight-grade">{{ getPersonajeMesNombre(item) || 'Sin nombre' }}</div>                  
@@ -208,16 +208,16 @@
           <div class="spotlight-grid">
             <article class="spotlight-card spotlight-card--double" *ngFor="let grupo of equiposAltoRendimiento">
               <div class="spotlight-card__top">
-                <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>
-                
+                <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>                
               </div>
               <div class="spotlight-person">
-                <img class="spotlight-avatar" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo" />
+                <img class="spotlight-avatar-group" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo" (click)="openGrupoLightbox(grupo)" style="cursor: zoom-in;" />
+                          
                 <div class="spotlight-person__info">
                   <div class="spotlight-name">{{ grupo.nombreGrupo }}</div>
                   <div class="spotlight-grade">
                     <ul style="margin:0; padding-left: 18px;">
-                      <li *ngFor="let integrante of grupo.integrantes">
+                      <li *ngFor="let integrante of getIntegrantesVisibles(grupo)">
                         {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
                       </li>
                     </ul>
@@ -248,7 +248,8 @@
 
           <ng-template #emptyPersonajesMesTpl>
             <div class="news-state">No hay personajes del mes activos.</div>
-          </ng-template>          
+          </ng-template>         
+                          
         </div>        
       </div>
 
@@ -283,6 +284,8 @@
     </section>
   </section>
 </main>
+
+
 
 <!-- News Modal -->
 <div class="ui-modal" *ngIf="newsModalOpen" (click)="closeNews()">
@@ -346,6 +349,62 @@
 
     <div class="ui-modal__foot">
       <button class="ui-btn outline" type="button" (click)="closeSocialModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Personaje Mes Lightbox Modal (fuera del *ngFor* y del ng-template) -->
+<div class="ui-modal" *ngIf="personajeMesLightboxOpen" (click)="closePersonajeMesLightbox()">
+  <div class="ui-modal__dialog ui-modal__dialog--lightbox" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-image"></i>
+        Personaje del mes
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="closePersonajeMesLightbox()" aria-label="Cerrar imagen">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="ui-modal__body" *ngIf="personajeMesLightboxItem as current">
+      <div class="cmd-lightbox">
+        <img class="cmd-lightbox__img" [src]="getPersonajeMesFotoUrl(current)" [alt]="getPersonajeMesNombre(current)" />
+        <div class="cmd-lightbox__meta">
+          <div class="cmd-lightbox__grade">{{ current.grado || 'Sin grado' }}</div>
+          <div class="cmd-lightbox__name">{{ getPersonajeMesNombre(current) || 'Sin nombre' }}</div>
+          <div class="cmd-lightbox__role">{{ getPersonajeMesCargoDisplay(current) }}</div>
+          <div class="cmd-lightbox__role">{{ getPersonajeMesCategoriaDisplay(current) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Group Lightbox -->
+<div class="ui-modal" *ngIf="grupoLightboxOpen" (click)="closeGrupoLightbox()">
+  <div class="ui-modal__dialog ui-modal__dialog--lightbox_group" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-users"></i>
+        Grupo o equipo de alto rendimiento
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="closeGrupoLightbox()" aria-label="Cerrar imagen">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="ui-modal__body" *ngIf="grupoLightboxItem as grupo">
+      <div class="cmd-lightbox">
+        <img class="cmd-lightbox__img" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo"  />
+        <div class="cmd-lightbox__meta">
+          <div class="cmd-lightbox__grade"></div>
+          <div class="cmd-lightbox__name">{{ grupo.nombreGrupo }}</div>
+          <div class="cmd-lightbox__role">Integrantes:</div>
+          <ul style="margin:0; padding-left: 18px;">
+            <li *ngFor="let integrante of grupo.integrantes">
+              {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }}
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </div>
