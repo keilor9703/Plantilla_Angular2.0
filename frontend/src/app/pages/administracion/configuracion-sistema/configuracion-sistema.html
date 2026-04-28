@@ -207,8 +207,19 @@
     <div class="ui-panel__body" *ngIf="!brandingPanelMinimized">
       <div class="login-visual-grid">
         <article class="tab-card form-card">
-          <div class="list-loading" *ngIf="brandingLoading">Cargando configuracion de marca...</div>
 
+          <div class="list-loading" *ngIf="brandingLoading">Cargando configuracion de marca...</div>
+           <div class="ui-field">
+            <label class="ui-label">Unidad </label>
+            <small class="meta">Seleccione la unidad a la que pertenece el sistema.</small>
+            <select class="ui-control" [(ngModel)]="brandingUnidadSistemaId">
+              <option [ngValue]="null">Seleccione una unidad</option>
+              <option *ngFor="let unidad of brandingUnidades" [ngValue]="unidad.value">
+                {{ unidad.text }}  "{{ unidad.descripcion }}"
+              </option>
+            </select>
+            <small class="meta" *ngIf="brandingUnidadesLoading">Cargando unidades...</small>
+          </div>
           <div class="ui-field">
             <label class="ui-label">Sigla del sistema</label>
             <small class="meta">Maximo 10 caracteres.</small>
@@ -223,14 +234,14 @@
 
           <div class="ui-field">
             <label class="ui-label">Nombre del sistema</label>
-            <small class="meta">Maximo 50 caracteres.</small>
+            <small class="meta">Maximo 90 caracteres.</small>
             <input
               class="ui-control"
               type="text"
-              maxlength="50"
+              maxlength="90"
               [(ngModel)]="brandingNombreSistema"
               placeholder="Ej: Sistema de Gestion">
-            
+             
           </div>
 
           <div class="ui-field">
@@ -277,6 +288,7 @@
             <div class="login-item__content">
               <div><strong>Sistema:</strong> {{ brandingSistema }}</div>
               <div><strong>Nombre del sistema:</strong> {{ brandingNombreSistema }}</div>
+              <div><strong>Unidad del sistema:</strong> {{ getBrandingUnidadSistemaLabel() }}</div>
               <small class="meta">Archivo logo: {{ brandingLogoFileName || 'N/D' }}</small>
               <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
             </div>
