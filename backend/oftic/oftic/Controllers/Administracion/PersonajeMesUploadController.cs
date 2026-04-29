@@ -27,9 +27,7 @@ namespace Api.Controllers.Administracion
         {
             _logger = logger;
             // Ruta absoluta fija para las imágenes de personaje del mes y grupo de alto rendimiento
-            // Ajustar para que apunte a: backend/oftic/oftic/uploads/personje-mes-grupo
-            // Al ejecutarse desde bin/.../net8.0, subir tres niveles llega al directorio del proyecto
-            _uploadsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "uploads", "personje-mes-grupo"));
+            _uploadsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "uploads", "personje-mes-grupo"));
         }
 
         [HttpPost("imagen")]
@@ -75,35 +73,13 @@ namespace Api.Controllers.Administracion
                     await file.CopyToAsync(stream);
                 }
 
-                // Verificar que el archivo fue guardado correctamente
-                var saved = System.IO.File.Exists(fullPath);
-                long savedSize = 0;
-                if (saved)
-                {
-                    var fi = new FileInfo(fullPath);
-                    savedSize = fi.Length;
-                }
-
                 var publicUrl = $"/api/PersonajeMesUpload/Imagen/{safeName}";
-                if (!saved)
-                {
-                    _logger.LogError("Archivo subido pero no encontrado en disco: {Path}", fullPath);
-                    return StatusCode(500, new { success = false, message = "Error al guardar la imagen en el servidor." });
-                }
-
-                if (savedSize != file.Length && file.Length > 0)
-                {
-                    _logger.LogWarning("Tamaño escrito ({SavedSize}) diferente al tamaño del upload ({UploadSize}) para {Path}", savedSize, file.Length, fullPath);
-                }
-
                 return Ok(new
                 {
                     success = true,
                     url = publicUrl,
                     fileName = $"personje-mes-grupo/{safeName}",
-                    message = "Imagen cargada correctamente.",
-                    saved = true,
-                    savedSize,
+                    message = "Imagen cargada correctamente."
                 });
             }
             catch (Exception ex)
