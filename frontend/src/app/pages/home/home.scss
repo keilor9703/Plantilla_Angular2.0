@@ -572,8 +572,10 @@ h3.title-cards {
 }
 
 .spotlight-mini {
-    font-size: 12px;
+    font-size: 10px;
+    text-transform: capitalize;
     color: var(--policia-neutral-medio);
+    width: 155px;
 }
 
 .spotlight-person {
