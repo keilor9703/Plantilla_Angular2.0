@@ -1,0 +1,141 @@
+<section class="home-view eventos-home">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-calendar-days"></i>
+        Registro de Eventos Institucionales
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge info">Nuevo evento</span>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div class="ui-grid">
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Nombre del evento *</label>
+            <input class="ui-control" [(ngModel)]="form.nombreEvento" maxlength="180" placeholder="Ej: Feria de Servicios Institucionales" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Fecha inicio *</label>
+            <input class="ui-control" type="date" [(ngModel)]="form.fechaInicio" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Fecha final *</label>
+            <input class="ui-control" type="date" [(ngModel)]="form.fechaFinal" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Unidad que realiza el evento *</label>
+            <select class="ui-control" [(ngModel)]="form.unidadId">
+              <option [ngValue]="null">Seleccione unidad...</option>
+              <option *ngFor="let u of unidades" [ngValue]="u.value">{{ u.descripcion || u.text }}</option>
+            </select>
+            <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Departamento *</label>
+            <select class="ui-control" [(ngModel)]="form.departamentoId" (ngModelChange)="onChangeDepartamento()">
+              <option [ngValue]="null">Seleccione departamento...</option>
+              <option *ngFor="let d of departamentos" [ngValue]="d.idDepartamento">{{ d.nombre }}</option>
+            </select>
+            <small class="meta" *ngIf="departamentosLoading">Cargando departamentos...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Ciudad *</label>
+            <select class="ui-control" [(ngModel)]="form.municipioId" [disabled]="!form.departamentoId || municipiosLoading">
+              <option [ngValue]="null">Seleccione ciudad...</option>
+              <option *ngFor="let m of municipios" [ngValue]="m.idMunicipio">{{ m.nombre }}</option>
+            </select>
+            <small class="meta" *ngIf="municipiosLoading">Cargando ciudades...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Dirección del evento *</label>
+            <input class="ui-control" [(ngModel)]="form.direccionEvento" maxlength="220" placeholder="Ej: Carrera 45 # 12-34, Auditorio principal" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Cédula responsable *</label>
+            <div class="ui-input-group">
+              <input
+                class="ui-control"
+                [(ngModel)]="form.cedulaResponsable"
+                placeholder="Número de cédula"
+                (keydown.enter)="buscarResponsable()"
+                (blur)="buscarResponsableEnBlur()" />
+              <button class="ui-addon-btn" type="button" (click)="buscarResponsable()" [disabled]="buscandoResponsable" title="Buscar responsable">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            </div>
+            <small class="meta" *ngIf="buscandoResponsable">Consultando funcionario...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Nombre responsable</label>
+            <input class="ui-control" [(ngModel)]="form.nombreResponsable" readonly />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Correo responsable</label>
+            <input class="ui-control" [(ngModel)]="form.correoResponsable" readonly />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Teléfono responsable</label>
+            <input class="ui-control" [(ngModel)]="form.telefonoResponsable" readonly />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Foto del evento</label>
+            <input class="ui-control" type="file" accept="image/*" (change)="onChangeImagen($event)" />
+          </div>
+        </div>
+
+        <div class="ui-col-3" *ngIf="imagenPreviewUrl">
+          <div class="evento-preview">
+            <img [src]="imagenPreviewUrl" alt="Vista previa de imagen del evento" />
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-toolbar">
+        <button class="ui-btn primary" type="button" (click)="guardarEvento()" [disabled]="guardando">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ guardando ? 'Guardando...' : 'Guardar evento' }}
+        </button>
+        <button class="ui-btn outline" type="button" (click)="limpiarFormulario()">
+          <i class="fa-solid fa-eraser"></i>
+          Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

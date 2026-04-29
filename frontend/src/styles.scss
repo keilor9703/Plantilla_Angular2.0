@@ -1726,3 +1726,39 @@ body.ui-modal-open .content {
     margin: auto;
     padding: 0 30px 0 30px;
 }
+
+/* Utilitarios globales compartidos */
+.list-loading {
+  font-size: calc(13px * var(--font-size-scale));
+  color: rgba(83, 86, 90, .95);
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Patrones compartidos en módulos de administración */
+.video-admin-page,
+.menu-admin-page,
+.sliders-page,
+.user-admin-page {
+  padding: 10px;
+  min-height: calc(100vh - 210px);
+}
+
+.video-grid,
+.login-visual-grid,
+.menu-grid,
+.sliders-grid {
+  display: grid;
+  grid-template-columns: 40% 60%;
+  gap: 12px;
+}
+
+.tab-card h3 {
+  margin: 0 0 12px;
+  color: var(--policia-oscuro);
+  font-size: calc(16px * var(--font-size-scale));
+  font-weight: 900;
+}

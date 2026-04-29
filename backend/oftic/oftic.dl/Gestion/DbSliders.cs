@@ -55,7 +55,7 @@ namespace Datos.Gestion
 
         public async Task<DtoSliderResult> SaveAsync(
             DtoSaveSliderRequest request,
-            long usuarioAuditoria,
+            string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct)
         {
@@ -82,7 +82,7 @@ namespace Datos.Gestion
             cmd.Parameters.Add("P_FechaFin", OracleDbType.Date).Value = request.fechaFin.HasValue
                 ? request.fechaFin.Value
                 : DBNull.Value;
-            cmd.Parameters.Add("P_Usuario", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
             cmd.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
             var pMessage = new OracleParameter("SRV_Message", OracleDbType.Varchar2, 4000)
@@ -109,7 +109,7 @@ namespace Datos.Gestion
         public async Task<DtoSliderResult> SetEstadoAsync(
             long idSlider,
             int vigente,
-            long usuarioAuditoria,
+            string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct)
         {
@@ -123,7 +123,7 @@ namespace Datos.Gestion
 
             cmd.Parameters.Add("P_IdSlider", OracleDbType.Int64).Value = idSlider;
             cmd.Parameters.Add("P_Vigente", OracleDbType.Int32).Value = vigente is 0 ? 0 : 1;
-            cmd.Parameters.Add("P_Usuario", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
             cmd.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
             var pMessage = new OracleParameter("SRV_Message", OracleDbType.Varchar2, 4000)

@@ -1,0 +1,84 @@
+<section class="home-view auditoria-admin-page">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-clipboard-check"></i>
+        Bitácora General
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div class="ui-grid">
+        <div class="ui-field ui-col-2">
+          <label class="ui-label">Desde</label>
+          <input class="ui-control" type="datetime-local" [(ngModel)]="filtros.fechaDesde" (change)="filtrar()">
+        </div>
+        <div class="ui-field ui-col-2">
+          <label class="ui-label">Hasta</label>
+          <input class="ui-control" type="datetime-local" [(ngModel)]="filtros.fechaHasta" (change)="filtrar()">
+        </div>
+        <div class="ui-field ui-col-3">
+          <label class="ui-label">Usuario</label>
+          <input class="ui-control" type="text" [(ngModel)]="filtros.usuario" placeholder="usuario" (input)="filtrar()">
+        </div>
+        <div class="ui-field ui-col-2">
+          <label class="ui-label">Módulo</label>
+          <select class="ui-control" [(ngModel)]="filtros.modulo" (change)="filtrar()">
+            <option value="">Todos</option>
+            <option *ngFor="let m of modulos" [value]="m">{{ m }}</option>
+          </select>
+        </div>
+        <div class="ui-field ui-col-2">
+          <label class="ui-label">Acción</label>
+          <select class="ui-control" [(ngModel)]="filtros.accion" (change)="filtrar()">
+            <option value="">Todas</option>
+            <option *ngFor="let a of acciones" [value]="a">{{ a }}</option>
+          </select>
+        </div>
+        <div class="ui-field ui-col-1">
+          <label class="ui-label">&nbsp;</label>
+          <button class="ui-btn secondary" type="button" (click)="limpiarFiltros()">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="list-loading" *ngIf="loading">Cargando bitácora...</div>
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Usuario</th>
+              <th>Módulo</th>
+              <th>Acción</th>
+              <th>Registro</th>
+              <th>Resultado</th>
+              <th>Máquina</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of items">
+              <td>{{ row.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ row.usuario }}</td>
+              <td>{{ row.modulo }}</td>
+              <td>{{ row.accion }}</td>
+              <td>{{ row.registro }}</td>
+              <td>
+                <span class="result-badge" [class.error]="row.resultado === 'ERROR'">{{ row.resultado }}</span>
+              </td>
+              <td>{{ row.maquina }}</td>
+            </tr>
+            <tr *ngIf="!loading && items.length === 0">
+              <td colspan="7" class="empty-row">Sin registros para los filtros aplicados.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <button class="ui-btn secondary" type="button" (click)="anterior()" [disabled]="paginaActual === 1">Anterior</button>
+        <span>Página {{ paginaActual }} de {{ totalPaginas }}</span>
+        <button class="ui-btn secondary" type="button" (click)="siguiente()" [disabled]="paginaActual >= totalPaginas">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</section>

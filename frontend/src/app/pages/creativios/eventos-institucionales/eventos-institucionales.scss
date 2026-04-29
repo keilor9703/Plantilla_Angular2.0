@@ -1,0 +1,23 @@
+.eventos-home .ui-panel__body {
+  padding-top: 18px;
+}
+
+.eventos-home .meta {
+  font-size: calc(12px * var(--font-size-scale));
+  color: rgba(83, 86, 90, .92);
+}
+
+.evento-preview {
+  width: min(420px, 100%);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(21, 27, 59, .03);
+}
+
+.evento-preview img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  display: block;
+}

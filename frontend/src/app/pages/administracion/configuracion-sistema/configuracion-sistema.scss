@@ -2,23 +2,6 @@
   display: block;
 }
 
-.video-admin-page {
-  padding: 10px;
-  min-height: calc(100vh - 210px);
-}
-
-.video-grid {
-  display: grid;
-  grid-template-columns: 40% 60%;
-  gap: 12px;
-}
-
-.login-visual-grid {
-  display: grid;
-  grid-template-columns: 40% 60%;
-  gap: 12px;
-}
-
 .login-visual-card {
   margin-top: 12px;
 }
@@ -27,13 +10,6 @@
   margin: 0 0 10px;
   color: var(--policia-oscuro);
   font-size: calc(14px * var(--font-size-scale));
-  font-weight: 900;
-}
-
-.tab-card h3 {
-  margin: 0 0 12px;
-  color: var(--policia-oscuro);
-  font-size: calc(16px * var(--font-size-scale));
   font-weight: 900;
 }
 
@@ -56,11 +32,6 @@
 
 .mt-2 {
   margin-top: 8px;
-}
-
-.list-loading {
-  font-size: calc(13px * var(--font-size-scale));
-  color: rgba(83, 86, 90, .95);
 }
 
 .login-list {

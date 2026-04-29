@@ -147,11 +147,17 @@ builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucional
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
 
+builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
+builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();
+
 builder.Services.AddScoped<IDbModalService, DbModalService>();
 builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
 
 builder.Services.AddScoped<IDbRedesSocialesService, DbRedesSocialesService>();
 builder.Services.AddScoped<IDbRedesSocialesRepository, DbRedesSocialesRepository>();
+
+builder.Services.AddScoped<IDbUbicacionService, DbUbicacionService>();
+builder.Services.AddScoped<IDbUbicacionRepository, DbUbicacionRepository>();
 
 var app = builder.Build();
 
