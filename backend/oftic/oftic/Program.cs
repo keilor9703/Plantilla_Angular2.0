@@ -150,6 +150,9 @@ builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucional
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
 
+builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
+builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();
+
 builder.Services.AddScoped<IDbModalService, DbModalService>();
 builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
 

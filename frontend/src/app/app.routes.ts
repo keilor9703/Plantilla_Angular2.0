@@ -16,6 +16,7 @@ import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { VideoInstitucionalComponent } from './pages/administracion/video-institucional/video-institucional';
 import { NoticiasAdminComponent } from './pages/administracion/noticias/noticias';
 import { ModalAdminComponent } from './pages/administracion/modal/modal-admin';
+import { AuditoriaAdminComponent } from './pages/administracion/auditoria/auditoria';
 import { RedesSocialesAdminComponent } from './pages/gestion-digital/redes-sociales/redes-sociales-admin';
 import { GestionDigitalInicioComponent } from './pages/gestion-digital/gestion-digital-inicio/gestion-digital-inicio';
 import { EventosInstitucionalesComponent } from './pages/creativios/eventos-institucionales/eventos-institucionales';
@@ -86,6 +87,7 @@ export const routes: Routes = [
           { path: 'video-institucional', component: VideoInstitucionalComponent },
           { path: 'noticias', component: NoticiasAdminComponent },
           { path: 'modal', component: ModalAdminComponent },
+          { path: 'auditoria', component: AuditoriaAdminComponent },
           { path: 'redes-sociales', redirectTo: '/gestion-digital/redes-sociales', pathMatch: 'full' },
           { path: 'gestion-digital', redirectTo: '/gestion-digital', pathMatch: 'full' },
         ],
