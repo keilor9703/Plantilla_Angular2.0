@@ -94,9 +94,9 @@ export class DominioAdminComponent implements OnInit {
         children: children.map(hijo => ({
           item: hijo,
           children: noRaiz.filter(nieto => nieto.idPadre === hijo.idDominio),
-          expanded: true
+          expanded: false
         })),
-        expanded: true
+        expanded: false
       };
     });
     console.log('Árbol construido:', this.dominiosTree);

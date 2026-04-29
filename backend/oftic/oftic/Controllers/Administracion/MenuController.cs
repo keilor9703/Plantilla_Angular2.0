@@ -96,6 +96,10 @@ namespace Api.Controllers.Administracion
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
+                }
                 var machine = ResolveMachine();
                 var result = await _service.SaveMenuAsync(request, userId, machine, ct);
 
@@ -109,7 +113,12 @@ namespace Api.Controllers.Administracion
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error guardando menÃº.");
-                return StatusCode(500, new { success = false, message = "Error guardando menÃº" });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error guardando menú",
+                    detail = ex.InnerException?.Message ?? ex.Message
+                });
             }
         }
 
@@ -167,6 +176,10 @@ namespace Api.Controllers.Administracion
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
+                }
                 var machine = ResolveMachine();
                 var result = await _service.AssignRolToMenuAsync(idMenu, request.IdRol, userId, machine, ct);
 
@@ -196,6 +209,10 @@ namespace Api.Controllers.Administracion
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
+                }
                 var machine = ResolveMachine();
                 var result = await _service.RemoveRolFromMenuAsync(idMenu, idRol, userId, machine, ct);
 
@@ -251,6 +268,10 @@ namespace Api.Controllers.Administracion
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
+                }
                 var machine = ResolveMachine();
                 var result = await _service.AssignMenuToRolAsync(idRol, request.IdMenu, userId, machine, ct);
 
@@ -280,6 +301,10 @@ namespace Api.Controllers.Administracion
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
+                }
                 var machine = ResolveMachine();
                 var result = await _service.RemoveMenuFromRolAsync(idRol, idMenu, userId, machine, ct);
 
@@ -314,6 +339,10 @@ namespace Api.Controllers.Administracion
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
+                if (userId <= 0)
+                {
+                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
+                }
                 var machine = ResolveMachine();
                 var result = await _service.SetEstadoMenuAsync(idMenu, request.Vigente, userId, machine, ct);
 

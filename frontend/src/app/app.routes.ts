@@ -18,6 +18,10 @@ import { NoticiasAdminComponent } from './pages/administracion/noticias/noticias
 import { ModalAdminComponent } from './pages/administracion/modal/modal-admin';
 import { RedesSocialesAdminComponent } from './pages/gestion-digital/redes-sociales/redes-sociales-admin';
 import { GestionDigitalInicioComponent } from './pages/gestion-digital/gestion-digital-inicio/gestion-digital-inicio';
+import { EventosInstitucionalesComponent } from './pages/creativios/eventos-institucionales/eventos-institucionales';
+import { RecoleccionAnalisisComponent } from './pages/centro-analisis/recoleccion-analisis/recoleccion-analisis';
+import { EmprendimientosComponent } from './pages/Grupo-diseno/emprendimientos/emprendimientos';
+import { GestionCorreosElectronicosComponent } from './pages/gestion-documental/gestion-correos-electronicos/gestion-correos-electronicos';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -37,6 +41,28 @@ export const routes: Routes = [
           { path: '', component: GestionDigitalInicioComponent },
           { path: 'inicio', component: GestionDigitalInicioComponent },
           { path: 'redes-sociales', component: RedesSocialesAdminComponent },
+        ],
+      },
+      { path: 'eventos-institucionales', component: EventosInstitucionalesComponent },
+      {
+        path: 'creativios',
+        children: [
+          { path: '', redirectTo: 'emprendimientos', pathMatch: 'full' },
+          { path: 'emprendimientos', component: EmprendimientosComponent },
+        ],
+      },
+      {
+        path: 'gestion-documental',
+        children: [
+          { path: '', redirectTo: 'gestion-correos-electronicos', pathMatch: 'full' },
+          { path: 'gestion-correos-electronicos', component: GestionCorreosElectronicosComponent },
+        ],
+      },
+      {
+        path: 'centro-analisis',
+        children: [
+          { path: '', redirectTo: 'recoleccion-analisis', pathMatch: 'full' },
+          { path: 'recoleccion-analisis', component: RecoleccionAnalisisComponent },
         ],
       },
       {
@@ -78,6 +104,11 @@ export const routes: Routes = [
       { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
       { path: 'video-institucional', redirectTo: 'administracion/video-institucional', pathMatch: 'full' },
       { path: 'redes-sociales', redirectTo: 'gestion-digital/redes-sociales', pathMatch: 'full' },
+      { path: 'eventos', redirectTo: 'eventos-institucionales', pathMatch: 'full' },
+      { path: 'emprendimientos', redirectTo: 'creativios/emprendimientos', pathMatch: 'full' },
+      { path: 'correos-electronicos', redirectTo: 'gestion-documental/gestion-correos-electronicos', pathMatch: 'full' },
+      { path: 'analisis', redirectTo: 'centro-analisis/recoleccion-analisis', pathMatch: 'full' },
+      { path: 'recoleccion-analisis', redirectTo: 'centro-analisis/recoleccion-analisis', pathMatch: 'full' },
     ],
   },
   { path: '**', redirectTo: 'login' },
