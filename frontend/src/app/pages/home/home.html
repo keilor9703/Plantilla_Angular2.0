@@ -214,30 +214,43 @@
           </div>
           
           <div class="spotlight-grid">
-            <article class="spotlight-card spotlight-card--double" *ngFor="let grupo of equiposAltoRendimiento">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>                
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar-group" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo" (click)="openGrupoLightbox(grupo)" style="cursor: zoom-in;" />
-                          
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">{{ grupo.nombreGrupo }}</div>
-                  <div class="spotlight-grade">
-                    <div class="integrantes-list-outer">
-                      <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(grupo)">
-                        <li *ngFor="let integrante of grupo.integrantes">
-                          {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
-                        </li>
-                      </ul>
+            <ng-container *ngIf="equiposAltoRendimiento && equiposAltoRendimiento.length > 0; else emptyEquiposTpl">
+              <article class="spotlight-card spotlight-card--double" style="padding-top: 12px; padding-bottom: 12px;">
+                <div class="spotlight-card__top" style="margin-bottom: 8px;">
+                  <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>
+                </div>
+                <div class="spotlight-person" style="align-items: flex-start;">
+                  <img class="spotlight-avatar-group"
+                       [src]="getGrupoFotoUrl(equiposAltoRendimiento[grupoSliderIndex])"
+                       [alt]="equiposAltoRendimiento[grupoSliderIndex]?.nombreGrupo"
+                       (click)="openGrupoLightbox(equiposAltoRendimiento[grupoSliderIndex])"
+                       style="cursor: zoom-in; max-height: 80px; width: auto; margin-bottom: 0; margin-right: 16px;" />
+                  <div class="spotlight-person__info" style="padding-top: 0;">
+                    <div class="spotlight-name" style="margin-bottom: 4px;">{{ equiposAltoRendimiento[grupoSliderIndex]?.nombreGrupo }}</div>
+                    <div class="spotlight-grade">
+                      <div class="integrantes-list-outer" style="max-height: 60px; overflow-y: auto;">
+                        <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(equiposAltoRendimiento[grupoSliderIndex])">
+                          <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
+                            {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }}
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </article>
-            <div *ngIf="!equiposAltoRendimiento || equiposAltoRendimiento.length === 0" class="news-state">
-              No hay equipos o grupos configurados.
-            </div>
+                <div class="slider-controls slider-controls--personaje" *ngIf="equiposAltoRendimiento.length > 1" style="margin-top: 6px;">
+                  <button
+                    *ngFor="let grupo of equiposAltoRendimiento; let i = index"
+                    [class.active]="grupoSliderIndex === i"
+                    (click)="grupoSliderIndex = i"
+                    [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
+                  </button>
+                </div>
+              </article>
+            </ng-container>
+            <ng-template #emptyEquiposTpl>
+              <div class="news-state">No hay equipos o grupos configurados.</div>
+            </ng-template>
           </div>
           
           <!-- <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">

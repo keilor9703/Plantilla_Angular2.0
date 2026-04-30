@@ -35,6 +35,8 @@ interface NewsItem {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+    // Slider de grupos de alto rendimiento
+    grupoSliderIndex: number = 0;
   readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
 
   // Devuelve el estilo de transformación para el scroll visual tipo créditos
@@ -321,6 +323,7 @@ export class HomeComponent implements OnInit, OnDestroy {
          );
          Promise.all(requests).then((result) => {
            this.equiposAltoRendimiento = result;
+           this.grupoSliderIndex = 0;
          });
        },
        error: () => {
