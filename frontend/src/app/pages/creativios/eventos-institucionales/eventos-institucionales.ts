@@ -6,6 +6,7 @@ import { DominioService, DtoUnidad } from '../../../core/services/administracion
 import { DtoDepartamento, DtoMunicipio, UbicacionService } from '../../../core/services/administracion/ubicacion.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { DtoEventoRequest, EventoService } from '../../../core/services/administracion/evento.service';
 
 interface EventoForm {
   nombreEvento: string;
@@ -62,7 +63,8 @@ export class EventosInstitucionalesComponent implements OnInit {
     private dominioService: DominioService,
     private ubicacionService: UbicacionService,
     private usuarioAdminService: UsuarioAdminService,
-    private toast: ToastService
+    private toast: ToastService,
+    private eventoService: EventoService
   ) {}
 
   ngOnInit(): void {
@@ -211,11 +213,70 @@ export class EventosInstitucionalesComponent implements OnInit {
       return;
     }
 
+    const unidadNombre = this.getUnidadNombre(unidadId);
+    const ciudadNombre = this.getMunicipioNombre(municipioId);
+    if (!unidadNombre) {
+      this.toast.warning('Eventos', 'Seleccione una unidad válida.');
+      return;
+    }
+    if (!ciudadNombre) {
+      this.toast.warning('Eventos', 'Seleccione una ciudad válida.');
+      return;
+    }
+
+    const descripcion = [
+      this.form.nombreResponsable ? `Responsable: ${this.form.nombreResponsable}` : '',
+      this.form.correoResponsable ? `Correo: ${this.form.correoResponsable}` : '',
+      this.form.telefonoResponsable ? `Teléfono: ${this.form.telefonoResponsable}` : '',
+      this.form.cedulaResponsable ? `Cédula: ${this.form.cedulaResponsable}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    const payload: DtoEventoRequest = {
+      unidad: unidadNombre,
+      titulo: nombre,
+      subtitulo: this.form.nombreResponsable || null,
+      descripcion: descripcion || null,
+      lugar: direccion,
+      ciudad: ciudadNombre,
+      fechaInicio,
+      fechaFin: fechaFinal,
+      horaInicio: null,
+      horaFin: null,
+      imagenPortada: null,
+      enlaceEvento: null,
+      tipoEvento: 'INSTITUCIONAL',
+      orden: 1,
+      vigente: 1,
+    };
+
     this.guardando = true;
-    setTimeout(() => {
-      this.guardando = false;
-      this.toast.info('Eventos', 'Formulario validado. Pendiente conectar endpoint de guardado.');
-    }, 300);
+    this.eventoService.create(payload)
+      .pipe(finalize(() => (this.guardando = false)))
+      .subscribe({
+        next: (resp) => {
+          if (!resp?.success) {
+            this.toast.warning('Eventos', resp?.message ?? 'No fue posible guardar el evento.');
+            return;
+          }
+          this.toast.success('Eventos', resp.message ?? 'Evento guardado correctamente.');
+          this.limpiarFormulario();
+        },
+        error: (err) => {
+          this.toast.error('Eventos', err?.error?.message ?? 'Error guardando el evento.');
+        },
+      });
+  }
+
+  private getUnidadNombre(id: number): string {
+    const unidad = this.unidades.find((u) => Number(u.value) === id);
+    return (unidad?.descripcion || unidad?.text || '').trim();
+  }
+
+  private getMunicipioNombre(id: number): string {
+    const municipio = this.municipios.find((m) => Number(m.idMunicipio) === id);
+    return (municipio?.nombre || '').trim();
   }
 
   limpiarFormulario(): void {
@@ -238,3 +299,4 @@ export class EventosInstitucionalesComponent implements OnInit {
     this.ultimaCedulaConsultada = '';
   }
 }
+
