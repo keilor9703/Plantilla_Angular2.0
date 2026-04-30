@@ -45,11 +45,33 @@ namespace Servicios.Api
             var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var resp = await client.PostAsync(url, content, ct);
-            resp.EnsureSuccessStatusCode();
 
             var responseJson = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "OudLogin no autorizado o fallido. Status={StatusCode}. Body={Body}",
+                    (int)resp.StatusCode,
+                    responseJson);
+
+                return new DtoRespuesta<string>
+                {
+                    Estado = false,
+                    Codigo = (int)resp.StatusCode,
+                    Mensaje = "OudLogin falló",
+                    Respuesta = string.Empty
+                };
+            }
+
             return JsonSerializer.Deserialize<DtoRespuesta<string>>(responseJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+                       new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                   ?? new DtoRespuesta<string>
+                   {
+                       Estado = false,
+                       Codigo = 500,
+                       Mensaje = "Respuesta inválida de OudLogin",
+                       Respuesta = string.Empty
+                   };
         }
 
         public async Task<DtoRespuesta<string>> ObtenerTokenSeviciosAsync(DtoUsuarioPip usuario)

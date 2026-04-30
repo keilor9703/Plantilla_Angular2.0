@@ -110,9 +110,47 @@
               <i class="fa-solid fa-share-nodes"></i> Próximos eventos
             </h3>
             <hr />
-            <div class="video-placeholder small">
-              <i class="fa-solid fa-window-restore"></i>
-              <p>Use el dock flotante para abrir cuentas institucionales.</p>
+            <div class="events-calendar">
+              <div class="events-calendar__head">
+                <button type="button" class="calendar-nav" (click)="prevCalendarMonth()" aria-label="Mes anterior">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <strong class="calendar-month">{{ getCalendarMonthLabel() }}</strong>
+                <button type="button" class="calendar-nav" (click)="nextCalendarMonth()" aria-label="Mes siguiente">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <div class="events-calendar__weekdays">
+                <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+              </div>
+
+              <div class="events-calendar__grid">
+                <button
+                  type="button"
+                  class="events-day"
+                  *ngFor="let day of calendarDays"
+                  [class.is-outside]="!day.inCurrentMonth"
+                  [class.is-today]="day.isToday"
+                  [class.is-selected]="day.isSelected"
+                  [class.has-event]="day.eventos.length > 0"
+                  (click)="selectCalendarDay(day)">
+                  <span class="events-day__num">{{ day.date.getDate() }}</span>
+                  <div class="events-day__badges" *ngIf="day.eventos.length > 0">
+                    <button
+                      type="button"
+                      class="events-day__badge"
+                      *ngFor="let ev of day.eventos | slice:0:2"
+                      [ngClass]="getEventoBadgeClass(ev)"
+                      (click)="openCalendarEventoModal(ev, $event)"
+                      [title]="ev.nombreEvento">
+                      {{ ev.nombreEvento }}
+                    </button>
+                    <span class="events-day__more" *ngIf="day.eventos.length > 2">+{{ day.eventos.length - 2 }}</span>
+                  </div>
+                </button>
+              </div>
+           
             </div>
           </div>
         </div>
@@ -311,6 +349,36 @@
     </section>
   </section>
 </main>
+
+<div class="ui-modal" *ngIf="eventoModalOpen" (click)="closeCalendarEventoModal()">
+  <div class="ui-modal__dialog ui-modal__dialog--event" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>Detalle del evento</span>
+      </div>
+      <button class="ui-modal__close" type="button" (click)="closeCalendarEventoModal()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body" *ngIf="selectedCalendarEvento as evento">
+      <div class="event-modal">
+        <h3 class="event-modal__title">{{ evento.nombreEvento }}</h3>
+        <img
+          *ngIf="getEventoImageUrl(evento.imagenEvento) as imgUrl"
+          [src]="imgUrl"
+          [alt]="evento.nombreEvento"
+          class="event-modal__img" />
+        <div class="event-modal__meta">
+          <div><i class="fa-regular fa-calendar"></i> {{ getEventoFechaRango(evento) }}</div>
+          <div><i class="fa-solid fa-location-dot"></i> {{ evento.direccionEvento }}</div>
+          <div><i class="fa-solid fa-building"></i> {{ evento.ciudad }} - {{ evento.departamento }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 
