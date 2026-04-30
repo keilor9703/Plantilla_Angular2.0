@@ -1,5 +1,5 @@
 param(
-  [string]$RepoRoot = "C:\Users\Dyck.lopez\source\repos\sisgeNg",
+  [string]$RepoRoot = "C:\Users\Dyck.lopez\source\repos\SICOE",
   [string]$FrontendProject = "policiadev-app",
   [switch]$SkipNpmCi
 )
@@ -16,6 +16,7 @@ $apiTar = Join-Path $env:TEMP "api-release.tar.gz"
 
 $frontendWorkdir = Join-Path $RepoRoot "frontend"
 $frontendDist = Join-Path $frontendWorkdir "dist\$FrontendProject"
+$frontendDistBrowser = Join-Path $frontendDist "browser"
 $webTar = Join-Path $env:TEMP "web-release.tar.gz"
 
 if (-not (Test-Path $backendProject)) {
@@ -23,6 +24,9 @@ if (-not (Test-Path $backendProject)) {
 }
 if (-not (Test-Path (Join-Path $frontendWorkdir "angular.json"))) {
   throw "No se encontro angular.json en: $frontendWorkdir"
+}
+if (-not (Test-Path (Join-Path $frontendWorkdir "package.json"))) {
+  throw "No se encontro package.json en: $frontendWorkdir"
 }
 
 Write-Host "`n[1/4] Publicando backend..."
@@ -47,7 +51,14 @@ if (-not (Test-Path $frontendDist)) {
 }
 if (Test-Path $webTar) { Remove-Item $webTar -Force }
 Write-Host "[4/4] Empaquetando frontend en $webTar ..."
-tar -czf $webTar -C $frontendDist .
+if (Test-Path $frontendDistBrowser) {
+  Write-Host "Empaquetando contenido de: $frontendDistBrowser"
+  tar -czf $webTar -C $frontendDistBrowser .
+}
+else {
+  Write-Host "No existe carpeta browser; empaquetando raíz: $frontendDist"
+  tar -czf $webTar -C $frontendDist .
+}
 
 Write-Host "`nArtefactos generados:"
 Write-Host "  API: $apiTar"

@@ -25,6 +25,8 @@ export class NoticiasWeb implements OnInit {
   modalOpen = false;
   selectedNoticia: DtoNoticia | null = null;
   liked = false;
+  modalImages: string[] = [];
+  modalImageIndex = 0;
 
   constructor(private noticiaService: NoticiaService) {}
 
@@ -91,8 +93,18 @@ export class NoticiasWeb implements OnInit {
 
   getImageUrl(noticia: DtoNoticia): string {
     if (!noticia.imagenNoticia) return 'imagenes/actividades/news2.jpg';
-    if (noticia.imagenNoticia.startsWith('http')) return noticia.imagenNoticia;
-    return `/api/NoticiaUpload/Imagen/${noticia.imagenNoticia.split('/').pop()}`;
+    const rawMulti = noticia.imagenNoticia.trim();
+    const raw = rawMulti.includes('|') ? rawMulti.split('|')[0].trim() : rawMulti;
+    if (raw.startsWith('http')) return raw;
+    return `/api/NoticiaUpload/Imagen/${raw.split('/').pop()}`;
+  }
+
+  getCurrentModalImage(): string {
+    if (this.modalImages.length === 0) {
+      return 'imagenes/actividades/news2.jpg';
+    }
+
+    return this.modalImages[this.modalImageIndex];
   }
 
   getNoticiaUrl(noticia: DtoNoticia): string {
@@ -101,6 +113,8 @@ export class NoticiasWeb implements OnInit {
 
   openNoticia(noticia: DtoNoticia): void {
     this.selectedNoticia = noticia;
+    this.modalImages = this.getImageList(noticia.imagenNoticia);
+    this.modalImageIndex = 0;
     this.modalOpen = true;
     document.body.classList.add('modal-open');
   }
@@ -108,7 +122,27 @@ export class NoticiasWeb implements OnInit {
   closeNoticia(): void {
     this.modalOpen = false;
     this.selectedNoticia = null;
+    this.modalImages = [];
+    this.modalImageIndex = 0;
     document.body.classList.remove('modal-open');
+  }
+
+  prevModalImage(event?: Event): void {
+    event?.stopPropagation();
+    if (this.modalImages.length <= 1) return;
+    this.modalImageIndex = (this.modalImageIndex - 1 + this.modalImages.length) % this.modalImages.length;
+  }
+
+  nextModalImage(event?: Event): void {
+    event?.stopPropagation();
+    if (this.modalImages.length <= 1) return;
+    this.modalImageIndex = (this.modalImageIndex + 1) % this.modalImages.length;
+  }
+
+  goToModalImage(index: number, event?: Event): void {
+    event?.stopPropagation();
+    if (index < 0 || index >= this.modalImages.length) return;
+    this.modalImageIndex = index;
   }
 
   likeNoticia(noticia: DtoNoticia, event: Event): void {
@@ -148,6 +182,28 @@ export class NoticiasWeb implements OnInit {
       liked.push(noticiaId);
       sessionStorage.setItem('likedNews', JSON.stringify(liked));
     }
+  }
+
+  private getImageList(rawValue?: string | null): string[] {
+    const raw = (rawValue ?? '').trim();
+    if (!raw) {
+      return ['imagenes/actividades/news2.jpg'];
+    }
+
+    const images = raw
+      .split('|')
+      .map((x) => x.trim())
+      .filter((x) => !!x)
+      .map((x) => {
+        if (x.startsWith('http://') || x.startsWith('https://') || x.startsWith('/api/')) {
+          return x;
+        }
+        const file = x.split('/').filter(Boolean).pop() ?? '';
+        return file ? `/api/NoticiaUpload/Imagen/${file}` : '';
+      })
+      .filter((x) => !!x);
+
+    return images.length > 0 ? images : ['imagenes/actividades/news2.jpg'];
   }
 
   private scrollToTop(): void {

@@ -2,11 +2,6 @@
   display: block;
 }
 
-.user-admin-page {
-  padding: 10px;
-  min-height: calc(100vh - 210px);
-}
-
 .admin-grid {
   display: grid;
   grid-template-columns: 40% 60%;
@@ -383,11 +378,6 @@
   margin-top: 6px;
   font-size: 11px;
   color: rgba(83, 86, 90, .92);
-}
-
-.table-wrap {
-  width: 100%;
-  overflow-x: auto;
 }
 
 .users-table {

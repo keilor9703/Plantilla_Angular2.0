@@ -8,6 +8,7 @@ import {
   DtoModalRequest,
   DtoModalInteraccion,
 } from '../../../core/services/administracion/modal.service';
+import { DominioService, DtoUnidad } from '../../../core/services/administracion/dominio.service';
 
 @Component({
   selector: 'app-modal-admin',
@@ -38,14 +39,35 @@ export class ModalAdminComponent implements OnInit {
 
   readonly tiposRecurso = ['TEXTO', 'IMAGEN', 'VIDEO'];
   readonly tiposAccion = ['INFO', 'ACEPTAR', 'CONFIRMAR'];
+  unidades: DtoUnidad[] = [];
+  unidadesLoading = false;
 
   constructor(
     private toast: ToastService,
-    private modalService: ModalService
+    private modalService: ModalService,
+    private dominioService: DominioService
   ) {}
 
   ngOnInit(): void {
+    this.cargarUnidades();
     this.cargar();
+  }
+
+  private cargarUnidades(): void {
+    this.unidadesLoading = true;
+    this.dominioService.getUnidades().subscribe({
+      next: (items) => {
+        this.unidades = (items ?? [])
+          .slice()
+          .sort((a, b) => (a.text ?? '').localeCompare(b.text ?? ''));
+        this.unidadesLoading = false;
+      },
+      error: () => {
+        this.unidades = [];
+        this.unidadesLoading = false;
+        this.toast.error('Modales', 'No fue posible cargar las unidades.');
+      },
+    });
   }
 
   cargar(): void {

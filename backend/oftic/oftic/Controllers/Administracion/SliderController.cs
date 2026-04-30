@@ -22,19 +22,16 @@ namespace ofic.Controllers.Administracion
     public class SliderController : ControllerBase
     {
     private readonly IDbSliders _dbSliders;
-    private readonly IDbUsuarioRepository _dbUsuarioRepository;
     private readonly ILogger<SliderController> _logger;
     private readonly string _bannerRootPath;
 
     public SliderController(
         IDbSliders dbSliders,
-        IDbUsuarioRepository dbUsuarioRepository,
         IConfiguration configuration,
         IHostEnvironment environment,
         ILogger<SliderController> logger)
     {
         _dbSliders = dbSliders;
-        _dbUsuarioRepository = dbUsuarioRepository;
         _logger = logger;
         _bannerRootPath = ResolveStoragePath(
             configuration,
@@ -85,11 +82,11 @@ namespace ofic.Controllers.Administracion
 
                 if (string.IsNullOrWhiteSpace(request.titulo))
                 {
-                    return BadRequest(new { success = false, message = "TÃ­tulo requerido" });
+                    return BadRequest(new { success = false, message = "Titulo requerido" });
                 }
                 if (!SecurityGuards.IsSafeText(request.titulo, 120))
                 {
-                    return BadRequest(new { success = false, message = "TÃ­tulo con caracteres no permitidos." });
+                    return BadRequest(new { success = false, message = "Titulo con caracteres no permitidos." });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.urlImagen))
@@ -98,7 +95,7 @@ namespace ofic.Controllers.Administracion
                 }
                 if (SecurityGuards.HasPotentialHtml(request.urlImagen))
                 {
-                    return BadRequest(new { success = false, message = "URL de imagen invÃ¡lida." });
+                    return BadRequest(new { success = false, message = "URL de imagen inválida." });
                 }
 
                 if (request.orden <= 0)
@@ -114,10 +111,10 @@ namespace ofic.Controllers.Administracion
                     return BadRequest(new { success = false, message = "La vigencia fin no puede ser menor a la vigencia inicio." });
                 }
 
-                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(HttpContext.RequestAborted);
-                if (usuarioAuditoria <= 0)
+                var usuarioAuditoria = ResolveUsuarioEmpresarial();
+                if (string.IsNullOrWhiteSpace(usuarioAuditoria))
                 {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cÃ©dula del usuario autenticado." });
+                    return Unauthorized(new { success = false, message = "No se pudo resolver usuario empresarial del usuario autenticado." });
                 }
                 var maquinaAuditoria = ResolveMaquinaAuditoria();
 
@@ -268,10 +265,10 @@ namespace ofic.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Vigente debe ser 0 o 1" });
                 }
 
-                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(HttpContext.RequestAborted);
-                if (usuarioAuditoria <= 0)
+                var usuarioAuditoria = ResolveUsuarioEmpresarial();
+                if (string.IsNullOrWhiteSpace(usuarioAuditoria))
                 {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cÃ©dula del usuario autenticado." });
+                    return Unauthorized(new { success = false, message = "No se pudo resolver usuario empresarial del usuario autenticado." });
                 }
                 var maquinaAuditoria = ResolveMaquinaAuditoria();
 
@@ -314,32 +311,16 @@ namespace ofic.Controllers.Administracion
             }
         }
 
-        private async Task<long> ResolveUsuarioAuditoriaAsync(CancellationToken ct)
+        private string ResolveUsuarioEmpresarial()
         {
-            var rawCedula = User.FindFirstValue("identificacion")
-                ?? User.FindFirstValue("cedula")
-                ?? User.FindFirstValue("numeroDocumento")
-                ?? User.FindFirstValue("documento");
-            if (long.TryParse(rawCedula, out var cedulaClaim) && cedulaClaim > 0)
-            {
-                return cedulaClaim;
-            }
-
-            var username =
+            return (
                 User?.Identity?.Name
+                ?? User?.FindFirstValue("preferred_username")
+                ?? User?.FindFirstValue("upn")
                 ?? User?.FindFirstValue(ClaimTypes.Name)
-                ?? User?.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name");
-
-            if (!string.IsNullOrWhiteSpace(username))
-            {
-                var cedulaDb = await _dbUsuarioRepository.GetIdentificacionByUsernameAsync(username.Trim(), ct);
-                if (long.TryParse(cedulaDb, out var cedula) && cedula > 0)
-                {
-                    return cedula;
-                }
-            }
-
-            return 0;
+                ?? User?.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")
+                ?? string.Empty
+            ).Trim();
         }
 
         private string ResolveMaquinaAuditoria()

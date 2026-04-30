@@ -35,21 +35,21 @@
                 placeholder="Mensaje o contenido del modal"></textarea>
             </div>
 
-            <div class="ui-field ui-col-6">
+            <div class="ui-field ui-col-3">
               <label class="ui-label">Tipo de recurso</label>
               <select class="ui-control" [(ngModel)]="form.TipoRecurso">
                 <option *ngFor="let t of tiposRecurso" [value]="t">{{ t }}</option>
               </select>
             </div>
 
-            <div class="ui-field ui-col-6">
+            <div class="ui-field ui-col-3">
               <label class="ui-label">Tipo de acción</label>
               <select class="ui-control" [(ngModel)]="form.TipoAccion">
                 <option *ngFor="let a of tiposAccion" [value]="a">{{ a }}</option>
               </select>
             </div>
 
-            <div class="ui-field ui-col-12" *ngIf="form.TipoRecurso === 'IMAGEN' || form.TipoRecurso === 'VIDEO'">
+            <div class="ui-field ui-col-6" *ngIf="form.TipoRecurso === 'IMAGEN' || form.TipoRecurso === 'VIDEO'">
               <label class="ui-label">Cargar recurso</label>
               <input class="ui-control" type="file"
                 [accept]="form.TipoRecurso === 'IMAGEN' ? '.jpg,.jpeg,.png,.webp,image/*' : '.mp4,.webm,.mov,video/*'"
@@ -78,27 +78,25 @@
               </div>
             </div>
 
-            <div class="ui-field ui-col-6">
+            <div class="ui-field ui-col-4">
               <label class="ui-label">Fecha y hora inicio *</label>
               <input class="ui-control" type="datetime-local" [(ngModel)]="form.FechaInicio">
             </div>
 
-            <div class="ui-field ui-col-6">
+            <div class="ui-field ui-col-4">
               <label class="ui-label">Fecha y hora fin *</label>
               <input class="ui-control" type="datetime-local" [(ngModel)]="form.FechaFin">
             </div>
 
-            <div class="ui-field ui-col-8">
-              <label class="ui-label">Unidad</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.Unidad" maxlength="100"
-                placeholder="Dejar vacío para todas las unidades">
-            </div>
-
             <div class="ui-field ui-col-4">
-              <label class="ui-label">Orden</label>
-              <input class="ui-control" type="number" [(ngModel)]="form.Orden" min="1" max="999">
+              <label class="ui-label">Unidad solicitante</label>
+              <select class="ui-control" [(ngModel)]="form.Unidad" [disabled]="unidadesLoading">
+                <option value="">Seleccione</option>
+                <option *ngFor="let u of unidades" [value]="u.descripcion">{{ u.text }}</option>
+              </select>
+              <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
             </div>
-
+            
             <div class="ui-field ui-col-6" *ngIf="editingId">
               <label class="ui-label">Vigente</label>
               <select class="ui-control" [(ngModel)]="form.Vigente">

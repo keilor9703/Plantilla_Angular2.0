@@ -20,7 +20,7 @@
     <div class="card-body">
       <form (ngSubmit)="guardar()">
         <div class="form-grid">
-          <div class="form-group">
+          <div class="form-group span-2">
             <label for="titulo">Título <span class="required">*</span></label>
             <input
               type="text"
@@ -32,45 +32,7 @@
               required />
           </div>
 
-          <div class="form-group">
-            <label for="unidad">Unidad <span class="required">*</span></label>
-            <input
-              type="text"
-              id="unidad"
-              class="ui-input"
-              [(ngModel)]="form.unidad"
-              name="unidad"
-              placeholder="Unidad policiva"
-              required />
-          </div>
-
-          <div class="form-group">
-            <label for="seccion">Sección <span class="required">*</span></label>
-            <select
-              id="seccion"
-              class="ui-select"
-              [(ngModel)]="form.seccion"
-              name="seccion"
-              required>
-              <option value="">Seleccionar sección</option>
-              <option *ngFor="let s of secciones" [value]="s">{{ s }}</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="ciudad">Ciudad <span class="required">*</span></label>
-            <select
-              id="ciudad"
-              class="ui-select"
-              [(ngModel)]="form.ciudad"
-              name="ciudad"
-              required>
-              <option value="">Seleccionar ciudad</option>
-              <option *ngFor="let c of ciudades" [value]="c">{{ c }}</option>
-            </select>
-          </div>
-
-          <div class="form-group full-width">
+         <div class="form-group span-2">
             <label for="subtitulo">Subtítulo</label>
             <input
               type="text"
@@ -81,6 +43,69 @@
               placeholder="Breve descripción o subtítulo" />
           </div>
 
+          <div class="form-group span-1">
+            <label for="seccion">Sección <span class="required">*</span></label>
+            <select
+              id="seccion"
+              class="ui-select"
+              [(ngModel)]="form.seccion"
+              name="seccion"
+              [disabled]="seccionesLoading"
+              required>
+              <option value="">Seleccionar sección</option>
+              <option *ngFor="let s of secciones" [value]="s">{{ s }}</option>
+            </select>
+            <small class="meta" *ngIf="seccionesLoading">Cargando secciones...</small>
+          </div>
+
+          <div class="form-group span-1">
+            <label for="unidad">Unidad <span class="required">*</span></label>
+            <select
+              id="unidad"
+              class="ui-select"
+              [(ngModel)]="form.unidad"
+              name="unidad"
+              [disabled]="unidadesLoading"
+              required>
+              <option value="">Seleccionar unidad</option>
+              <option *ngFor="let u of unidades" [value]="u.text">{{ u.text }}</option>
+            </select>
+            <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
+          </div>
+
+          <div class="form-group span-1">
+            <label for="departamento">Departamento <span class="required">*</span></label>
+            <select
+              id="departamento"
+              class="ui-select"
+              [(ngModel)]="selectedDepartamentoId"
+              name="departamento"
+              (ngModelChange)="onDepartamentoChange()"
+              [disabled]="departamentosLoading"
+              required>
+              <option [ngValue]="null">Seleccionar departamento</option>
+              <option *ngFor="let d of departamentos" [ngValue]="d.idDepartamento">{{ d.nombre }}</option>
+            </select>
+            <small class="meta" *ngIf="departamentosLoading">Cargando departamentos...</small>
+          </div>
+
+          <div class="form-group span-1">
+            <label for="ciudad">Ciudad <span class="required">*</span></label>
+            <select
+              id="ciudad"
+              class="ui-select"
+              [(ngModel)]="form.ciudad"
+              name="ciudad"
+              [disabled]="municipiosLoading"
+              required>
+              <option value="">Seleccionar municipio</option>
+              <option *ngFor="let m of municipios" [value]="m.nombre">{{ m.nombre }}</option>
+            </select>
+            <small class="meta" *ngIf="municipiosLoading">Cargando municipios...</small>
+          </div>
+
+        
+
           <div class="form-group full-width">
             <label for="imagenNoticia">Imagen</label>
             <div class="file-upload-wrapper">
@@ -89,32 +114,45 @@
                 id="imagenNoticia"
                 class="ui-control"
                 accept=".jpg,.jpeg,.png,.webp,image/*"
+                multiple
                 (change)="onImageSelected($event)"
                 [disabled]="uploading" />
-              <div class="file-upload-info" *ngIf="form.imagenNoticia && !uploading">
-                <i class="fa-solid fa-image"></i>
-                <span>{{ form.imagenNoticia }}</span>
+              <div class="file-upload-info" *ngIf="uploadedImages.length > 0 && !uploading">
+                <i class="fa-solid fa-images"></i>
+                <span>{{ uploadedImages.length }} de 4 imágenes cargadas</span>
               </div>
-              <div class="file-upload-hint" *ngIf="!form.imagenNoticia && !uploading">
+              <div class="file-upload-hint" *ngIf="uploadedImages.length === 0 && !uploading">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
-                <span>Click para seleccionar o arrastre la imagen aquí</span>
+                <span>Click para seleccionar hasta 4 imágenes</span>
               </div>
               <div class="file-upload-loading" *ngIf="uploading">
                 <i class="fa-solid fa-circle-notch fa-spin"></i>
                 <span>Cargando imagen...</span>
               </div>
             </div>
+            <div class="image-thumbs" *ngIf="uploadedImages.length > 0">
+              <div class="image-thumb" *ngFor="let imageName of uploadedImages; let i = index">
+                <img [src]="getUploadedImageUrl(imageName)" [alt]="'Imagen ' + (i + 1)" />
+                <button type="button" class="image-thumb__remove" (click)="removeUploadedImage(i)" title="Quitar imagen">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+                <small>{{ i + 1 }}</small>
+              </div>
+            </div>
           </div>
 
           <div class="form-group full-width">
             <label for="contenido">Contenido</label>
-            <textarea
-              id="contenido"
-              class="ui-textarea"
-              [(ngModel)]="form.contenido"
-              name="contenido"
-              rows="8"
-              placeholder="Contenido HTML de la noticia"></textarea>
+            <div class="news-editor">
+              <ngx-editor-menu [editor]="editor" [toolbar]="editorToolbar"></ngx-editor-menu>
+              <ngx-editor
+                id="contenido"
+                [editor]="editor"
+                [(ngModel)]="form.contenido"
+                name="contenido"
+                [placeholder]="'Escriba el contenido de la noticia'">
+              </ngx-editor>
+            </div>
           </div>
         </div>
 
