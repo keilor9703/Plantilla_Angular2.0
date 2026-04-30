@@ -64,20 +64,32 @@ public class DbEventoService : IDbEventoService
         if (string.IsNullOrWhiteSpace(request.Unidad))
             return new DtoEventoResult { Success = false, Message = "La unidad es requerida." };
 
-        if (request.Unidad.Length > 100)
-            return new DtoEventoResult { Success = false, Message = "La unidad no puede superar 100 caracteres." };
+        if (request.Unidad.Length > 150)
+            return new DtoEventoResult { Success = false, Message = "La unidad no puede superar 150 caracteres." };
 
-        if (string.IsNullOrWhiteSpace(request.Titulo))
-            return new DtoEventoResult { Success = false, Message = "El título es requerido." };
+        if (string.IsNullOrWhiteSpace(request.NombreEvento))
+            return new DtoEventoResult { Success = false, Message = "El nombre del evento es requerido." };
 
-        if (request.Titulo.Length > 300)
-            return new DtoEventoResult { Success = false, Message = "El título no puede superar 300 caracteres." };
+        if (request.NombreEvento.Length > 300)
+            return new DtoEventoResult { Success = false, Message = "El nombre del evento no puede superar 300 caracteres." };
+
+        if (string.IsNullOrWhiteSpace(request.Departamento))
+            return new DtoEventoResult { Success = false, Message = "El departamento es requerido." };
+
+        if (string.IsNullOrWhiteSpace(request.Ciudad))
+            return new DtoEventoResult { Success = false, Message = "La ciudad es requerida." };
+
+        if (string.IsNullOrWhiteSpace(request.DireccionEvento))
+            return new DtoEventoResult { Success = false, Message = "La dirección del evento es requerida." };
+
+        if (string.IsNullOrWhiteSpace(request.CedulaResponsable))
+            return new DtoEventoResult { Success = false, Message = "La cédula del responsable es requerida." };
+
+        if (string.IsNullOrWhiteSpace(request.NombreResponsable))
+            return new DtoEventoResult { Success = false, Message = "El nombre del responsable es requerido." };
 
         if (request.FechaFin < request.FechaInicio)
             return new DtoEventoResult { Success = false, Message = "La fecha fin no puede ser menor a la fecha inicio." };
-
-        if (request.Orden < 1)
-            return new DtoEventoResult { Success = false, Message = "El orden debe ser mayor a 0." };
 
         return new DtoEventoResult { Success = true, Message = "OK" };
     }

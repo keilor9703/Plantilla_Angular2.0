@@ -176,6 +176,9 @@ Directory.CreateDirectory(noticiasRoot);
 var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
 Directory.CreateDirectory(modalesRoot);
 
+var eventosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "eventos");
+Directory.CreateDirectory(eventosRoot);
+
 app.UseCors("DevCors");
 
 if (app.Environment.IsDevelopment())
@@ -200,6 +203,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(noticiasRoot),
     RequestPath = "/uploads/noticias"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(eventosRoot),
+    RequestPath = "/uploads/eventos"
 });
 
 app.UseAuthentication();

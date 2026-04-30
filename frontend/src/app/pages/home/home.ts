@@ -12,6 +12,7 @@ import { environment } from '../../../environments/environment';
 import { DtoDominio } from '../../core/services/gestion-digital/redes-sociales.service';
 import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
 import { DominioService } from '../../core/services/administracion/dominio.service';
+import { DtoEvento, EventoService } from '../../core/services/administracion/evento.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -25,6 +26,14 @@ interface NewsItem {
   image: string;
   images: string[];
   megusta: number;
+}
+
+interface CalendarDay {
+  date: Date;
+  inCurrentMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  eventos: DtoEvento[];
 }
 
 @Component({
@@ -84,6 +93,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   selectedNews: NewsItem | null = null;
   newsModalImageIndex = 0;
 
+  eventosActivos: DtoEvento[] = [];
+  calendarCurrent = new Date();
+  calendarDays: CalendarDay[] = [];
+  selectedCalendarDate: Date | null = null;
+  selectedCalendarEventos: DtoEvento[] = [];
+  selectedCalendarEvento: DtoEvento | null = null;
+  eventoModalOpen = false;
+
   constructor(
     private sliderService: SliderService,
     private homeService: HomeService,
@@ -92,7 +109,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private lineaMandoService: LineaMandoService,
     private noticiaService: NoticiaService,
     private personajeMesService: PersonajeMesService,
-    private dominioService: DominioService
+    private dominioService: DominioService,
+    private eventoService: EventoService
   ) {}
 
   openGrupoLightbox(grupo: any): void {
@@ -159,6 +177,157 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadPersonajesMes();
     this.loadEquiposAltoRendimiento();
     this.loadCategoriasPersonajeMes();
+    this.loadEventosActivos();
+  }
+
+  private loadEventosActivos(): void {
+    this.eventoService.getActivos().subscribe({
+      next: (items) => {
+        this.eventosActivos = (items ?? []).slice();
+        this.buildCalendar();
+      },
+      error: () => {
+        this.eventosActivos = [];
+        this.buildCalendar();
+      }
+    });
+  }
+
+  private buildCalendar(): void {
+    const first = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth(), 1);
+    const start = new Date(first);
+    start.setDate(first.getDate() - first.getDay());
+
+    const days: CalendarDay[] = [];
+    const today = new Date();
+
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+
+      const eventos = this.getEventosByDate(date);
+      const isSelected = !!this.selectedCalendarDate && this.isSameDate(date, this.selectedCalendarDate);
+
+      days.push({
+        date,
+        inCurrentMonth: date.getMonth() === this.calendarCurrent.getMonth(),
+        isToday: this.isSameDate(date, today),
+        isSelected,
+        eventos
+      });
+    }
+
+    this.calendarDays = days;
+
+    if (!this.selectedCalendarDate) {
+      const firstWithEvent = days.find((x) => x.inCurrentMonth && x.eventos.length > 0);
+      if (firstWithEvent) {
+        this.selectCalendarDay(firstWithEvent);
+      }
+    }
+  }
+
+  private getEventosByDate(date: Date): DtoEvento[] {
+    const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+    return this.eventosActivos.filter((evento) => {
+      const ini = this.parseOnlyDate(evento.fechaInicio);
+      const fin = this.parseOnlyDate(evento.fechaFin);
+      if (!ini || !fin) return false;
+      return target >= ini.getTime() && target <= fin.getTime();
+    });
+  }
+
+  private parseOnlyDate(raw: string | null | undefined): Date | null {
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  private isSameDate(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  prevCalendarMonth(): void {
+    this.calendarCurrent = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth() - 1, 1);
+    this.buildCalendar();
+  }
+
+  nextCalendarMonth(): void {
+    this.calendarCurrent = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth() + 1, 1);
+    this.buildCalendar();
+  }
+
+  getCalendarMonthLabel(): string {
+    return this.calendarCurrent.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  }
+
+  selectCalendarDay(day: CalendarDay): void {
+    this.selectedCalendarDate = new Date(day.date);
+    this.selectedCalendarEventos = day.eventos.slice();
+    this.selectedCalendarEvento = this.selectedCalendarEventos.length > 0 ? this.selectedCalendarEventos[0] : null;
+    this.calendarDays = this.calendarDays.map((x) => ({ ...x, isSelected: this.isSameDate(x.date, day.date) }));
+  }
+
+  selectCalendarEvento(evento: DtoEvento): void {
+    this.selectedCalendarEvento = evento;
+  }
+
+  openCalendarEventoModal(evento: DtoEvento, event?: Event): void {
+    event?.stopPropagation();
+    this.selectedCalendarEvento = evento;
+    this.eventoModalOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closeCalendarEventoModal(): void {
+    this.eventoModalOpen = false;
+    this.syncBodyModalClass();
+  }
+
+  getEventoImageUrl(raw: string | null | undefined): string {
+    const value = (raw ?? '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
+    if (value.startsWith('/')) return value;
+
+    const normalized = value.replace(/\\/g, '/');
+    if (normalized.includes('/')) {
+      return `/${normalized.replace(/^\/+/, '')}`;
+    }
+    const file = normalized.split('/').filter(Boolean).pop() ?? '';
+    if (!file) return '';
+    return `/api/EventoUpload/Imagen/${encodeURIComponent(file)}`;
+  }
+
+  getEventoFechaRango(evento: DtoEvento): string {
+    const ini = new Date(evento.fechaInicio);
+    const fin = new Date(evento.fechaFin);
+    const fmt = (d: Date) =>
+      Number.isNaN(d.getTime())
+        ? ''
+        : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const fi = fmt(ini);
+    const ff = fmt(fin);
+    if (!fi && !ff) return 'Sin fecha';
+    if (fi && ff) return fi === ff ? fi : `${fi} - ${ff}`;
+    return fi || ff;
+  }
+
+  getEventoBadgeClass(evento: DtoEvento): string {
+    const inicio = this.parseOnlyDate(evento?.fechaInicio);
+    if (!inicio) return 'is-green';
+
+    const today = new Date();
+    const hoy = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diffMs = inicio.getTime() - hoy.getTime();
+    const diffDays = Math.ceil(diffMs / 86400000);
+
+    if (diffDays < 2) return 'is-red';
+    if (diffDays <= 8) return 'is-orange';
+    return 'is-green';
   }
 
 
@@ -469,7 +638,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen) {
+    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen || this.eventoModalOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }
@@ -759,6 +928,11 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     if (this.newsModalOpen) {
       this.closeNews();
+      return;
+    }
+
+    if (this.eventoModalOpen) {
+      this.closeCalendarEventoModal();
     }
   }
 }

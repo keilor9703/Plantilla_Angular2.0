@@ -5,20 +5,18 @@ import { environment } from '../../../../environments/environment';
 
 export interface DtoEvento {
   idEvento: number;
+  nombreEvento: string;
   unidad: string;
-  titulo: string;
-  subtitulo?: string | null;
-  descripcion?: string | null;
-  lugar?: string | null;
-  ciudad?: string | null;
+  departamento: string;
+  ciudad: string;
+  direccionEvento: string;
+  cedulaResponsable: string;
+  nombreResponsable: string;
+  correoResponsable?: string | null;
+  telefonoResponsable?: string | null;
+  imagenEvento?: string | null;
   fechaInicio: string;
   fechaFin: string;
-  horaInicio?: string | null;
-  horaFin?: string | null;
-  imagenPortada?: string | null;
-  enlaceEvento?: string | null;
-  tipoEvento?: string | null;
-  orden: number;
   vigente: number;
   fechaCreacion: string;
   usuarioCreacion: string;
@@ -29,20 +27,18 @@ export interface DtoEvento {
 }
 
 export interface DtoEventoRequest {
+  nombreEvento: string;
   unidad: string;
-  titulo: string;
-  subtitulo?: string | null;
-  descripcion?: string | null;
-  lugar?: string | null;
-  ciudad?: string | null;
+  departamento: string;
+  ciudad: string;
+  direccionEvento: string;
+  cedulaResponsable: string;
+  nombreResponsable: string;
+  correoResponsable?: string | null;
+  telefonoResponsable?: string | null;
+  imagenEvento?: string | null;
   fechaInicio: string;
   fechaFin: string;
-  horaInicio?: string | null;
-  horaFin?: string | null;
-  imagenPortada?: string | null;
-  enlaceEvento?: string | null;
-  tipoEvento?: string | null;
-  orden: number;
   vigente: number;
 }
 
@@ -52,9 +48,17 @@ export interface DtoEventoApiResponse {
   id?: number;
 }
 
+export interface DtoUploadResponse {
+  success: boolean;
+  url: string;
+  fileName: string;
+  message: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class EventoService {
   private readonly baseUrl = `${environment.apiBaseUrl}/Evento`;
+  private readonly uploadUrl = `${environment.apiBaseUrl}/EventoUpload`;
 
   constructor(private http: HttpClient) {}
 
@@ -85,5 +89,11 @@ export class EventoService {
 
   delete(id: number): Observable<DtoEventoApiResponse> {
     return this.http.delete<DtoEventoApiResponse>(`${this.baseUrl}/${id}`);
+  }
+
+  uploadImage(file: File): Observable<DtoUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<DtoUploadResponse>(`${this.uploadUrl}/imagen`, formData);
   }
 }

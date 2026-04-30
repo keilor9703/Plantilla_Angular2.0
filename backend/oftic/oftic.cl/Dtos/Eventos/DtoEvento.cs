@@ -7,23 +7,11 @@ public class DtoEvento
     [JsonPropertyName("idEvento")]
     public long IdEvento { get; set; }
 
+    [JsonPropertyName("nombreEvento")]
+    public string NombreEvento { get; set; } = string.Empty;
+
     [JsonPropertyName("unidad")]
     public string Unidad { get; set; } = string.Empty;
-
-    [JsonPropertyName("titulo")]
-    public string Titulo { get; set; } = string.Empty;
-
-    [JsonPropertyName("subtitulo")]
-    public string? Subtitulo { get; set; }
-
-    [JsonPropertyName("descripcion")]
-    public string? Descripcion { get; set; }
-
-    [JsonPropertyName("lugar")]
-    public string? Lugar { get; set; }
-
-    [JsonPropertyName("ciudad")]
-    public string? Ciudad { get; set; }
 
     [JsonPropertyName("fechaInicio")]
     public DateTime FechaInicio { get; set; }
@@ -31,23 +19,29 @@ public class DtoEvento
     [JsonPropertyName("fechaFin")]
     public DateTime FechaFin { get; set; }
 
-    [JsonPropertyName("horaInicio")]
-    public string? HoraInicio { get; set; }
+    [JsonPropertyName("departamento")]
+    public string Departamento { get; set; } = string.Empty;
 
-    [JsonPropertyName("horaFin")]
-    public string? HoraFin { get; set; }
+    [JsonPropertyName("ciudad")]
+    public string Ciudad { get; set; } = string.Empty;
 
-    [JsonPropertyName("imagenPortada")]
-    public string? ImagenPortada { get; set; }
+    [JsonPropertyName("direccionEvento")]
+    public string DireccionEvento { get; set; } = string.Empty;
 
-    [JsonPropertyName("enlaceEvento")]
-    public string? EnlaceEvento { get; set; }
+    [JsonPropertyName("cedulaResponsable")]
+    public string CedulaResponsable { get; set; } = string.Empty;
 
-    [JsonPropertyName("tipoEvento")]
-    public string? TipoEvento { get; set; }
+    [JsonPropertyName("nombreResponsable")]
+    public string NombreResponsable { get; set; } = string.Empty;
 
-    [JsonPropertyName("orden")]
-    public int Orden { get; set; }
+    [JsonPropertyName("correoResponsable")]
+    public string? CorreoResponsable { get; set; }
+
+    [JsonPropertyName("telefonoResponsable")]
+    public string? TelefonoResponsable { get; set; }
+
+    [JsonPropertyName("imagenEvento")]
+    public string? ImagenEvento { get; set; }
 
     [JsonPropertyName("vigente")]
     public int Vigente { get; set; }
@@ -73,23 +67,32 @@ public class DtoEvento
 
 public class DtoEventoRequest
 {
+    [JsonPropertyName("nombreEvento")]
+    public string NombreEvento { get; set; } = string.Empty;
+
     [JsonPropertyName("unidad")]
     public string Unidad { get; set; } = string.Empty;
 
-    [JsonPropertyName("titulo")]
-    public string Titulo { get; set; } = string.Empty;
-
-    [JsonPropertyName("subtitulo")]
-    public string? Subtitulo { get; set; }
-
-    [JsonPropertyName("descripcion")]
-    public string? Descripcion { get; set; }
-
-    [JsonPropertyName("lugar")]
-    public string? Lugar { get; set; }
+    [JsonPropertyName("departamento")]
+    public string Departamento { get; set; } = string.Empty;
 
     [JsonPropertyName("ciudad")]
-    public string? Ciudad { get; set; }
+    public string Ciudad { get; set; } = string.Empty;
+
+    [JsonPropertyName("direccionEvento")]
+    public string DireccionEvento { get; set; } = string.Empty;
+
+    [JsonPropertyName("cedulaResponsable")]
+    public string CedulaResponsable { get; set; } = string.Empty;
+
+    [JsonPropertyName("nombreResponsable")]
+    public string NombreResponsable { get; set; } = string.Empty;
+
+    [JsonPropertyName("correoResponsable")]
+    public string? CorreoResponsable { get; set; }
+
+    [JsonPropertyName("telefonoResponsable")]
+    public string? TelefonoResponsable { get; set; }
 
     [JsonPropertyName("fechaInicio")]
     public DateTime FechaInicio { get; set; }
@@ -97,23 +100,8 @@ public class DtoEventoRequest
     [JsonPropertyName("fechaFin")]
     public DateTime FechaFin { get; set; }
 
-    [JsonPropertyName("horaInicio")]
-    public string? HoraInicio { get; set; }
-
-    [JsonPropertyName("horaFin")]
-    public string? HoraFin { get; set; }
-
-    [JsonPropertyName("imagenPortada")]
-    public string? ImagenPortada { get; set; }
-
-    [JsonPropertyName("enlaceEvento")]
-    public string? EnlaceEvento { get; set; }
-
-    [JsonPropertyName("tipoEvento")]
-    public string? TipoEvento { get; set; }
-
-    [JsonPropertyName("orden")]
-    public int Orden { get; set; } = 1;
+    [JsonPropertyName("imagenEvento")]
+    public string? ImagenEvento { get; set; }
 
     [JsonPropertyName("vigente")]
     public int Vigente { get; set; } = 1;

@@ -116,6 +116,7 @@
           <div class="ui-field">
             <label class="ui-label">Foto del evento</label>
             <input class="ui-control" type="file" accept="image/*" (change)="onChangeImagen($event)" />
+            <small class="meta" *ngIf="subiendoImagen">Subiendo imagen...</small>
           </div>
         </div>
 
@@ -129,12 +130,85 @@
       <div class="ui-toolbar">
         <button class="ui-btn primary" type="button" (click)="guardarEvento()" [disabled]="guardando">
           <i class="fa-solid fa-floppy-disk"></i>
-          {{ guardando ? 'Guardando...' : 'Guardar evento' }}
+          {{ guardando ? 'Guardando...' : (editandoEventoId ? 'Actualizar evento' : 'Guardar evento') }}
         </button>
         <button class="ui-btn outline" type="button" (click)="limpiarFormulario()">
           <i class="fa-solid fa-eraser"></i>
           Limpiar
         </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-table"></i>
+        Eventos Registrados
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge neutral">{{ eventos.length }}</span>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div class="meta" *ngIf="eventosLoading">Cargando eventos...</div>
+
+      <div class="ui-table-wrap" *ngIf="!eventosLoading">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Nombre del evento</th>
+              <th>Fecha inicio</th>
+              <th>Fecha final</th>
+              <th>Departamento</th>
+              <th>Ciudad</th>
+              <th>Unidad</th>
+              <th>Responsable (grado y nombre)</th>
+              <th>Teléfono</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let e of eventos">
+              <tr>
+                <td>
+                  <button class="link-evento" type="button" (click)="toggleImagenEvento(e)">
+                    {{ e.nombreEvento }}
+                  </button>
+                </td>
+                <td>{{ e.fechaInicio | date:'yyyy-MM-dd' }}</td>
+                <td>{{ e.fechaFin | date:'yyyy-MM-dd' }}</td>
+                <td>{{ getDepartamentoEvento(e) || '-' }}</td>
+                <td>{{ e.ciudad || '-' }}</td>
+                <td>{{ e.unidad }}</td>
+                <td>{{ getNombreResponsable(e) || '-' }}</td>
+                <td>{{ getTelefonoResponsable(e) || '-' }}</td>
+                <td>
+                  <button class="ui-btn outline" type="button" (click)="editarEvento(e)" title="Editar evento" aria-label="Editar evento">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button class="ui-btn danger" type="button" (click)="eliminarEvento(e)" title="Eliminar evento" aria-label="Eliminar evento">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="eventoExpandidoId === e.idEvento">
+                <td colspan="9">
+                  <div class="evento-imagen-detalle" *ngIf="getImagenEventoUrl(e); else sinImagenEvento">
+                    <img [src]="getImagenEventoUrl(e)" [alt]="e.nombreEvento" />
+                  </div>
+                  <ng-template #sinImagenEvento>
+                    <div class="meta">Este evento no tiene imagen registrada.</div>
+                  </ng-template>
+                </td>
+              </tr>
+            </ng-container>
+            <tr *ngIf="eventos.length === 0">
+              <td colspan="9" class="meta">No hay eventos registrados.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

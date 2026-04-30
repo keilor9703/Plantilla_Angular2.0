@@ -14,7 +14,7 @@ namespace Datos.Gestion
 
         public DbVideoRepository(IConfiguration configuration, ILogger<DbVideoRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest") ?? string.Empty;
             _logger = logger;
         }
 
@@ -22,24 +22,37 @@ namespace Datos.Gestion
         {
             var result = new List<DtoVideo>();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandTimeout = 30;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
-            cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = DBNull.Value;
-
-            var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
-            cursorParam.Direction = ParameterDirection.ReturnValue;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            
-            while (await reader.ReadAsync(ct))
+            if (string.IsNullOrWhiteSpace(_cs))
             {
-                result.Add(MapVideo(reader));
+                _logger.LogWarning("ConnectionString de video no configurada (DbCoest).");
+                return result;
+            }
+
+            try
+            {
+                await using var conn = new OracleConnection(_cs);
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 30;
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
+                cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = DBNull.Value;
+
+                var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
+                cursorParam.Direction = ParameterDirection.ReturnValue;
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(MapVideo(reader));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo consultar videos en BD. Se retorna lista vacía.");
             }
 
             return result;
@@ -47,24 +60,37 @@ namespace Datos.Gestion
 
         public async Task<DtoVideo?> GetByIdAsync(long id, CancellationToken ct)
         {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandTimeout = 30;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
-            cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = id;
-
-            var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
-            cursorParam.Direction = ParameterDirection.ReturnValue;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            
-            if (await reader.ReadAsync(ct))
+            if (string.IsNullOrWhiteSpace(_cs))
             {
-                return MapVideo(reader);
+                _logger.LogWarning("ConnectionString de video no configurada (DbCoest).");
+                return null;
+            }
+
+            try
+            {
+                await using var conn = new OracleConnection(_cs);
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 30;
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
+                cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = id;
+
+                var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
+                cursorParam.Direction = ParameterDirection.ReturnValue;
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+                if (await reader.ReadAsync(ct))
+                {
+                    return MapVideo(reader);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo consultar video {Id} en BD.", id);
             }
 
             return null;

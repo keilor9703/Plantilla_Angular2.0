@@ -6,7 +6,7 @@ import { DominioService, DtoUnidad } from '../../../core/services/administracion
 import { DtoDepartamento, DtoMunicipio, UbicacionService } from '../../../core/services/administracion/ubicacion.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { DtoEventoRequest, EventoService } from '../../../core/services/administracion/evento.service';
+import { DtoEvento, DtoEventoRequest, EventoService } from '../../../core/services/administracion/evento.service';
 
 interface EventoForm {
   nombreEvento: string;
@@ -34,15 +34,23 @@ export class EventosInstitucionalesComponent implements OnInit {
   unidades: DtoUnidad[] = [];
   departamentos: DtoDepartamento[] = [];
   municipios: DtoMunicipio[] = [];
+  municipiosCatalogo: DtoMunicipio[] = [];
 
   unidadesLoading = false;
   departamentosLoading = false;
   municipiosLoading = false;
   buscandoResponsable = false;
   guardando = false;
+  subiendoImagen = false;
+  eventosLoading = false;
+  eventos: DtoEvento[] = [];
+  eventoExpandidoId: number | null = null;
+  editandoEventoId: number | null = null;
+  vigenteEdicion = 1;
   private ultimaCedulaConsultada = '';
 
   imagenPreviewUrl = '';
+  imagenPortadaUrl: string | null = null;
 
   form: EventoForm = {
     nombreEvento: '',
@@ -70,6 +78,8 @@ export class EventosInstitucionalesComponent implements OnInit {
   ngOnInit(): void {
     this.cargarUnidades();
     this.cargarDepartamentos();
+    this.cargarMunicipiosCatalogo();
+    this.cargarEventos();
   }
 
   cargarUnidades(): void {
@@ -131,6 +141,7 @@ export class EventosInstitucionalesComponent implements OnInit {
     this.imagenPreviewUrl = '';
 
     if (!file) {
+      this.imagenPortadaUrl = null;
       return;
     }
 
@@ -139,6 +150,36 @@ export class EventosInstitucionalesComponent implements OnInit {
       this.imagenPreviewUrl = String(reader.result ?? '');
     };
     reader.readAsDataURL(file);
+
+    this.subiendoImagen = true;
+    this.eventoService.uploadImage(file)
+      .pipe(finalize(() => (this.subiendoImagen = false)))
+      .subscribe({
+        next: (resp) => {
+          if (!resp?.success || !resp?.url) {
+            this.imagenPortadaUrl = null;
+            this.toast.warning('Eventos', resp?.message ?? 'No fue posible cargar la imagen.');
+            return;
+          }
+          this.imagenPortadaUrl = resp.url;
+          this.toast.success('Eventos', 'Imagen cargada correctamente.');
+        },
+        error: (err) => {
+          this.imagenPortadaUrl = null;
+          this.toast.error('Eventos', err?.error?.message ?? 'Error cargando imagen del evento.');
+        },
+      });
+  }
+
+  private cargarMunicipiosCatalogo(): void {
+    this.ubicacionService.getMunicipios(null).subscribe({
+      next: (items) => {
+        this.municipiosCatalogo = (items ?? []).slice();
+      },
+      error: () => {
+        this.municipiosCatalogo = [];
+      },
+    });
   }
 
   buscarResponsable(): void {
@@ -213,6 +254,11 @@ export class EventosInstitucionalesComponent implements OnInit {
       return;
     }
 
+    if (this.subiendoImagen) {
+      this.toast.info('Eventos', 'Espere a que termine la carga de la imagen.');
+      return;
+    }
+
     const unidadNombre = this.getUnidadNombre(unidadId);
     const ciudadNombre = this.getMunicipioNombre(municipioId);
     if (!unidadNombre) {
@@ -224,35 +270,34 @@ export class EventosInstitucionalesComponent implements OnInit {
       return;
     }
 
-    const descripcion = [
-      this.form.nombreResponsable ? `Responsable: ${this.form.nombreResponsable}` : '',
-      this.form.correoResponsable ? `Correo: ${this.form.correoResponsable}` : '',
-      this.form.telefonoResponsable ? `Teléfono: ${this.form.telefonoResponsable}` : '',
-      this.form.cedulaResponsable ? `Cédula: ${this.form.cedulaResponsable}` : '',
-    ]
-      .filter(Boolean)
-      .join(' | ');
+    const departamentoNombre = this.getDepartamentoNombre(departamentoId);
+    if (!departamentoNombre) {
+      this.toast.warning('Eventos', 'Seleccione un departamento válido.');
+      return;
+    }
 
     const payload: DtoEventoRequest = {
+      nombreEvento: nombre,
       unidad: unidadNombre,
-      titulo: nombre,
-      subtitulo: this.form.nombreResponsable || null,
-      descripcion: descripcion || null,
-      lugar: direccion,
+      departamento: departamentoNombre,
       ciudad: ciudadNombre,
+      direccionEvento: direccion,
+      cedulaResponsable: this.form.cedulaResponsable.trim(),
+      nombreResponsable: this.form.nombreResponsable.trim(),
+      correoResponsable: this.form.correoResponsable.trim() || null,
+      telefonoResponsable: this.form.telefonoResponsable.trim() || null,
+      imagenEvento: this.imagenPortadaUrl,
       fechaInicio,
       fechaFin: fechaFinal,
-      horaInicio: null,
-      horaFin: null,
-      imagenPortada: null,
-      enlaceEvento: null,
-      tipoEvento: 'INSTITUCIONAL',
-      orden: 1,
-      vigente: 1,
+      vigente: this.editandoEventoId ? this.vigenteEdicion : 1,
     };
 
     this.guardando = true;
-    this.eventoService.create(payload)
+    const op$ = this.editandoEventoId
+      ? this.eventoService.update(this.editandoEventoId, payload)
+      : this.eventoService.create(payload);
+
+    op$
       .pipe(finalize(() => (this.guardando = false)))
       .subscribe({
         next: (resp) => {
@@ -262,11 +307,108 @@ export class EventosInstitucionalesComponent implements OnInit {
           }
           this.toast.success('Eventos', resp.message ?? 'Evento guardado correctamente.');
           this.limpiarFormulario();
+          this.cargarEventos();
         },
         error: (err) => {
           this.toast.error('Eventos', err?.error?.message ?? 'Error guardando el evento.');
         },
       });
+  }
+
+  cargarEventos(): void {
+    this.eventosLoading = true;
+    this.eventoService.getAll()
+      .pipe(finalize(() => (this.eventosLoading = false)))
+      .subscribe({
+        next: (items) => {
+          this.eventos = (items ?? []).slice();
+        },
+        error: () => {
+          this.eventos = [];
+          this.toast.error('Eventos', 'No fue posible cargar la tabla de eventos.');
+        },
+      });
+  }
+
+  toggleImagenEvento(evento: DtoEvento): void {
+    this.eventoExpandidoId = this.eventoExpandidoId === evento.idEvento ? null : evento.idEvento;
+  }
+
+  editarEvento(evento: DtoEvento): void {
+    this.editandoEventoId = evento.idEvento;
+    this.vigenteEdicion = evento.vigente ?? 1;
+    this.form.nombreEvento = evento.nombreEvento ?? '';
+    this.form.fechaInicio = (evento.fechaInicio ?? '').toString().substring(0, 10);
+    this.form.fechaFinal = (evento.fechaFin ?? '').toString().substring(0, 10);
+    this.form.direccionEvento = evento.direccionEvento ?? '';
+    this.form.nombreResponsable = evento.nombreResponsable ?? '';
+    this.form.telefonoResponsable = evento.telefonoResponsable ?? '';
+    this.form.correoResponsable = evento.correoResponsable ?? '';
+    this.form.cedulaResponsable = evento.cedulaResponsable ?? '';
+    this.imagenPortadaUrl = evento.imagenEvento ?? null;
+    this.imagenPreviewUrl = this.getImagenEventoUrl(evento);
+
+    const unidad = this.unidades.find((u) =>
+      (u.descripcion || u.text || '').trim().toLowerCase() === (evento.unidad || '').trim().toLowerCase()
+    );
+    this.form.unidadId = unidad?.value ?? null;
+
+    const municipio = this.municipiosCatalogo.find((m) =>
+      (m.nombre || '').trim().toLowerCase() === (evento.ciudad || '').trim().toLowerCase()
+    );
+    if (municipio?.idDepartamento) {
+      this.form.departamentoId = municipio.idDepartamento;
+      this.onChangeDepartamento();
+      this.form.municipioId = municipio.idMunicipio ?? null;
+    } else {
+      this.form.municipioId = null;
+    }
+
+    this.toast.info('Eventos', `Editando: ${evento.nombreEvento}`);
+  }
+
+  eliminarEvento(evento: DtoEvento): void {
+    if (!evento?.idEvento) return;
+    if (!confirm(`¿Eliminar el evento "${evento.nombreEvento}"?`)) return;
+
+    this.guardando = true;
+    this.eventoService.delete(evento.idEvento)
+      .pipe(finalize(() => (this.guardando = false)))
+      .subscribe({
+        next: (resp) => {
+          if (!resp?.success) {
+            this.toast.warning('Eventos', resp?.message ?? 'No fue posible eliminar el evento.');
+            return;
+          }
+          this.toast.success('Eventos', resp.message ?? 'Evento eliminado correctamente.');
+          if (this.editandoEventoId === evento.idEvento) {
+            this.limpiarFormulario();
+          }
+          this.cargarEventos();
+        },
+        error: (err) => {
+          this.toast.error('Eventos', err?.error?.message ?? 'Error eliminando el evento.');
+        },
+      });
+  }
+
+  getTelefonoResponsable(evento: DtoEvento): string {
+    return (evento.telefonoResponsable ?? '').trim();
+  }
+
+  getDepartamentoEvento(evento: DtoEvento): string {
+    return (evento.departamento ?? '').trim();
+  }
+
+  getNombreResponsable(evento: DtoEvento): string {
+    return (evento.nombreResponsable ?? '').trim();
+  }
+
+  getImagenEventoUrl(evento: DtoEvento): string {
+    const raw = (evento.imagenEvento ?? '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
+    return `/uploads/eventos/${raw}`;
   }
 
   private getUnidadNombre(id: number): string {
@@ -279,7 +421,14 @@ export class EventosInstitucionalesComponent implements OnInit {
     return (municipio?.nombre || '').trim();
   }
 
+  private getDepartamentoNombre(id: number): string {
+    const departamento = this.departamentos.find((d) => Number(d.idDepartamento) === id);
+    return (departamento?.nombre || '').trim();
+  }
+
   limpiarFormulario(): void {
+    this.editandoEventoId = null;
+    this.vigenteEdicion = 1;
     this.form = {
       nombreEvento: '',
       fechaInicio: '',
@@ -296,6 +445,7 @@ export class EventosInstitucionalesComponent implements OnInit {
     };
     this.municipios = [];
     this.imagenPreviewUrl = '';
+    this.imagenPortadaUrl = null;
     this.ultimaCedulaConsultada = '';
   }
 }
