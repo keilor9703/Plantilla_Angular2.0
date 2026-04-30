@@ -39,6 +39,44 @@ export class HomeComponent implements OnInit, OnDestroy {
     grupoSliderIndex: number = 0;
   readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
 
+  // --- Pausa de sliders por hover ---
+  private sliderPaused: { [categoria: string]: boolean } = {};
+  private grupoSliderPaused = false;
+
+  pauseSliderCategoria(categoria: string): void {
+    this.sliderPaused[categoria] = true;
+    if (this.sliderTimers[categoria]) {
+      clearInterval(this.sliderTimers[categoria]);
+      this.sliderTimers[categoria] = null;
+    }
+  }
+
+  resumeSliderCategoria(categoria: string): void {
+    if (this.sliderPaused[categoria]) {
+      this.sliderPaused[categoria] = false;
+      // Reiniciar solo si hay más de 1 item
+      const grupo = this.personajesMesPorCategoria.find(g => g.categoria === categoria);
+      if (grupo && grupo.items.length > 1) {
+        this.iniciarSliderCategoria(categoria, grupo.items.length);
+      }
+    }
+  }
+
+  pauseGrupoSlider(): void {
+    this.grupoSliderPaused = true;
+    if (this.grupoScrollTimer) {
+      clearInterval(this.grupoScrollTimer);
+      this.grupoScrollTimer = null;
+    }
+  }
+
+  resumeGrupoSlider(): void {
+    if (this.grupoSliderPaused) {
+      this.grupoSliderPaused = false;
+      this.startGrupoScroll();
+    }
+  }
+
   // Devuelve el estilo de transformación para el scroll visual tipo créditos
   getGrupoIntegrantesTransform(grupo: any): any {
     if (!grupo.integrantes || grupo.integrantes.length <= 3) {

@@ -182,7 +182,9 @@
           <div class="spotlight-grid mb-4">
             <ng-container *ngFor="let grupo of personajesMesPorCategoria">
               <ng-container *ngIf="getPersonajeMesActual(grupo.categoria) as personaje">
-                <article class="spotlight-card spotlight-card--slider">
+                <article class="spotlight-card spotlight-card--slider"
+                  (mouseenter)="pauseSliderCategoria(grupo.categoria)"
+                  (mouseleave)="resumeSliderCategoria(grupo.categoria)">
                   <div class="spotlight-card__top">
                     <span class="spotlight-tag">{{ grupo.categoria }}</span>
                     <span class="spotlight-mini">
@@ -215,7 +217,9 @@
           
           <div class="spotlight-grid">
             <ng-container *ngIf="equiposAltoRendimiento && equiposAltoRendimiento.length > 0; else emptyEquiposTpl">
-              <article class="spotlight-card spotlight-card--double" style="padding-top: 12px; padding-bottom: 12px;">
+              <article class="spotlight-card spotlight-card--double" style="padding-top: 12px; padding-bottom: 12px;"
+                (mouseenter)="pauseGrupoSlider()"
+                (mouseleave)="resumeGrupoSlider()">
                 <div class="spotlight-card__top" style="margin-bottom: 8px;">
                   <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>
                 </div>

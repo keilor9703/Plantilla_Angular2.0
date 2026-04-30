@@ -1,10 +1,15 @@
 // Scroll visual tipo créditos para integrantes de grupo
 .integrantes-list-outer {
     max-height: 72px; /* 3 items x 24px aprox */
-    overflow: hidden;
+    overflow-y: auto;
     margin: 0;
     padding-left: 18px;
     position: relative;
+    /* Oculta la barra de scroll visual pero mantiene el scroll funcional */
+    scrollbar-width: none; /* Firefox */
+}
+.integrantes-list-outer::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
 }
 .integrantes-list-inner {
     margin: 0;
@@ -464,7 +469,7 @@ h3.title-cards {
     height: 100%;
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius);
-    padding: 12px;
+    padding: 5px;
     background: rgba(255, 255, 255, .85);
     box-shadow: var(--ui-shadow-sm);
     transition: transform var(--transition-speed), box-shadow var(--transition-speed);
