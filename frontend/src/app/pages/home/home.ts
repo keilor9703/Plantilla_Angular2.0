@@ -44,7 +44,47 @@ interface CalendarDay {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+    // Slider de grupos de alto rendimiento
+    grupoSliderIndex: number = 0;
   readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
+
+  // --- Pausa de sliders por hover ---
+  private sliderPaused: { [categoria: string]: boolean } = {};
+  private grupoSliderPaused = false;
+
+  pauseSliderCategoria(categoria: string): void {
+    this.sliderPaused[categoria] = true;
+    if (this.sliderTimers[categoria]) {
+      clearInterval(this.sliderTimers[categoria]);
+      this.sliderTimers[categoria] = null;
+    }
+  }
+
+  resumeSliderCategoria(categoria: string): void {
+    if (this.sliderPaused[categoria]) {
+      this.sliderPaused[categoria] = false;
+      // Reiniciar solo si hay más de 1 item
+      const grupo = this.personajesMesPorCategoria.find(g => g.categoria === categoria);
+      if (grupo && grupo.items.length > 1) {
+        this.iniciarSliderCategoria(categoria, grupo.items.length);
+      }
+    }
+  }
+
+  pauseGrupoSlider(): void {
+    this.grupoSliderPaused = true;
+    if (this.grupoScrollTimer) {
+      clearInterval(this.grupoScrollTimer);
+      this.grupoScrollTimer = null;
+    }
+  }
+
+  resumeGrupoSlider(): void {
+    if (this.grupoSliderPaused) {
+      this.grupoSliderPaused = false;
+      this.startGrupoScroll();
+    }
+  }
 
   // Devuelve el estilo de transformación para el scroll visual tipo créditos
   getGrupoIntegrantesTransform(grupo: any): any {
@@ -87,6 +127,50 @@ export class HomeComponent implements OnInit, OnDestroy {
   lineaMandoLightboxItem: DtoLineaMando | null = null;
   personajesMes: DtoPersonajeMes[] = [];
   equiposAltoRendimiento: any[] = [];
+
+  // --- Agrupación y slider de personajes del mes por categoría ---
+  personajesMesPorCategoria: { categoria: string, items: DtoPersonajeMes[] }[] = [];
+  sliderIndices: { [categoria: string]: number } = {};
+  sliderTimers: { [categoria: string]: any } = {};
+
+  agruparPersonajesMesPorCategoria(): void {
+    const grupos: { [categoria: string]: DtoPersonajeMes[] } = {};
+    for (const item of this.personajesMes) {
+      const cat = this.getPersonajeMesCategoriaDisplay(item);
+      if (!grupos[cat]) grupos[cat] = [];
+      grupos[cat].push(item);
+    }
+    this.personajesMesPorCategoria = Object.entries(grupos).map(([categoria, items]) => ({ categoria, items }));
+    // Inicializar índices y timers
+    for (const grupo of this.personajesMesPorCategoria) {
+      if (!(grupo.categoria in this.sliderIndices)) {
+        this.sliderIndices[grupo.categoria] = 0;
+      }
+      this.iniciarSliderCategoria(grupo.categoria, grupo.items.length);
+    }
+  }
+
+  iniciarSliderCategoria(categoria: string, total: number): void {
+    if (this.sliderTimers[categoria]) {
+      clearInterval(this.sliderTimers[categoria]);
+    }
+    if (total <= 1) return;
+    this.sliderTimers[categoria] = setInterval(() => {
+      this.sliderIndices[categoria] = (this.sliderIndices[categoria] + 1) % total;
+    }, 3000);
+  }
+
+  detenerSliders(): void {
+    Object.values(this.sliderTimers).forEach(timer => clearInterval(timer));
+    this.sliderTimers = {};
+  }
+
+  getPersonajeMesActual(categoria: string): DtoPersonajeMes | null {
+    const grupo = this.personajesMesPorCategoria.find(g => g.categoria === categoria);
+    if (!grupo || grupo.items.length === 0) return null;
+    const idx = this.sliderIndices[categoria] || 0;
+    return grupo.items[idx % grupo.items.length];
+  }
 
   news: NewsItem[] = [];
   newsModalOpen = false;
@@ -410,9 +494,11 @@ export class HomeComponent implements OnInit, OnDestroy {
             (items ?? []).filter((x) => Number(x?.vigente ?? 1) === 1),
             this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion }))
           );
+          this.agruparPersonajesMesPorCategoria();
         },
        error: () => {
          this.personajesMes = [];
+         this.personajesMesPorCategoria = [];
        }
      });
    }
@@ -444,6 +530,7 @@ export class HomeComponent implements OnInit, OnDestroy {
          );
          Promise.all(requests).then((result) => {
            this.equiposAltoRendimiento = result;
+           this.grupoSliderIndex = 0;
          });
        },
        error: () => {
@@ -458,9 +545,10 @@ export class HomeComponent implements OnInit, OnDestroy {
          this.categoriasPersonajeMes = (items ?? [])
            .filter((item) => Number(item?.idPadre ?? 0) === 153 && Number(item?.vigente ?? 0) === 1)
            .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
-          if (this.personajesMes.length > 0) {
-            this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));
-          }
+           if (this.personajesMes.length > 0) {
+              this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));
+              this.agruparPersonajesMesPorCategoria();
+            }
        },
        error: () => {
          this.categoriasPersonajeMes = [];

@@ -65,19 +65,39 @@ export class PersonajeMesAdminComponent implements OnInit {
       }
 
       // Resuelve la categoría por grado/categoría descripción
-      resolverCategoriaPorFuncionario(grado: string, categoriaDescripcion?: string): DtoDominio | undefined {
-        // Busca por descripción exacta primero, luego por grado si es posible
-        if (!this.categorias || this.categorias.length === 0) return undefined;
-        if (categoriaDescripcion) {
-          const found = this.categorias.find(cat => (cat.descripcion ?? '').toLowerCase() === categoriaDescripcion.toLowerCase());
-          if (found) return found;
+        private resolverCategoriaPorFuncionario(grado: string | null | undefined, categoriaDescripcion: string | null | undefined): DtoDominio | null {
+            const gradoNorm = this.normalizarTexto(grado);
+            const categNorm = this.normalizarTexto(categoriaDescripcion);
+
+            // Caso especial: grado PATRULLERO con categoría NIVEL EJECUTIVO → PATRULLEROS
+            if (gradoNorm.includes('patrullero') && categNorm.includes('nivel ejecutivo')) {
+              return this.buscarCategoriaPorKeyword('patrullero');
+            }
+            if (categNorm.includes('no uniformado')) return this.buscarCategoriaPorKeyword('no uniformado');
+            if (categNorm.includes('nivel ejecutivo')) return this.buscarCategoriaPorKeyword('nivel ejecutivo');
+            if (categNorm.includes('suboficial')) return this.buscarCategoriaPorKeyword('suboficial');
+            if (categNorm.includes('oficial') && !categNorm.includes('suboficial')) return this.buscarCategoriaPorKeyword('oficial');
+            if (categNorm.includes('agente') || categNorm.includes('categoria agentes') || categNorm.includes('categoría agentes')) return this.buscarCategoriaPorKeyword('agente');
+            if (categNorm.includes('patrullero')) return this.buscarCategoriaPorKeyword('patrullero');
+            if (categNorm.includes('alumno')) return this.buscarCategoriaPorKeyword('estudiante');
+            if (categNorm.includes('auxiliar')) return this.buscarCategoriaPorKeyword('auxiliar');
+
+            return null;
         }
-        if (grado) {
-          const found = this.categorias.find(cat => (cat.descripcion ?? '').toLowerCase() === grado.toLowerCase());
-          if (found) return found;
-        }
-        return this.categorias[0]; // fallback
-      }
+
+          private buscarCategoriaPorKeyword(keyword: string): DtoDominio | null {
+      return this.categorias.find((item) => this.normalizarTexto(item.descripcion).includes(keyword)) ?? null;
+    }
+
+    private normalizarTexto(value: string | null | undefined): string {
+      return (value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    }
 
       // Obtiene la extensión de imagen a partir del mimeType
       getImageExtension(mimeType: string): string {
