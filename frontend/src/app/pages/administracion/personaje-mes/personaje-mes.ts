@@ -20,6 +20,79 @@ import { UsuarioAdminService } from '../../../core/services/administracion/usuar
   styleUrls: ['./personaje-mes.scss']
 })
 export class PersonajeMesAdminComponent implements OnInit {
+          // Método para editar un personaje del mes
+          editar(item: DtoPersonajeMes): void {
+            this.modoEdicion = true;
+            this.idEditando = item.idPersonajeMes;
+            this.hayFuncionario = true;
+            this.formData = {
+              identificacion: item.identificacion ?? '',
+              nombres: item.nombres ?? '',
+              apellidos: item.apellidos ?? '',
+              grado: item.grado ?? '',
+              cargo: item.cargo ?? '',
+              unidad: item.unidad ?? '',
+              IdCategoria: Number(item.idCategoria ?? 0),
+              NumeroActa: item.numeroActa ?? '',
+              FotoModificada: item.fotoModificada ?? '',
+              Mes: this.getMesValue(item),
+              Anio: this.getAnioValue(item)
+            };
+            this.fotoPreview = this.getImageUrl(item.fotoModificada);
+            this.mostrarModalPersonajeMes = true;
+          }
+        // Devuelve la descripción de la categoría según el idCategoria
+        getCategoriaDescripcion(idCategoria: number | string | null | undefined): string {
+          const id = Number(idCategoria ?? 0);
+          const cat = this.categorias.find(c => Number(c.idDominio) === id);
+          return cat?.descripcion ?? 'Sin categoría';
+        }
+
+        // Getter para mostrar la descripción de la categoría seleccionada en el formulario
+        get categoriaDescripcion(): string {
+          return this.getCategoriaDescripcion(this.formData.IdCategoria);
+        }
+      // Limpia el formulario de personaje del mes
+      limpiarForm(): void {
+        this.formData = this.createEmptyForm();
+        this.fotoPreview = 'imagenes/policia.jpg';
+        this.modoEdicion = false;
+        this.hayFuncionario = false;
+        this.idEditando = null;
+        this.searchIdentificacion = '';
+        this.selectedImageFile = null;
+        this.uploading = false;
+      }
+
+      // Resuelve la categoría por grado/categoría descripción
+      resolverCategoriaPorFuncionario(grado: string, categoriaDescripcion?: string): DtoDominio | undefined {
+        // Busca por descripción exacta primero, luego por grado si es posible
+        if (!this.categorias || this.categorias.length === 0) return undefined;
+        if (categoriaDescripcion) {
+          const found = this.categorias.find(cat => (cat.descripcion ?? '').toLowerCase() === categoriaDescripcion.toLowerCase());
+          if (found) return found;
+        }
+        if (grado) {
+          const found = this.categorias.find(cat => (cat.descripcion ?? '').toLowerCase() === grado.toLowerCase());
+          if (found) return found;
+        }
+        return this.categorias[0]; // fallback
+      }
+
+      // Obtiene la extensión de imagen a partir del mimeType
+      getImageExtension(mimeType: string): string {
+        switch (mimeType) {
+          case 'image/jpeg':
+          case 'image/jpg':
+            return '.jpg';
+          case 'image/png':
+            return '.png';
+          case 'image/webp':
+            return '.webp';
+          default:
+            return '';
+        }
+      }
     // --- EDICIÓN Y ELIMINACIÓN DE EQUIPOS DE ALTO RENDIMIENTO ---
     modoEdicionEquipo = false;
     idEditandoEquipo: number | null = null;
@@ -81,79 +154,116 @@ export class PersonajeMesAdminComponent implements OnInit {
         this.toast.warning('Equipo', 'Debe agregar al menos un integrante');
         return;
       }
-      if (!this.fotoModificadaEquipo?.trim()) {
-        this.toast.warning('Equipo', 'Debe subir una foto del equipo');
-        return;
-      }
       if (!this.nombreGrupoEquipo?.trim()) {
         this.toast.warning('Equipo', 'Debe ingresar el número de grupo o equipo');
         return;
       }
-      this.saving = true;
-      const grupoRequest = {
-        NombreGrupo: this.nombreGrupoEquipo.trim(),
-        FotoGrupo: this.fotoModificadaEquipo,
-        NumeroActa: this.datosFijosEquipo.NumeroActa,
-        Mes: this.datosFijosEquipo.Mes,
-        Anio: this.datosFijosEquipo.Anio
-      };
-      if (this.modoEdicionEquipo && this.idEditandoEquipo) {
-        // Actualizar grupo existente
-        this.personajeMesService.updateGrupo(this.idEditandoEquipo, grupoRequest).subscribe({
-          next: (grupoResp) => {
-            if (!grupoResp.success) {
-              this.saving = false;
-              this.toast.error('Equipo', grupoResp.message ?? 'Error al actualizar el grupo');
-              return;
-            }
-            // Actualizar integrantes (opcional: lógica para actualizar integrantes si aplica)
-            // Aquí podrías actualizar integrantes si la API lo permite
-            this.saving = false;
-            this.toast.success('Equipo', grupoResp.message ?? 'Equipo actualizado correctamente');
-            this.cerrarModalEquipoAltoRendimiento();
-            this.cargarEquipos();
-          },
-          error: (err) => {
-            this.saving = false;
-            this.toast.error('Equipo', err?.error?.message ?? 'Error al actualizar el grupo');
-          }
-        });
-      } else {
-        // Crear grupo nuevo (flujo original)
-        this.personajeMesService.createGrupo(grupoRequest).subscribe({
-          next: (grupoResp) => {
-            if (!grupoResp.success) {
-              this.saving = false;
-              this.toast.error('Equipo', grupoResp.message ?? 'Error al crear el grupo');
-              return;
-            }
-            const integrantesConGrupoId = this.integrantesEquipo.map(integrante => ({
-              ...integrante,
-              IdPersonajeGrupo: grupoResp.id
-            }));
-            this.personajeMesService.createBulk(integrantesConGrupoId).subscribe({
-              next: (bulkResp) => {
+
+      const subirYGuardarEquipo = () => {
+        this.saving = true;
+        const grupoRequest = {
+          NombreGrupo: this.nombreGrupoEquipo.trim(),
+          FotoGrupo: this.fotoModificadaEquipo,
+          NumeroActa: this.datosFijosEquipo.NumeroActa,
+          Mes: this.datosFijosEquipo.Mes,
+          Anio: this.datosFijosEquipo.Anio
+        };
+        if (this.modoEdicionEquipo && this.idEditandoEquipo) {
+          // Actualizar grupo existente
+          this.personajeMesService.updateGrupo(this.idEditandoEquipo, grupoRequest).subscribe({
+            next: (grupoResp) => {
+              if (!grupoResp.success) {
                 this.saving = false;
-                if (!bulkResp.success) {
-                  this.toast.error('Equipo', bulkResp.message ?? 'Error al guardar los integrantes');
+                this.toast.error('Equipo', grupoResp.message ?? 'Error al actualizar el grupo');
+                return;
+              }
+              this.saving = false;
+              this.toast.success('Equipo', grupoResp.message ?? 'Equipo actualizado correctamente');
+              this.cerrarModalEquipoAltoRendimiento();
+              this.cargarEquipos();
+            },
+            error: (err) => {
+              this.saving = false;
+              this.toast.error('Equipo', err?.error?.message ?? 'Error al actualizar el grupo');
+            }
+          });
+        } else {
+          // Crear grupo nuevo (flujo original)
+          this.personajeMesService.createGrupo(grupoRequest).subscribe({
+            next: (grupoResp) => {
+              if (!grupoResp.success) {
+                this.saving = false;
+                this.toast.error('Equipo', grupoResp.message ?? 'Error al crear el grupo');
+                return;
+              }
+              const integrantesConGrupoId = this.integrantesEquipo.map(integrante => ({
+                ...integrante,
+                IdPersonajeGrupo: grupoResp.id
+              }));
+              this.personajeMesService.createBulk(integrantesConGrupoId).subscribe({
+                next: (bulkResp) => {
+                  this.saving = false;
+                  if (!bulkResp.success) {
+                    this.toast.error('Equipo', bulkResp.message ?? 'Error al guardar los integrantes');
+                    return;
+                  }
+                  this.toast.success('Equipo', bulkResp.message ?? 'Registros guardados correctamente');
+                  this.cerrarModalEquipoAltoRendimiento();
+                  this.cargarPersonajes();
+                  this.cargarEquipos();
+                },
+                error: (err) => {
+                  this.saving = false;
+                  this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar los integrantes');
+                }
+              });
+            },
+            error: (err) => {
+              this.saving = false;
+              this.toast.error('Equipo', err?.error?.message ?? 'Error al crear el grupo');
+            }
+          });
+        }
+      };
+
+      // Subir imagen solo si hay una nueva seleccionada
+      if (this.selectedImageFileEquipo) {
+        this.uploadingEquipo = true;
+        this.optimizeImageFile(this.selectedImageFileEquipo)
+          .then((optimizedFile) => {
+            if (optimizedFile.size > this.maxImageBytes) {
+              this.uploadingEquipo = false;
+              this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
+              return;
+            }
+            this.personajeMesService.uploadImage(optimizedFile).subscribe({
+              next: (resp) => {
+                this.uploadingEquipo = false;
+                if (!resp.success) {
+                  this.toast.warning('Imagen', resp.message ?? 'No fue posible cargar la imagen.');
                   return;
                 }
-                this.toast.success('Equipo', bulkResp.message ?? 'Registros guardados correctamente');
-                this.cerrarModalEquipoAltoRendimiento();
-                this.cargarPersonajes();
-                this.cargarEquipos();
+                this.fotoModificadaEquipo = resp.fileName;
+                this.fotoPreviewEquipo = resp.url || this.getImageUrl(resp.fileName);
+                this.selectedImageFileEquipo = null;
+                subirYGuardarEquipo();
               },
               error: (err) => {
-                this.saving = false;
-                this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar los integrantes');
+                this.uploadingEquipo = false;
+                this.toast.error('Imagen', err?.error?.message ?? 'Error cargando la imagen.');
               }
             });
-          },
-          error: (err) => {
-            this.saving = false;
-            this.toast.error('Equipo', err?.error?.message ?? 'Error al crear el grupo');
-          }
-        });
+          })
+          .catch(() => {
+            this.uploadingEquipo = false;
+            this.toast.warning('Imagen', 'No fue posible procesar la imagen seleccionada.');
+          });
+      } else {
+        if (!this.fotoModificadaEquipo?.trim()) {
+          this.toast.warning('Equipo', 'Debe subir una foto del equipo');
+          return;
+        }
+        subirYGuardarEquipo();
       }
     }
 
@@ -407,7 +517,7 @@ cargarPersonajes(): void {
         const identificacion = (func.identificacion ?? doc).trim();
         const fotoConsultada = (resp.fotoBase64 ?? '').trim();
         const grado = (func.nombreGrado ?? func.cargo ?? '').trim();
-        const categoriaResuelta = this.resolverCategoriaPorFuncionario(grado, func.categoriaDescripcion);
+        const categoriaResuelta = this.resolverCategoriaPorFuncionario(grado, func.categoriaDescripcion ?? undefined);
 
         this.formData = {
           identificacion,
@@ -458,119 +568,120 @@ cargarPersonajes(): void {
       this.toast.warning('Personaje del mes', 'Primero consulte un funcionario por cédula.');
       return;
     }
-
     if (!identificacion) {
       this.toast.warning('Personaje del mes', 'La identificación es obligatoria.');
       return;
     }
-
     if (!nombres) {
       this.toast.warning('Personaje del mes', 'Los nombres son obligatorios.');
-      
       return;
     }
-
     if (!cargo) {
       this.toast.warning('Personaje del mes', 'El cargo es obligatorio.');
       return;
     }
-
     if (!unidad) {
       this.toast.warning('Personaje del mes', 'La unidad es obligatoria.');
       return;
     }
-
     this.formData.IdCategoria = idCategoria;
-
     if (!idCategoria) {
       this.toast.warning('Personaje del mes', 'Debe seleccionar una categoría.');
       return;
     }
-
     if (!numeroActa) {
       this.toast.warning('Personaje del mes', 'El número de acta es obligatorio.');
       return;
     }
-    
     if (!mes) {
       this.toast.warning('Personaje del mes', 'Debe seleccionar un mes.');
       return;
     }
-
     if (!anio) {
       this.toast.warning('Personaje del mes', 'Debe seleccionar un año.');
       return;
     }
-
     if (mes < 1 || mes > 12) {
       this.toast.warning('Personaje del mes', 'El mes seleccionado no es válido.');
       return;
     }
-
     if (!this.aniosDisponibles.includes(anio)) {
       this.toast.warning('Personaje del mes', 'El año seleccionado no está dentro del rango permitido.');
       return;
     }
 
-    const payload: DtoPersonajeMesRequest = {
-      identificacion,
-      nombres,
-      apellidos,
-      grado,
-      cargo,
-      unidad,
-      IdCategoria: idCategoria,
-      NumeroActa: numeroActa,
-      FotoModificada: (this.formData.FotoModificada ?? '').trim() || null,
-      Mes: mes,
-      Anio: anio
-    };
-
-    this.saving = true;
-
-    const request$ = this.modoEdicion && this.idEditando
-      ? this.personajeMesService.update(this.idEditando, payload)
-      : this.personajeMesService.create(payload);
-
-    request$.subscribe({
-      next: (resp) => {
-        this.saving = false;
-        if (!resp.success) {
-          this.toast.warning('Personaje del mes', resp.message ?? 'No fue posible guardar el registro.');
-          return;
+    // Subir imagen si hay una nueva seleccionada
+    const subirYGuardar = (fileName: string | null) => {
+      const fotoModificada = fileName ?? ((this.formData.FotoModificada ?? '').trim() || null);
+      const payload: DtoPersonajeMesRequest = {
+        identificacion,
+        nombres,
+        apellidos,
+        grado,
+        cargo,
+        unidad,
+        IdCategoria: idCategoria,
+        NumeroActa: numeroActa,
+        FotoModificada: fotoModificada,
+        Mes: mes,
+        Anio: anio
+      };
+      this.saving = true;
+      const request$ = this.modoEdicion && this.idEditando
+        ? this.personajeMesService.update(this.idEditando, payload)
+        : this.personajeMesService.create(payload);
+      request$.subscribe({
+        next: (resp) => {
+          this.saving = false;
+          if (!resp.success) {
+            this.toast.warning('Personaje del mes', resp.message ?? 'No fue posible guardar el registro.');
+            return;
+          }
+          this.toast.success('Personaje del mes', resp.message ?? 'Registro guardado correctamente.');
+          this.limpiarForm();
+          this.cargarPersonajes();
+        },
+        error: (err) => {
+          this.saving = false;
+          this.toast.error('Personaje del mes', err?.error?.message ?? 'Error guardando el registro.');
         }
-
-        this.toast.success('Personaje del mes', resp.message ?? 'Registro guardado correctamente.');
-        this.limpiarForm();
-        this.cargarPersonajes();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.toast.error('Personaje del mes', err?.error?.message ?? 'Error guardando el registro.');
-      }
-    });
-  }
-
-editar(item: DtoPersonajeMes): void {
-    this.mostrarModalPersonajeMes = true;
-    this.modoEdicion = true;
-    this.hayFuncionario = true;
-    this.idEditando = item.idPersonajeMes;
-    this.searchIdentificacion = item.identificacion ?? '';
-    this.formData = {
-      identificacion: item.identificacion ?? '',
-      nombres: item.nombres ?? '',
-      apellidos: item.apellidos ?? '',
-      grado: item.grado ?? '',
-      cargo: item.cargo ?? '',
-      unidad: item.unidad ?? '',
-      IdCategoria: Number(item.idCategoria ?? 0),
-      NumeroActa: item.numeroActa ?? '',
-      FotoModificada: item.fotoModificada ?? '',
-      Mes: this.getMesValue(item),
-      Anio: this.getAnioValue(item)
+      });
     };
-    this.fotoPreview = this.getImageUrl(item.fotoModificada);
+
+    if (this.selectedImageFile) {
+      this.uploading = true;
+      this.optimizeImageFile(this.selectedImageFile)
+        .then((optimizedFile) => {
+          if (optimizedFile.size > this.maxImageBytes) {
+            this.uploading = false;
+            this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
+            return;
+          }
+          this.personajeMesService.uploadImage(optimizedFile).subscribe({
+            next: (resp) => {
+              this.uploading = false;
+              if (!resp.success) {
+                this.toast.warning('Imagen', resp.message ?? 'No fue posible cargar la imagen.');
+                return;
+              }
+              this.formData.FotoModificada = resp.fileName;
+              this.fotoPreview = resp.url || this.getImageUrl(resp.fileName);
+              this.selectedImageFile = null;
+              subirYGuardar(resp.fileName);
+            },
+            error: (err) => {
+              this.uploading = false;
+              this.toast.error('Imagen', err?.error?.message ?? 'Error cargando la imagen.');
+            }
+          });
+        })
+        .catch(() => {
+          this.uploading = false;
+          this.toast.warning('Imagen', 'No fue posible procesar la imagen seleccionada.');
+        });
+    } else {
+      subirYGuardar((this.formData.FotoModificada ?? '').trim() || null);
+    }
   }
 
   eliminar(item: DtoPersonajeMes): void {
@@ -622,6 +733,8 @@ editar(item: DtoPersonajeMes): void {
     });
   }
 
+  selectedImageFile: File | null = null;
+
   onImageSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files.length > 0 ? input.files[0] : null;
@@ -637,44 +750,19 @@ editar(item: DtoPersonajeMes): void {
       return;
     }
 
-    this.uploading = true;
+    if (file.size > this.maxImageBytes) {
+      this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
+      input.value = '';
+      return;
+    }
 
-    this.optimizeImageFile(file)
-      .then((optimizedFile) => {
-        if (optimizedFile.size > this.maxImageBytes) {
-          this.uploading = false;
-          input.value = '';
-          this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
-          return;
-        }
-
-        this.personajeMesService.uploadImage(optimizedFile).subscribe({
-          next: (resp) => {
-            this.uploading = false;
-            input.value = '';
-
-            if (!resp.success) {
-              this.toast.warning('Imagen', resp.message ?? 'No fue posible cargar la imagen.');
-              return;
-            }
-
-            this.formData.FotoModificada = resp.fileName;
-            this.fotoPreview = resp.url || this.getImageUrl(resp.fileName);
-            this.toast.success('Imagen', resp.message ?? 'Imagen cargada correctamente.');
-          },
-          error: (err) => {
-            this.uploading = false;
-            input.value = '';
-            this.toast.error('Imagen', err?.error?.message ?? 'Error cargando la imagen.');
-          }
-        });
-      })
-      .catch(() => {
-        this.uploading = false;
-        input.value = '';
-        this.toast.warning('Imagen', 'No fue posible procesar la imagen seleccionada.');
-});
+    this.selectedImageFile = file;
+    this.fotoPreview = URL.createObjectURL(file);
+    input.value = '';
+    this.toast.success('Imagen', 'Imagen lista para guardar.');
   }
+
+  selectedImageFileEquipo: File | null = null;
 
   onImageSelectedEquipo(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -691,43 +779,16 @@ editar(item: DtoPersonajeMes): void {
       return;
     }
 
-    this.uploadingEquipo = true;
+    if (file.size > this.maxImageBytes) {
+      this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
+      input.value = '';
+      return;
+    }
 
-    this.optimizeImageFile(file)
-      .then((optimizedFile) => {
-        if (optimizedFile.size > this.maxImageBytes) {
-          this.uploadingEquipo = false;
-          input.value = '';
-          this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
-          return;
-        }
-
-        this.personajeMesService.uploadImage(optimizedFile).subscribe({
-          next: (resp) => {
-            this.uploadingEquipo = false;
-            input.value = '';
-
-            if (!resp.success) {
-              this.toast.warning('Imagen', resp.message ?? 'No fue posible cargar la imagen.');
-              return;
-            }
-
-            this.fotoModificadaEquipo = resp.fileName;
-            this.fotoPreviewEquipo = resp.url || this.getImageUrl(resp.fileName);
-            this.toast.success('Imagen', resp.message ?? 'Imagen cargada correctamente.');
-          },
-          error: (err) => {
-            this.uploadingEquipo = false;
-            input.value = '';
-            this.toast.error('Imagen', err?.error?.message ?? 'Error cargando la imagen.');
-          }
-        });
-      })
-      .catch(() => {
-        this.uploadingEquipo = false;
-        input.value = '';
-        this.toast.warning('Imagen', 'No fue posible procesar la imagen seleccionada.');
-      });
+    this.selectedImageFileEquipo = file;
+    this.fotoPreviewEquipo = URL.createObjectURL(file);
+    input.value = '';
+    this.toast.success('Imagen', 'Imagen lista para guardar.');
   }
 
   private persistirFotoConsultada(fotoBase64: string, identificacion: string): void {
@@ -738,59 +799,18 @@ editar(item: DtoPersonajeMes): void {
       return;
     }
 
-    this.uploading = true;
-
+    // Solo genera el preview y guarda el archivo en memoria, NO sube ni asigna FotoModificada
     this.optimizeImageFile(file)
       .then((optimizedFile) => {
         if (optimizedFile.size > this.maxImageBytes) {
-          this.uploading = false;
-
-          if ((this.formData.identificacion ?? '').trim() !== identificacion) {
-            return;
-          }
-
-          this.toast.warning('Imagen', 'No fue posible optimizar la foto consultada para guardarla automáticamente. Puede cargarla manualmente.');
+          this.toast.warning('Imagen', 'No fue posible optimizar la foto consultada. Puede cargarla manualmente.');
           return;
         }
-
-        this.personajeMesService.uploadImage(optimizedFile).subscribe({
-          next: (resp) => {
-            this.uploading = false;
-
-            if ((this.formData.identificacion ?? '').trim() !== identificacion) {
-              return;
-            }
-
-            if (!resp.success) {
-              this.toast.warning('Imagen', resp.message ?? 'No fue posible guardar la foto consultada. Puede cargarla manualmente.');
-              return;
-            }
-
-            if ((this.formData.FotoModificada ?? '').trim()) {
-              return;
-            }
-
-            this.formData.FotoModificada = resp.fileName;
-            this.fotoPreview = resp.url || this.getImageUrl(resp.fileName);
-          },
-          error: (err) => {
-            this.uploading = false;
-
-            if ((this.formData.identificacion ?? '').trim() !== identificacion) {
-              return;
-            }
-
-            this.toast.warning('Imagen', err?.error?.message ?? 'No fue posible guardar la foto consultada. Puede cargarla manualmente.');
-          }
-        });
+        this.selectedImageFile = optimizedFile;
+        this.fotoPreview = URL.createObjectURL(optimizedFile);
+        this.toast.success('Imagen', 'Imagen lista para guardar.');
       })
       .catch(() => {
-        this.uploading = false;
-
-        if ((this.formData.identificacion ?? '').trim() !== identificacion) {
-          return;
-        }
-
         this.toast.warning('Imagen', 'No fue posible optimizar la foto consultada. Puede cargarla manualmente.');
       });
   }
@@ -862,7 +882,6 @@ editar(item: DtoPersonajeMes): void {
           resolve(reader.result);
           return;
         }
-
         reject(new Error('No se pudo leer la imagen.'));
       };
       reader.onerror = () => reject(reader.error ?? new Error('No se pudo leer la imagen.'));
@@ -880,114 +899,18 @@ editar(item: DtoPersonajeMes): void {
     let width = Math.max(1, Math.round(image.width * ratio));
     let height = Math.max(1, Math.round(image.height * ratio));
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-      return file;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(image, 0, 0, width, height);
     }
-
-    const outputType = file.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
-    const qualities = [0.82, 0.74, 0.66, 0.58, 0.5, 0.42];
-    const baseName = (file.name || 'personaje-mes').replace(/\.[^.]+$/, '') || 'personaje-mes';
-    const extension = this.getImageExtension(outputType);
-    let optimizedFile = file;
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      canvas.width = width;
-      canvas.height = height;
-      context.clearRect(0, 0, width, height);
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, width, height);
-      context.drawImage(image, 0, 0, width, height);
-
-      for (const quality of qualities) {
-        const blob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob(resolve, outputType, quality);
-        });
-
-        if (!blob) {
-          continue;
-        }
-
-        optimizedFile = new File([blob], `${baseName}${extension}`, {
-          type: outputType,
-          lastModified: Date.now()
-        });
-
-        if (optimizedFile.size <= this.targetOptimizedImageBytes || optimizedFile.size <= this.maxImageBytes) {
-          return optimizedFile;
-        }
-      }
-
-      width = Math.max(320, Math.round(width * 0.85));
-      height = Math.max(320, Math.round(height * 0.85));
-    }
-
-    return optimizedFile;
-  }
-
-  private getImageExtension(mimeType: string): string {
-    switch ((mimeType ?? '').toLowerCase()) {
-      case 'image/png':
-        return '.png';
-      case 'image/webp':
-        return '.webp';
-      default:
-        return '.jpg';
-    }
-  }
-
-  limpiarForm(): void {
-    this.formData = this.createEmptyForm();
-    this.modoEdicion = false;
-    this.hayFuncionario = false;
-    this.idEditando = null;
-    this.searchIdentificacion = '';
-    this.searchingFuncionario = false;
-    this.uploading = false;
-    this.fotoPreview = 'imagenes/policia.jpg';
-  }
-
-  private resolverCategoriaPorFuncionario(grado: string | null | undefined, categoriaDescripcion: string | null | undefined): DtoDominio | null {
-    const gradoNorm = this.normalizarTexto(grado);
-    const categNorm = this.normalizarTexto(categoriaDescripcion);
-
-    // Caso especial: grado PATRULLERO con categoría NIVEL EJECUTIVO → PATRULLEROS
-    if (gradoNorm.includes('patrullero') && categNorm.includes('nivel ejecutivo')) {
-      return this.buscarCategoriaPorKeyword('patrullero');
-    }
-    if (categNorm.includes('no uniformado')) return this.buscarCategoriaPorKeyword('no uniformado');
-    if (categNorm.includes('nivel ejecutivo')) return this.buscarCategoriaPorKeyword('nivel ejecutivo');
-    if (categNorm.includes('suboficial')) return this.buscarCategoriaPorKeyword('suboficial');
-    if (categNorm.includes('oficial') && !categNorm.includes('suboficial')) return this.buscarCategoriaPorKeyword('oficial');
-    if (categNorm.includes('agente') || categNorm.includes('categoria agentes') || categNorm.includes('categoría agentes')) return this.buscarCategoriaPorKeyword('agente');
-    if (categNorm.includes('patrullero')) return this.buscarCategoriaPorKeyword('patrullero');
-    if (categNorm.includes('alumno')) return this.buscarCategoriaPorKeyword('estudiante');
-    if (categNorm.includes('auxiliar')) return this.buscarCategoriaPorKeyword('auxiliar');
-
-    return null;
-  }
-
-  private buscarCategoriaPorKeyword(keyword: string): DtoDominio | null {
-    return this.categorias.find((item) => this.normalizarTexto(item.descripcion).includes(keyword)) ?? null;
-  }
-
-  private normalizarTexto(value: string | null | undefined): string {
-    return (value ?? '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase();
-  }
-
-  get categoriaDescripcion(): string {
-    return this.categorias.find((item) => Number(item.idDominio) === Number(this.formData.IdCategoria))?.descripcion ?? '';
-  }
-
-  getCategoriaDescripcion(idCategoria: number): string {
-    return this.categorias.find((item) => Number(item.idDominio) === Number(idCategoria))?.descripcion ?? 'Sin categoría';
+    const quality = 0.85;
+    const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const blob: Blob = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b as Blob), mimeType, quality)
+    );
+    return new File([blob], file.name, { type: mimeType, lastModified: Date.now() });
   }
 
   getNombreCompleto(item: DtoPersonajeMes): string {
@@ -1072,7 +995,7 @@ getMesDescripcion(mes: number | null | undefined): string {
 
         const categoria = this.resolverCategoriaPorFuncionario(
           func.nombreGrado ?? func.cargo ?? '',
-          func.categoriaDescripcion
+          func.categoriaDescripcion ?? undefined
         );
 
         this.agregarIntegranteEquipo({

@@ -282,12 +282,12 @@ namespace ofic.Controllers.Administracion
                 };
 
                 WriteConfig(config);
-                return Ok(new { success = true, message = "Configuración guardada correctamente." });
+                return Ok(new { success = true, message = "ConfiguraciÃ³n guardada correctamente." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error guardando Configuración visual del login");
-                return StatusCode(500, new { success = false, message = "Error guardando configuración." });
+                _logger.LogError(ex, "Error guardando configuraciÃ³n visual del login");
+                return StatusCode(500, new { success = false, message = "Error guardando configuraciÃ³n." });
             }
         }
 
@@ -301,7 +301,7 @@ namespace ofic.Controllers.Administracion
                 var safe = Path.GetFileName(fileName ?? string.Empty);
                 if (string.IsNullOrWhiteSpace(safe) || string.Equals(safe, ManifestName, StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest(new { success = false, message = "Nombre de archivo inválido." });
+                    return BadRequest(new { success = false, message = "Nombre de archivo invÃ¡lido." });
                 }
 
                 var fullPath = Path.Combine(_rootPath, safe);

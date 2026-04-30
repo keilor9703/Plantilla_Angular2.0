@@ -23,12 +23,13 @@ namespace Api.Controllers.Administracion
             ".jpg", ".jpeg", ".png", ".webp"
         };
 
-        public PersonajeMesUploadController(IConfiguration configuration, ILogger<PersonajeMesUploadController> logger)
+        public PersonajeMesUploadController(ILogger<PersonajeMesUploadController> logger)
         {
             _logger = logger;
-            _uploadsPath = Path.Combine(
-                configuration["AppSettings:UploadsPath"] ?? Path.Combine(AppContext.BaseDirectory, "..", "..", "uploads"),
-                "personaje-mes");
+            // Ruta absoluta fija para las imágenes de personaje del mes y grupo de alto rendimiento
+            // Ajustar para que apunte a: backend/oftic/oftic/uploads/personje-mes-grupo
+            // Al ejecutarse desde bin/.../net8.0, subir tres niveles llega al directorio del proyecto
+            _uploadsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "uploads", "personje-mes-grupo"));
         }
 
         [HttpPost("imagen")]
@@ -60,7 +61,11 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Firma de archivo inválida para imagen." });
                 }
 
-                Directory.CreateDirectory(_uploadsPath);
+                // Validar y crear la carpeta si no existe
+                if (!Directory.Exists(_uploadsPath))
+                {
+                    Directory.CreateDirectory(_uploadsPath);
+                }
 
                 var safeName = $"{Guid.NewGuid():N}{extension}";
                 var fullPath = Path.Combine(_uploadsPath, safeName);
@@ -70,13 +75,35 @@ namespace Api.Controllers.Administracion
                     await file.CopyToAsync(stream);
                 }
 
+                // Verificar que el archivo fue guardado correctamente
+                var saved = System.IO.File.Exists(fullPath);
+                long savedSize = 0;
+                if (saved)
+                {
+                    var fi = new FileInfo(fullPath);
+                    savedSize = fi.Length;
+                }
+
                 var publicUrl = $"/api/PersonajeMesUpload/Imagen/{safeName}";
+                if (!saved)
+                {
+                    _logger.LogError("Archivo subido pero no encontrado en disco: {Path}", fullPath);
+                    return StatusCode(500, new { success = false, message = "Error al guardar la imagen en el servidor." });
+                }
+
+                if (savedSize != file.Length && file.Length > 0)
+                {
+                    _logger.LogWarning("Tamaño escrito ({SavedSize}) diferente al tamaño del upload ({UploadSize}) para {Path}", savedSize, file.Length, fullPath);
+                }
+
                 return Ok(new
                 {
                     success = true,
                     url = publicUrl,
-                    fileName = $"personaje-mes/{safeName}",
-                    message = "Imagen cargada correctamente."
+                    fileName = $"personje-mes-grupo/{safeName}",
+                    message = "Imagen cargada correctamente.",
+                    saved = true,
+                    savedSize,
                 });
             }
             catch (Exception ex)
@@ -95,6 +122,7 @@ namespace Api.Controllers.Administracion
         public IActionResult GetImagen(string fileName)
         {
             var safeFileName = Path.GetFileName(fileName);
+
             var fullPath = Path.Combine(_uploadsPath, safeFileName);
 
             if (!System.IO.File.Exists(fullPath))

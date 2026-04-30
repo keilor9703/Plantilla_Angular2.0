@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { VideoUnidadInfo, VideoUnidadService } from '../../../core/services/administracion/video-unidad.service';
 import { LoginVisualItem, LoginVisualService } from '../../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../../core/services/administracion/branding.service';
-import { DominioService, DtoUnidad } from '../../../core/services/administracion/dominio.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
@@ -37,9 +36,6 @@ export class ConfiguracionSistemaComponent implements OnInit {
   brandingUploadingFavicon = false;
   brandingSistema = 'SISGE';
   brandingNombreSistema = 'SISGE';
-  brandingUnidadSistemaId: number | null = null;
-  brandingUnidades: DtoUnidad[] = [];
-  brandingUnidadesLoading = false;
   brandingLogoFileName: string | null = null;
   brandingLogoUrl: string | null = null;
   brandingFaviconFileName: string | null = null;
@@ -49,14 +45,12 @@ export class ConfiguracionSistemaComponent implements OnInit {
     private videoService: VideoUnidadService,
     private loginVisualService: LoginVisualService,
     private brandingService: BrandingService,
-    private dominioService: DominioService,
     private toast: ToastService
   ) {}
 
   ngOnInit(): void {
     this.loadCurrent();
     this.loadLoginVisualConfig();
-    this.loadBrandingUnidades();
     this.loadBrandingConfig();
   }
 
@@ -286,7 +280,6 @@ export class ConfiguracionSistemaComponent implements OnInit {
       next: (cfg) => {
         this.brandingSistema = (cfg?.sistema ?? 'SISGE').trim() || 'SISGE';
         this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SISGE').trim() || 'SISGE';
-        this.brandingUnidadSistemaId = cfg?.unidadSistemaId != null ? Number(cfg.unidadSistemaId) : null;
         this.brandingLogoFileName = cfg?.logoFileName ?? null;
         this.brandingLogoUrl = cfg?.logoUrl ?? null;
         this.brandingFaviconFileName = cfg?.faviconFileName ?? null;
@@ -298,36 +291,6 @@ export class ConfiguracionSistemaComponent implements OnInit {
         this.toast.error('Marca del sistema', err?.error?.message ?? 'No fue posible cargar la configuración de marca.');
       }
     });
-  }
-
-  private loadBrandingUnidades(): void {
-    this.brandingUnidadesLoading = true;
-    this.dominioService.getUnidades().subscribe({
-      next: (items) => {
-        this.brandingUnidades = (items ?? [])
-          .map((x) => ({
-            value: Number(x?.value ?? 0),
-            text: (x?.text ?? '').trim(),
-            descripcion: (x?.descripcion ?? '').trim()
-          }))
-          .filter((x) => x.value > 0)
-          .sort((a, b) => (a.text || '').localeCompare(b.text || ''));
-        this.brandingUnidadesLoading = false;
-      },
-      error: () => {
-        this.brandingUnidades = [];
-        this.brandingUnidadesLoading = false;
-        this.toast.error('Marca del sistema', 'No fue posible cargar la lista de unidades.');
-      }
-    });
-  }
-
-  getBrandingUnidadSistemaLabel(): string {
-    if (!this.brandingUnidadSistemaId) {
-      return 'No seleccionada';
-    }
-    const unidad = this.brandingUnidades.find((x) => Number(x.value) === Number(this.brandingUnidadSistemaId));
-    return (unidad?.text || '').trim() || 'No seleccionada';
   }
 
   onBrandingLogoSelected(event: Event): void {
@@ -424,8 +387,8 @@ export class ConfiguracionSistemaComponent implements OnInit {
       this.toast.warning('Marca del sistema', 'El campo Nombre del sistema es obligatorio.');
       return;
     }
-    if (nombreSistema.length > 90) {
-      this.toast.warning('Marca del sistema', 'Nombre del sistema solo permite hasta 90 caracteres.');
+    if (nombreSistema.length > 50) {
+      this.toast.warning('Marca del sistema', 'Nombre del sistema solo permite hasta 50 caracteres.');
       return;
     }
 
@@ -433,7 +396,6 @@ export class ConfiguracionSistemaComponent implements OnInit {
     this.brandingService.saveConfig({
       sistema,
       nombreSistema,
-      unidadSistemaId: this.brandingUnidadSistemaId && this.brandingUnidadSistemaId > 0 ? this.brandingUnidadSistemaId : null,
       logoFileName: this.brandingLogoFileName,
       faviconFileName: this.brandingFaviconFileName
     }).subscribe({

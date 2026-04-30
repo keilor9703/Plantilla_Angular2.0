@@ -35,6 +35,22 @@ interface NewsItem {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
+
+  // Devuelve el estilo de transformación para el scroll visual tipo créditos
+  getGrupoIntegrantesTransform(grupo: any): any {
+    if (!grupo.integrantes || grupo.integrantes.length <= 3) {
+      return { transform: 'translateY(0)' };
+    }
+    // El scrollIndex es global, pero el máximo depende del grupo
+    const max = grupo.integrantes.length - 3;
+    let idx = this.grupoScrollIndex;
+    if (idx > max) idx = 0;
+    return {
+      transform: `translateY(-${idx * this.INTEGRANTE_HEIGHT}px)`,
+      transition: 'transform 0.6s cubic-bezier(0.4,0,0.2,1)'
+    };
+  }
 
   // Scroll automático para integrantes de grupo
   grupoScrollIndex: number = 0;
