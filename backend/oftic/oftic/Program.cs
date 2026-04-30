@@ -94,7 +94,7 @@ builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "OFTIC API", Version = "v1" });
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "SICOE API", Version = "v1" });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -146,6 +146,9 @@ builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucional
 
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
+
+builder.Services.AddScoped<IDbEventoService, DbEventoService>();
+builder.Services.AddScoped<IDbEventoRepository, DbEventoRepository>();
 
 builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
 builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();

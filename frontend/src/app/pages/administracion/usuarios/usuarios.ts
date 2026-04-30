@@ -54,6 +54,9 @@ interface UserProfile {
   styleUrls: ['./usuarios.scss']
 })
 export class UsuariosComponent implements OnInit, OnDestroy {
+  private readonly superAdministradorRolId = 1;
+  private canAssignSuperAdministrador = false;
+
   constructor(
     private toast: ToastService,
     private usuarioAdminService: UsuarioAdminService,
@@ -90,6 +93,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    this.canAssignSuperAdministrador = this.authService.isCurrentUserSuperAdmin();
     this.cargarListadoUsuarios();
   }
 
@@ -155,7 +159,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
           fotoUrl: resp.fotoBase64 ?? undefined,
           roles: (resp.rolesAsignados ?? []).map((rol) => this.mapAssignedRole(rol))
         };
-        this.rolesCatalogo = (resp.rolesCatalogo ?? []).filter((r) => Number(r.id) > 0);
+        this.rolesCatalogo = this.filtrarRolesCatalogo(resp.rolesCatalogo ?? []);
         this.showAddRoleForm = false;
         this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
 
@@ -544,5 +548,20 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     const m = String(parsed.getMonth() + 1).padStart(2, '0');
     const d = String(parsed.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+
+  private filtrarRolesCatalogo(roles: DtoRolCatalogo[]): DtoRolCatalogo[] {
+    return (roles ?? []).filter((r) => {
+      const roleId = Number(r.id);
+      if (roleId <= 0) {
+        return false;
+      }
+
+      if (roleId === this.superAdministradorRolId && !this.canAssignSuperAdministrador) {
+        return false;
+      }
+
+      return true;
+    });
   }
 }

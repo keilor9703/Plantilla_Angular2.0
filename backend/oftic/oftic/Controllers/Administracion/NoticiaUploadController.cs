@@ -126,6 +126,13 @@ namespace ofic.Controllers.Administracion
 
         private string? FindImagePath(string safeFileName)
         {
+            // Evitar DirectoryNotFoundException cuando la ruta de uploads no existe
+            if (string.IsNullOrWhiteSpace(_uploadsPath) || !Directory.Exists(_uploadsPath))
+            {
+                _logger.LogWarning("Ruta de uploads no encontrada: {UploadsPath}", _uploadsPath);
+                return null;
+            }
+
             var rootCandidate = Path.Combine(_uploadsPath, safeFileName);
             if (System.IO.File.Exists(rootCandidate))
             {

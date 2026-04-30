@@ -12,6 +12,7 @@ namespace ofic.Controllers.Administracion
     [Authorize]
     public class UsuarioController : ControllerBase
     {
+        private const int SuperAdministradorRolId = 1;
         private readonly IApiWebToken _apiWebToken;
         private readonly IDbUsuarioRepository _dbUsuarioRepository;
         private readonly ILogger<UsuarioController> _logger;
@@ -575,6 +576,15 @@ namespace ofic.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Fecha fin requerida" });
                 }
 
+                if (request.rolId == SuperAdministradorRolId && !UsuarioActualEsSuperAdministrador(User))
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        message = "Solo un Super administrador puede asignar el rol Super administrador."
+                    });
+                }
+
                 if (!DateTime.TryParse(request.fechaFin, out var fechaFin))
                 {
                     return BadRequest(new { success = false, message = "Fecha fin invÃ¡lida" });
@@ -656,6 +666,14 @@ namespace ofic.Controllers.Administracion
                     message = "Error al asignar rol"
                 });
             }
+        }
+
+        private static bool UsuarioActualEsSuperAdministrador(ClaimsPrincipal? user)
+        {
+            var roleClaims = user?.FindAll(ClaimTypes.Role).Select(x => x.Value)
+                ?? Enumerable.Empty<string>();
+
+            return roleClaims.Any(r => string.Equals(r?.Trim(), SuperAdministradorRolId.ToString(), StringComparison.Ordinal));
         }
 
         [HttpDelete("Roles/{rolId}")]
