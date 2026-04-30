@@ -28,6 +28,12 @@ export interface DtoDominioResult {
   id: number;
   message: string;
 }
+
+export interface DtoUnidad {
+  value: number;
+  text: string;
+  descripcion: string;
+}
  
 @Injectable({ providedIn: 'root' })
 export class DominioService {
@@ -37,6 +43,10 @@ export class DominioService {
 
   getAll(): Observable<DtoDominio[]> {
     return this.http.get<DtoDominio[]>(this.baseUrl);
+  }
+
+  getUnidades(): Observable<DtoUnidad[]> {
+    return this.http.get<DtoUnidad[]>(`${this.baseUrl}/unidades`);
   }
  
   create(request: DtoDominioRequest): Observable<DtoDominioResult> {
