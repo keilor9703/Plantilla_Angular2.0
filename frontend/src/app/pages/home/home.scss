@@ -145,6 +145,8 @@
     animation: zoomImage 10s infinite alternate;
 }
 
+
+// Slider controls global (solo para banner principal)
 .slider-controls {
     position: absolute;
     bottom: 20px;
@@ -154,7 +156,6 @@
     gap: 10px;
     z-index: 10;
 }
-
 .slider-controls button {
     width: 12px;
     height: 12px;
@@ -165,10 +166,36 @@
     transition: var(--transition-speed);
     padding: 0;
 }
-
 .slider-controls button.active {
     background: var(--policia-acento);
     width: 30px;
+    border-radius: 6px;
+}
+
+// Slider controls SOLO para personajes del mes
+.slider-controls--personaje {
+    position: static;
+    margin-top: 8px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    z-index: 1;
+}
+.slider-controls--personaje button {
+    width: 10px;
+    height: 10px;
+    border: 0;
+    background: var(--policia-oscuro);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: var(--transition-speed);
+    padding: 0;
+    box-shadow: 0 1px 2px rgba(8,166,203,0.08);
+}
+.slider-controls--personaje button.active {
+    background: var(--policia-acento);
+    width: 22px;
     border-radius: 6px;
 }
 
