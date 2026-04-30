@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "ngx-editor": "^19.0.0-beta.1"
+  }
+}

@@ -79,6 +79,50 @@ export class HomeComponent implements OnInit, OnDestroy {
   personajesMes: DtoPersonajeMes[] = [];
   equiposAltoRendimiento: any[] = [];
 
+  // --- Agrupación y slider de personajes del mes por categoría ---
+  personajesMesPorCategoria: { categoria: string, items: DtoPersonajeMes[] }[] = [];
+  sliderIndices: { [categoria: string]: number } = {};
+  sliderTimers: { [categoria: string]: any } = {};
+
+  agruparPersonajesMesPorCategoria(): void {
+    const grupos: { [categoria: string]: DtoPersonajeMes[] } = {};
+    for (const item of this.personajesMes) {
+      const cat = this.getPersonajeMesCategoriaDisplay(item);
+      if (!grupos[cat]) grupos[cat] = [];
+      grupos[cat].push(item);
+    }
+    this.personajesMesPorCategoria = Object.entries(grupos).map(([categoria, items]) => ({ categoria, items }));
+    // Inicializar índices y timers
+    for (const grupo of this.personajesMesPorCategoria) {
+      if (!(grupo.categoria in this.sliderIndices)) {
+        this.sliderIndices[grupo.categoria] = 0;
+      }
+      this.iniciarSliderCategoria(grupo.categoria, grupo.items.length);
+    }
+  }
+
+  iniciarSliderCategoria(categoria: string, total: number): void {
+    if (this.sliderTimers[categoria]) {
+      clearInterval(this.sliderTimers[categoria]);
+    }
+    if (total <= 1) return;
+    this.sliderTimers[categoria] = setInterval(() => {
+      this.sliderIndices[categoria] = (this.sliderIndices[categoria] + 1) % total;
+    }, 3000);
+  }
+
+  detenerSliders(): void {
+    Object.values(this.sliderTimers).forEach(timer => clearInterval(timer));
+    this.sliderTimers = {};
+  }
+
+  getPersonajeMesActual(categoria: string): DtoPersonajeMes | null {
+    const grupo = this.personajesMesPorCategoria.find(g => g.categoria === categoria);
+    if (!grupo || grupo.items.length === 0) return null;
+    const idx = this.sliderIndices[categoria] || 0;
+    return grupo.items[idx % grupo.items.length];
+  }
+
   news: NewsItem[] = [];
   newsModalOpen = false;
   selectedNews: NewsItem | null = null;
@@ -241,9 +285,11 @@ export class HomeComponent implements OnInit, OnDestroy {
             (items ?? []).filter((x) => Number(x?.vigente ?? 1) === 1),
             this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion }))
           );
+          this.agruparPersonajesMesPorCategoria();
         },
        error: () => {
          this.personajesMes = [];
+         this.personajesMesPorCategoria = [];
        }
      });
    }
@@ -289,9 +335,10 @@ export class HomeComponent implements OnInit, OnDestroy {
          this.categoriasPersonajeMes = (items ?? [])
            .filter((item) => Number(item?.idPadre ?? 0) === 153 && Number(item?.vigente ?? 0) === 1)
            .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
-          if (this.personajesMes.length > 0) {
-            this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));
-          }
+           if (this.personajesMes.length > 0) {
+              this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));
+              this.agruparPersonajesMesPorCategoria();
+            }
        },
        error: () => {
          this.categoriasPersonajeMes = [];
