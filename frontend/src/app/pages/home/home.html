@@ -213,6 +213,9 @@
           <div class="card-title">
             <i class="fa-solid fa-award"></i>
             <span>Personajes del mes</span>
+            <span *ngIf="personajesMes.length" class="spotlight-tag-title-mes" >
+              {{ getNombreMes((personajesMes[0]?.mes ?? personajesMes[0]?.Mes) ?? 1) }}
+            </span>
           </div>
         </div>
         <div class="card-body">
@@ -272,7 +275,7 @@
                       <div class="integrantes-list-outer" style="max-height: 60px; overflow-y: auto;">
                         <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(equiposAltoRendimiento[grupoSliderIndex])">
                           <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
-                            {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }}
+                            <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
                           </li>
                         </ul>
                       </div>
@@ -484,9 +487,9 @@
           <div class="cmd-lightbox__grade"></div>
           <div class="cmd-lightbox__name">{{ grupo.nombreGrupo }}</div>
           <div class="cmd-lightbox__role">Integrantes:</div>
-          <ul style="margin:0; padding-left: 18px;">
+          <ul style="margin:0; padding-left: 18px; list-style: none; text-align: left; ">
             <li *ngFor="let integrante of grupo.integrantes">
-              {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }}
+             <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
             </li>
           </ul>
         </div>

@@ -1,5 +1,5 @@
 // ...existing code...
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../../core/services/toast.service';
@@ -20,6 +20,17 @@ import { UsuarioAdminService } from '../../../core/services/administracion/usuar
   styleUrls: ['./personaje-mes.scss']
 })
 export class PersonajeMesAdminComponent implements OnInit {
+  // Permite cerrar la modal de Personaje del Mes con ESC
+  @HostListener('document:keydown.escape')
+  onEscCerrarModales(): void {
+    if (this.mostrarModalEquipoAltoRendimiento) {
+      this.cerrarModalEquipoAltoRendimiento();
+      return;
+    }
+    if (this.mostrarModalPersonajeMes) {
+      this.cerrarModalPersonajeMes();
+    }
+  }
           // Método para editar un personaje del mes
           editar(item: DtoPersonajeMes): void {
             this.modoEdicion = true;
@@ -452,8 +463,149 @@ loading = false;
     }
   }
 
+  // --- Máscara y validación para Número de Acta ---
+  private readonly numeroActaRegex = /^[A-Z]{2}-\d{4}-\d{6}-[A-Z]{5}$/;
 
-cargarPersonajes(): void {
+  getNumeroActaMask(): string {
+    const val = (this.formData.NumeroActa || '').toUpperCase();
+    let mask = '__-____-______-_____';
+    let out = '';
+    let vi = 0;
+    for (let i = 0; i < mask.length; i++) {
+      if (mask[i] === '_' && vi < val.length) {
+        out += val[vi];
+        vi++;
+      } else if (mask[i] === '_') {
+        out += '_';
+      } else {
+        out += mask[i];
+      }
+    }
+    return out;
+  }
+
+  onNumeroActaInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.toUpperCase();
+    // Eliminar guiones y guiones bajos de la máscara
+    value = value.replace(/[-_]/g, '');
+    // Solo letras y números
+    value = value.replace(/[^A-Z0-9]/g, '');
+    // Construir el valor bloque a bloque, en orden de ingreso
+    let result = '';
+    let i = 0;
+    // Primer bloque: 2 letras
+    while (result.length < 2 && i < value.length) {
+      if (/[A-Z]/.test(value[i])) result += value[i];
+      i++;
+    }
+    // Segundo bloque: 4 números
+    let count = 0;
+    while (count < 4 && i < value.length) {
+      if (/[0-9]/.test(value[i])) {
+        result += value[i];
+        count++;
+      }
+      i++;
+    }
+    // Tercer bloque: 6 números
+    count = 0;
+    while (count < 6 && i < value.length) {
+      if (/[0-9]/.test(value[i])) {
+        result += value[i];
+        count++;
+      }
+      i++;
+    }
+    // Cuarto bloque: 5 letras
+    count = 0;
+    while (count < 5 && i < value.length) {
+      if (/[A-Z]/.test(value[i])) {
+        result += value[i];
+        count++;
+      }
+      i++;
+    }
+    this.formData.NumeroActa = result;
+    // Actualizar el input con la máscara
+    const masked = this.getNumeroActaMask();
+    input.value = masked;
+    // Mantener el cursor en la posición correcta
+    setTimeout(() => {
+      let pos = input.selectionStart || 0;
+      // Si el usuario intenta escribir en un guion virtual, saltar al siguiente editable
+      if (masked[pos] === '-') pos++;
+      input.setSelectionRange(pos, pos);
+    }, 0);
+  }
+
+  onNumeroActaKeydown(event: KeyboardEvent): void {
+    const input = event.target as HTMLInputElement;
+    const pos = input.selectionStart || 0;
+    // Permitir borrar normalmente si no está en un guion
+    if (event.key === 'Backspace') {
+      // Si el cursor está justo después de un guion, saltar el guion y borrar el carácter anterior real
+      if (pos > 0 && input.value[pos - 1] === '-') {
+        event.preventDefault();
+        // Mover el cursor antes del guion y borrar el carácter anterior real
+        let before = input.value.slice(0, pos - 1);
+        let after = input.value.slice(pos);
+        // Eliminar el carácter anterior al guion en la máscara interna
+        let raw = (this.formData.NumeroActa || '').split('');
+        // Calcular a qué bloque corresponde
+        let blockIdx = 0;
+        if (pos <= 2) blockIdx = 0;
+        else if (pos <= 7) blockIdx = 1;
+        else if (pos <= 14) blockIdx = 2;
+        else blockIdx = 3;
+        // Eliminar el último carácter del bloque anterior si existe
+        if (blockIdx > 0) {
+          let blockLens = [2, 4, 6, 5];
+          let idx = blockLens.slice(0, blockIdx).reduce((a, b) => a + b, 0) - 1;
+          if (idx >= 0) raw.splice(idx, 1);
+          this.formData.NumeroActa = raw.join('');
+          setTimeout(() => {
+            input.value = this.getNumeroActaMask();
+            input.setSelectionRange(pos - 2, pos - 2);
+          }, 0);
+        }
+      } else if (pos === input.value.length) {
+        // Si el cursor está al final, borrar el último carácter real
+        event.preventDefault();
+        let raw = (this.formData.NumeroActa || '').split('');
+        if (raw.length > 0) {
+          raw.pop();
+          this.formData.NumeroActa = raw.join('');
+          setTimeout(() => {
+            input.value = this.getNumeroActaMask();
+            input.setSelectionRange(input.value.length, input.value.length);
+          }, 0);
+        }
+      }
+    }
+  }
+
+  onNumeroActaFocus(event: Event): void {
+    setTimeout(() => {
+      const input = event.target as HTMLInputElement;
+      input.setSelectionRange(0, 0);
+    }, 0);
+  }
+
+  onNumeroActaBlur(event: Event): void {
+    // Opcional: limpiar guiones bajos si el valor es válido
+    if (!this.numeroActaInvalido()) {
+      const input = event.target as HTMLInputElement;
+      input.value = this.formData.NumeroActa;
+    }
+  }
+
+  numeroActaInvalido(): boolean {
+    const val = (this.formData.NumeroActa || '').trim();
+    return !this.numeroActaRegex.test(val);
+  }
+
+  cargarPersonajes(): void {
     this.loading = true;
     this.personajeMesService.getAll().subscribe({
       next: (data) => {
