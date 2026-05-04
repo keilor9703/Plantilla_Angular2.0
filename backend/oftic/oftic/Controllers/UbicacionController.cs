@@ -47,5 +47,20 @@ namespace Api.Controllers
                 return StatusCode(500, new { success = false, message = "Error consultando municipios." });
             }
         }
+
+        [HttpGet("UnidadesOrganigrama")]
+        public async Task<IActionResult> GetUnidadesOrganigrama()
+        {
+            try
+            {
+                var result = await _service.GetUnidadesOrganigramaAsync(CancellationToken.None);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando unidades del organigrama");
+                return StatusCode(500, new { success = false, message = "Error consultando unidades del organigrama." });
+            }
+        }
     }
 }

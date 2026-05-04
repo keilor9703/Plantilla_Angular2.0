@@ -23,7 +23,7 @@ export class DominioAdminComponent implements OnInit {
   dominiosTree: { item: DtoDominio; children: { item: DtoDominio; children: DtoDominio[]; expanded: boolean }[]; expanded: boolean }[] = [];
   editingId: number | null = null;
 
-  form: DtoDominioRequest = {
+  form: any = {
     Descripcion: '',
     IdPadre: 0,
     Vigente: 1,
@@ -63,13 +63,13 @@ export class DominioAdminComponent implements OnInit {
       .filter(
         d =>
           d.idDominio !== 0 &&
-          d.idDominio !== (this.editingId ?? 0) &&
-          Number(d.idPadre) === 0
+          d.idDominio !== (this.editingId ?? 0)
       )
       .map(d => ({
         id: d.idDominio,
         descripcion: d.descripcion
-      }));
+      }))
+      .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
   }
 
   private normalizarDominio(item: any): DtoDominio {
@@ -86,20 +86,23 @@ export class DominioAdminComponent implements OnInit {
   private buildTree(): void {
     const noRaiz = this.listaDominios.filter(d => d.idDominio !== 0);
     const raiz = noRaiz.filter(d => !d.idPadre || d.idPadre === 0);
-    console.log('Dominios completos:', noRaiz);
-    this.dominiosTree = raiz.map(padre => {
-      const children = noRaiz.filter(hijo => hijo.idPadre === padre.idDominio);
+    
+    this.dominiosTree = this.getRecursiveNodes(raiz, noRaiz);
+  }
+
+  private getRecursiveNodes(parents: DtoDominio[], all: DtoDominio[]): any[] {
+    return parents.map(p => {
+      const children = all.filter(h => h.idPadre === p.idDominio);
       return {
-        item: padre,
-        children: children.map(hijo => ({
-          item: hijo,
-          children: noRaiz.filter(nieto => nieto.idPadre === hijo.idDominio),
-          expanded: false
-        })),
-        expanded: false
+        item: p,
+        expanded: false,
+        children: children.length > 0 ? this.getRecursiveNodes(children, all) : []
       };
     });
-    console.log('Árbol construido:', this.dominiosTree);
+  }
+
+  toggleNode(node: any): void {
+    node.expanded = !node.expanded;
   }
 
   toggleExpand(index: number): void {
@@ -144,7 +147,7 @@ export class DominioAdminComponent implements OnInit {
 
     const request: DtoDominioRequest = {
       Descripcion: this.form.Descripcion.trim(),
-      IdPadre: this.form.IdPadre || 0,
+      IdPadre: Number(this.form.IdPadre),
       Vigente: this.form.Vigente,
       Abreviatura: this.form.Abreviatura?.trim() || '',
       Observacion: this.form.Observacion?.trim() || ''

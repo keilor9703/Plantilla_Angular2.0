@@ -1,0 +1,112 @@
+<section class="cuentas-email-page">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-at"></i>
+        Administración de Cuentas SMTP
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <span class="ui-badge info" *ngIf="!editingId">Nueva Configuración</span>
+        <span class="ui-badge warning" *ngIf="editingId">Editando: {{ form.NombreCuenta }}</span>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div class="admin-grid">
+        <!-- Formulario de Configuración -->
+        <article class="tab-card form-card">
+          <h3>{{ editingId ? 'Actualizar Cuenta' : 'Registrar Nueva Cuenta' }}</h3>
+
+          <div class="ui-grid">
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Grupo Dueño (Organigrama COEST) *</label>
+              <select class="ui-control" [(ngModel)]="form.IdDominioGrupo">
+                <option [ngValue]="0">-- Seleccione el grupo --</option>
+                <option *ngFor="let g of gruposCOEST" [ngValue]="g.idDominio">{{ g.descripcion }}</option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Nombre Identificador de la Cuenta *</label>
+              <input class="ui-control" type="text" [(ngModel)]="form.NombreCuenta" placeholder="Ej: Prensa COEST">
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Email de la Cuenta *</label>
+              <input class="ui-control" type="email" [(ngModel)]="form.Email" placeholder="ejemplo@ponal.gov.co">
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Contraseña SMTP (o de Aplicación) *</label>
+              <input class="ui-control" type="password" [(ngModel)]="form.ClaveSmtp" placeholder="••••••••">
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Estado de la Cuenta</label>
+              <select class="ui-control" [(ngModel)]="form.Vigente">
+                <option [ngValue]="1">Activa</option>
+                <option [ngValue]="0">Inactiva</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="tab-actions">
+            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
+            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+              <i class="fa-solid fa-floppy-disk"></i>
+              {{ saving ? 'Procesando...' : 'Guardar Configuración' }}
+            </button>
+          </div>
+        </article>
+
+        <!-- Listado de Cuentas -->
+        <article class="tab-card list-card">
+          <h3>Cuentas Configuradas</h3>
+
+          <div class="list-loading" *ngIf="loading">Cargando cuentas...</div>
+
+          <div class="ui-table-wrap" *ngIf="!loading">
+            <table class="ui-table">
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th>Nombre Cuenta</th>
+                  <th>Email</th>
+                  <th>Servidor</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of listaCuentas">
+                  <td><strong>{{ getNombreGrupo(item.idDominioGrupo) }}</strong></td>
+                  <td>{{ item.nombreCuenta }}</td>
+                  <td>{{ item.email }}</td>
+                  <td>{{ item.servidorSmtp }}:{{ item.puerto }}</td>
+                  <td>
+                    <span class="ui-badge" [class.success]="item.vigente === 1" [class.neutral]="item.vigente === 0">
+                      {{ item.vigente === 1 ? 'Activa' : 'Inactiva' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="ui-table-actions">
+                      <button class="ui-btn-icon" title="Editar" (click)="editar(item)">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </button>
+                      <button class="ui-btn-icon danger" title="Eliminar" (click)="eliminar(item)">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="listaCuentas.length === 0">
+                  <td colspan="6" class="text-center">No hay cuentas SMTP registradas.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>

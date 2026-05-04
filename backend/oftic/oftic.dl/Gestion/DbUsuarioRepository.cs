@@ -204,6 +204,8 @@ WITH roles_agg AS (
             CASE WHEN rua.fecha_fin IS NOT NULL THEN TO_CHAR(rua.fecha_fin, 'YYYY-MM-DD') END AS fecha_fin_txt
         FROM ctr_roles_user_admin rua
         LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
+        WHERE NVL(rua.vigente, 0) = 1
+          AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
     ) x
     GROUP BY x.id_usuario
 )
@@ -244,6 +246,8 @@ WITH roles_agg AS (
             CASE WHEN rua.fecha_fin IS NOT NULL THEN TO_CHAR(rua.fecha_fin, 'YYYY-MM-DD') END AS fecha_fin_txt
         FROM ctr_roles_user_admin rua
         LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
+        WHERE NVL(rua.vigente, 0) = 1
+          AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
     ) x
     GROUP BY x.id_usuario
 )

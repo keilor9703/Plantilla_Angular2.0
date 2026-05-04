@@ -9,6 +9,12 @@ using Negocio.Gestion;
 using Negocio.Interfaz;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
+using Datos.Gestion;
+using Datos.Interfaz;
+using Negocio.Gestion.GestionDocumental;
+using Negocio.Gestion.Administracion;
+using Datos.Interfaz.GestionDocumental;
+using Datos.Gestion.GestionDocumental;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -161,6 +167,11 @@ builder.Services.AddScoped<IDbRedesSocialesRepository, DbRedesSocialesRepository
 
 builder.Services.AddScoped<IDbUbicacionService, DbUbicacionService>();
 builder.Services.AddScoped<IDbUbicacionRepository, DbUbicacionRepository>();
+builder.Services.AddScoped<IDbCuentaEmailRepository, DbCuentaEmailRepository>();
+builder.Services.AddScoped<IDbGestionCorreosRepository, DbGestionCorreosRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IDbBrandingService, DbBrandingService>();
+builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
 
 var app = builder.Build();
 

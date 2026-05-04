@@ -1,3 +1,4 @@
+using Comun.Dtos.Administracion;
 using Comun.Dtos.Ubicacion;
 
 namespace Negocio.Interfaz
@@ -6,5 +7,6 @@ namespace Negocio.Interfaz
     {
         Task<List<DtoDepartamento>> GetDepartamentosAsync(CancellationToken ct);
         Task<List<DtoMunicipio>> GetMunicipiosByDepartamentoAsync(long? idDepartamento, CancellationToken ct);
+        Task<List<DtoUnidadOrg>> GetUnidadesOrganigramaAsync(CancellationToken ct);
     }
 }
