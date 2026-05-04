@@ -23,6 +23,7 @@ import { EventosInstitucionalesComponent } from './pages/creativios/eventos-inst
 import { RecoleccionAnalisisComponent } from './pages/centro-analisis/recoleccion-analisis/recoleccion-analisis';
 import { EmprendimientosComponent } from './pages/Grupo-diseno/emprendimientos/emprendimientos';
 import { GestionCorreosElectronicosComponent } from './pages/gestion-documental/gestion-correos-electronicos/gestion-correos-electronicos';
+import { CuentasEmailComponent } from './pages/administracion/cuentas-email/cuentas-email';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -88,6 +89,7 @@ export const routes: Routes = [
           { path: 'noticias', component: NoticiasAdminComponent },
           { path: 'modal', component: ModalAdminComponent },
           { path: 'auditoria', component: AuditoriaAdminComponent },
+          { path: 'cuentas-email', component: CuentasEmailComponent },
           { path: 'redes-sociales', redirectTo: '/gestion-digital/redes-sociales', pathMatch: 'full' },
           { path: 'gestion-digital', redirectTo: '/gestion-digital', pathMatch: 'full' },
         ],

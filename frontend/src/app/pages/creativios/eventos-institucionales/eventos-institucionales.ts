@@ -49,6 +49,12 @@ export class EventosInstitucionalesComponent implements OnInit {
   vigenteEdicion = 1;
   private ultimaCedulaConsultada = '';
 
+  showInactivarModal = false;
+  eventoParaInactivar: DtoEvento | null = null;
+
+  panelFormCollapsed = false;
+  panelTableCollapsed = false;
+
   imagenPreviewUrl = '';
   imagenPortadaUrl: string | null = null;
 
@@ -317,11 +323,18 @@ export class EventosInstitucionalesComponent implements OnInit {
 
   cargarEventos(): void {
     this.eventosLoading = true;
+    this.eventos = [];
+    
     this.eventoService.getAll()
       .pipe(finalize(() => (this.eventosLoading = false)))
       .subscribe({
         next: (items) => {
-          this.eventos = (items ?? []).slice();
+          this.eventos = (items ?? []).filter(e => {
+            // Buscamos el valor en minúsculas o mayúsculas por si acaso
+            const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
+            // Solo mostramos si el valor es exactamente 1 (número o string)
+            return v != null && String(v) === '1';
+          }).slice();
         },
         error: () => {
           this.eventos = [];
@@ -369,27 +382,58 @@ export class EventosInstitucionalesComponent implements OnInit {
 
   eliminarEvento(evento: DtoEvento): void {
     if (!evento?.idEvento) return;
-    if (!confirm(`¿Eliminar el evento "${evento.nombreEvento}"?`)) return;
+    this.eventoParaInactivar = evento;
+    this.showInactivarModal = true;
+  }
+
+  confirmarInactivacion(): void {
+    if (!this.eventoParaInactivar) return;
+
+    const evento = this.eventoParaInactivar;
+    // Construimos el payload manteniendo los datos pero pasando vigente a 0
+    const payload: DtoEventoRequest = {
+      nombreEvento: evento.nombreEvento,
+      unidad: evento.unidad,
+      departamento: evento.departamento,
+      ciudad: evento.ciudad,
+      direccionEvento: evento.direccionEvento,
+      cedulaResponsable: evento.cedulaResponsable,
+      nombreResponsable: evento.nombreResponsable,
+      correoResponsable: evento.correoResponsable || null,
+      telefonoResponsable: evento.telefonoResponsable || null,
+      imagenEvento: evento.imagenEvento,
+      fechaInicio: (evento.fechaInicio ?? '').toString().substring(0, 10),
+      fechaFin: (evento.fechaFin ?? '').toString().substring(0, 10),
+      vigente: 0,
+    };
 
     this.guardando = true;
-    this.eventoService.delete(evento.idEvento)
-      .pipe(finalize(() => (this.guardando = false)))
+    this.eventoService.update(evento.idEvento, payload)
+      .pipe(finalize(() => {
+        this.guardando = false;
+        this.cerrarModalInactivar();
+      }))
       .subscribe({
         next: (resp) => {
           if (!resp?.success) {
-            this.toast.warning('Eventos', resp?.message ?? 'No fue posible eliminar el evento.');
+            this.toast.warning('Eventos', resp?.message ?? 'No fue posible inactivar el evento.');
             return;
           }
-          this.toast.success('Eventos', resp.message ?? 'Evento eliminado correctamente.');
+          this.toast.success('Eventos', 'Evento inactivado correctamente.');
           if (this.editandoEventoId === evento.idEvento) {
             this.limpiarFormulario();
           }
           this.cargarEventos();
         },
         error: (err) => {
-          this.toast.error('Eventos', err?.error?.message ?? 'Error eliminando el evento.');
+          this.toast.error('Eventos', err?.error?.message ?? 'Error inactivando el evento.');
         },
       });
+  }
+
+  cerrarModalInactivar(): void {
+    this.showInactivarModal = false;
+    this.eventoParaInactivar = null;
   }
 
   getTelefonoResponsable(evento: DtoEvento): string {
@@ -447,6 +491,14 @@ export class EventosInstitucionalesComponent implements OnInit {
     this.imagenPreviewUrl = '';
     this.imagenPortadaUrl = null;
     this.ultimaCedulaConsultada = '';
+  }
+
+  togglePanelForm(): void {
+    this.panelFormCollapsed = !this.panelFormCollapsed;
+  }
+
+  togglePanelTable(): void {
+    this.panelTableCollapsed = !this.panelTableCollapsed;
   }
 }
 

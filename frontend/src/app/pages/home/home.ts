@@ -265,9 +265,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private loadEventosActivos(): void {
-    this.eventoService.getActivos().subscribe({
+    this.eventoService.getAll().subscribe({
       next: (items) => {
-        this.eventosActivos = (items ?? []).slice();
+        // Blindamos la carga: traemos todos y filtramos por vigencia para no perder eventos lejanos
+        this.eventosActivos = (items ?? []).filter(e => {
+          const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
+          return v != null && String(v) === '1';
+        });
         this.buildCalendar();
       },
       error: () => {
@@ -324,9 +328,26 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private parseOnlyDate(raw: string | null | undefined): Date | null {
     if (!raw) return null;
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return null;
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    
+    // Si viene formato ISO completo o con T, intentamos extraer solo la parte de la fecha
+    const datePart = raw.includes('T') ? raw.split('T')[0] : raw.split(' ')[0];
+    const parts = datePart.split('-');
+    
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Meses en JS son 0-11
+      const day = parseInt(parts[2], 10);
+      
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) {
+        return d;
+      }
+    }
+
+    // Fallback por si el formato es distinto
+    const fallbackDate = new Date(raw);
+    if (isNaN(fallbackDate.getTime())) return null;
+    return new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), fallbackDate.getDate());
   }
 
   private isSameDate(a: Date, b: Date): boolean {
@@ -401,16 +422,23 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   getEventoBadgeClass(evento: DtoEvento): string {
+    const fin = this.parseOnlyDate(evento?.fechaFin);
     const inicio = this.parseOnlyDate(evento?.fechaInicio);
-    if (!inicio) return 'is-green';
+    if (!fin || !inicio) return 'is-green';
 
     const today = new Date();
     const hoy = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Si el evento ya pasó de su fecha final, se muestra en gris
+    if (fin.getTime() < hoy.getTime()) {
+      return 'is-past';
+    }
+
     const diffMs = inicio.getTime() - hoy.getTime();
     const diffDays = Math.ceil(diffMs / 86400000);
 
-    if (diffDays < 2) return 'is-red';
-    if (diffDays <= 8) return 'is-orange';
+    if (diffDays < 3) return 'is-red';
+    if (diffDays <= 10) return 'is-orange';
     return 'is-green';
   }
 

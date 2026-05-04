@@ -2,6 +2,8 @@ using Comun.Dtos.Ubicacion;
 using Datos.Interfaz;
 using Negocio.Interfaz;
 
+using Comun.Dtos.Administracion;
+
 namespace Negocio.Gestion
 {
     public class DbUbicacionService : IDbUbicacionService
@@ -11,6 +13,11 @@ namespace Negocio.Gestion
         public DbUbicacionService(IDbUbicacionRepository repository)
         {
             _repository = repository;
+        }
+
+        public async Task<List<DtoUnidadOrg>> GetUnidadesOrganigramaAsync(CancellationToken ct)
+        {
+            return await _repository.GetUnidadesOrganigramaAsync(ct);
         }
 
         public async Task<List<DtoDepartamento>> GetDepartamentosAsync(CancellationToken ct)

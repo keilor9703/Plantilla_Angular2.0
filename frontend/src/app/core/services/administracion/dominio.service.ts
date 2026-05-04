@@ -13,9 +13,6 @@ export interface DtoDominio {
 }
 
 export interface DtoDominioRequest {
-  Identificacion?: string;
-  Nombre?: string;
-  Cargo?: string;
   Descripcion: string;
   IdPadre: number;
   Vigente: number;

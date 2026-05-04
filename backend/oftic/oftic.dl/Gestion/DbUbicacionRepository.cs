@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
 
+using Comun.Dtos.Administracion;
+
 namespace Datos.Gestion
 {
     public class DbUbicacionRepository : IDbUbicacionRepository
@@ -13,6 +15,32 @@ namespace Datos.Gestion
         public DbUbicacionRepository(IConfiguration configuration)
         {
             _cs = configuration.GetConnectionString("DbCoest")!;
+        }
+
+        public async Task<List<DtoUnidadOrg>> GetUnidadesOrganigramaAsync(CancellationToken ct)
+        {
+            var result = new List<DtoUnidadOrg>();
+
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "SP_UNIDADES_DIRECCIONES_OFICINAS";
+            cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(new DtoUnidadOrg
+                {
+                    Consecutivo = (int)GetInt64(reader, "consecutivo"),
+                    Sigla = GetString(reader, "sigla_fisica"),
+                    Nombre = GetString(reader, "descripcion_dependencia")
+                });
+            }
+
+            return result;
         }
 
         public async Task<List<DtoDepartamento>> GetDepartamentosAsync(CancellationToken ct)

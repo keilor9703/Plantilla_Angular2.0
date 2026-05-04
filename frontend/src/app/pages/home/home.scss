@@ -1120,18 +1120,22 @@ h3.title-cards {
 }
 
 .events-day__badge {
+    display: block;
     border: 0;
     background: #16a34a;
     color: #fff;
-    border-radius: 999px;
-    padding: 2px 6px;
+    border-radius: 4px;
+    padding: 2px 5px;
     text-align: left;
     cursor: pointer;
-    font-size: 9px;
-    line-height: 1.15;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    margin-bottom: 2px;
 }
 
 .events-day__badge:hover {
@@ -1141,6 +1145,8 @@ h3.title-cards {
 .events-day__badge.is-red {
     background: #dc2626;
     color: #fff;
+    font-weight: 800;
+    text-transform: uppercase;
 }
 
 .events-day__badge.is-orange {
@@ -1151,6 +1157,12 @@ h3.title-cards {
 .events-day__badge.is-green {
     background: #16a34a;
     color: #fff;
+}
+
+.events-day__badge.is-past {
+    background: #94a3b8;
+    color: #fff;
+    opacity: 0.8;
 }
 
 .events-day__more {

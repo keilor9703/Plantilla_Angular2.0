@@ -137,16 +137,15 @@
                   (click)="selectCalendarDay(day)">
                   <span class="events-day__num">{{ day.date.getDate() }}</span>
                   <div class="events-day__badges" *ngIf="day.eventos.length > 0">
-                    <button
-                      type="button"
+                    <span
                       class="events-day__badge"
-                      *ngFor="let ev of day.eventos | slice:0:2"
+                      *ngFor="let ev of day.eventos | slice:0:4"
                       [ngClass]="getEventoBadgeClass(ev)"
                       (click)="openCalendarEventoModal(ev, $event)"
                       [title]="ev.nombreEvento">
                       {{ ev.nombreEvento }}
-                    </button>
-                    <span class="events-day__more" *ngIf="day.eventos.length > 2">+{{ day.eventos.length - 2 }}</span>
+                    </span>
+                    <span class="events-day__more" *ngIf="day.eventos.length > 4">+{{ day.eventos.length - 4 }}</span>
                   </div>
                 </button>
               </div>

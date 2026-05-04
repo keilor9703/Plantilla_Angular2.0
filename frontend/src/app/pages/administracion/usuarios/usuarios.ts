@@ -54,7 +54,7 @@ interface UserProfile {
   styleUrls: ['./usuarios.scss']
 })
 export class UsuariosComponent implements OnInit, OnDestroy {
-  private readonly superAdministradorRolId = 1;
+  public readonly superAdministradorRolId = 1;
   private canAssignSuperAdministrador = false;
 
   constructor(
@@ -91,6 +91,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     justificacion: '',
     fechaFin: ''
   };
+  editingRole: UserRole | null = null;
 
   ngOnInit(): void {
     this.canAssignSuperAdministrador = this.authService.isCurrentUserSuperAdmin();
@@ -191,7 +192,11 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   get activeRolesCount(): number {
-    return this.user?.roles.filter((r) => r.estado === 'Vigente').length ?? 0;
+    return this.rolesVigentes.length;
+  }
+
+  get rolesVigentes(): UserRole[] {
+    return this.user?.roles.filter((r) => r.estado === 'Vigente') ?? [];
   }
 
   agregarRol(): void {
@@ -205,12 +210,33 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Calcular fecha por defecto (6 meses a partir de hoy)
+    const fecha = new Date();
+    fecha.setMonth(fecha.getMonth() + 6);
+    this.newRole.fechaFin = this.normalizeDateString(fecha.toISOString());
+    
     this.showAddRoleForm = true;
   }
 
   cancelarNuevoRol(): void {
     this.showAddRoleForm = false;
+    this.editingRole = null;
     this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
+  }
+
+  prepararEdicionRol(rol: UserRole): void {
+    this.editingRole = rol;
+    this.newRole = {
+      rolId: rol.id,
+      justificacion: rol.justificacion,
+      fechaFin: rol.fechaExpiracion
+    };
+    this.showAddRoleForm = true;
+    
+    // Hacer scroll al formulario
+    setTimeout(() => {
+      document.querySelector('.role-add-form')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   }
 
   guardarDatosUsuario(): void {
@@ -224,16 +250,41 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const username = (this.user.usuarioEmpresarial ?? '').trim();
+    const funcionarioCodigo = Number((this.user.funcionarioCodigo ?? '').trim());
+    const undeLaborandoCodigo = Number((this.user.undeLaborandoCodigo ?? '').trim());
+    const codigoCargo = Number((this.user.codigoCargo ?? '').trim());
+
+    if (!username) {
+      this.toast.warning('Guardar datos', 'El usuario empresarial está vacío. Consulta nuevamente el funcionario.');
+      return;
+    }
+
+    if (!Number.isFinite(funcionarioCodigo) || funcionarioCodigo <= 0) {
+      this.toast.warning('Guardar datos', 'No se recibió código de funcionario válido. Vuelve a consultar la cédula.');
+      return;
+    }
+
+    if (!Number.isFinite(undeLaborandoCodigo) || undeLaborandoCodigo <= 0) {
+      this.toast.warning('Guardar datos', 'No se recibió código de unidad laborando válido. Vuelve a consultar la cédula.');
+      return;
+    }
+
+    if (!Number.isFinite(codigoCargo) || codigoCargo <= 0) {
+      this.toast.warning('Guardar datos', 'No se recibió código de cargo válido. Vuelve a consultar la cédula.');
+      return;
+    }
+
     const payload = {
-      username: this.user.usuarioEmpresarial || this.user.identificacion,
+      username,
       identificacion: this.user.identificacion,
       nombres: this.user.nombres,
       apellidos: this.user.apellidos,
       email: this.user.email,
       gradAlfabetico: this.user.gradAlfabetico || this.user.grado,
-      funcionario: this.user.funcionarioCodigo,
-      undeLaborando: this.user.undeLaborandoCodigo,
-      codigoCargo: this.user.codigoCargo,
+      funcionario: String(funcionarioCodigo),
+      undeLaborando: String(undeLaborandoCodigo),
+      codigoCargo: String(codigoCargo),
       activo: this.user.activo
     };
 
@@ -250,9 +301,14 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading = false;
+        const backendMessage =
+          err?.error?.message ??
+          err?.error?.Message ??
+          err?.error?.detail ??
+          err?.message;
         this.toast.error(
           'Guardar datos',
-          err?.error?.detail ?? err?.error?.message ?? 'Se presentó un error guardando el usuario.'
+          backendMessage ?? 'Se presentó un error guardando el usuario.'
         );
       }
     });
@@ -551,17 +607,9 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   private filtrarRolesCatalogo(roles: DtoRolCatalogo[]): DtoRolCatalogo[] {
-    return (roles ?? []).filter((r) => {
-      const roleId = Number(r.id);
-      if (roleId <= 0) {
-        return false;
-      }
-
-      if (roleId === this.superAdministradorRolId && !this.canAssignSuperAdministrador) {
-        return false;
-      }
-
-      return true;
-    });
+    if (!this.canAssignSuperAdministrador) {
+      return [];
+    }
+    return roles ?? [];
   }
 }

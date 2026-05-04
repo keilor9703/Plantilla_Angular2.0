@@ -18,6 +18,12 @@ export interface DtoMunicipio {
   latitud?: number | null;
 }
 
+export interface DtoUnidadOrg {
+  consecutivo: number;
+  sigla: string;
+  nombre: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UbicacionService {
   private readonly baseUrl = `${environment.apiBaseUrl}/Ubicacion`;
@@ -34,5 +40,9 @@ export class UbicacionService {
     }
 
     return this.http.get<DtoMunicipio[]>(`${this.baseUrl}/municipios?idDepartamento=${idDepartamento}`);
+  }
+
+  getUnidadesOrganigrama(): Observable<DtoUnidadOrg[]> {
+    return this.http.get<DtoUnidadOrg[]>(`${this.baseUrl}/UnidadesOrganigrama`);
   }
 }
