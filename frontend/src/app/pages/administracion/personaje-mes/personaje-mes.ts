@@ -51,6 +51,7 @@ export class PersonajeMesAdminComponent implements OnInit {
             };
             this.fotoPreview = this.getImageUrl(item.fotoModificada);
             this.mostrarModalPersonajeMes = true;
+            
           }
         // Devuelve la descripción de la categoría según el idCategoria
         getCategoriaDescripcion(idCategoria: number | string | null | undefined): string {
@@ -155,6 +156,7 @@ export class PersonajeMesAdminComponent implements OnInit {
         Anio: grupo.anio
       }));
       this.mostrarModalEquipoAltoRendimiento = true;
+      
     }
 
     eliminarEquipo(grupo: any): void {
@@ -812,6 +814,7 @@ loading = false;
           this.toast.success('Personaje del mes', resp.message ?? 'Registro guardado correctamente.');
           this.limpiarForm();
           this.cargarPersonajes();
+          this.cargarEquipos();
         },
         error: (err) => {
           this.saving = false;
@@ -873,6 +876,7 @@ loading = false;
           this.limpiarForm();
         }
         this.cargarPersonajes();
+        this.cargarEquipos();
       },
       error: (err) => {
         this.toast.error('Personaje del mes', err?.error?.message ?? 'Error eliminando el registro.');
