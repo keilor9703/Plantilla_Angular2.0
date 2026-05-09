@@ -216,7 +216,8 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_grado", OracleDbType.Varchar2, 50).Value = (request.Grado ?? string.Empty).Length > 50 ? (request.Grado ?? string.Empty).Substring(0, 50) : (request.Grado ?? string.Empty);
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
-                              
+
+                // IdCategoria como Int64 (NUMBER en Oracle)
                 cmd.Parameters.Add("p_idcategoria", OracleDbType.Int64).Value = (long)request.IdCategoria;
                 cmd.Parameters.Add("p_numero_acta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
 
@@ -227,9 +228,17 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrU.Length > 50 ? usuarioStrU.Substring(0, 50) : usuarioStrU;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrU.Length > 100 ? maquinaStrU.Substring(0, 100) : maquinaStrU;
                 cmd.Parameters.Add("p_foto_modificada", OracleDbType.Varchar2, 200).Value = (request.FotoModificada ?? string.Empty).Length > 200 ? (request.FotoModificada ?? string.Empty).Substring(0, 200) : (request.FotoModificada ?? string.Empty);
-                cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = (long)request.Mes;
-                cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = (long)request.Anio;
-                cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int32).Value = (long)request.IdPersonajeGrupo;
+
+                // Mes y Anio como Int32
+                cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = request.Mes;
+                cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = request.Anio;
+
+                // IdPersonajeGrupo como Int64 y enviar DBNull si no aplica
+                var idGrupoVal = request.IdPersonajeGrupo.HasValue && request.IdPersonajeGrupo.Value > 0
+                    ? (object)request.IdPersonajeGrupo.Value
+                    : DBNull.Value;
+                cmd.Parameters.Add("p_idpersonajegrupo ", OracleDbType.Int64).Value = idGrupoVal;
+
                 OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
                 pSuccess.Direction = ParameterDirection.Output;
                 cmd.Parameters.Add(pSuccess);
@@ -555,7 +564,7 @@ namespace Datos.Gestion
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.CommandText = "PKG_PERSONAJE_MES.P_UPDATE_GRUPO";
 
-                cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int32).Value = id;
+                cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int64).Value = id;
                 cmd.Parameters.Add("p_nombre_grupo", OracleDbType.Varchar2, 100).Value = (request.NombreGrupo ?? string.Empty).Length > 100 ? (request.NombreGrupo ?? string.Empty).Substring(0, 100) : (request.NombreGrupo ?? string.Empty);
                 cmd.Parameters.Add("p_foto_grupo", OracleDbType.Varchar2, 200).Value = (request.FotoGrupo ?? string.Empty).Length > 200 ? (request.FotoGrupo ?? string.Empty).Substring(0, 200) : (request.FotoGrupo ?? string.Empty);
                 cmd.Parameters.Add("p_numero_acta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
@@ -692,7 +701,7 @@ namespace Datos.Gestion
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.CommandText = "PKG_PERSONAJE_MES.P_SET_VIGENTE_GRUPO";
 
-                cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int64).Value = id;
+                cmd.Parameters.Add("p_idpersonajegrupo ", OracleDbType.Int64).Value = id;
                 cmd.Parameters.Add("p_vigente", OracleDbType.Int32).Value = vigente;
 
                 var usuarioStrV = usuarioAuditoria.ToString();

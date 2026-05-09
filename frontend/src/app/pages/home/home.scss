@@ -491,13 +491,26 @@ h3.title-cards {
 .spotlight-tag {
     display: inline-flex;
     align-items: center;
-    padding: 6px 10px;
+    padding: 1px 10px;
     border-radius: 999px;
     font-weight: 900;
     font-size: 12px;
     color: var(--policia-oscuro);
     background: color-mix(in srgb, var(--policia-acento) 35%, white);
     border: 1px solid var(--ui-border);
+}
+
+.spotlight-tag-title-mes{
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 900;
+    font-size: 12px;
+    color: var(--policia-oscuro);
+    background: var(--policia-acento);    
+    border: 1px solid var(--ui-border);
+    margin-left: auto;
 }
 
 .spotlight-mini {
@@ -584,11 +597,12 @@ h3.title-cards {
 }
 
 .card-title {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 900;
     letter-spacing: .2px;
+    width: 100%;
 }
 
 .card-title i {
@@ -843,6 +857,8 @@ h3.title-cards {
     line-height: 1.55;
     font-size: 13.5px;
 }
+
+
 
 /* ==========================================
    NUEVO LAYOUT: MULTIMEDIA GRID

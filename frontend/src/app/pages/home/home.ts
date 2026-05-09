@@ -1051,6 +1051,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.closeCalendarEventoModal();
     }
   }
+
+  getNombreMes(mes: number): string {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    if (!mes || isNaN(mes)) return '';
+    return meses[(mes - 1) % 12] || '';
+  }
 }
 
 

@@ -148,7 +148,7 @@
                   <td>{{ grupo.anio }}</td>
                   <td>
                     <ul style="margin:0; padding-left: 18px;">
-                      <li *ngFor="let integrante of grupo.integrantes">{{ integrante.nombres }} {{ integrante.apellidos }} ({{ integrante.grado }})</li>
+                      <li *ngFor="let integrante of grupo.integrantes"> <strong>{{ integrante.grado }}</strong>  {{ integrante.nombres }} {{ integrante.apellidos }} </li>
                     </ul>
                   </td>
                   <td>
@@ -240,11 +240,7 @@
 
         <div class="funcionario-datos">
           <div class="ui-grid">
-            <div class="ui-field ui-col-4">
-              <label class="ui-label">Identificación *</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.identificacion" name="identificacion" placeholder="Número de identificación" readonly />
-            </div>
-
+            
             <div class="ui-field ui-col-4">
               <label class="ui-label">Nombres *</label>
               <input class="ui-control" type="text" [(ngModel)]="formData.nombres" name="nombres" placeholder="Nombres del funcionario" readonly />
@@ -277,7 +273,24 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Número de acta *</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.NumeroActa" name="numeroActa" placeholder="Número de acta" />
+              <input
+                class="ui-control"
+                type="text"
+                [value]="getNumeroActaMask()"
+                name="numeroActa"
+                required
+                maxlength="22"
+                (input)="onNumeroActaInput($event)"
+                (keydown)="onNumeroActaKeydown($event)"
+                (focus)="onNumeroActaFocus($event)"
+                (blur)="onNumeroActaBlur($event)"
+                [ngClass]="{'is-invalid': numeroActaInvalido()}"
+                autocomplete="off"
+                placeholder="AA-YYYY-123456-ABCDE"
+              />
+              <div *ngIf="numeroActaInvalido()" class="ui-error-msg">
+                Formato: XX-2024-123456-UNIDAD
+              </div>
             </div>
 
             <div class="ui-field ui-col-4">
