@@ -37,7 +37,7 @@ namespace ofic.Controllers
             _radioLogoRootPath = ResolveStoragePath(
                 configuration,
                 "Storage:RadioLogoPath",
-                Path.Combine(environment.ContentRootPath, "uploads", "radios-logo"));
+                Path.Combine(environment.ContentRootPath, "uploads", "radio"));
         }
 
         [HttpGet]

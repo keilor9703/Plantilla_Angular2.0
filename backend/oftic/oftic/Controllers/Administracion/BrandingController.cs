@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using ofic.Security;
 using Comun.Dtos.Administracion;
@@ -32,11 +33,15 @@ namespace ofic.Controllers.Administracion
         private readonly IDbBrandingService _brandingService;
         private readonly string _rootPath;
 
-        public BrandingController(ILogger<BrandingController> logger, IHostEnvironment env, IDbBrandingService brandingService)
+        public BrandingController(
+            ILogger<BrandingController> logger,
+            IHostEnvironment env,
+            IConfiguration configuration,
+            IDbBrandingService brandingService)
         {
             _logger = logger;
             _brandingService = brandingService;
-            _rootPath = ResolveStoragePath(env.ContentRootPath);
+            _rootPath = ResolveStoragePath(configuration, env.ContentRootPath);
         }
 
         [HttpGet("config")]
@@ -188,10 +193,19 @@ namespace ofic.Controllers.Administracion
             return Ok(new { success = true, fileName, url = prefix == "logo" ? BuildLogoUrl(fileName) : BuildFaviconUrl(fileName) });
         }
 
-        private static string ResolveStoragePath(string contentRootPath)
+        private static string ResolveStoragePath(IConfiguration configuration, string contentRootPath)
         {
-            if (OperatingSystem.IsWindows()) return @"C:\SISGE\branding";
-            return "/opt/oftic/uploads/branding";
+            var configuredBasePath = configuration["AppSettings:UploadsPath"];
+            var basePath = string.IsNullOrWhiteSpace(configuredBasePath)
+                ? Path.Combine(contentRootPath, "uploads")
+                : configuredBasePath.Trim();
+
+            if (!Path.IsPathRooted(basePath))
+            {
+                basePath = Path.GetFullPath(Path.Combine(contentRootPath, basePath));
+            }
+
+            return Path.GetFullPath(Path.Combine(basePath, "branding"));
         }
 
         private string? BuildLogoUrl(string? fileName) => string.IsNullOrWhiteSpace(fileName) ? null : $"/api/Branding/logo/{Uri.EscapeDataString(fileName)}";
