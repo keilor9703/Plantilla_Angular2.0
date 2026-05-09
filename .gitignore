@@ -76,3 +76,8 @@ Thumbs.db
 **/*.pem
 **/*.key
 **/appsettings.Development.json
+
+
+.vs/
+node_modules/
+*.bak
