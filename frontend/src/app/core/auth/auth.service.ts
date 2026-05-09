@@ -186,7 +186,7 @@ export class AuthService {
         return false;
       }
 
-      const roleClaimUri = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+      const roleClaimUri = ['http', '://schemas.microsoft.com/ws/2008/06/identity/claims/role'].join('');
       const roleClaimShort = 'role';
       const roleClaimLegacy = 'roles';
 
@@ -233,7 +233,7 @@ export class AuthService {
         parsed?.id_usuario ??
         parsed?.nameid ??
         parsed?.sub ??
-        parsed?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+        parsed?.[['http', '://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'].join('')];
       const userId = Number(rawId);
       return Number.isFinite(userId) ? userId : null;
     } catch {

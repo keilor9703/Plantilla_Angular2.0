@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, SecurityContext } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer } from '@angular/platform-browser';
 import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../core/services/toast.service';
 import { Editor, Toolbar, schema, NgxEditorModule } from 'ngx-editor';
@@ -35,7 +36,7 @@ interface CorreoEnviado {
   templateUrl: './gestion-correos-electronicos.html',
   styleUrls: ['./gestion-correos-electronicos.scss'],
 })
-export class GestionCorreosElectronicosComponent implements OnInit {
+export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   view: 'compose' | 'history' | 'settings' = 'compose';
   private apiUrl = `${environment.apiBaseUrl}`;
 
@@ -98,7 +99,8 @@ export class GestionCorreosElectronicosComponent implements OnInit {
 
   constructor(
     private http: HttpClient,
-    private toast: ToastService
+    private toast: ToastService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -151,11 +153,13 @@ export class GestionCorreosElectronicosComponent implements OnInit {
   }
 
   cargarCuentas(): void {
-    this.http.get<any[]>(`${this.apiUrl}/CuentaEmail`).subscribe({
+    this.http.get<any[]>(`${this.apiUrl}/CuentaEmail/mis-cuentas`).subscribe({
       next: (data) => {
         this.cuentas = data.filter(c => c.vigente === 1);
         if (this.cuentas.length > 0) {
           this.selectedCuentaId = this.cuentas[0].idCuenta;
+        } else {
+          this.selectedCuentaId = null;
         }
       },
       error: (err) => console.error('Error cargando cuentas SMTP', err)
@@ -275,5 +279,9 @@ export class GestionCorreosElectronicosComponent implements OnInit {
 
   verDetalle(correo: CorreoEnviado): void {
     this.selectedCorreo = correo;
+  }
+
+  getSafeCorreoBody(value: string | null | undefined): string {
+    return this.sanitizer.sanitize(SecurityContext.HTML, value ?? '') ?? '';
   }
 }

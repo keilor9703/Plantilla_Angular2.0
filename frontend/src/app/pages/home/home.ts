@@ -446,8 +446,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   loadNoticias(): void {
     this.noticiaService.getActivas().subscribe({
       next: (noticias) => {
-        console.log('Noticias cargadas:', noticias);
-        console.log('Cantidad:', noticias.length);
         // Ordenar por fecha descendente y limitar a 5 noticias más recientes
         const sorted = noticias.sort((a, b) => 
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
@@ -467,7 +465,6 @@ export class HomeComponent implements OnInit, OnDestroy {
             megusta: n.megusta || 0
           };
         });
-        console.log('News mapeadas:', this.news);
       },
       error: (err) => {
         console.error('Error cargando noticias:', err);

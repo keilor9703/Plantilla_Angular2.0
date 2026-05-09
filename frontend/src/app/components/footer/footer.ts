@@ -114,7 +114,6 @@ export class FooterComponent implements OnInit, OnDestroy {
     }
 
     // solo UI
-    console.log('Ticket (solo UI):', this.supportForm);
     this.resetSupportForm();
     this.closeSupport();
   }

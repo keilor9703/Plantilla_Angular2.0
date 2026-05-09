@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Comun.Dtos.GestionDocumental;
 using Negocio.Gestion.GestionDocumental;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace ofic.Controllers.GestionDocumental
 {
@@ -25,13 +26,16 @@ namespace ofic.Controllers.GestionDocumental
             {
                 if (request == null) return BadRequest("Datos inválidos.");
 
-                var (usuario, maquina) = ObtenerAuditoria();
-                var result = await _emailService.EnviarCorreoAsync(request, usuario, maquina);
+                var (usuario, maquina, idUsuario) = ObtenerAuditoria();
+                var result = await _emailService.EnviarCorreoAsync(request, usuario, maquina, idUsuario);
                 
                 if (result.Success)
                     return Ok(result);
-                else
-                    return BadRequest(result);
+
+                if (result.Message.Contains("No está autorizado", StringComparison.OrdinalIgnoreCase))
+                    return StatusCode(StatusCodes.Status403Forbidden, result);
+
+                return BadRequest(result);
             }
             catch (Exception ex)
             {
@@ -46,7 +50,7 @@ namespace ofic.Controllers.GestionDocumental
             return Ok(result);
         }
 
-        private (string usuario, string maquina) ObtenerAuditoria()
+        private (string usuario, string maquina, int? idUsuario) ObtenerAuditoria()
         {
             // Buscamos el nombre de usuario (string) en orden de prioridad
             var usuario = User.FindFirst("unique_name")?.Value
@@ -59,7 +63,12 @@ namespace ofic.Controllers.GestionDocumental
                 ?? Environment.MachineName
                 ?? "N/A";
 
-            return (usuario, maquina);
+            var rawId = User.FindFirstValue("id_usuario")
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("nameid");
+            int? idUsuario = int.TryParse(rawId, out var parsed) ? parsed : null;
+
+            return (usuario, maquina, idUsuario);
         }
     }
 }

@@ -160,14 +160,11 @@ export class HeaderComponent implements OnInit {
   }
 
   onSearch(): void {
-    console.log('Buscando:', this.searchQuery);
   }
 
   onNotificationClick(notification: Notification): void {
     if (notification.id === 4) {
       this.isCalendarDropdownOpen = !this.isCalendarDropdownOpen;
-    } else {
-      console.log('Notificación clickeada:', notification);
     }
   }
 

@@ -185,7 +185,7 @@
       </div>
       <div class="detail-body-container">
         <!-- El cuerpo puede venir con HTML del editor -->
-        <div [innerHTML]="selectedCorreo.cuerpo"></div>
+        <div [innerHTML]="getSafeCorreoBody(selectedCorreo!.cuerpo)"></div>
       </div>
       <div class="detail-footer">
         <button class="ui-btn secondary" (click)="selectedCorreo = null">Cerrar</button>

@@ -85,7 +85,6 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
     this.modalService.getActivos().subscribe({
       next: (data) => {
         const activo = data?.[0] ?? null;
-        console.log('[ModalVisor] modal activo:', activo);
         if (activo) {
           this.modal = activo;
           this.visible = true;
