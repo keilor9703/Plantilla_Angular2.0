@@ -1,0 +1,120 @@
+<section class="dominio-admin-page" *ngIf="visible">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-sitemap"></i>
+        Administración de Dominios
+      </div>
+
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+      <div class="admin-grid">
+        <article class="tab-card form-card">
+          <h3>{{ editingId ? 'Editar dominio' : 'Nuevo dominio' }}</h3>
+
+          <div class="ui-grid">
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Descripción *</label>
+              <input class="ui-control" type="text" [(ngModel)]="form.Descripcion" maxlength="255" placeholder="Nombre del dominio">
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Dominio padre</label>
+              <select class="ui-control" [(ngModel)]="form.IdPadre">
+                <option [ngValue]="0">Dominio principal (Raíz)</option>
+                <option *ngFor="let opt of dominioOptions" [ngValue]="opt.id">
+                  {{ opt.descripcion }}
+                </option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Abreviatura</label>
+              <input class="ui-control" type="text" [(ngModel)]="form.Abreviatura" maxlength="50" placeholder="Ej: DOM">
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Vigente</label>
+              <select class="ui-control" [(ngModel)]="form.Vigente">
+                <option [ngValue]="1">Sí</option>
+                <option [ngValue]="0">No</option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Observación</label>
+              <textarea class="ui-control" rows="3" [(ngModel)]="form.Observacion" maxlength="500" placeholder="Observaciones adicionales"></textarea>
+            </div>
+          </div>
+
+          <div class="tab-actions">
+            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
+            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+              <i class="fa-solid fa-floppy-disk"></i>
+              {{ saving ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </article>
+
+        <article class="tab-card list-card">
+          <h3>Dominios registrados</h3>
+
+          <div class="list-loading" *ngIf="loading">Cargando dominios...</div>
+
+          <div class="dominio-list" *ngIf="!loading && dominiosTree.length > 0">
+            <div class="dominio-tree">
+              <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: dominiosTree, level: 0 }"></ng-container>
+            </div>
+          </div>
+
+          <!-- Template Recursivo para el Árbol -->
+          <ng-template #nodeTemplate let-nodes let-level="level">
+            <ng-container *ngFor="let node of nodes">
+              <div class="dominio-item" [class.is-parent]="level === 0">
+                <div class="dominio-item__content">
+                  <i 
+                    class="fa-solid dominio-icon expand-icon" 
+                    [class.fa-folder]="!node.expanded"
+                    [class.fa-folder-open]="node.expanded"
+                    [class.is-hidden]="node.children.length === 0"
+                    (click)="toggleNode(node)"
+                  ></i>
+                  <i class="fa-solid fa-file-lines dominio-icon" *ngIf="node.children.length === 0"></i>
+                  <span [style.font-weight]="level === 0 ? '700' : '400'">{{ node.item.descripcion }}</span>
+                </div>
+                <div class="dominio-item__actions">
+                  <button class="ui-btn secondary" type="button" (click)="editar(node.item)">Editar</button>
+                  <button
+                    class="ui-btn"
+                    [class.primary]="node.item.vigente === 0"
+                    [class.secondary]="node.item.vigente === 1"
+                    type="button"
+                    (click)="cambiarEstado(node.item)"
+                  >
+                    {{ node.item.vigente === 1 ? 'Inactivar' : 'Activar' }}
+                  </button>
+                  <button class="ui-btn danger" type="button" (click)="eliminar(node.item)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="dominio-children-container" *ngIf="node.expanded && node.children.length > 0">
+                <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node.children, level: level + 1 }"></ng-container>
+              </div>
+            </ng-container>
+          </ng-template>
+
+          <div class="news-state" *ngIf="!loading && listaDominios.length === 0">
+            No hay dominios registrados.
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>

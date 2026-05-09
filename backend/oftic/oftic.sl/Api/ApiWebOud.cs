@@ -41,7 +41,7 @@ namespace Servicios.Api
                 return false;
             }
 
-            var normalizedUser = usuario?.Trim().ToLowerInvariant() ?? string.Empty;
+            var normalizedUser = usuario?.Trim() ?? string.Empty;
             var normalizedPassword = contrasena ?? string.Empty;
             var payload = new
             {
@@ -50,6 +50,11 @@ namespace Servicios.Api
             };
 
             var json = JsonSerializer.Serialize(payload);
+            var safePayload = JsonSerializer.Serialize(new
+            {
+                Usuario = normalizedUser,
+                Contrasena = "***"
+            });
             try
             {
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -58,7 +63,7 @@ namespace Servicios.Api
 
                 if (!resp.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("OUD login failed: {StatusCode}. Payload: {Payload}. Body: {Body}", resp.StatusCode, json, body);
+                    _logger.LogWarning("OUD login failed: {StatusCode}. Payload: {Payload}. Body: {Body}", resp.StatusCode, safePayload, body);
                     return false;
                 }
 
@@ -67,12 +72,12 @@ namespace Servicios.Api
                     return true;
                 }
 
-                _logger.LogWarning("OUD login response rejected as invalid credentials. Payload: {Payload}. Body: {Body}", json, body);
+                _logger.LogWarning("OUD login response rejected as invalid credentials. Payload: {Payload}. Body: {Body}", safePayload, body);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error llamando OUD login. Payload: {Payload}", json);
+                _logger.LogError(ex, "Error llamando OUD login. Payload: {Payload}", safePayload);
                 return false;
             }
         }
@@ -84,46 +89,86 @@ namespace Servicios.Api
                 return false;
             }
 
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-
-            if (!TryGetPropertyIgnoreCase(root, "estado", out var estadoElement))
-            {
-                return false;
-            }
-
-            if (estadoElement.ValueKind != JsonValueKind.True)
-            {
-                return false;
-            }
-
-            if (!TryGetPropertyIgnoreCase(root, "respuesta", out var respuestaElement))
-            {
-                return false;
-            }
-
-            if (respuestaElement.ValueKind == JsonValueKind.True)
-            {
-                return true;
-            }
-
-            if (respuestaElement.ValueKind == JsonValueKind.False || respuestaElement.ValueKind == JsonValueKind.Null)
-            {
-                return false;
-            }
-
-            if (respuestaElement.ValueKind == JsonValueKind.Array)
-            {
-                return respuestaElement.GetArrayLength() > 0;
-            }
-
-            if (respuestaElement.ValueKind == JsonValueKind.String &&
-                bool.TryParse(respuestaElement.GetString(), out var asBool))
+            var plain = body.Trim();
+            if (bool.TryParse(plain, out var asBool))
             {
                 return asBool;
             }
 
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                return IsSuccessfulAuthResponse(root);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsSuccessfulAuthResponse(JsonElement root)
+        {
+            if (TryGetPropertyIgnoreCase(root, "token", out var tokenElement) && HasMeaningfulValue(tokenElement))
+            {
+                return true;
+            }
+
+            if (TryGetPropertyIgnoreCase(root, "access_token", out tokenElement) && HasMeaningfulValue(tokenElement))
+            {
+                return true;
+            }
+
+            if (TryGetPropertyIgnoreCase(root, "success", out var successElement) &&
+                successElement.ValueKind == JsonValueKind.True)
+            {
+                return true;
+            }
+
+            if (TryGetPropertyIgnoreCase(root, "estado", out var estadoElement) &&
+                estadoElement.ValueKind == JsonValueKind.True &&
+                TryGetPropertyIgnoreCase(root, "respuesta", out var respuestaElement))
+            {
+                if (respuestaElement.ValueKind == JsonValueKind.True)
+                {
+                    return true;
+                }
+
+                if (respuestaElement.ValueKind == JsonValueKind.Array)
+                {
+                    return respuestaElement.GetArrayLength() > 0;
+                }
+
+                if (respuestaElement.ValueKind == JsonValueKind.Object)
+                {
+                    return true;
+                }
+
+                if (respuestaElement.ValueKind == JsonValueKind.String)
+                {
+                    var value = respuestaElement.GetString()?.Trim();
+                    if (bool.TryParse(value, out var parsedBool))
+                    {
+                        return parsedBool;
+                    }
+
+                    return !string.IsNullOrWhiteSpace(value);
+                }
+            }
+
             return false;
+        }
+
+        private static bool HasMeaningfulValue(JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                return !string.IsNullOrWhiteSpace(value.GetString());
+            }
+
+            return value.ValueKind != JsonValueKind.Null &&
+                   value.ValueKind != JsonValueKind.Undefined &&
+                   value.ValueKind != JsonValueKind.False;
         }
 
         private static bool TryGetPropertyIgnoreCase(JsonElement element, string name, out JsonElement value)

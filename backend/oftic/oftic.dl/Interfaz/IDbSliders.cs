@@ -8,13 +8,13 @@ namespace Datos.Interfaz
         Task<List<DtoSliders>> GetAdminAsync(CancellationToken ct);
         Task<DtoSliderResult> SaveAsync(
             DtoSaveSliderRequest request,
-            long usuarioAuditoria,
+            string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct);
         Task<DtoSliderResult> SetEstadoAsync(
             long idSlider,
             int vigente,
-            long usuarioAuditoria,
+            string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct);
     }

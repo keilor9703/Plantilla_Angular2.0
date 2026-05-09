@@ -1,0 +1,254 @@
+<section class="home-view eventos-home">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-calendar-days"></i>
+        Registro de Eventos Institucionales
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" (click)="togglePanelForm()" [title]="panelFormCollapsed ? 'Expandir' : 'Minimizar'">
+          <i class="fa-solid" [ngClass]="panelFormCollapsed ? 'fa-plus' : 'fa-minus'"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!panelFormCollapsed">
+      <div class="ui-grid">
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Nombre del evento *</label>
+            <input class="ui-control" [(ngModel)]="form.nombreEvento" maxlength="180" placeholder="Ej: Feria de Servicios Institucionales" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Fecha inicio *</label>
+            <input class="ui-control" type="date" [(ngModel)]="form.fechaInicio" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Fecha final *</label>
+            <input class="ui-control" type="date" [(ngModel)]="form.fechaFinal" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Unidad que realiza el evento *</label>
+            <select class="ui-control" [(ngModel)]="form.unidadId">
+              <option [ngValue]="null">Seleccione unidad...</option>
+              <option *ngFor="let u of unidades" [ngValue]="u.value">{{ u.descripcion || u.text }}</option>
+            </select>
+            <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Departamento *</label>
+            <select class="ui-control" [(ngModel)]="form.departamentoId" (ngModelChange)="onChangeDepartamento()">
+              <option [ngValue]="null">Seleccione departamento...</option>
+              <option *ngFor="let d of departamentos" [ngValue]="d.idDepartamento">{{ d.nombre }}</option>
+            </select>
+            <small class="meta" *ngIf="departamentosLoading">Cargando departamentos...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Ciudad *</label>
+            <select class="ui-control" [(ngModel)]="form.municipioId" [disabled]="!form.departamentoId || municipiosLoading">
+              <option [ngValue]="null">Seleccione ciudad...</option>
+              <option *ngFor="let m of municipios" [ngValue]="m.idMunicipio">{{ m.nombre }}</option>
+            </select>
+            <small class="meta" *ngIf="municipiosLoading">Cargando ciudades...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Dirección del evento *</label>
+            <input class="ui-control" [(ngModel)]="form.direccionEvento" maxlength="220" placeholder="Ej: Carrera 45 # 12-34, Auditorio principal" />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Cédula responsable *</label>
+            <div class="ui-input-group">
+              <input
+                class="ui-control"
+                [(ngModel)]="form.cedulaResponsable"
+                placeholder="Número de cédula"
+                (keydown.enter)="buscarResponsable()"
+                (blur)="buscarResponsableEnBlur()" />
+              <button class="ui-addon-btn" type="button" (click)="buscarResponsable()" [disabled]="buscandoResponsable" title="Buscar responsable">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            </div>
+            <small class="meta" *ngIf="buscandoResponsable">Consultando funcionario...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Nombre responsable</label>
+            <input class="ui-control" [(ngModel)]="form.nombreResponsable" readonly />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Correo responsable</label>
+            <input class="ui-control" [(ngModel)]="form.correoResponsable" readonly />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Teléfono responsable</label>
+            <input class="ui-control" [(ngModel)]="form.telefonoResponsable" readonly />
+          </div>
+        </div>
+
+        <div class="ui-col-3">
+          <div class="ui-field">
+            <label class="ui-label">Foto del evento</label>
+            <input class="ui-control" type="file" accept="image/*" (change)="onChangeImagen($event)" />
+            <small class="meta" *ngIf="subiendoImagen">Subiendo imagen...</small>
+          </div>
+        </div>
+
+        <div class="ui-col-3" *ngIf="imagenPreviewUrl">
+          <div class="evento-preview">
+            <img [src]="imagenPreviewUrl" alt="Vista previa de imagen del evento" />
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-toolbar">
+        <button class="ui-btn primary" type="button" (click)="guardarEvento()" [disabled]="guardando">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ guardando ? 'Guardando...' : (editandoEventoId ? 'Actualizar evento' : 'Guardar evento') }}
+        </button>
+        <button class="ui-btn outline" type="button" (click)="limpiarFormulario()">
+          <i class="fa-solid fa-eraser"></i>
+          Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-table"></i>
+        Eventos Registrados
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <span style="color: white; font-weight: bold; margin-right: 8px; font-size: 0.9rem;">{{ eventos.length }}</span>
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" (click)="togglePanelTable()" [title]="panelTableCollapsed ? 'Expandir' : 'Minimizar'">
+          <i class="fa-solid" [ngClass]="panelTableCollapsed ? 'fa-plus' : 'fa-minus'"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!panelTableCollapsed">
+      <div class="meta" *ngIf="eventosLoading">Cargando eventos...</div>
+
+      <div class="ui-table-wrap" *ngIf="!eventosLoading">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Nombre del evento</th>
+              <th>Fecha inicio</th>
+              <th>Fecha final</th>
+              <th>Departamento</th>
+              <th>Ciudad</th>
+              <th>Unidad</th>
+              <th>Responsable (grado y nombre)</th>
+              <th>Teléfono</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let e of eventos">
+              <tr>
+                <td>
+                  <button class="link-evento" type="button" (click)="toggleImagenEvento(e)">
+                    {{ e.nombreEvento }}
+                  </button>
+                </td>
+                <td>{{ e.fechaInicio | date:'yyyy-MM-dd' }}</td>
+                <td>{{ e.fechaFin | date:'yyyy-MM-dd' }}</td>
+                <td>{{ getDepartamentoEvento(e) || '-' }}</td>
+                <td>{{ e.ciudad || '-' }}</td>
+                <td>{{ e.unidad }}</td>
+                <td>{{ getNombreResponsable(e) || '-' }}</td>
+                <td>{{ getTelefonoResponsable(e) || '-' }}</td>
+                <td>
+                  <button class="ui-btn outline" type="button" (click)="editarEvento(e)" title="Editar evento" aria-label="Editar evento">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button class="ui-btn danger" type="button" (click)="eliminarEvento(e)" title="Eliminar evento" aria-label="Eliminar evento">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="eventoExpandidoId === e.idEvento">
+                <td colspan="9">
+                  <div class="evento-imagen-detalle" *ngIf="getImagenEventoUrl(e); else sinImagenEvento">
+                    <img [src]="getImagenEventoUrl(e)" [alt]="e.nombreEvento" />
+                  </div>
+                  <ng-template #sinImagenEvento>
+                    <div class="meta">Este evento no tiene imagen registrada.</div>
+                  </ng-template>
+                </td>
+              </tr>
+            </ng-container>
+            <tr *ngIf="eventos.length === 0">
+              <td colspan="9" class="meta">No hay eventos registrados.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+  
+<div class="ui-modal" *ngIf="showInactivarModal" (click)="cerrarModalInactivar()">
+  <div class="ui-modal__dialog ui-modal__dialog--sm" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+        Confirmar inactivación
+      </div>
+      <button class="ui-modal__close" type="button" (click)="cerrarModalInactivar()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body">
+      <p style="margin-bottom: 15px;">
+        ¿Está seguro de que desea inactivar el evento <strong>{{ eventoParaInactivar?.nombreEvento }}</strong>?
+      </p>
+      <p class="meta">
+        El registro dejará de ser visible en el calendario y en el listado público, pero permanecerá en el histórico del sistema.
+      </p>
+    </div>
+
+    <div class="ui-modal__foot" style="justify-content: flex-end; gap: 10px;">
+      <button class="ui-btn outline" type="button" (click)="cerrarModalInactivar()" [disabled]="guardando">
+        <i class="fa-solid fa-ban"></i>
+        Cancelar
+      </button>
+      <button class="ui-btn danger" type="button" (click)="confirmarInactivacion()" [disabled]="guardando">
+        <i class="fa-solid fa-check"></i>
+        {{ guardando ? 'Procesando...' : 'Sí, inactivar' }}
+      </button>
+    </div>
+  </div>
+</div>

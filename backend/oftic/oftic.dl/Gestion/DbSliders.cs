@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System.Data;
-using System.Linq;
 
 namespace Datos.Gestion
 {
@@ -14,61 +13,12 @@ namespace Datos.Gestion
 
         public DbSliders(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
         }
 
         public async Task<List<DtoSliders>> GetPublicosAsync(CancellationToken ct)
         {
-            var result = await GetByProcedureAsync("PK_ADMINISTRACION.P_GET_SLIDERS_PUBLICOS", includeAdminColumns: false, ct);
-            if (result.Count > 0)
-            {
-                // Si el SP público no trae URL_IMAGEN/URL_DESTINO, completamos desde admin por id.
-                if (result.Any(x => string.IsNullOrWhiteSpace(x.urlImagen) || string.IsNullOrWhiteSpace(x.urlDestino)))
-                {
-                    var adminData = await GetByProcedureAsync("PK_ADMINISTRACION.P_GET_SLIDERS_ADMIN", includeAdminColumns: true, ct);
-                    var byId = adminData
-                        .Where(x => x.idSlider > 0)
-                        .GroupBy(x => x.idSlider)
-                        .ToDictionary(g => g.Key, g => g.First());
-
-                    foreach (var item in result)
-                    {
-                        if (item.idSlider > 0 && byId.TryGetValue(item.idSlider, out var source))
-                        {
-                            if (string.IsNullOrWhiteSpace(item.urlImagen))
-                            {
-                                item.urlImagen = source.urlImagen;
-                            }
-                            if (string.IsNullOrWhiteSpace(item.urlDestino))
-                            {
-                                item.urlDestino = source.urlDestino;
-                            }
-                            if (string.IsNullOrWhiteSpace(item.titulo))
-                            {
-                                item.titulo = source.titulo;
-                            }
-                            if (string.IsNullOrWhiteSpace(item.subtitulo))
-                            {
-                                item.subtitulo = source.subtitulo;
-                            }
-                        }
-                    }
-                }
-
-                return result.OrderBy(x => x.orden).ToList();
-            }
-
-            // Fallback: si el SP de públicos no devuelve filas, usamos admin y filtramos en backend.
-            var admin = await GetByProcedureAsync("PK_ADMINISTRACION.P_GET_SLIDERS_ADMIN", includeAdminColumns: true, ct);
-            var today = DateTime.Today;
-
-            return admin
-                .Where(x =>
-                    x.vigente == 1 &&
-                    (!x.fechaInicio.HasValue || x.fechaInicio.Value.Date <= today) &&
-                    (!x.fechaFin.HasValue || x.fechaFin.Value.Date >= today))
-                .OrderBy(x => x.orden)
-                .ToList();
+            return await GetByProcedureAsync("PK_APIS.P_GET_SLIDERS_PUBLICOS", includeAdminColumns: false, ct);
         }
 
         public async Task<List<DtoSliders>> GetAdminAsync(CancellationToken ct)
@@ -80,7 +30,7 @@ namespace Datos.Gestion
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.P_GET_SLIDERS_ADMIN";
+            cmd.CommandText = "PK_APIS.P_GET_SLIDERS_ADMIN";
             cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -105,7 +55,7 @@ namespace Datos.Gestion
 
         public async Task<DtoSliderResult> SaveAsync(
             DtoSaveSliderRequest request,
-            long usuarioAuditoria,
+            string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct)
         {
@@ -132,7 +82,7 @@ namespace Datos.Gestion
             cmd.Parameters.Add("P_FechaFin", OracleDbType.Date).Value = request.fechaFin.HasValue
                 ? request.fechaFin.Value
                 : DBNull.Value;
-            cmd.Parameters.Add("P_Usuario", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
             cmd.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
             var pMessage = new OracleParameter("SRV_Message", OracleDbType.Varchar2, 4000)
@@ -159,7 +109,7 @@ namespace Datos.Gestion
         public async Task<DtoSliderResult> SetEstadoAsync(
             long idSlider,
             int vigente,
-            long usuarioAuditoria,
+            string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct)
         {
@@ -173,7 +123,7 @@ namespace Datos.Gestion
 
             cmd.Parameters.Add("P_IdSlider", OracleDbType.Int64).Value = idSlider;
             cmd.Parameters.Add("P_Vigente", OracleDbType.Int32).Value = vigente is 0 ? 0 : 1;
-            cmd.Parameters.Add("P_Usuario", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
             cmd.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
             var pMessage = new OracleParameter("SRV_Message", OracleDbType.Varchar2, 4000)
@@ -387,5 +337,6 @@ namespace Datos.Gestion
             }
             return DateTime.TryParse(value?.ToString(), out var parsed) ? parsed : null;
         }
+
     }
 }

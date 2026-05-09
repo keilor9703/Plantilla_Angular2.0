@@ -15,6 +15,7 @@ frontend/.sass-cache/
 frontend/connect.lock
 frontend/libpeerconnection.log
 frontend/testem.log
+coverage/
 
 # =====================
 # BACKEND (.NET 8)
@@ -29,11 +30,14 @@ backend/oftic/oftic.dl/bin/
 backend/oftic/oftic.dl/obj/
 backend/oftic/oftic.sl/bin/
 backend/oftic/oftic.sl/obj/
+backend/**/publish/
+backend/**/uploads/
 backend/**/*.user
 backend/**/*.suo
 backend/**/.vs/
-backend/**/uploads/
 backend/**/appsettings.Development.json
+backend/publish/
+backend/*.zip
 
 # =====================
 # IDEs y editores
@@ -45,6 +49,7 @@ backend/**/appsettings.Development.json
 !.vscode/launch.json
 !.vscode/extensions.json
 .history/
+.agent.md
 
 # =====================
 # Logs y temporales
@@ -58,3 +63,16 @@ yarn-error.log
 # =====================
 .DS_Store
 Thumbs.db
+.dotnet/
+.claude
+.env
+
+# Secrets
+.env
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pfx
+**/*.pem
+**/*.key
+**/appsettings.Development.json

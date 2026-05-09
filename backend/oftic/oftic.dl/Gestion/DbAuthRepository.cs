@@ -13,7 +13,7 @@ namespace Datos.Gestion
 
         public DbAuthRepository(IConfiguration cfg, ILogger<DbAuthRepository> logger)
         {
-            _cs = cfg.GetConnectionString("DbOracle")!;
+            _cs = cfg.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 
@@ -54,7 +54,17 @@ namespace Datos.Gestion
             await using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandType = CommandType.Text;
-                cmd.CommandText = @"SELECT DISTINCT id_rol FROM ctr_roles_user WHERE id_usuario = :pIdUsuario";
+                cmd.BindByName = true;
+                cmd.CommandText = @"
+SELECT DISTINCT id_rol
+  FROM ctr_roles_user
+ WHERE id_usuario = :pIdUsuario
+UNION
+SELECT DISTINCT rua.id_rol
+  FROM ctr_roles_user_admin rua
+ WHERE rua.id_usuario = :pIdUsuario
+   AND NVL(rua.vigente, 0) = 1
+   AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))";
                 cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario.Value;
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
