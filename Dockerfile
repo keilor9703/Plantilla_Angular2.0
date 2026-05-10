@@ -30,6 +30,6 @@ ENV ASPNETCORE_URLS=http://+:8088
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8088/api/health || exit 1
+    CMD curl -f http://localhost:8088/api/auth-test/cache-status || exit 1
 
 ENTRYPOINT ["dotnet", "Api.dll"]
