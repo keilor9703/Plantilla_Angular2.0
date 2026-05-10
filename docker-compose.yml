@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: api-runtime
     image: sisge-api:latest
     container_name: sisge-api
     ports:
@@ -19,6 +20,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-runtime
+    image: sisge-frontend:latest
+    container_name: sisge-frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8091:80"
+    restart: unless-stopped
 
 volumes:
   uploads:
