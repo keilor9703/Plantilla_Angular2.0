@@ -3,13 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy solution and projects
-COPY backend/oftic/oftic.sln .
-COPY backend/oftic/oftic.cl/oftic.cl.csproj ./oftic.cl/
-COPY backend/oftic/oftic.dl/oftic.dl.csproj ./oftic.dl/
-COPY backend/oftic/oftic.bl/oftic.bl.csproj ./oftic.bl/
-COPY backend/oftic/oftic.sl/oftic.sl.csproj ./oftic.sl/
-COPY backend/oftic/oftic/Api.csproj ./Api/
-COPY backend/oftic/oftic/Comun.csproj ./Comun/
+COPY backend/oftic/oftic/oftic.sln ./oftic.sln
+COPY backend/oftic/oftic.cl/Comun.csproj ./oftic.cl/
+COPY backend/oftic/oftic.dl/Datos.csproj ./oftic.dl/
+COPY backend/oftic/oftic.bl/Negocio.csproj ./oftic.bl/
+COPY backend/oftic/oftic.sl/Servicios.csproj ./oftic.sl/
+COPY backend/oftic/oftic/Api.csproj ./oftic/
 
 # Restore packages
 RUN dotnet restore oftic.sln
@@ -18,8 +17,8 @@ RUN dotnet restore oftic.sln
 COPY backend/oftic/ .
 
 # Publish
-WORKDIR /src/backend/oftic
-RUN dotnet publish Api.csproj -c Release -o /app/publish --no-restore
+WORKDIR /src
+RUN dotnet publish oftic/Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
