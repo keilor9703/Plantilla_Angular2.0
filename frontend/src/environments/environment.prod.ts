@@ -1,5 +1,5 @@
 export const environment = {
-  production: false,
-  apiBaseUrl: '/api',
-  mediaBaseUrl: 'http://172.28.9.181:8088'
+  production: true,
+  apiBaseUrl: 'http://srvdockergusof.policia.gov.co:8088/api',
+  mediaBaseUrl: 'http://srvdockergusof.policia.gov.co:8088'
 };
