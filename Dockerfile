@@ -47,5 +47,5 @@ RUN npm run build
 # Frontend runtime stage
 FROM nginx:alpine AS frontend-runtime
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=frontend-build /web/dist/policiadev-app /usr/share/nginx/html
+COPY --from=frontend-build /web/dist/policiadev-app/browser/ /usr/share/nginx/html/
 EXPOSE 80
