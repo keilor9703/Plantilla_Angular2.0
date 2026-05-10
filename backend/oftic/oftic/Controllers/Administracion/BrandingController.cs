@@ -115,6 +115,7 @@ namespace ofic.Controllers.Administracion
                 request.UsuarioAuditoria = User.Identity?.Name ?? "SISTEMA";
                 request.MaquinaAuditoria = Environment.MachineName;
 
+                request.Vigente = 1;
                 DtoBrandingResult result;
                 if (request.IdBranding > 0)
                 {
@@ -122,7 +123,6 @@ namespace ofic.Controllers.Administracion
                 }
                 else
                 {
-                    request.Vigente = 1;
                     result = await _brandingService.CreateAsync(request, ct);
                 }
 
