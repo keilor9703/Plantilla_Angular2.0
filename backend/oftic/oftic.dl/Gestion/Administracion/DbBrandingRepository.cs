@@ -119,6 +119,7 @@ namespace Datos.Gestion
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.BindByName = true;
+                        command.CommandTimeout = 180;
 
                         if (isUpdate)
                         {
@@ -152,7 +153,8 @@ namespace Datos.Gestion
                         command.Parameters.Add("p_success", OracleDbType.Int32).Direction = ParameterDirection.Output;
                         command.Parameters.Add("p_message", OracleDbType.Varchar2, 4000).Direction = ParameterDirection.Output;
 
-                        await command.ExecuteNonQueryAsync(ct);
+                        // Evita ORA-01013 por cancelaciones tempranas del request HTTP.
+                        await command.ExecuteNonQueryAsync(CancellationToken.None);
 
                         int id = isUpdate ? request.IdBranding : GetOutputInt(command.Parameters["p_id_branding"]);
 
