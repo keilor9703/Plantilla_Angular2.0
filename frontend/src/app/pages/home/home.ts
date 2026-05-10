@@ -798,7 +798,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   getBannerTitle(item: DtoSliders): string {
     const title = (item.titulo ?? '').trim();
     if (!title || this.looksLikeUrl(title)) {
-      return 'SISGE';
+      return 'OFTIC';
     }
     return title;
   }
@@ -947,9 +947,9 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private getFallbackBanners(): DtoSliders[] {
     return [
-      { idSlider: 1, titulo: 'SISGE', subtitulo: 'Banner informativo', urlImagen: 'banner/banner1.jpg', urlDestino: '', orden: 1, vigente: 1 },
-      { idSlider: 2, titulo: 'SISGE', subtitulo: 'Banner informativo', urlImagen: 'banner/banner2.jpg', urlDestino: '', orden: 2, vigente: 1 },
-      { idSlider: 3, titulo: 'SISGE', subtitulo: 'Banner informativo', urlImagen: 'banner/banner3.jpg', urlDestino: '', orden: 3, vigente: 1 }
+      { idSlider: 1, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner1.jpg', urlDestino: '', orden: 1, vigente: 1 },
+      { idSlider: 2, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner2.jpg', urlDestino: '', orden: 2, vigente: 1 },
+      { idSlider: 3, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner3.jpg', urlDestino: '', orden: 3, vigente: 1 }
     ];
   }
 

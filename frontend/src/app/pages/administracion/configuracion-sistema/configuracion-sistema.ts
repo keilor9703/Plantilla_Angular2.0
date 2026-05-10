@@ -35,8 +35,8 @@ export class ConfiguracionSistemaComponent implements OnInit {
   brandingSaving = false;
   brandingUploading = false;
   brandingUploadingFavicon = false;
-  brandingSistema = 'SISGE';
-  brandingNombreSistema = 'SISGE';
+  brandingSistema = 'OFTIC';
+  brandingNombreSistema = 'OFTIC';
   brandingLogoFileName: string | null = null;
   brandingLogoUrl: string | null = null;
   brandingFaviconFileName: string | null = null;
@@ -307,8 +307,8 @@ export class ConfiguracionSistemaComponent implements OnInit {
     this.brandingLoading = true;
     this.brandingService.getAdminConfig().subscribe({
       next: (cfg) => {
-        this.brandingSistema = (cfg?.sistema ?? 'SISGE').trim() || 'SISGE';
-        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SISGE').trim() || 'SISGE';
+        this.brandingSistema = (cfg?.sistema ?? 'OFTIC').trim() || 'OFTIC';
+        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'OFTIC').trim() || 'OFTIC';
         this.brandingLogoFileName = cfg?.logoFileName ?? null;
         this.brandingLogoUrl = cfg?.logoUrl ?? null;
         this.brandingFaviconFileName = cfg?.faviconFileName ?? null;
