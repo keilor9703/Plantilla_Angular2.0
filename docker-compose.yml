@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: api-runtime
-    image: sisge-api:latest
-    container_name: sisge-api
+    image: sicoe-api:latest
+    container_name: sicoe-api
     ports:
       - "8088:8088"
     environment:
@@ -26,8 +26,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend-runtime
-    image: sisge-frontend:latest
-    container_name: sisge-frontend
+    image: sicoe-frontend:latest
+    container_name: sicoe-frontend
     depends_on:
       api:
         condition: service_healthy
