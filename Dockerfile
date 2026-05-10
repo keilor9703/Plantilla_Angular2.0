@@ -2,22 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution and projects
-COPY backend/oftic/oftic/oftic.sln ./oftic.sln
-COPY backend/oftic/oftic.cl/Comun.csproj ./oftic.cl/
-COPY backend/oftic/oftic.dl/Datos.csproj ./oftic.dl/
-COPY backend/oftic/oftic.bl/Negocio.csproj ./oftic.bl/
-COPY backend/oftic/oftic.sl/Servicios.csproj ./oftic.sl/
-COPY backend/oftic/oftic/Api.csproj ./oftic/
-
-# Restore packages
-RUN dotnet restore oftic.sln
-
 # Copy all source
-COPY backend/oftic/ .
+COPY backend/oftic/ ./
 
-# Publish
-WORKDIR /src
+# Restore and publish API project directly to avoid solution path issues
+RUN dotnet restore oftic/Api.csproj
 RUN dotnet publish oftic/Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
