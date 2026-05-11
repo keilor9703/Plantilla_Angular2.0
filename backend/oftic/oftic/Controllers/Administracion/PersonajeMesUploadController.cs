@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using ofic.Security;
 
 namespace Api.Controllers.Administracion
@@ -23,11 +25,23 @@ namespace Api.Controllers.Administracion
             ".jpg", ".jpeg", ".png", ".webp"
         };
 
-        public PersonajeMesUploadController(ILogger<PersonajeMesUploadController> logger)
+        public PersonajeMesUploadController(
+            ILogger<PersonajeMesUploadController> logger,
+            IConfiguration configuration,
+            IHostEnvironment environment)
         {
             _logger = logger;
-            // Ruta absoluta fija para las imágenes de personaje del mes y grupo de alto rendimiento
-            _uploadsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "uploads", "personje-mes-grupo"));
+            var configuredBasePath = configuration["AppSettings:UploadsPath"];
+            var basePath = string.IsNullOrWhiteSpace(configuredBasePath)
+                ? Path.Combine(environment.ContentRootPath, "uploads")
+                : configuredBasePath.Trim();
+
+            if (!Path.IsPathRooted(basePath))
+            {
+                basePath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, basePath));
+            }
+
+            _uploadsPath = Path.GetFullPath(Path.Combine(basePath, "personje-mes-grupo"));
         }
 
         [HttpPost("imagen")]

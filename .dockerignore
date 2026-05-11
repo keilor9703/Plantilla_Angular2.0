@@ -31,7 +31,7 @@ scripts/
 
 # Docker (keep the ones we need)
 !Dockerfile
-docker-compose.yml
+!docker-compose.yml
 !.github/
 
 # Temp

@@ -184,8 +184,7 @@
         <p><strong>Fecha:</strong> {{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</p>
       </div>
       <div class="detail-body-container">
-        <!-- El cuerpo puede venir con HTML del editor -->
-        <div [innerHTML]="selectedCorreo.cuerpo"></div>
+        <ngx-editor [editor]="detailEditor" [ngModel]="selectedCorreo!.cuerpo" [disabled]="true"></ngx-editor>
       </div>
       <div class="detail-footer">
         <button class="ui-btn secondary" (click)="selectedCorreo = null">Cerrar</button>

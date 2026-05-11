@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import { DominioService, DtoDominio } from '../../../core/services/administracion/dominio.service';
-import { CuentaEmailService, DtoCuentaEmail, DtoCuentaEmailRequest } from '../../../core/services/administracion/cuenta-email.service';
+import { CuentaEmailService, DtoCuentaEmail, DtoCuentaEmailRequest, DtoCuentaEmailUsuario } from '../../../core/services/administracion/cuenta-email.service';
+import { UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { finalize } from 'rxjs';
 
 @Component({
@@ -19,7 +20,15 @@ export class CuentasEmailComponent implements OnInit {
   saving = false;
   
   listaCuentas: DtoCuentaEmail[] = [];
+  listaAutorizados: DtoCuentaEmailUsuario[] = [];
+  resultadosUsuarios: UsuarioListadoItem[] = [];
   gruposCOEST: DtoDominio[] = [];
+  cuentaSeleccionadaAutorizacion: DtoCuentaEmail | null = null;
+  buscadorUsuarios = '';
+  loadingAutorizados = false;
+  loadingBusquedaUsuarios = false;
+  savingAutorizacion = false;
+  autorizadoPendienteEliminar: DtoCuentaEmailUsuario | null = null;
   
   editingId: number | null = null;
   form: DtoCuentaEmailRequest = {
@@ -37,7 +46,8 @@ export class CuentasEmailComponent implements OnInit {
   constructor(
     private toast: ToastService,
     private dominioService: DominioService,
-    private cuentaEmailService: CuentaEmailService
+    private cuentaEmailService: CuentaEmailService,
+    private usuarioAdminService: UsuarioAdminService
   ) {}
 
   ngOnInit(): void {
@@ -180,6 +190,102 @@ export class CuentasEmailComponent implements OnInit {
       },
       error: () => this.toast.error('Error', 'No se pudo eliminar la cuenta')
     });
+  }
+
+  abrirAutorizaciones(item: DtoCuentaEmail): void {
+    this.cuentaSeleccionadaAutorizacion = item;
+    this.buscadorUsuarios = '';
+    this.resultadosUsuarios = [];
+    this.cargarAutorizaciones();
+  }
+
+  cerrarAutorizaciones(): void {
+    this.cuentaSeleccionadaAutorizacion = null;
+    this.listaAutorizados = [];
+    this.resultadosUsuarios = [];
+    this.buscadorUsuarios = '';
+  }
+
+  cargarAutorizaciones(): void {
+    if (!this.cuentaSeleccionadaAutorizacion) return;
+    this.loadingAutorizados = true;
+    this.cuentaEmailService.getAutorizaciones(this.cuentaSeleccionadaAutorizacion.idCuenta, undefined, 1)
+      .pipe(finalize(() => this.loadingAutorizados = false))
+      .subscribe({
+        next: (data) => this.listaAutorizados = data ?? [],
+        error: () => this.toast.error('Error', 'No se pudieron cargar los usuarios autorizados')
+      });
+  }
+
+  buscarUsuarios(): void {
+    const term = this.buscadorUsuarios.trim();
+    if (term.length < 3) {
+      this.toast.warning('Búsqueda', 'Escribe al menos 3 caracteres');
+      return;
+    }
+    this.loadingBusquedaUsuarios = true;
+    this.usuarioAdminService.getListadoUsuarios(term)
+      .pipe(finalize(() => this.loadingBusquedaUsuarios = false))
+      .subscribe({
+        next: (data) => this.resultadosUsuarios = data ?? [],
+        error: () => this.toast.error('Error', 'No se pudo consultar usuarios')
+      });
+  }
+
+  agregarAutorizado(user: UsuarioListadoItem): void {
+    if (!this.cuentaSeleccionadaAutorizacion) return;
+    if (this.listaAutorizados.some(x => x.idUsuario === user.idUsuario)) {
+      this.toast.warning('Autorizaciones', 'El usuario ya está autorizado en esta cuenta');
+      return;
+    }
+
+    this.savingAutorizacion = true;
+    this.cuentaEmailService.crearAutorizacion({
+      idCuenta: this.cuentaSeleccionadaAutorizacion.idCuenta,
+      idUsuario: user.idUsuario
+    })
+      .pipe(finalize(() => this.savingAutorizacion = false))
+      .subscribe({
+        next: () => {
+          this.toast.success('Éxito', 'Usuario autorizado correctamente');
+          this.cargarAutorizaciones();
+        },
+        error: (err) => {
+          this.toast.error('Error', err?.error?.message ?? 'No se pudo autorizar el usuario');
+        }
+      });
+  }
+
+  solicitarQuitarAutorizado(item: DtoCuentaEmailUsuario): void {
+    this.autorizadoPendienteEliminar = item;
+  }
+
+  cancelarQuitarAutorizado(): void {
+    this.autorizadoPendienteEliminar = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.autorizadoPendienteEliminar && !this.savingAutorizacion) {
+      this.cancelarQuitarAutorizado();
+    }
+  }
+
+  confirmarQuitarAutorizado(): void {
+    const item = this.autorizadoPendienteEliminar;
+    if (!item) return;
+
+    this.savingAutorizacion = true;
+    this.cuentaEmailService.eliminarAutorizacion(item.idCuentaUsuario)
+      .pipe(finalize(() => this.savingAutorizacion = false))
+      .subscribe({
+        next: () => {
+          this.toast.success('Éxito', 'Autorización removida');
+          this.autorizadoPendienteEliminar = null;
+          this.cargarAutorizaciones();
+        },
+        error: (err) => this.toast.error('Error', err?.error?.message ?? 'No se pudo quitar la autorización')
+      });
   }
 
   getNombreGrupo(idDominio: number): string {

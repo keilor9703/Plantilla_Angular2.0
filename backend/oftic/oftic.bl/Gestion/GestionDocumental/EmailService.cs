@@ -13,7 +13,7 @@ namespace Negocio.Gestion.GestionDocumental
 {
     public interface IEmailService
     {
-        Task<DtoEnvioCorreoResult> EnviarCorreoAsync(DtoEnvioCorreoRequest request, string usuario, string maquina);
+        Task<DtoEnvioCorreoResult> EnviarCorreoAsync(DtoEnvioCorreoRequest request, string usuario, string maquina, int? idUsuario);
         List<DtoHistoricoCorreo> ConsultarHistorico();
         string GetSiglaSistema();
     }
@@ -34,7 +34,7 @@ namespace Negocio.Gestion.GestionDocumental
             _logger = logger;
         }
 
-        public async Task<DtoEnvioCorreoResult> EnviarCorreoAsync(DtoEnvioCorreoRequest request, string usuario, string maquina)
+        public async Task<DtoEnvioCorreoResult> EnviarCorreoAsync(DtoEnvioCorreoRequest request, string usuario, string maquina, int? idUsuario)
         {
             try
             {
@@ -42,6 +42,21 @@ namespace Negocio.Gestion.GestionDocumental
                 if (!request.IdClasificacion.HasValue || request.IdClasificacion <= 0)
                 {
                     return new DtoEnvioCorreoResult { Success = false, Message = "Debe seleccionar una clasificación de la información para enviar el correo." };
+                }
+
+                if (!idUsuario.HasValue || idUsuario.Value <= 0)
+                {
+                    return new DtoEnvioCorreoResult { Success = false, Message = "No fue posible identificar el usuario autenticado." };
+                }
+
+                var autorizado = _cuentaRepo.ValidarAutorizacionEnvio(request.IdCuentaEmail, idUsuario.Value);
+                if (!autorizado)
+                {
+                    return new DtoEnvioCorreoResult
+                    {
+                        Success = false,
+                        Message = "No está autorizado para enviar correos con la cuenta seleccionada."
+                    };
                 }
 
                 // 1. Obtener la configuración de la cuenta

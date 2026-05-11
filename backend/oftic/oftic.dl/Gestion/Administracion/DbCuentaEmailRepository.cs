@@ -128,6 +128,190 @@ namespace Datos.Gestion
             }
         }
 
+        public List<DtoCuentaEmail> ConsultarCuentasPorUsuario(int idUsuario)
+        {
+            var lista = new List<DtoCuentaEmail>();
+            try
+            {
+                using var connection = new OracleConnection(_cs);
+                connection.Open();
+                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_CUENTAS_X_USUARIO", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = idUsuario;
+                command.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    lista.Add(new DtoCuentaEmail
+                    {
+                        IdCuenta = GetInt(reader, "ID_CUENTA"),
+                        NombreCuenta = GetString(reader, "NOMBRE_CUENTA"),
+                        Email = GetString(reader, "EMAIL"),
+                        Vigente = 1
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al consultar cuentas autorizadas por usuario {IdUsuario}", idUsuario);
+                throw;
+            }
+
+            return lista;
+        }
+
+        public List<DtoCuentaEmailUsuario> ConsultarAutorizaciones(int? idCuenta, int? idUsuario, int? vigente)
+        {
+            var lista = new List<DtoCuentaEmailUsuario>();
+            try
+            {
+                using var connection = new OracleConnection(_cs);
+                connection.Open();
+                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_CONSULTAR", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.BindByName = true;
+                command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = (object?)idCuenta ?? DBNull.Value;
+                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = (object?)idUsuario ?? DBNull.Value;
+                command.Parameters.Add("P_VIGENTE", OracleDbType.Int32).Value = (object?)vigente ?? DBNull.Value;
+                command.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    lista.Add(new DtoCuentaEmailUsuario
+                    {
+                        IdCuentaUsuario = GetInt(reader, "ID_CUENTA_USUARIO"),
+                        IdCuenta = GetInt(reader, "ID_CUENTA"),
+                        NombreCuenta = GetString(reader, "NOMBRE_CUENTA"),
+                        Email = GetString(reader, "EMAIL"),
+                        IdUsuario = GetInt(reader, "ID_USUARIO"),
+                        UsuarioLogin = GetString(reader, "USUARIO_LOGIN"),
+                        NombreCompleto = GetString(reader, "NOMBRE_COMPLETO"),
+                        Identificacion = GetString(reader, "IDENTIFICACION"),
+                        Vigente = GetInt(reader, "VIGENTE"),
+                        UsuarioCrea = GetString(reader, "USUARIO_CREA"),
+                        FechaCrea = GetDateTime(reader, "FECHA_CREA"),
+                        UsuarioModifica = GetString(reader, "USUARIO_MODIFICA"),
+                        FechaModifica = GetDateTime(reader, "FECHA_MODIFICA"),
+                        IpRegistro = GetString(reader, "IP_REGISTRO")
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al consultar autorizaciones de cuenta-email por usuario");
+                throw;
+            }
+
+            return lista;
+        }
+
+        public bool GuardarAutorizacion(DtoCuentaEmailUsuarioRequest request)
+        {
+            try
+            {
+                using var connection = new OracleConnection(_cs);
+                connection.Open();
+                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_GUARDAR", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.BindByName = true;
+
+                command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = request.IdCuenta;
+                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = request.IdUsuario;
+                command.Parameters.Add("P_USUARIO_CREA", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SISTEMA";
+                command.Parameters.Add("P_IP_REGISTRO", OracleDbType.Varchar2).Value = request.IpAuditoria ?? "127.0.0.1";
+                var output = command.Parameters.Add("P_RESULTADO", OracleDbType.Int32);
+                output.Direction = ParameterDirection.Output;
+
+                command.ExecuteNonQuery();
+                return GetOutputInt(output) > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al guardar autorización de cuenta-email por usuario");
+                throw;
+            }
+        }
+
+        public bool ActualizarAutorizacion(DtoCuentaEmailUsuarioEstadoRequest request)
+        {
+            try
+            {
+                using var connection = new OracleConnection(_cs);
+                connection.Open();
+                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ACTUALIZAR", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.BindByName = true;
+
+                command.Parameters.Add("P_ID_CUENTA_USUARIO", OracleDbType.Int32).Value = request.IdCuentaUsuario;
+                command.Parameters.Add("P_VIGENTE", OracleDbType.Int32).Value = request.Vigente;
+                command.Parameters.Add("P_USUARIO_MODIFICA", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SISTEMA";
+                command.Parameters.Add("P_IP_REGISTRO", OracleDbType.Varchar2).Value = request.IpAuditoria ?? "127.0.0.1";
+                var output = command.Parameters.Add("P_RESULTADO", OracleDbType.Int32);
+                output.Direction = ParameterDirection.Output;
+
+                command.ExecuteNonQuery();
+                return GetOutputInt(output) > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar autorización de cuenta-email por usuario");
+                throw;
+            }
+        }
+
+        public bool EliminarAutorizacion(DtoCuentaEmailUsuarioEstadoRequest request)
+        {
+            try
+            {
+                using var connection = new OracleConnection(_cs);
+                connection.Open();
+                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ELIMINAR", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.BindByName = true;
+
+                command.Parameters.Add("P_ID_CUENTA_USUARIO", OracleDbType.Int32).Value = request.IdCuentaUsuario;
+                command.Parameters.Add("P_USUARIO_MODIFICA", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SISTEMA";
+                command.Parameters.Add("P_IP_REGISTRO", OracleDbType.Varchar2).Value = request.IpAuditoria ?? "127.0.0.1";
+                var output = command.Parameters.Add("P_RESULTADO", OracleDbType.Int32);
+                output.Direction = ParameterDirection.Output;
+
+                command.ExecuteNonQuery();
+                return GetOutputInt(output) > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar autorización de cuenta-email por usuario");
+                throw;
+            }
+        }
+
+        public bool ValidarAutorizacionEnvio(int idCuenta, int idUsuario)
+        {
+            try
+            {
+                using var connection = new OracleConnection(_cs);
+                connection.Open();
+                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_VALIDAR_ENVIO", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.BindByName = true;
+
+                command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = idCuenta;
+                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = idUsuario;
+                var output = command.Parameters.Add("P_AUTORIZADO", OracleDbType.Int32);
+                output.Direction = ParameterDirection.Output;
+
+                command.ExecuteNonQuery();
+                return GetOutputInt(output) == 1;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validando autorización de envío para cuenta {IdCuenta}, usuario {IdUsuario}", idCuenta, idUsuario);
+                throw;
+            }
+        }
+
         public string GetNextRadicado(int idCuentaEmail)
         {
             try
@@ -202,6 +386,19 @@ namespace Datos.Gestion
         {
             try { return reader.GetOrdinal(column); }
             catch { return -1; }
+        }
+
+        private static DateTime? GetDateTime(OracleDataReader reader, string column)
+        {
+            var index = GetOrdinalSafe(reader, column);
+            if (index < 0 || reader.IsDBNull(index)) return null;
+            var value = reader.GetValue(index);
+            return value switch
+            {
+                DateTime dt => dt,
+                OracleDate od when !od.IsNull => od.Value,
+                _ => DateTime.TryParse(value.ToString(), out var parsed) ? parsed : null
+            };
         }
 
         private static int GetOutputInt(OracleParameter param)

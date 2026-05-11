@@ -30,6 +30,27 @@ export interface DtoCuentaEmailRequest {
   Vigente: number;
 }
 
+export interface DtoCuentaEmailUsuario {
+  idCuentaUsuario: number;
+  idCuenta: number;
+  nombreCuenta: string;
+  email: string;
+  idUsuario: number;
+  usuarioLogin: string;
+  nombreCompleto: string;
+  identificacion: string;
+  vigente: number;
+}
+
+export interface DtoCuentaEmailUsuarioRequest {
+  idCuenta: number;
+  idUsuario: number;
+}
+
+export interface DtoCuentaEmailUsuarioEstadoRequest {
+  vigente: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -56,5 +77,29 @@ export class CuentaEmailService {
 
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.baseUrl}/${id}`);
+  }
+
+  getMisCuentas(): Observable<DtoCuentaEmail[]> {
+    return this.http.get<DtoCuentaEmail[]>(`${this.baseUrl}/mis-cuentas`);
+  }
+
+  getAutorizaciones(idCuenta?: number, idUsuario?: number, vigente?: number): Observable<DtoCuentaEmailUsuario[]> {
+    const params: any = {};
+    if (idCuenta !== undefined) params.idCuenta = idCuenta;
+    if (idUsuario !== undefined) params.idUsuario = idUsuario;
+    if (vigente !== undefined) params.vigente = vigente;
+    return this.http.get<DtoCuentaEmailUsuario[]>(`${this.baseUrl}/autorizaciones`, { params });
+  }
+
+  crearAutorizacion(payload: DtoCuentaEmailUsuarioRequest): Observable<any> {
+    return this.http.post(`${this.baseUrl}/autorizaciones`, payload);
+  }
+
+  actualizarAutorizacion(idCuentaUsuario: number, payload: DtoCuentaEmailUsuarioEstadoRequest): Observable<any> {
+    return this.http.put(`${this.baseUrl}/autorizaciones/${idCuentaUsuario}`, payload);
+  }
+
+  eliminarAutorizacion(idCuentaUsuario: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/autorizaciones/${idCuentaUsuario}`);
   }
 }
