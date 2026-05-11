@@ -15,6 +15,7 @@ frontend/.sass-cache/
 frontend/connect.lock
 frontend/libpeerconnection.log
 frontend/testem.log
+coverage/
 
 # =====================
 # BACKEND (.NET 8)
@@ -65,3 +66,18 @@ Thumbs.db
 .dotnet/
 .claude
 .env
+
+# Secrets
+.env
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pfx
+**/*.pem
+**/*.key
+**/appsettings.Development.json
+
+
+.vs/
+node_modules/
+*.bak

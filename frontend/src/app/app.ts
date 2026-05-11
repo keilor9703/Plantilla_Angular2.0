@@ -81,7 +81,7 @@ export class AppComponent implements OnDestroy {
 
   private applyDocumentTitle(sigla: string | null): void {
     const title = (sigla ?? '').trim();
-    document.title = title || 'SISGE';
+    document.title = title || 'OFTIC';
   }
 
   private applyFavicon(faviconUrl: string | null): void {

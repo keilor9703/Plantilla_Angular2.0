@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
@@ -35,7 +35,7 @@ interface CorreoEnviado {
   templateUrl: './gestion-correos-electronicos.html',
   styleUrls: ['./gestion-correos-electronicos.scss'],
 })
-export class GestionCorreosElectronicosComponent implements OnInit {
+export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   view: 'compose' | 'history' | 'settings' = 'compose';
   private apiUrl = `${environment.apiBaseUrl}`;
 
@@ -83,6 +83,7 @@ export class GestionCorreosElectronicosComponent implements OnInit {
   
   // Editor de texto enriquecido
   editor!: Editor;
+  detailEditor!: Editor;
   toolbar: Toolbar = [
     ['bold', 'italic'],
     ['underline', 'strike'],
@@ -106,6 +107,11 @@ export class GestionCorreosElectronicosComponent implements OnInit {
       schema: schema,
       history: true,
       keyboardShortcuts: true
+    });
+    this.detailEditor = new Editor({
+      schema: schema,
+      history: false,
+      keyboardShortcuts: false
     });
     
     // Escuchar cambios para asegurar que el contenido se actualiza
@@ -138,6 +144,7 @@ export class GestionCorreosElectronicosComponent implements OnInit {
 
   ngOnDestroy(): void {
     this.editor.destroy();
+    this.detailEditor.destroy();
   }
 
   cargarClasificaciones(): void {
@@ -151,11 +158,13 @@ export class GestionCorreosElectronicosComponent implements OnInit {
   }
 
   cargarCuentas(): void {
-    this.http.get<any[]>(`${this.apiUrl}/CuentaEmail`).subscribe({
+    this.http.get<any[]>(`${this.apiUrl}/CuentaEmail/mis-cuentas`).subscribe({
       next: (data) => {
         this.cuentas = data.filter(c => c.vigente === 1);
         if (this.cuentas.length > 0) {
           this.selectedCuentaId = this.cuentas[0].idCuenta;
+        } else {
+          this.selectedCuentaId = null;
         }
       },
       error: (err) => console.error('Error cargando cuentas SMTP', err)
