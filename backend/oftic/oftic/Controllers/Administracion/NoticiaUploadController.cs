@@ -23,12 +23,20 @@ namespace ofic.Controllers.Administracion
             ".jpg", ".jpeg", ".png", ".webp"
         };
 
-        public NoticiaUploadController(IConfiguration configuration, ILogger<NoticiaUploadController> logger)
+        public NoticiaUploadController(IConfiguration configuration, IWebHostEnvironment environment, ILogger<NoticiaUploadController> logger)
         {
             _logger = logger;
-            _uploadsPath = Path.Combine(
-                configuration["AppSettings:UploadsPath"] ?? Path.Combine(AppContext.BaseDirectory, "..", "..", "uploads"),
-                "noticias");
+            var configuredBasePath = configuration["AppSettings:UploadsPath"];
+            var basePath = string.IsNullOrWhiteSpace(configuredBasePath)
+                ? Path.Combine(environment.ContentRootPath, "uploads")
+                : configuredBasePath;
+
+            if (!Path.IsPathRooted(basePath))
+            {
+                basePath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, basePath));
+            }
+
+            _uploadsPath = Path.GetFullPath(Path.Combine(basePath, "noticias"));
         }
 
         [HttpPost("imagen")]
@@ -62,8 +70,12 @@ namespace ofic.Controllers.Administracion
 
                 Directory.CreateDirectory(_uploadsPath);
 
+                var monthFolder = DateTime.Now.ToString("yyyy-MM");
+                var monthPath = Path.Combine(_uploadsPath, monthFolder);
+                Directory.CreateDirectory(monthPath);
+
                 var safeName = $"{Guid.NewGuid():N}{extension}";
-                var fullPath = Path.Combine(_uploadsPath, safeName);
+                var fullPath = Path.Combine(monthPath, safeName);
 
                 await using (var stream = new FileStream(fullPath, FileMode.Create))
                 {
@@ -75,7 +87,7 @@ namespace ofic.Controllers.Administracion
                 {
                     success = true,
                     url = publicUrl,
-                    fileName = $"noticias/{safeName}",
+                    fileName = safeName,
                     message = "Imagen cargada correctamente."
                 });
             }
@@ -95,9 +107,9 @@ namespace ofic.Controllers.Administracion
         public IActionResult GetImagen(string fileName)
         {
             var safeFileName = Path.GetFileName(fileName);
-            var fullPath = Path.Combine(_uploadsPath, safeFileName);
+            var fullPath = FindImagePath(safeFileName);
 
-            if (!System.IO.File.Exists(fullPath))
+            if (string.IsNullOrWhiteSpace(fullPath) || !System.IO.File.Exists(fullPath))
                 return NotFound(new { success = false, message = "Imagen no encontrada." });
 
             var extension = Path.GetExtension(fullPath).ToLowerInvariant();
@@ -110,6 +122,30 @@ namespace ofic.Controllers.Administracion
             };
 
             return PhysicalFile(fullPath, contentType);
+        }
+
+        private string? FindImagePath(string safeFileName)
+        {
+            // Evitar DirectoryNotFoundException cuando la ruta de uploads no existe
+            if (string.IsNullOrWhiteSpace(_uploadsPath) || !Directory.Exists(_uploadsPath))
+            {
+                _logger.LogWarning("Ruta de uploads no encontrada: {UploadsPath}", _uploadsPath);
+                return null;
+            }
+
+            var rootCandidate = Path.Combine(_uploadsPath, safeFileName);
+            if (System.IO.File.Exists(rootCandidate))
+            {
+                return rootCandidate;
+            }
+
+            var matches = Directory.GetFiles(_uploadsPath, safeFileName, SearchOption.AllDirectories);
+            if (matches.Length == 0)
+            {
+                return null;
+            }
+
+            return matches[0];
         }
     }
 }

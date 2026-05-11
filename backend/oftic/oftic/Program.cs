@@ -9,6 +9,12 @@ using Negocio.Gestion;
 using Negocio.Interfaz;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
+using Datos.Gestion;
+using Datos.Interfaz;
+using Negocio.Gestion.GestionDocumental;
+using Negocio.Gestion.Administracion;
+using Datos.Interfaz.GestionDocumental;
+using Datos.Gestion.GestionDocumental;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,7 +100,7 @@ builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "OFTIC API", Version = "v1" });
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "SICOE API", Version = "v1" });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -128,6 +134,10 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
 builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
+
+builder.Services.AddScoped<IDbPersonajeMesService, DbPersonajeMesService>();
+builder.Services.AddScoped<IDbPersonajeMesRepository, DbPersonajeMesRepository>();
+
 builder.Services.AddScoped<IDbRadioService, DbRadioService>();
 builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
 
@@ -143,8 +153,25 @@ builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucional
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
 
+builder.Services.AddScoped<IDbEventoService, DbEventoService>();
+builder.Services.AddScoped<IDbEventoRepository, DbEventoRepository>();
+
+builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
+builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();
+
 builder.Services.AddScoped<IDbModalService, DbModalService>();
 builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
+
+builder.Services.AddScoped<IDbRedesSocialesService, DbRedesSocialesService>();
+builder.Services.AddScoped<IDbRedesSocialesRepository, DbRedesSocialesRepository>();
+
+builder.Services.AddScoped<IDbUbicacionService, DbUbicacionService>();
+builder.Services.AddScoped<IDbUbicacionRepository, DbUbicacionRepository>();
+builder.Services.AddScoped<IDbCuentaEmailRepository, DbCuentaEmailRepository>();
+builder.Services.AddScoped<IDbGestionCorreosRepository, DbGestionCorreosRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IDbBrandingService, DbBrandingService>();
+builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
 
 var app = builder.Build();
 
@@ -159,6 +186,9 @@ Directory.CreateDirectory(noticiasRoot);
 
 var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
 Directory.CreateDirectory(modalesRoot);
+
+var eventosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "eventos");
+Directory.CreateDirectory(eventosRoot);
 
 app.UseCors("DevCors");
 
@@ -184,6 +214,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(noticiasRoot),
     RequestPath = "/uploads/noticias"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(eventosRoot),
+    RequestPath = "/uploads/eventos"
 });
 
 app.UseAuthentication();

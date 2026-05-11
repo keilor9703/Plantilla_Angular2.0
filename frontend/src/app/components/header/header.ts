@@ -1,4 +1,4 @@
-﻿import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +7,8 @@ import { SidebarService } from '../../services/sidebar.js';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 import { BrandingService } from '../../core/services/administracion/branding.service';
+import { EventoService } from '../../core/services/administracion/evento.service';
+import { finalize } from 'rxjs/operators';
 
 interface Notification {
   id: number;
@@ -38,19 +40,27 @@ export class HeaderComponent implements OnInit {
   profileModalOpen = false;
   profileLoading = false;
   perfil: MiPerfilDto | null = null;
+  
+  // Próximos eventos
+  proximosEventos: any[] = [];
+  isCalendarDropdownOpen = false;
+  selectedEvento: any | null = null;
+  isEventoModalOpen = false;
 
   constructor(
     private SidebarService: SidebarService,
     private authService: AuthService,
     private http: HttpClient,
     private router: Router,
-    private brandingService: BrandingService
+    private brandingService: BrandingService,
+    private eventoService: EventoService
   ) {}
 
   ngOnInit(): void {
     this.userName = this.authService.getUsuario();
     this.loadBranding();
     this.loadMyPhoto();
+    this.loadEventosCount();
   }
 
   toggleMenu() {
@@ -70,10 +80,19 @@ export class HeaderComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+
+    // Cierre de dropdown de usuario
     if (this.isUserDropdownOpen) {
-      const target = event.target as HTMLElement;
       if (!target.closest('.header-user')) {
         this.closeUserDropdown();
+      }
+    }
+
+    // Cierre de dropdown de calendario
+    if (this.isCalendarDropdownOpen) {
+      if (!target.closest('.notification-wrapper')) {
+        this.isCalendarDropdownOpen = false;
       }
     }
   }
@@ -81,38 +100,103 @@ export class HeaderComponent implements OnInit {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeUserDropdown();
+    this.isCalendarDropdownOpen = false;
   }
 
   notifications: Notification[] = [
+    { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 0, tooltip: 'Eventos' },
     { id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
     { id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },
     { id: 3, icon: 'fa-tasks', color: 'success', count: 2, tooltip: 'Tareas' },
-    { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 1, tooltip: 'Eventos' },
     { id: 5, icon: 'fa-chart-line', color: 'accent', count: 0, tooltip: 'Reportes' }
   ];
 
   searchQuery: string = '';
   userName: string = 'Usuario';
-  userRole: string = 'SISGE';
+  userRole: string = 'OFTIC';
 
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
         const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
-        this.userRole = sigla || 'SISGE';
+        this.userRole = sigla || 'OFTIC';
       },
       error: () => {
-        this.userRole = 'SISGE';
+        this.userRole = 'OFTIC';
+      }
+    });
+  }
+
+  private loadEventosCount(): void {
+    this.eventoService.getAll().subscribe({
+      next: (items) => {
+        const today = new Date();
+        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const limit = new Date(todayZero);
+        limit.setDate(todayZero.getDate() + 5);
+
+        const filtered = (items ?? []).filter(e => {
+          // Validar vigencia
+          const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
+          if (v == null || String(v) !== '1') return false;
+
+          // Validar fecha de inicio dentro de los próximos 5 días
+          const startStr = (e.fechaInicio || '').toString().split('T')[0];
+          const parts = startStr.split('-');
+          if (parts.length !== 3) return false;
+
+          const startDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          
+          return startDate.getTime() >= todayZero.getTime() && startDate.getTime() <= limit.getTime();
+        });
+
+        this.proximosEventos = filtered;
+        const calendarNotif = this.notifications.find(n => n.id === 4);
+        if (calendarNotif) {
+          calendarNotif.count = filtered.length;
+        }
       }
     });
   }
 
   onSearch(): void {
-    console.log('Buscando:', this.searchQuery);
   }
 
   onNotificationClick(notification: Notification): void {
-    console.log('Notificación clickeada:', notification);
+    if (notification.id === 4) {
+      this.isCalendarDropdownOpen = !this.isCalendarDropdownOpen;
+    }
+  }
+
+  openEventoDetail(evento: any, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.selectedEvento = evento;
+    this.isEventoModalOpen = true;
+    this.isCalendarDropdownOpen = false;
+  }
+
+  closeEventoModal(): void {
+    this.isEventoModalOpen = false;
+    this.selectedEvento = null;
+  }
+
+  getEventoImageUrl(raw: string | null | undefined): string {
+    const value = (raw ?? '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
+    if (value.startsWith('/')) return value;
+    return `/api/EventoUpload/Imagen/${encodeURIComponent(value)}`;
+  }
+
+  getEventoFechaRango(evento: any): string {
+    const fmt = (dStr: string) => {
+      const d = new Date(dStr);
+      return isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+    const fi = fmt(evento.fechaInicio);
+    const ff = fmt(evento.fechaFin);
+    if (!fi && !ff) return 'Sin fecha';
+    return fi === ff ? fi : `${fi} - ${ff}`;
   }
 
   onProfileClick(): void {
@@ -122,6 +206,26 @@ export class HeaderComponent implements OnInit {
   onLogout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
+  }
+
+  isImpersonating(): boolean {
+    return this.authService.isImpersonating();
+  }
+
+  getImpersonationOriginalUser(): string {
+    return this.authService.getOriginalUser();
+  }
+
+  stopImpersonation(): void {
+    const restored = this.authService.stopImpersonation();
+    this.closeUserDropdown();
+    if (!restored) {
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    this.userName = this.authService.getUsuario();
+    this.router.navigate(['/home']).then(() => window.location.reload());
   }
 
   private loadMyPhoto(): void {

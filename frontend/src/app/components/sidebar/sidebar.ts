@@ -181,7 +181,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
           return;
         }
         const mapped = this.mapDbMenu(items);
-        this.menuItems = this.ensureInicioItem(this.groupAdministrationItems(mapped));
+        this.menuItems = this.ensureInicioItem(mapped);
       },
       error: () => {
         this.loadMenuByUserFallback();
@@ -198,7 +198,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
 
     this.menuService.getByUser(userId).subscribe({
       next: (items) => {
-        this.menuItems = this.ensureInicioItem(this.groupAdministrationItems(this.mapDbMenu(items)));
+        this.menuItems = this.ensureInicioItem(this.mapDbMenu(items));
       },
       error: () => {
         this.menuItems = this.ensureInicioItem([]);

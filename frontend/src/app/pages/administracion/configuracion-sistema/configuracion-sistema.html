@@ -19,43 +19,27 @@
 
           <div class="ui-field">
             <label class="ui-label">Archivo (máx 100MB)</label>
-            <input
-              class="ui-control"
-              type="file"
-              accept=".mp4,.webm,.ogg,.mov,video/*"
+            <input class="ui-control" type="file" accept=".mp4,.webm,.ogg,.mov,video/*"
               (change)="onFileSelected($event)">
             <small class="meta">Se conserva un solo video activo. Al cargar uno nuevo se reemplaza el anterior.</small>
           </div>
 
           <div class="ui-field">
             <label class="ui-label">Descripción <span class="required">*</span></label>
-            <input
-              class="ui-control"
-              type="text"
-              maxlength="255"
-              [(ngModel)]="videoDescripcion"
-              placeholder="Ej: Video institucional 2025"
-              [disabled]="!selectedVideoFile">
+            <input class="ui-control" type="text" maxlength="255" [(ngModel)]="videoDescripcion"
+              placeholder="Ej: Video institucional 2025" [disabled]="!selectedVideoFile">
           </div>
 
           <div class="ui-field">
             <label class="ui-label">Observaciones</label>
-            <textarea
-              class="ui-control"
-              rows="3"
-              maxlength="500"
-              [(ngModel)]="videoObservaciones"
-              placeholder="Observaciones adicionales (opcional)"
-              [disabled]="!selectedVideoFile"></textarea>
+            <textarea class="ui-control" rows="3" maxlength="500" [(ngModel)]="videoObservaciones"
+              placeholder="Observaciones adicionales (opcional)" [disabled]="!selectedVideoFile"></textarea>
           </div>
 
           <div class="list-loading" *ngIf="uploading">Cargando video, por favor espere...</div>
 
           <div class="tab-actions">
-            <button
-              class="ui-btn primary"
-              type="button"
-              (click)="saveVideo()"
+            <button class="ui-btn primary" type="button" (click)="saveVideo()"
               [disabled]="uploading || !selectedVideoFile">
               <i class="fa-solid fa-floppy-disk"></i>
               {{ uploading ? 'Guardando...' : 'Guardar video' }}
@@ -121,10 +105,7 @@
 
           <div class="ui-field">
             <label class="ui-label">Agregar imagen login</label>
-            <input
-              class="ui-control"
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/*"
+            <input class="ui-control" type="file" accept=".jpg,.jpeg,.png,.webp,image/*"
               (change)="onLoginImageSelected($event)">
             <small class="meta">Formatos: JPG, PNG, WEBP. Máximo 10MB.</small>
           </div>
@@ -210,49 +191,55 @@
           <div class="list-loading" *ngIf="brandingLoading">Cargando configuracion de marca...</div>
 
           <div class="ui-field">
-            <label class="ui-label">Sigla del sistema</label>
-            <small class="meta">Maximo 10 caracteres.</small>
-            <input
-              class="ui-control"
-              type="text"
-              maxlength="10"
-              [(ngModel)]="brandingSistema"
-              placeholder="Ej: SISGE">
-            
+            <label class="ui-label">Unidad Institucional (Organigrama)</label>
+            <small class="meta">Seleccione una unidad para auto-completar los datos del dueño.</small>
+            <select class="ui-control" [(ngModel)]="selectedUnidadConsecutivo" (change)="onUnidadChange()">
+              <option [ngValue]="null">-- Seleccione una unidad --</option>
+              <option *ngFor="let u of unidades" [value]="u.consecutivo">
+                {{ u.nombre }}
+              </option>
+            </select>
+          </div>
+          <div class="ui-field">
+            <label class="ui-label">Sigla unidad</label>
+            <small class="meta">Ej: COEST, ARCO, etc.</small>
+            <input class="ui-control" type="text" maxlength="100" [(ngModel)]="brandingSigla" placeholder="Ej: COEST" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
           </div>
 
           <div class="ui-field">
-            <label class="ui-label">Nombre del sistema</label>
-            <small class="meta">Maximo 50 caracteres.</small>
-            <input
-              class="ui-control"
-              type="text"
-              maxlength="50"
-              [(ngModel)]="brandingNombreSistema"
-              placeholder="Ej: Sistema de Gestion">
-            
+            <label class="ui-label">Sigla del sistema</label>
+            <small class="meta">Maximo 10 caracteres.</small>
+            <input class="ui-control" type="text" maxlength="10" [(ngModel)]="brandingSistema" placeholder="Ej: SISGE">
+
           </div>
+
+
+
+          <div class="ui-field">
+            <label class="ui-label">Nombre del sistema</label>
+            <small class="meta">Máximo 50 caracteres.</small>
+            <input class="ui-control" type="text" maxlength="50" [(ngModel)]="brandingNombreSistema"
+              placeholder="Ej: Sistema de Gestion">
+          </div>
+
+
+
 
           <div class="ui-field">
             <label class="ui-label">Logo del sistema</label>
             <small class="meta">Formatos: JPG, PNG, WEBP o SVG. Maximo 5MB.</small>
-            <input
-              class="ui-control"
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,.svg,image/*"
+            <input class="ui-control" type="file" accept=".jpg,.jpeg,.png,.webp,.svg,image/*"
               (change)="onBrandingLogoSelected($event)">
-            
+
           </div>
 
           <div class="ui-field">
             <label class="ui-label">Favicon</label>
-             <small class="meta">Formatos: ICO, PNG, WEBP o SVG. Maximo 50Kb.</small>
-            <input
-              class="ui-control"
-              type="file"
+            <small class="meta">Formatos: ICO, PNG, WEBP o SVG. Maximo 50Kb.</small>
+            <input class="ui-control" type="file"
               accept=".ico,.png,.webp,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/webp,image/svg+xml"
               (change)="onBrandingFaviconSelected($event)">
-           
+
           </div>
 
           <div class="list-loading" *ngIf="brandingUploading">Cargando logo...</div>

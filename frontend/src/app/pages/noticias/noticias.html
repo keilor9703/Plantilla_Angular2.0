@@ -126,7 +126,23 @@
     <div class="ui-modal__body">
       <div class="news-modal" *ngIf="selectedNoticia">
         <div class="news-modal__img-container">
-          <img class="news-modal__img" [src]="getImageUrl(selectedNoticia)" [alt]="selectedNoticia.titulo" />
+          <img class="news-modal__img" [src]="getCurrentModalImage()" [alt]="selectedNoticia.titulo" />
+          <button
+            *ngIf="modalImages.length > 1"
+            class="news-modal__nav news-modal__nav--prev"
+            type="button"
+            (click)="prevModalImage($event)"
+            aria-label="Imagen anterior">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button
+            *ngIf="modalImages.length > 1"
+            class="news-modal__nav news-modal__nav--next"
+            type="button"
+            (click)="nextModalImage($event)"
+            aria-label="Imagen siguiente">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
           <button 
             class="news-modal__like-btn" 
             type="button" 
@@ -136,6 +152,16 @@
             title="Me gusta"
           >
             <i class="fa-solid fa-heart"></i>
+          </button>
+        </div>
+        <div class="news-modal__dots" *ngIf="modalImages.length > 1">
+          <button
+            type="button"
+            *ngFor="let _img of modalImages; let i = index"
+            class="news-modal__dot"
+            [class.active]="i === modalImageIndex"
+            (click)="goToModalImage(i, $event)"
+            [attr.aria-label]="'Ir a imagen ' + (i + 1)">
           </button>
         </div>
         <div class="news-modal__meta">

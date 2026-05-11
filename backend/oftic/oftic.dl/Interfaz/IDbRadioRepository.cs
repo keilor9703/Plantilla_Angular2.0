@@ -4,7 +4,7 @@ namespace Datos.Interfaz
 {
     public interface IDbRadioRepository
     {
-        Task<List<DtoRadioEmisora>> GetAllAsync(int? soloActivos, CancellationToken ct);
+        Task<List<DtoRadioEmisora>> GetAllAsync(CancellationToken ct);
         Task<DtoRadioEmisora?> GetByIdAsync(long idEmisora, CancellationToken ct);
         Task<DtoRadioResult> CreateAsync(DtoRadioEmisoraRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoRadioResult> UpdateAsync(long idEmisora, DtoRadioEmisoraRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);

@@ -1,9 +1,10 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VideoUnidadInfo, VideoUnidadService } from '../../../core/services/administracion/video-unidad.service';
 import { LoginVisualItem, LoginVisualService } from '../../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../../core/services/administracion/branding.service';
+import { UbicacionService, DtoUnidadOrg } from '../../../core/services/administracion/ubicacion.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
@@ -34,17 +35,25 @@ export class ConfiguracionSistemaComponent implements OnInit {
   brandingSaving = false;
   brandingUploading = false;
   brandingUploadingFavicon = false;
-  brandingSistema = 'SISGE';
-  brandingNombreSistema = 'SISGE';
+  brandingSistema = 'OFTIC';
+  brandingNombreSistema = 'OFTIC';
   brandingLogoFileName: string | null = null;
   brandingLogoUrl: string | null = null;
   brandingFaviconFileName: string | null = null;
   brandingFaviconUrl: string | null = null;
+  brandingSigla = '';
+  brandingNombreUnidad = '';
+  brandingIdBranding = 0;
+  brandingUnidadSistemaId = 0;
+  
+  unidades: DtoUnidadOrg[] = [];
+  selectedUnidadConsecutivo: number | null = null;
 
   constructor(
     private videoService: VideoUnidadService,
     private loginVisualService: LoginVisualService,
     private brandingService: BrandingService,
+    private ubicacionService: UbicacionService,
     private toast: ToastService
   ) {}
 
@@ -52,6 +61,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
     this.loadCurrent();
     this.loadLoginVisualConfig();
     this.loadBrandingConfig();
+    this.loadUnidadesOrganigrama();
   }
 
   togglePanel(panel: 'video' | 'login' | 'branding'): void {
@@ -274,16 +284,39 @@ export class ConfiguracionSistemaComponent implements OnInit {
     });
   }
 
+  loadUnidadesOrganigrama(): void {
+    this.ubicacionService.getUnidadesOrganigrama().subscribe({
+      next: (data) => {
+        this.unidades = data;
+      },
+      error: (err) => console.error('Error cargando unidades', err)
+    });
+  }
+
+  onUnidadChange(): void {
+    if (!this.selectedUnidadConsecutivo) return;
+    const unidad = this.unidades.find(u => u.consecutivo === Number(this.selectedUnidadConsecutivo));
+    if (unidad) {
+      this.brandingSigla = unidad.sigla;
+      this.brandingNombreUnidad = unidad.nombre;
+      this.brandingUnidadSistemaId = unidad.consecutivo;
+    }
+  }
+
   loadBrandingConfig(): void {
     this.brandingLoading = true;
     this.brandingService.getAdminConfig().subscribe({
       next: (cfg) => {
-        this.brandingSistema = (cfg?.sistema ?? 'SISGE').trim() || 'SISGE';
-        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SISGE').trim() || 'SISGE';
+        this.brandingSistema = (cfg?.sistema ?? 'OFTIC').trim() || 'OFTIC';
+        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'OFTIC').trim() || 'OFTIC';
         this.brandingLogoFileName = cfg?.logoFileName ?? null;
         this.brandingLogoUrl = cfg?.logoUrl ?? null;
         this.brandingFaviconFileName = cfg?.faviconFileName ?? null;
         this.brandingFaviconUrl = cfg?.faviconUrl ?? null;
+        this.brandingSigla = cfg?.sigla ?? '';
+        this.brandingNombreUnidad = cfg?.nombreUnidad ?? '';
+        this.brandingIdBranding = cfg?.idBranding ?? 0;
+        this.brandingUnidadSistemaId = cfg?.unidadSistemaId ?? 0;
         this.brandingLoading = false;
       },
       error: (err) => {
@@ -394,8 +427,12 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     this.brandingSaving = true;
     this.brandingService.saveConfig({
+      idBranding: this.brandingIdBranding,
       sistema,
       nombreSistema,
+      sigla: this.brandingSigla,
+      nombreUnidad: this.brandingNombreUnidad,
+      unidadSistemaId: this.brandingUnidadSistemaId,
       logoFileName: this.brandingLogoFileName,
       faviconFileName: this.brandingFaviconFileName
     }).subscribe({

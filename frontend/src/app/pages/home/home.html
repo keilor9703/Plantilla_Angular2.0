@@ -93,6 +93,7 @@
                 [src]="videoInstitucionalUrl | safeUrl"
                 class="video-frame"
                 frameborder="0"
+                sandbox="allow-scripts allow-same-origin allow-presentation"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen>
               </iframe>
@@ -105,23 +106,51 @@
             </div>
           </div>
 
-          <!-- Hub de Redes Sociales -->
           <div class="card-view rounded-xl shadow-subtle social-col">
             <h3 class="title-cards">
-              <i class="fa-solid fa-share-nodes"></i> Redes Sociales
+              <i class="fa-solid fa-share-nodes"></i> Próximos eventos
             </h3>
             <hr />
-            <div class="social-hub">
-              <a 
-                *ngFor="let social of socialLinks"
-                [href]="social.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-btn"
-                [style.--social-color]="social.color">
-                <i [class]="'fa-brands ' + social.icon"></i>
-                <span>{{ social.name }}</span>
-              </a>
+            <div class="events-calendar">
+              <div class="events-calendar__head">
+                <button type="button" class="calendar-nav" (click)="prevCalendarMonth()" aria-label="Mes anterior">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <strong class="calendar-month">{{ getCalendarMonthLabel() }}</strong>
+                <button type="button" class="calendar-nav" (click)="nextCalendarMonth()" aria-label="Mes siguiente">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <div class="events-calendar__weekdays">
+                <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+              </div>
+
+              <div class="events-calendar__grid">
+                <button
+                  type="button"
+                  class="events-day"
+                  *ngFor="let day of calendarDays"
+                  [class.is-outside]="!day.inCurrentMonth"
+                  [class.is-today]="day.isToday"
+                  [class.is-selected]="day.isSelected"
+                  [class.has-event]="day.eventos.length > 0"
+                  (click)="selectCalendarDay(day)">
+                  <span class="events-day__num">{{ day.date.getDate() }}</span>
+                  <div class="events-day__badges" *ngIf="day.eventos.length > 0">
+                    <span
+                      class="events-day__badge"
+                      *ngFor="let ev of day.eventos | slice:0:4"
+                      [ngClass]="getEventoBadgeClass(ev)"
+                      (click)="openCalendarEventoModal(ev, $event)"
+                      [title]="ev.nombreEvento">
+                      {{ ev.nombreEvento }}
+                    </span>
+                    <span class="events-day__more" *ngIf="day.eventos.length > 4">+{{ day.eventos.length - 4 }}</span>
+                  </div>
+                </button>
+              </div>
+           
             </div>
           </div>
         </div>
@@ -177,93 +206,130 @@
       <p style="color: #666; margin: 10px;">No hay movimientos recientes en tu cuenta.</p>
     </div>
 
-    <!-- Spotlight: Personajes del Mes y Línea de Mando -->
+      
+      <!-- Spotlight: Personajes del Mes y grupo  -->
     <section class="home-spotlight mt-4">
       <div class="card-view rounded-xl shadow-subtle">
         <div class="card-head card-head--dark">
           <div class="card-title">
             <i class="fa-solid fa-award"></i>
             <span>Personajes del mes</span>
+            <span *ngIf="personajesMes.length" class="spotlight-tag-title-mes" >
+              {{ getNombreMes((personajesMes[0]?.mes ?? personajesMes[0]?.Mes) ?? 1) }}
+            </span>
           </div>
         </div>
         <div class="card-body">
-          <div class="spotlight-grid">
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">Oficial</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-shield"></i> Grupo: Radios
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/of-personaje-mes.jpeg" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">My. Yesid Alexander Ahumada Torres</div>
-                  <div class="spotlight-role">Coordinador de Turnos</div>
-                  <div class="spotlight-group">Grupo: Gestion Radios</div>
-                </div>
-              </div>
-            </article>
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">Mando Ejecutivo</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-users"></i> Grupo: GUTIC
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/me-peronaje-mes.png" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">Ij. Fabio Elias Munoz Saldana</div>
-                  <div class="spotlight-role">Analista de Calidad</div>
-                  <div class="spotlight-group">Grupo: Mejora Continua</div>
-                </div>
-              </div>
-            </article>
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">Patrullero</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-headset"></i> Grupo: Atencion
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/pt-personaje-mes.png" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">Pt. Luis Rojas</div>
-                  <div class="spotlight-role">Soporte Operativo</div>
-                  <div class="spotlight-group">Grupo: Mesa de Ayuda</div>
-                </div>
-              </div>
-            </article>
-            <article class="spotlight-card">
-              <div class="spotlight-card__top">
-                <span class="spotlight-tag">No Uniformado</span>
-                <span class="spotlight-mini">
-                  <i class="fa-solid fa-lightbulb"></i> Grupo: Desarrollo
-                </span>
-              </div>
-              <div class="spotlight-person">
-                <img class="spotlight-avatar" src="imagenes/policia.jpg" alt="Foto personaje" />
-                <div class="spotlight-person__info">
-                  <div class="spotlight-name">Ing. Carlos Diaz</div>
-                  <div class="spotlight-role">Desarrollador Front</div>
-                  <div class="spotlight-group">Grupo: UI/UX</div>
-                </div>
-              </div>
-            </article>
+          <div class="spotlight-grid mb-4">
+            <ng-container *ngFor="let grupo of personajesMesPorCategoria">
+              <ng-container *ngIf="getPersonajeMesActual(grupo.categoria) as personaje">
+                <article class="spotlight-card spotlight-card--slider"
+                  (mouseenter)="pauseSliderCategoria(grupo.categoria)"
+                  (mouseleave)="resumeSliderCategoria(grupo.categoria)">
+                  <div class="spotlight-card__top">
+                    <span class="spotlight-tag">{{ grupo.categoria }}</span>
+                    <span class="spotlight-mini">
+                      <td>{{ personaje.cargo }}</td>
+                    </span>
+                  </div>
+                  <div class="spotlight-person">
+                    <img class="spotlight-avatar"
+                         [src]="getPersonajeMesFotoUrl(personaje)"
+                         [alt]="getPersonajeMesNombre(personaje)"
+                         (click)="openPersonajeMesLightbox(personaje)"
+                         style="cursor: zoom-in;" />
+                    <div class="spotlight-person__info">
+                      <div class="spotlight-name">{{ personaje.grado || 'Sin grado' }}</div>
+                      <div class="spotlight-grade">{{ getPersonajeMesNombre(personaje) || 'Sin nombre' }}</div>
+                    </div>
+                  </div>
+                  <div class="slider-controls slider-controls--personaje" *ngIf="grupo.items.length > 1" style="margin-top: 8px;">
+                    <button
+                      *ngFor="let item of grupo.items; let i = index"
+                      [class.active]="sliderIndices[grupo.categoria] === i"
+                      (click)="sliderIndices[grupo.categoria] = i"
+                      [attr.aria-label]="'Cambiar a ' + grupo.categoria + ' ' + (i + 1)">
+                    </button>
+                  </div>
+                </article>
+              </ng-container>
+            </ng-container>
           </div>
-        </div>
+          
+          <div class="spotlight-grid">
+            <ng-container *ngIf="equiposAltoRendimiento && equiposAltoRendimiento.length > 0; else emptyEquiposTpl">
+              <article class="spotlight-card spotlight-card--double" style="padding-top: 12px; padding-bottom: 12px;"
+                (mouseenter)="pauseGrupoSlider()"
+                (mouseleave)="resumeGrupoSlider()">
+                <div class="spotlight-card__top" style="margin-bottom: 8px;">
+                  <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>
+                </div>
+                <div class="spotlight-person" style="align-items: flex-start;">
+                  <img class="spotlight-avatar-group"
+                       [src]="getGrupoFotoUrl(equiposAltoRendimiento[grupoSliderIndex])"
+                       [alt]="equiposAltoRendimiento[grupoSliderIndex]?.nombreGrupo"
+                       (click)="openGrupoLightbox(equiposAltoRendimiento[grupoSliderIndex])"
+                       style="cursor: zoom-in; max-height: 80px; width: auto; margin-bottom: 0; margin-right: 16px;" />
+                  <div class="spotlight-person__info" style="padding-top: 0;">
+                    <div class="spotlight-name" style="margin-bottom: 4px;">{{ equiposAltoRendimiento[grupoSliderIndex]?.nombreGrupo }}</div>
+                    <div class="spotlight-grade">
+                      <div class="integrantes-list-outer" style="max-height: 60px; overflow-y: auto;">
+                        <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(equiposAltoRendimiento[grupoSliderIndex])">
+                          <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
+                            <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="slider-controls slider-controls--personaje" *ngIf="equiposAltoRendimiento.length > 1" style="margin-top: 6px;">
+                  <button
+                    *ngFor="let grupo of equiposAltoRendimiento; let i = index"
+                    [class.active]="grupoSliderIndex === i"
+                    (click)="grupoSliderIndex = i"
+                    [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
+                  </button>
+                </div>
+              </article>
+            </ng-container>
+            <ng-template #emptyEquiposTpl>
+              <div class="news-state">No hay equipos o grupos configurados.</div>
+            </ng-template>
+          </div>
+          
+          <!-- <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">
+            <article class="cmd-item" *ngFor="let item of personajesMes">
+              <button
+                class="cmd-photo-btn"
+                type="button"
+                (click)="openPersonajeMesLightbox(item)"
+                [attr.aria-label]="'Ampliar foto de ' + getPersonajeMesNombre(item)">
+                <img class="cmd-photo-lg" [src]="getPersonajeMesFotoUrl(item)" [alt]="getPersonajeMesNombre(item)" />
+              </button>
+              <div class="cmd-grade">{{ item.grado || 'Sin grado' }}</div>
+              <div class="cmd-name">{{ getPersonajeMesNombre(item) || 'Sin nombre' }}</div>
+              <div class="cmd-role"> {{ getPersonajeMesCargoDisplay(item) }}</div>
+              <div class="cmd-role">{{ getPersonajeMesCategoriaDisplay(item) }}</div>
+            </article>
+          </div> -->
+
+          <ng-template #emptyPersonajesMesTpl>
+            <div class="news-state">No hay personajes del mes activos.</div>
+          </ng-template>         
+                          
+        </div>        
       </div>
 
-      <div class="card-view rounded-xl shadow-subtle">
-        <div class="card-head card-head--dark">
-          <div class="card-title">
-            <i class="fa-solid fa-user-group"></i>
-            <span>Linea de mando</span>
-          </div>
-        </div>
-        <div class="card-body">
+      <!-- Spotlight:  Línea de Mando -->
+       <div class="card-view rounded-xl shadow-subtle">
+         <div class="card-head card-head--dark">
+           <div class="card-title">
+             <i class="fa-solid fa-user-group"></i>
+             <span>Linea de mando</span>
+           </div>
+         </div>
+         <div class="card-body">
           <div class="cmd-row" *ngIf="lineaMando.length > 0; else emptyLineaMandoTpl">
             <article class="cmd-item" *ngFor="let item of lineaMando">
               <button
@@ -287,6 +353,38 @@
   </section>
 </main>
 
+<div class="ui-modal" *ngIf="eventoModalOpen" (click)="closeCalendarEventoModal()">
+  <div class="ui-modal__dialog ui-modal__dialog--event" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>Detalle del evento</span>
+      </div>
+      <button class="ui-modal__close" type="button" (click)="closeCalendarEventoModal()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body" *ngIf="selectedCalendarEvento as evento">
+      <div class="event-modal">
+        <h3 class="event-modal__title">{{ evento.nombreEvento }}</h3>
+        <img
+          *ngIf="getEventoImageUrl(evento.imagenEvento) as imgUrl"
+          [src]="imgUrl"
+          [alt]="evento.nombreEvento"
+          class="event-modal__img" />
+        <div class="event-modal__meta">
+          <div><i class="fa-regular fa-calendar"></i> {{ getEventoFechaRango(evento) }}</div>
+          <div><i class="fa-solid fa-location-dot"></i> {{ evento.direccionEvento }}</div>
+          <div><i class="fa-solid fa-building"></i> {{ evento.ciudad }} - {{ evento.departamento }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 <!-- News Modal -->
 <div class="ui-modal" *ngIf="newsModalOpen" (click)="closeNews()">
   <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
@@ -301,7 +399,35 @@
     </div>
     <div class="ui-modal__body">
       <div class="news-modal" *ngIf="selectedNews">
-        <img class="news-modal__img" [src]="selectedNews.image" [alt]="selectedNews.title" />
+        <div class="news-modal__gallery">
+          <img class="news-modal__img" [src]="getCurrentNewsModalImage()" [alt]="selectedNews.title" />
+          <button
+            *ngIf="(selectedNews.images?.length ?? 0) > 1"
+            type="button"
+            class="news-modal__nav news-modal__nav--prev"
+            (click)="prevNewsModalImage()"
+            aria-label="Imagen anterior">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button
+            *ngIf="(selectedNews.images?.length ?? 0) > 1"
+            type="button"
+            class="news-modal__nav news-modal__nav--next"
+            (click)="nextNewsModalImage()"
+            aria-label="Imagen siguiente">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <div class="news-modal__dots" *ngIf="(selectedNews.images?.length ?? 0) > 1">
+            <button
+              type="button"
+              *ngFor="let img of selectedNews.images; let i = index"
+              class="news-modal__dot"
+              [class.is-active]="i === newsModalImageIndex"
+              (click)="goToNewsModalImage(i)"
+              [attr.aria-label]="'Ir a imagen ' + (i + 1)">
+            </button>
+          </div>
+        </div>
         <div class="news-modal__meta">
           <span class="news-modal__date">
             <i class="fa-regular fa-calendar"></i> {{ selectedNews.date }}
@@ -313,6 +439,62 @@
     </div>
     <div class="ui-modal__foot">
       <button class="ui-btn outline" type="button" (click)="closeNews()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Personaje Mes Lightbox Modal (fuera del *ngFor* y del ng-template) -->
+<div class="ui-modal" *ngIf="personajeMesLightboxOpen" (click)="closePersonajeMesLightbox()">
+  <div class="ui-modal__dialog ui-modal__dialog--lightbox" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-image"></i>
+        Personaje del mes
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="closePersonajeMesLightbox()" aria-label="Cerrar imagen">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="ui-modal__body" *ngIf="personajeMesLightboxItem as current">
+      <div class="cmd-lightbox">
+        <img class="cmd-lightbox__img" [src]="getPersonajeMesFotoUrl(current)" [alt]="getPersonajeMesNombre(current)" />
+        <div class="cmd-lightbox__meta">
+          <div class="cmd-lightbox__grade">{{ current.grado || 'Sin grado' }}</div>
+          <div class="cmd-lightbox__name">{{ getPersonajeMesNombre(current) || 'Sin nombre' }}</div>
+          <div class="cmd-lightbox__role">{{ getPersonajeMesCargoDisplay(current) }}</div>
+          <div class="cmd-lightbox__role">{{ getPersonajeMesCategoriaDisplay(current) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Group Lightbox -->
+<div class="ui-modal" *ngIf="grupoLightboxOpen" (click)="closeGrupoLightbox()">
+  <div class="ui-modal__dialog ui-modal__dialog--lightbox_group" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-users"></i>
+        Grupo o equipo de alto rendimiento
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="closeGrupoLightbox()" aria-label="Cerrar imagen">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="ui-modal__body" *ngIf="grupoLightboxItem as grupo">
+      <div class="cmd-lightbox">
+        <img class="cmd-lightbox__img" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo"  />
+        <div class="cmd-lightbox__meta">
+          <div class="cmd-lightbox__grade"></div>
+          <div class="cmd-lightbox__name">{{ grupo.nombreGrupo }}</div>
+          <div class="cmd-lightbox__role">Integrantes:</div>
+          <ul style="margin:0; padding-left: 18px; list-style: none; text-align: left; ">
+            <li *ngFor="let integrante of grupo.integrantes">
+             <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </div>

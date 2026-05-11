@@ -1,4 +1,4 @@
-﻿import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
@@ -9,7 +9,10 @@ import { DtoLineaMando, LineaMandoService } from '../../core/services/administra
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 import { environment } from '../../../environments/environment';
-
+import { DtoDominio } from '../../core/services/gestion-digital/redes-sociales.service';
+import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
+import { DominioService } from '../../core/services/administracion/dominio.service';
+import { DtoEvento, EventoService } from '../../core/services/administracion/evento.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -21,14 +24,16 @@ interface NewsItem {
   lead: string;     
   content: string;  
   image: string;
+  images: string[];
   megusta: number;
 }
 
-interface SocialLink {
-  name: string;
-  icon: string;
-  url: string;
-  color: string;
+interface CalendarDay {
+  date: Date;
+  inCurrentMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  eventos: DtoEvento[];
 }
 
 @Component({
@@ -39,6 +44,74 @@ interface SocialLink {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+    // Slider de grupos de alto rendimiento
+    grupoSliderIndex: number = 0;
+  readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
+
+  // --- Pausa de sliders por hover ---
+  private sliderPaused: { [categoria: string]: boolean } = {};
+  private grupoSliderPaused = false;
+
+  pauseSliderCategoria(categoria: string): void {
+    this.sliderPaused[categoria] = true;
+    if (this.sliderTimers[categoria]) {
+      clearInterval(this.sliderTimers[categoria]);
+      this.sliderTimers[categoria] = null;
+    }
+  }
+
+  resumeSliderCategoria(categoria: string): void {
+    if (this.sliderPaused[categoria]) {
+      this.sliderPaused[categoria] = false;
+      // Reiniciar solo si hay más de 1 item
+      const grupo = this.personajesMesPorCategoria.find(g => g.categoria === categoria);
+      if (grupo && grupo.items.length > 1) {
+        this.iniciarSliderCategoria(categoria, grupo.items.length);
+      }
+    }
+  }
+
+  pauseGrupoSlider(): void {
+    this.grupoSliderPaused = true;
+    if (this.grupoScrollTimer) {
+      clearInterval(this.grupoScrollTimer);
+      this.grupoScrollTimer = null;
+    }
+  }
+
+  resumeGrupoSlider(): void {
+    if (this.grupoSliderPaused) {
+      this.grupoSliderPaused = false;
+      this.startGrupoScroll();
+    }
+  }
+
+  // Devuelve el estilo de transformación para el scroll visual tipo créditos
+  getGrupoIntegrantesTransform(grupo: any): any {
+    if (!grupo.integrantes || grupo.integrantes.length <= 3) {
+      return { transform: 'translateY(0)' };
+    }
+    // El scrollIndex es global, pero el máximo depende del grupo
+    const max = grupo.integrantes.length - 3;
+    let idx = this.grupoScrollIndex;
+    if (idx > max) idx = 0;
+    return {
+      transform: `translateY(-${idx * this.INTEGRANTE_HEIGHT}px)`,
+      transition: 'transform 0.6s cubic-bezier(0.4,0,0.2,1)'
+    };
+  }
+
+  // Scroll automático para integrantes de grupo
+  grupoScrollIndex: number = 0;
+  grupoScrollTimer: any = null;
+
+  grupoLightboxOpen = false;
+  grupoLightboxItem: any = null;
+
+  personajeMesLightboxOpen = false;
+  personajeMesLightboxItem: DtoPersonajeMes | null = null;
+  categoriasPersonajeMes: DtoDominio[] = [];
+
   banners: DtoSliders[] = [];
   stats: HomeStats = {
     usuariosActivos: 0,
@@ -52,13 +125,65 @@ export class HomeComponent implements OnInit, OnDestroy {
   lineaMando: DtoLineaMando[] = [];
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
+  personajesMes: DtoPersonajeMes[] = [];
+  equiposAltoRendimiento: any[] = [];
 
-  socialLinks: SocialLink[] = [
-    { name: 'Facebook', icon: 'fa-facebook-f', url: 'https://www.facebook.com/PoliciaColombia', color: '#1877F2' },
-    { name: 'X', icon: 'fa-x-twitter', url: 'https://twitter.com/PoliciaColombia', color: '#000000' },
-    { name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/policiacolombia', color: '#E4405F' },
-    { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
-  ];
+  // --- Agrupación y slider de personajes del mes por categoría ---
+  personajesMesPorCategoria: { categoria: string, items: DtoPersonajeMes[] }[] = [];
+  sliderIndices: { [categoria: string]: number } = {};
+  sliderTimers: { [categoria: string]: any } = {};
+
+  agruparPersonajesMesPorCategoria(): void {
+    const grupos: { [categoria: string]: DtoPersonajeMes[] } = {};
+    for (const item of this.personajesMes) {
+      const cat = this.getPersonajeMesCategoriaDisplay(item);
+      if (!grupos[cat]) grupos[cat] = [];
+      grupos[cat].push(item);
+    }
+    this.personajesMesPorCategoria = Object.entries(grupos).map(([categoria, items]) => ({ categoria, items }));
+    // Inicializar índices y timers
+    for (const grupo of this.personajesMesPorCategoria) {
+      if (!(grupo.categoria in this.sliderIndices)) {
+        this.sliderIndices[grupo.categoria] = 0;
+      }
+      this.iniciarSliderCategoria(grupo.categoria, grupo.items.length);
+    }
+  }
+
+  iniciarSliderCategoria(categoria: string, total: number): void {
+    if (this.sliderTimers[categoria]) {
+      clearInterval(this.sliderTimers[categoria]);
+    }
+    if (total <= 1) return;
+    this.sliderTimers[categoria] = setInterval(() => {
+      this.sliderIndices[categoria] = (this.sliderIndices[categoria] + 1) % total;
+    }, 3000);
+  }
+
+  detenerSliders(): void {
+    Object.values(this.sliderTimers).forEach(timer => clearInterval(timer));
+    this.sliderTimers = {};
+  }
+
+  getPersonajeMesActual(categoria: string): DtoPersonajeMes | null {
+    const grupo = this.personajesMesPorCategoria.find(g => g.categoria === categoria);
+    if (!grupo || grupo.items.length === 0) return null;
+    const idx = this.sliderIndices[categoria] || 0;
+    return grupo.items[idx % grupo.items.length];
+  }
+
+  news: NewsItem[] = [];
+  newsModalOpen = false;
+  selectedNews: NewsItem | null = null;
+  newsModalImageIndex = 0;
+
+  eventosActivos: DtoEvento[] = [];
+  calendarCurrent = new Date();
+  calendarDays: CalendarDay[] = [];
+  selectedCalendarDate: Date | null = null;
+  selectedCalendarEventos: DtoEvento[] = [];
+  selectedCalendarEvento: DtoEvento | null = null;
+  eventoModalOpen = false;
 
   constructor(
     private sliderService: SliderService,
@@ -66,8 +191,65 @@ export class HomeComponent implements OnInit, OnDestroy {
     private videoUnidadService: VideoUnidadService,
     private videoInstitucionalService: VideoInstitucionalService,
     private lineaMandoService: LineaMandoService,
-    private noticiaService: NoticiaService
+    private noticiaService: NoticiaService,
+    private personajeMesService: PersonajeMesService,
+    private dominioService: DominioService,
+    private eventoService: EventoService
   ) {}
+
+  openGrupoLightbox(grupo: any): void {
+    this.grupoLightboxItem = grupo;
+    this.grupoLightboxOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closeGrupoLightbox(): void {
+    this.grupoLightboxOpen = false;
+    this.grupoLightboxItem = null;
+    this.syncBodyModalClass();
+  }
+
+  openPersonajeMesLightbox(item: DtoPersonajeMes): void {
+    this.personajeMesLightboxItem = item;
+    this.personajeMesLightboxOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closePersonajeMesLightbox(): void {
+    this.personajeMesLightboxOpen = false;
+    this.personajeMesLightboxItem = null;
+    this.syncBodyModalClass();
+  }
+
+
+  ngAfterViewInit(): void {
+    this.startGrupoScroll();
+  }
+
+  startGrupoScroll(): void {
+    if (this.grupoScrollTimer) {
+      clearInterval(this.grupoScrollTimer);
+    }
+    this.grupoScrollTimer = setInterval(() => {
+      if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length === 0) return;
+      // Si hay al menos un grupo con más de 3 integrantes, avanzar el scroll
+      let maxIntegrantes = Math.max(...this.equiposAltoRendimiento.map(g => g.integrantes.length));
+      if (maxIntegrantes > 3) {
+        this.grupoScrollIndex = (this.grupoScrollIndex + 1) % (maxIntegrantes - 2);
+      } else {
+        this.grupoScrollIndex = 0;
+      }
+    }, 2000); // Cambia cada 2 segundos
+  }
+
+  getIntegrantesVisibles(grupo: any): any[] {
+    if (!grupo.integrantes || grupo.integrantes.length <= 3) {
+      return grupo.integrantes;
+    }
+    // Scroll automático: mostrar 3 a partir del índice
+    const start = this.grupoScrollIndex;
+    return grupo.integrantes.slice(start, start + 3);
+  }
 
   ngOnInit(): void {
     this.loadBanners();
@@ -76,29 +258,213 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadVideoInstitucional();
     this.loadLineaMando();
     this.loadNoticias();
+    this.loadPersonajesMes();
+    this.loadEquiposAltoRendimiento();
+    this.loadCategoriasPersonajeMes();
+    this.loadEventosActivos();
   }
+
+  private loadEventosActivos(): void {
+    this.eventoService.getAll().subscribe({
+      next: (items) => {
+        // Blindamos la carga: traemos todos y filtramos por vigencia para no perder eventos lejanos
+        this.eventosActivos = (items ?? []).filter(e => {
+          const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
+          return v != null && String(v) === '1';
+        });
+        this.buildCalendar();
+      },
+      error: () => {
+        this.eventosActivos = [];
+        this.buildCalendar();
+      }
+    });
+  }
+
+  private buildCalendar(): void {
+    const first = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth(), 1);
+    const start = new Date(first);
+    start.setDate(first.getDate() - first.getDay());
+
+    const days: CalendarDay[] = [];
+    const today = new Date();
+
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+
+      const eventos = this.getEventosByDate(date);
+      const isSelected = !!this.selectedCalendarDate && this.isSameDate(date, this.selectedCalendarDate);
+
+      days.push({
+        date,
+        inCurrentMonth: date.getMonth() === this.calendarCurrent.getMonth(),
+        isToday: this.isSameDate(date, today),
+        isSelected,
+        eventos
+      });
+    }
+
+    this.calendarDays = days;
+
+    if (!this.selectedCalendarDate) {
+      const firstWithEvent = days.find((x) => x.inCurrentMonth && x.eventos.length > 0);
+      if (firstWithEvent) {
+        this.selectCalendarDay(firstWithEvent);
+      }
+    }
+  }
+
+  private getEventosByDate(date: Date): DtoEvento[] {
+    const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+    return this.eventosActivos.filter((evento) => {
+      const ini = this.parseOnlyDate(evento.fechaInicio);
+      const fin = this.parseOnlyDate(evento.fechaFin);
+      if (!ini || !fin) return false;
+      return target >= ini.getTime() && target <= fin.getTime();
+    });
+  }
+
+  private parseOnlyDate(raw: string | null | undefined): Date | null {
+    if (!raw) return null;
+    
+    // Si viene formato ISO completo o con T, intentamos extraer solo la parte de la fecha
+    const datePart = raw.includes('T') ? raw.split('T')[0] : raw.split(' ')[0];
+    const parts = datePart.split('-');
+    
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Meses en JS son 0-11
+      const day = parseInt(parts[2], 10);
+      
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) {
+        return d;
+      }
+    }
+
+    // Fallback por si el formato es distinto
+    const fallbackDate = new Date(raw);
+    if (isNaN(fallbackDate.getTime())) return null;
+    return new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), fallbackDate.getDate());
+  }
+
+  private isSameDate(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  prevCalendarMonth(): void {
+    this.calendarCurrent = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth() - 1, 1);
+    this.buildCalendar();
+  }
+
+  nextCalendarMonth(): void {
+    this.calendarCurrent = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth() + 1, 1);
+    this.buildCalendar();
+  }
+
+  getCalendarMonthLabel(): string {
+    return this.calendarCurrent.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  }
+
+  selectCalendarDay(day: CalendarDay): void {
+    this.selectedCalendarDate = new Date(day.date);
+    this.selectedCalendarEventos = day.eventos.slice();
+    this.selectedCalendarEvento = this.selectedCalendarEventos.length > 0 ? this.selectedCalendarEventos[0] : null;
+    this.calendarDays = this.calendarDays.map((x) => ({ ...x, isSelected: this.isSameDate(x.date, day.date) }));
+  }
+
+  selectCalendarEvento(evento: DtoEvento): void {
+    this.selectedCalendarEvento = evento;
+  }
+
+  openCalendarEventoModal(evento: DtoEvento, event?: Event): void {
+    event?.stopPropagation();
+    this.selectedCalendarEvento = evento;
+    this.eventoModalOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closeCalendarEventoModal(): void {
+    this.eventoModalOpen = false;
+    this.syncBodyModalClass();
+  }
+
+  getEventoImageUrl(raw: string | null | undefined): string {
+    const value = (raw ?? '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
+    if (value.startsWith('/')) return value;
+
+    const normalized = value.replace(/\\/g, '/');
+    if (normalized.includes('/')) {
+      return `/${normalized.replace(/^\/+/, '')}`;
+    }
+    const file = normalized.split('/').filter(Boolean).pop() ?? '';
+    if (!file) return '';
+    return `/api/EventoUpload/Imagen/${encodeURIComponent(file)}`;
+  }
+
+  getEventoFechaRango(evento: DtoEvento): string {
+    const ini = new Date(evento.fechaInicio);
+    const fin = new Date(evento.fechaFin);
+    const fmt = (d: Date) =>
+      Number.isNaN(d.getTime())
+        ? ''
+        : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const fi = fmt(ini);
+    const ff = fmt(fin);
+    if (!fi && !ff) return 'Sin fecha';
+    if (fi && ff) return fi === ff ? fi : `${fi} - ${ff}`;
+    return fi || ff;
+  }
+
+  getEventoBadgeClass(evento: DtoEvento): string {
+    const fin = this.parseOnlyDate(evento?.fechaFin);
+    const inicio = this.parseOnlyDate(evento?.fechaInicio);
+    if (!fin || !inicio) return 'is-green';
+
+    const today = new Date();
+    const hoy = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Si el evento ya pasó de su fecha final, se muestra en gris
+    if (fin.getTime() < hoy.getTime()) {
+      return 'is-past';
+    }
+
+    const diffMs = inicio.getTime() - hoy.getTime();
+    const diffDays = Math.ceil(diffMs / 86400000);
+
+    if (diffDays < 3) return 'is-red';
+    if (diffDays <= 10) return 'is-orange';
+    return 'is-green';
+  }
+
 
   loadNoticias(): void {
     this.noticiaService.getActivas().subscribe({
       next: (noticias) => {
-        console.log('Noticias cargadas:', noticias);
-        console.log('Cantidad:', noticias.length);
         // Ordenar por fecha descendente y limitar a 5 noticias más recientes
         const sorted = noticias.sort((a, b) => 
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
         ).slice(0, 5);
         
-        this.news = sorted.map(n => ({
-          id: n.idNoticia,
-          date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
-          tag: this.mapSeccionToTag(n.seccion),
-          title: n.titulo,
-          lead: n.subtitulo || '',
-          content: n.contenido || '',
-          image: this.getNoticiaImageUrl(n.imagenNoticia),
-          megusta: n.megusta || 0
-        }));
-        console.log('News mapeadas:', this.news);
+        this.news = sorted.map(n => {
+          const images = this.getNoticiaImageUrls(n.imagenNoticia);
+          return {
+            id: n.idNoticia,
+            date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
+            tag: this.mapSeccionToTag(n.seccion),
+            title: n.titulo,
+            lead: n.subtitulo || '',
+            content: n.contenido || '',
+            image: images[0] ?? '',
+            images,
+            megusta: n.megusta || 0
+          };
+        });
       },
       error: (err) => {
         console.error('Error cargando noticias:', err);
@@ -107,12 +473,29 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  private getNoticiaImageUrl(imagenNoticia: string | null | undefined): string {
-    const raw = (imagenNoticia ?? '').trim();
+  private getNoticiaImageUrl(raw: string): string {
     if (!raw) return '';
     if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/') || raw.startsWith('data:')) return raw;
     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
     return fileName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
+  }
+
+  private getNoticiaImageUrls(imagenNoticia: string | null | undefined): string[] {
+    const raw = (imagenNoticia ?? '').trim();
+    if (!raw) {
+      return [];
+    }
+
+    const parts = raw
+      .split('|')
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    const urls = (parts.length > 0 ? parts : [raw])
+      .map((x) => this.getNoticiaImageUrl(x))
+      .filter(Boolean);
+
+    return urls.length > 0 ? urls : [];
   }
 
   private mapSeccionToTag(seccion: string): NewsTag {
@@ -124,12 +507,100 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    this.stopBannerRotation();
-    document.body.classList.remove('ui-modal-open');
+   ngOnDestroy(): void {
+     this.stopBannerRotation();
+     document.body.classList.remove('ui-modal-open');
+   }
+
+   private loadPersonajesMes(): void {
+     this.personajeMesService.getAll().subscribe({
+        next: (items) => {
+          this.personajesMes = sortPersonajesMes(
+            (items ?? []).filter((x) => Number(x?.vigente ?? 1) === 1),
+            this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion }))
+          );
+          this.agruparPersonajesMesPorCategoria();
+        },
+       error: () => {
+         this.personajesMes = [];
+         this.personajesMesPorCategoria = [];
+       }
+     });
+   }
+
+   private loadEquiposAltoRendimiento(): void {
+     this.personajeMesService.getAllGrupo().subscribe({
+       next: (grupos) => {
+         if (!grupos || !Array.isArray(grupos)) {
+           this.equiposAltoRendimiento = [];
+           return;
+         }
+         // Para cada grupo, obtener sus integrantes
+         const requests = grupos.map((grupo: any) =>
+           this.personajeMesService.getByGrupo(grupo.idPersonajeGrupo).toPromise().then((integrantes: import('../../core/services/administracion/personaje-mes.service').DtoPersonajeMes[] | undefined) => {
+             const integrantesList = Array.isArray(integrantes) ? integrantes : [];
+             return {
+               nombreGrupo: grupo.nombreGrupo || grupo.NombreGrupo,
+               fotoGrupo: grupo.fotoGrupo || grupo.FotoGrupo,
+               numeroActa: grupo.numeroActa || grupo.NumeroActa,
+               mes: grupo.mes || grupo.Mes,
+               anio: grupo.anio || grupo.Anio,
+               integrantes: integrantesList.map(integrante => ({
+                 nombres: integrante.nombres,
+                 apellidos: integrante.apellidos,
+                 grado: integrante.grado
+               }))
+             };
+           })
+         );
+         Promise.all(requests).then((result) => {
+           this.equiposAltoRendimiento = result;
+           this.grupoSliderIndex = 0;
+         });
+       },
+       error: () => {
+         this.equiposAltoRendimiento = [];
+       }
+     });
+   }
+
+   private loadCategoriasPersonajeMes(): void {
+     this.dominioService.getAll().subscribe({
+       next: (items) => {
+         this.categoriasPersonajeMes = (items ?? [])
+           .filter((item) => Number(item?.idPadre ?? 0) === 153 && Number(item?.vigente ?? 0) === 1)
+           .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
+           if (this.personajesMes.length > 0) {
+              this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes.map(cat => ({ idDominio: Number(cat.idDominio), descripcion: cat.descripcion })));
+              this.agruparPersonajesMesPorCategoria();
+            }
+       },
+       error: () => {
+         this.categoriasPersonajeMes = [];
+       }
+     });
+   }
+
+   getPersonajeMesCategoriaDisplay(item: DtoPersonajeMes): string {
+     const idCategoria = Number(item?.idCategoria ?? 0);
+     if (!idCategoria) {
+       return 'Sin categoría';
+     }
+
+     const categoria = this.categoriasPersonajeMes.find(
+       (dominio) => Number(dominio?.idDominio ?? 0) === idCategoria
+     );
+
+     return (categoria?.descripcion ?? '').trim() || 'Sin categoría';
+   }
+
+   
+   getPersonajeMesCargoDisplay(item: DtoPersonajeMes): string {
+    const unidad = (item?.unidad ?? '').trim();
+    return unidad ? this.toTitleCase(unidad) : 'Sin unidad';
   }
 
-  private loadBanners(): void {
+   private loadBanners(): void {
     this.sliderService.getPublicos().subscribe({
       next: (items) => {
         const now = new Date();
@@ -280,7 +751,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen) {
+    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen || this.eventoModalOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }
@@ -327,7 +798,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   getBannerTitle(item: DtoSliders): string {
     const title = (item.titulo ?? '').trim();
     if (!title || this.looksLikeUrl(title)) {
-      return 'SISGE';
+      return 'OFTIC';
     }
     return title;
   }
@@ -387,18 +858,74 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  private looksLikeUrl(value: string): boolean {
-    const v = value.trim().toLowerCase();
-    return v.startsWith('http://')
-      || v.startsWith('https://')
-      || v.startsWith('www.')
-      || v.startsWith('/')
-      || v.startsWith('/api/')
-      || v.startsWith('/uploads/')
-      || v.startsWith('api/')
-      || v.startsWith('uploads/')
-      || /^[^/]+\.(jpg|jpeg|png|webp|gif)$/i.test(value.trim());
-  }
+   private looksLikeUrl(value: string): boolean {
+     const v = value.trim().toLowerCase();
+     return v.startsWith('http://')
+       || v.startsWith('https://')
+       || v.startsWith('www.')
+       || v.startsWith('/')
+       || v.startsWith('/api/')
+       || v.startsWith('/uploads/')
+       || v.startsWith('api/')
+       || v.startsWith('uploads/')
+       || /^[^/]+\.(jpg|jpeg|png|webp|gif)$/i.test(value.trim());
+   }
+
+   getFotoUrl(item: DtoPersonajeMes): string {
+     const raw = (item?.fotoModificada ?? '').trim();
+     if (!raw) {
+       return 'imagenes/policia.jpg';
+     }
+
+     if (
+       raw.startsWith('http://') ||
+       raw.startsWith('https://') ||
+       raw.startsWith('/api/') ||
+       raw.startsWith('data:image/')
+     ) {
+       return raw;
+     }
+
+     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+     return fileName ? `/api/PersonajeMesUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/policia.jpg';
+   }
+
+   getNombreCompleto(item: DtoPersonajeMes): string {
+     return `${item?.nombres ?? ''} ${item?.apellidos ?? ''}`.replace(/\s+/g, ' ').trim();
+   }
+
+   getGrupoFotoUrl(grupo: any): string {
+     const raw = (grupo?.fotoGrupo ?? '').trim();
+     if (!raw) {
+       return 'imagenes/policia.jpg';
+     }
+
+     if (
+       raw.startsWith('http://') ||
+       raw.startsWith('https://') ||
+       raw.startsWith('/api/') ||
+       raw.startsWith('data:image/')
+     ) {
+       return raw;
+     }
+
+     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+     return fileName ? `/api/PersonajeMesUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/policia.jpg';
+   }
+
+    getGrupoNombre(grupoId: number): string {
+      // This would ideally come from the grupos data, but for now return a placeholder
+      // In a real implementation, you'd look up the grupo by ID from the gruposAltoRendimiento data
+      return `Grupo ${grupoId}`;
+    }
+
+    getPersonajeMesFotoUrl(item: DtoPersonajeMes): string {
+      return this.getFotoUrl(item);
+    }
+
+    getPersonajeMesNombre(item: DtoPersonajeMes): string {
+      return this.getNombreCompleto(item);
+    }
 
   private startBannerRotation(): void {
     this.stopBannerRotation();
@@ -420,19 +947,16 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private getFallbackBanners(): DtoSliders[] {
     return [
-      { idSlider: 1, titulo: 'SISGE', subtitulo: 'Banner informativo', urlImagen: 'banner/banner1.jpg', urlDestino: '', orden: 1, vigente: 1 },
-      { idSlider: 2, titulo: 'SISGE', subtitulo: 'Banner informativo', urlImagen: 'banner/banner2.jpg', urlDestino: '', orden: 2, vigente: 1 },
-      { idSlider: 3, titulo: 'SISGE', subtitulo: 'Banner informativo', urlImagen: 'banner/banner3.jpg', urlDestino: '', orden: 3, vigente: 1 }
+      { idSlider: 1, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner1.jpg', urlDestino: '', orden: 1, vigente: 1 },
+      { idSlider: 2, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner2.jpg', urlDestino: '', orden: 2, vigente: 1 },
+      { idSlider: 3, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner3.jpg', urlDestino: '', orden: 3, vigente: 1 }
     ];
   }
 
-  news: NewsItem[] = [];
-
-  newsModalOpen = false;
-  selectedNews: NewsItem | null = null;
 
   openNews(item: NewsItem): void {
     this.selectedNews = item;
+    this.newsModalImageIndex = 0;
     this.newsModalOpen = true;
     this.syncBodyModalClass();
   }
@@ -440,7 +964,35 @@ export class HomeComponent implements OnInit, OnDestroy {
   closeNews(): void {
     this.newsModalOpen = false;
     this.selectedNews = null;
+    this.newsModalImageIndex = 0;
     this.syncBodyModalClass();
+  }
+
+  getCurrentNewsModalImage(): string {
+    const images = this.selectedNews?.images ?? [];
+    if (!images.length) {
+      return this.selectedNews?.image ?? '';
+    }
+    const safeIndex = Math.min(Math.max(this.newsModalImageIndex, 0), images.length - 1);
+    return images[safeIndex];
+  }
+
+  prevNewsModalImage(): void {
+    const images = this.selectedNews?.images ?? [];
+    if (images.length <= 1) return;
+    this.newsModalImageIndex = (this.newsModalImageIndex - 1 + images.length) % images.length;
+  }
+
+  nextNewsModalImage(): void {
+    const images = this.selectedNews?.images ?? [];
+    if (images.length <= 1) return;
+    this.newsModalImageIndex = (this.newsModalImageIndex + 1) % images.length;
+  }
+
+  goToNewsModalImage(index: number): void {
+    const images = this.selectedNews?.images ?? [];
+    if (index < 0 || index >= images.length) return;
+    this.newsModalImageIndex = index;
   }
 
   likeNoticia(item: NewsItem, event: Event): void {
@@ -489,7 +1041,19 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     if (this.newsModalOpen) {
       this.closeNews();
+      return;
+    }
+
+    if (this.eventoModalOpen) {
+      this.closeCalendarEventoModal();
     }
   }
+
+  getNombreMes(mes: number): string {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    if (!mes || isNaN(mes)) return '';
+    return meses[(mes - 1) % 12] || '';
+  }
 }
+
 

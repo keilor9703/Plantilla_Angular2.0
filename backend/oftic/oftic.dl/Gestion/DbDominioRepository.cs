@@ -1,4 +1,5 @@
-﻿using Comun.Dtos.Dominio;
+﻿using DtoUnidad = Comun.Dtos.DtoUnidad;
+using Comun.Dtos.Dominio;
 using Comun.Dtos.LineasMando;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
@@ -46,6 +47,34 @@ namespace Datos.Gestion
             }
 
             return result;
+        }
+
+        public async Task<List<DtoUnidad>> GetUnidadesAsync(CancellationToken ct)
+        {
+            var unidades = new List<DtoUnidad>();
+
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandTimeout = 30;
+            cmd.BindByName = true;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "SP_GET_UNIDADES_FULL";
+            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                unidades.Add(new DtoUnidad
+                {
+                    Value = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                    Text = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                    Descripcion = reader.FieldCount > 2 && !reader.IsDBNull(2) ? reader.GetString(2) : string.Empty
+                });
+            }
+
+            return unidades;
         }
 
        public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)

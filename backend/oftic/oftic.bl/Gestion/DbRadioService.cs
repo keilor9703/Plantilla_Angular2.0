@@ -14,10 +14,10 @@ namespace Negocio.Gestion
         }
 
         public Task<List<DtoRadioEmisora>> GetPublicasAsync(CancellationToken ct)
-            => _repository.GetAllAsync(1, ct);
+            => _repository.GetAllAsync(ct);
 
         public Task<List<DtoRadioEmisora>> GetAdminAsync(CancellationToken ct)
-            => _repository.GetAllAsync(null, ct);
+            => _repository.GetAllAsync(ct);
 
         public async Task<DtoRadioEmisora?> GetByIdAsync(long idEmisora, CancellationToken ct)
         {

@@ -1,0 +1,349 @@
+# API pública portable: Noticias `GetAll` + `DarLike`
+
+Este documento consolida el flujo mínimo para exponer en otro servicio:
+- `GET /api/Noticia` (listar todas)
+- `POST /api/Noticia/{id}/like` (enviar like)
+
+Se basa en el paquete Oracle `PK_APIS`:
+- `PK_APIS.P_GET_NOTICIA_INTERNA`
+- `PK_APIS.SP_LIKE_NOTICIA`
+
+## 1) DTOs necesarios
+
+```csharp
+using System.Text.Json.Serialization;
+
+namespace Comun.Dtos.Noticias;
+
+public class DtoNoticia
+{
+    [JsonPropertyName("idNoticia")]
+    public long IdNoticia { get; set; }
+
+    [JsonPropertyName("unidad")]
+    public string Unidad { get; set; } = string.Empty;
+
+    [JsonPropertyName("titulo")]
+    public string Titulo { get; set; } = string.Empty;
+
+    [JsonPropertyName("seccion")]
+    public string Seccion { get; set; } = string.Empty;
+
+    [JsonPropertyName("ciudad")]
+    public string Ciudad { get; set; } = string.Empty;
+
+    [JsonPropertyName("imagenNoticia")]
+    public string? ImagenNoticia { get; set; }
+
+    [JsonPropertyName("subtitulo")]
+    public string? Subtitulo { get; set; }
+
+    [JsonPropertyName("contenido")]
+    public string? Contenido { get; set; }
+
+    [JsonPropertyName("vigente")]
+    public int Vigente { get; set; }
+
+    [JsonPropertyName("fechaCreacion")]
+    public DateTime FechaCreacion { get; set; }
+
+    [JsonPropertyName("usuarioCreacion")]
+    public string UsuarioCreacion { get; set; } = string.Empty;
+
+    [JsonPropertyName("maquinaCreacion")]
+    public string? MaquinaCreacion { get; set; }
+
+    [JsonPropertyName("fechaModifica")]
+    public DateTime? FechaModifica { get; set; }
+
+    [JsonPropertyName("usuarioModifica")]
+    public string? UsuarioModifica { get; set; }
+
+    [JsonPropertyName("maquinaModifica")]
+    public string? MaquinaModifica { get; set; }
+
+    [JsonPropertyName("megusta")]
+    public long Megusta { get; set; }
+}
+
+public class DtoNoticiaResult
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public long Id { get; set; }
+}
+```
+
+## 2) Interfaz de repositorio público
+
+```csharp
+using Comun.Dtos.Noticias;
+
+namespace Datos.Interfaz;
+
+public interface INoticiaPublicRepository
+{
+    Task<List<DtoNoticia>> GetAllAsync(CancellationToken ct);
+    Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct);
+}
+```
+
+## 3) Implementación DB (Oracle ODP.NET)
+
+```csharp
+using Comun.Dtos.Noticias;
+using Datos.Interfaz;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
+using System.Data;
+
+namespace Datos.Gestion;
+
+public class NoticiaPublicRepository : INoticiaPublicRepository
+{
+    private readonly string _cs;
+    private readonly ILogger<NoticiaPublicRepository> _logger;
+
+    public NoticiaPublicRepository(IConfiguration configuration, ILogger<NoticiaPublicRepository> logger)
+    {
+        _cs = configuration.GetConnectionString("DbCoest")!;
+        _logger = logger;
+    }
+
+    public async Task<List<DtoNoticia>> GetAllAsync(CancellationToken ct)
+    {
+        var noticias = new List<DtoNoticia>();
+
+        try
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandTimeout = 30;
+            cmd.BindByName = true;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "PK_APIS.P_GET_NOTICIA_INTERNA";
+
+            cmd.Parameters.Add("P_IdNoticia", OracleDbType.Int64).Value = DBNull.Value;
+            cmd.Parameters.Add("P_Vigente", OracleDbType.Int64).Value = DBNull.Value;
+            cmd.Parameters.Add("P_Result", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                noticias.Add(MapNoticia(reader));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error en GetAllAsync Noticias");
+        }
+
+        return noticias;
+    }
+
+    public async Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct)
+    {
+        var result = new DtoNoticiaResult();
+
+        try
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandTimeout = 30;
+            cmd.BindByName = true;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "PK_APIS.SP_LIKE_NOTICIA";
+
+            cmd.Parameters.Add("P_ID_NOTICIA", OracleDbType.Int64).Value = id;
+
+            var pResultado = cmd.Parameters.Add("P_RESULTADO", OracleDbType.Int64);
+            pResultado.Direction = ParameterDirection.Output;
+
+            var pMensaje = cmd.Parameters.Add("P_MENSAJE", OracleDbType.Varchar2, 4000);
+            pMensaje.Direction = ParameterDirection.Output;
+
+            await cmd.ExecuteNonQueryAsync(ct);
+
+            result.Message = pMensaje.Value?.ToString() ?? string.Empty;
+            result.Success = pResultado.Value is OracleDecimal od && od.ToInt64() == 0;
+            result.Id = id;
+        }
+        catch (OracleException ex)
+        {
+            result.Success = false;
+            result.Message = $"Error de base de datos: {ex.Message}";
+            _logger.LogError(ex, "Error Oracle en DarLikeAsync Noticia {Id}", id);
+        }
+
+        return result;
+    }
+
+    private static DtoNoticia MapNoticia(OracleDataReader reader)
+    {
+        return new DtoNoticia
+        {
+            IdNoticia = reader.GetInt64(reader.GetOrdinal("ID_NOTICIA")),
+            Unidad = reader.GetString(reader.GetOrdinal("UNIDAD")),
+            Titulo = reader.GetString(reader.GetOrdinal("TITULO")),
+            Seccion = reader.GetString(reader.GetOrdinal("SECCION")),
+            Ciudad = reader.GetString(reader.GetOrdinal("CIUDAD")),
+            ImagenNoticia = reader.IsDBNull(reader.GetOrdinal("IMAGEN_NOTICIA")) ? null : reader.GetString(reader.GetOrdinal("IMAGEN_NOTICIA")),
+            Subtitulo = reader.IsDBNull(reader.GetOrdinal("SUBTITULO")) ? null : reader.GetString(reader.GetOrdinal("SUBTITULO")),
+            Contenido = reader.IsDBNull(reader.GetOrdinal("CONTENIDO")) ? null : reader.GetString(reader.GetOrdinal("CONTENIDO")),
+            Vigente = reader.GetInt32(reader.GetOrdinal("VIGENTE")),
+            FechaCreacion = reader.GetDateTime(reader.GetOrdinal("FECHA_CREACION")),
+            UsuarioCreacion = reader.GetString(reader.GetOrdinal("USUARIO_CREACION")),
+            MaquinaCreacion = reader.IsDBNull(reader.GetOrdinal("MAQUINA_CREACION")) ? null : reader.GetString(reader.GetOrdinal("MAQUINA_CREACION")),
+            FechaModifica = reader.IsDBNull(reader.GetOrdinal("FECHA_MODIFICA")) ? null : reader.GetDateTime(reader.GetOrdinal("FECHA_MODIFICA")),
+            UsuarioModifica = reader.IsDBNull(reader.GetOrdinal("USUARIO_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("USUARIO_MODIFICA")),
+            MaquinaModifica = reader.IsDBNull(reader.GetOrdinal("MAQUINA_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("MAQUINA_MODIFICA")),
+            Megusta = reader.IsDBNull(reader.GetOrdinal("MEGUSTA")) ? 0 : reader.GetInt64(reader.GetOrdinal("MEGUSTA"))
+        };
+    }
+}
+```
+
+## 4) Interfaz de servicio público
+
+```csharp
+using Comun.Dtos.Noticias;
+
+namespace Negocio.Interfaz;
+
+public interface INoticiaPublicService
+{
+    Task<List<DtoNoticia>> GetAllAsync(CancellationToken ct);
+    Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct);
+}
+```
+
+## 5) Implementación de servicio
+
+```csharp
+using Comun.Dtos.Noticias;
+using Datos.Interfaz;
+using Negocio.Interfaz;
+
+namespace Negocio.Gestion;
+
+public class NoticiaPublicService : INoticiaPublicService
+{
+    private readonly INoticiaPublicRepository _repository;
+
+    public NoticiaPublicService(INoticiaPublicRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public Task<List<DtoNoticia>> GetAllAsync(CancellationToken ct)
+        => _repository.GetAllAsync(ct);
+
+    public async Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct)
+    {
+        if (id <= 0)
+            return new DtoNoticiaResult { Success = false, Message = "ID inválido." };
+
+        return await _repository.DarLikeAsync(id, ct);
+    }
+}
+```
+
+## 6) Controller público (`GET /api/Noticia` + `POST /api/Noticia/{id}/like`)
+
+```csharp
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Mvc;
+using Negocio.Interfaz;
+
+namespace ofic.Controllers.Administracion;
+
+[ApiController]
+[Route("api/[controller]")]
+[EnableCors("PublicCors")]
+public class NoticiaController : ControllerBase
+{
+    private readonly INoticiaPublicService _service;
+    private readonly ILogger<NoticiaController> _logger;
+
+    public NoticiaController(INoticiaPublicService service, ILogger<NoticiaController> logger)
+    {
+        _service = service;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAll()
+    {
+        try
+        {
+            var noticias = await _service.GetAllAsync(HttpContext.RequestAborted);
+            return Ok(noticias);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error consultando todas las noticias");
+            return StatusCode(500, new { success = false, message = "Error consultando noticias." });
+        }
+    }
+
+    [HttpPost("{id:long}/like")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DarLike(long id)
+    {
+        try
+        {
+            var result = await _service.DarLikeAsync(id, HttpContext.RequestAborted);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error dando like a noticia {Id}", id);
+            return StatusCode(500, new { success = false, message = "Error dando like." });
+        }
+    }
+}
+```
+
+## 7) Snippet de `Program.cs` (DI + conexión)
+
+```csharp
+using Datos.Gestion;
+using Datos.Interfaz;
+using Negocio.Gestion;
+using Negocio.Interfaz;
+
+builder.Services.AddScoped<INoticiaPublicService, NoticiaPublicService>();
+builder.Services.AddScoped<INoticiaPublicRepository, NoticiaPublicRepository>();
+```
+
+`appsettings.json` (mínimo):
+
+```json
+{
+  "ConnectionStrings": {
+    "DbCoest": "User Id=...;Password=...;Data Source=..."
+  }
+}
+```
+
+## Dependencias requeridas
+
+- NuGet: `Oracle.ManagedDataAccess`
+- Configuración: `ConnectionStrings:DbCoest`
+- SPs en `PK_APIS`:
+  - `P_GET_NOTICIA_INTERNA(P_IdNoticia IN NUMBER, P_Vigente IN NUMBER, P_Result OUT SYS_REFCURSOR)`
+  - `SP_LIKE_NOTICIA(P_ID_NOTICIA IN NUMBER, P_RESULTADO OUT NUMBER, P_MENSAJE OUT VARCHAR2)`
+
+#

@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -7,13 +7,17 @@ export interface BrandingPublicConfig {
   sistema?: string;
   nombreSistema?: string;
   systemName: string;
+  sigla?: string;
+  nombreUnidad?: string;
   logoUrl?: string | null;
   faviconUrl?: string | null;
 }
 
 export interface BrandingAdminConfig extends BrandingPublicConfig {
+  idBranding?: number;
   logoFileName?: string | null;
   faviconFileName?: string | null;
+  unidadSistemaId?: number;
 }
 
 export interface BrandingUploadResponse {
@@ -51,8 +55,7 @@ export class BrandingService {
     return this.http.post<BrandingUploadResponse>(`${this.baseUrl}/upload-favicon`, formData);
   }
 
-  saveConfig(payload: { sistema: string; nombreSistema: string; logoFileName?: string | null; faviconFileName?: string | null }): Observable<{ success: boolean; message: string; detail?: string }> {
+  saveConfig(payload: any): Observable<{ success: boolean; message: string; detail?: string }> {
     return this.http.post<{ success: boolean; message: string; detail?: string }>(`${this.baseUrl}/save-config`, payload);
   }
 }
-

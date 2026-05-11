@@ -1,11 +1,31 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
+const ALLOWED_HOSTS = new Set([
+  'www.youtube.com',
+  'youtube.com',
+  'youtu.be',
+  'www.youtube-nocookie.com',
+  'youtube-nocookie.com'
+]);
+
 @Pipe({ name: 'safeUrl', standalone: true })
 export class SafeUrlPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
 
-  transform(url: string): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  transform(url: string | null | undefined): SafeResourceUrl | '' {
+    const raw = (url ?? '').trim();
+    if (!raw) return '';
+
+    try {
+      const parsed = new URL(raw, window.location.origin);
+      const isHttp = parsed.protocol === 'https:' || parsed.protocol === 'http:';
+      const isAllowedHost = ALLOWED_HOSTS.has(parsed.hostname.toLowerCase());
+      return isHttp && isAllowedHost
+        ? this.sanitizer.bypassSecurityTrustResourceUrl(parsed.toString())
+        : '';
+    } catch {
+      return '';
+    }
   }
 }

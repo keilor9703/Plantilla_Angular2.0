@@ -24,6 +24,8 @@ namespace Comun.Dtos
         public string? funcionarioCodigo { get; set; }
         public string? undeLaborandoCodigo { get; set; }
         public string? codigoCargo { get; set; }
+        public long? idCategoria { get; set; }
+        public string? categoriaDescripcion { get; set; }
         public bool activo { get; set; } = true;
     }
 
@@ -59,12 +61,19 @@ namespace Comun.Dtos
         public string? Contrasena { get; set; }
     }
 
+    public class DtoImpersonateRequest
+    {
+        public string? Usuario { get; set; }
+    }
+
     public class DtoTokenResponse
     {
         public string? token { get; set; }
         public string? usuario { get; set; }
         public bool success { get; set; }
         public string? message { get; set; }
+        public bool impersonating { get; set; }
+        public string? impersonatedBy { get; set; }
     }
 
     public class DtoUsuarioRequest

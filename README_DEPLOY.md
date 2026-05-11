@@ -1,6 +1,6 @@
-# Deploy SISGE (Windows + Linux/OL7)
+# Deploy SICOE (Windows + Linux/OL7)
 
-Guía rápida para compilar, empaquetar y publicar SISGE en producción usando los scripts del repositorio.
+Guía rápida para compilar, empaquetar y publicar SICOE en producción usando los scripts del repositorio.
 
 ## Requisitos
 
@@ -30,7 +30,7 @@ Guía rápida para compilar, empaquetar y publicar SISGE en producción usando l
 Desde la raíz del repo:
 
 ```powershell
-cd C:\Users\Dyck.lopez\source\repos\sisgeNg
+cd C:\Users\Dyck.lopez\source\repos\SICOE
 .\scripts\build_windows.ps1
 ```
 
@@ -50,7 +50,7 @@ Esto hace:
 ### Opción con ruta de repo diferente
 
 ```powershell
-.\scripts\build_windows.ps1 -RepoRoot "D:\repos\sisgeNg"
+.\scripts\build_windows.ps1 -RepoRoot "D:\repos\SICOE"
 ```
 
 ---
@@ -58,8 +58,8 @@ Esto hace:
 ## 2) Subir artefactos al servidor
 
 ```powershell
-scp "$env:TEMP\api-release.tar.gz" usrcoest@srvsicoedesa:/tmp/
-scp "$env:TEMP\web-release.tar.gz" usrcoest@srvsicoedesa:/tmp/
+scp "$env:TEMP\api-release.tar.gz" usrcoest@172.28.9.181:/tmp/
+scp "$env:TEMP\web-release.tar.gz" usrcoest@172.28.9.181:/tmp/
 ```
 
 Verifica en servidor:
@@ -75,7 +75,7 @@ ls -lh /tmp/api-release.tar.gz /tmp/web-release.tar.gz
 Copiar script al servidor (opcional):
 
 ```powershell
-scp ".\scripts\deploy_linux.sh" usrcoest@srvsicoedesa:/tmp/
+scp ".\scripts\deploy_linux.sh" usrcoest@172.28.9.181:/tmp/
 ```
 
 Ejecutar:
@@ -88,7 +88,7 @@ sudo bash /tmp/deploy_linux.sh
 
 1. valida rutas y artefactos
 2. crea backups en `/opt/oftic/backups`
-3. detiene `oftic-api.service`
+3. detiene `oftic-api.service` por `systemd` (sin matar puertos de Apache)
 4. limpia API preservando:
    - `appsettings.json`
    - `appsettings.Development.json`
@@ -129,7 +129,7 @@ Debes ver algo como:
 ### Frontend publicado
 
 ```bash
-ls -la /opt/oftic/www/browser
+ls -la /opt/oftic/www
 ```
 
 Debes ver `index.html`, `main-*.js`, `styles-*.css` actualizados.
@@ -137,10 +137,10 @@ Debes ver `index.html`, `main-*.js`, `styles-*.css` actualizados.
 ### Verificación HTTP local
 
 ```bash
-curl -I http://127.0.0.1/
+curl -I http://127.0.0.1:8088/
 ```
 
-Nota: si responde otro sitio (por ejemplo Drupal), el build puede estar bien publicado en disco, pero el virtual host/ruteo del servidor web no está apuntando a `/opt/oftic/www/browser`.
+Nota: si responde otro sitio (por ejemplo Drupal), el build puede estar bien publicado en disco, pero el virtual host/ruteo del servidor web no está apuntando a `/opt/oftic/www`.
 
 ---
 

@@ -12,6 +12,7 @@ namespace ofic.Controllers.Administracion
     [Authorize]
     public class UsuarioController : ControllerBase
     {
+        private const int SuperAdministradorRolId = 1;
         private readonly IApiWebToken _apiWebToken;
         private readonly IDbUsuarioRepository _dbUsuarioRepository;
         private readonly ILogger<UsuarioController> _logger;
@@ -146,6 +147,90 @@ namespace ofic.Controllers.Administracion
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error consultando empleado");
+                return StatusCode(500, new { message = "Error al consultar empleado" });
+            }
+        }
+        [HttpGet("GetFuncionarioPersonajeMes")]
+        public async Task<IActionResult> GetFuncionarioPersonajeMes([FromQuery] string identificacion)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(identificacion))
+                {
+                    return BadRequest(new { message = "Identificación requerida" });
+                }
+
+                // Obtener token tÃ©cnico de API externa configurado en ApiSettings.
+                var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
+
+                if (string.IsNullOrEmpty(tokenPip))
+                {
+                    return Unauthorized(new { message = "No se pudo obtener token de la API" });
+                }
+
+                // Consultar empleado usando el método específico para PersonajeMes
+                var empleado = await _apiWebToken.GetFuncionarioPersonajeMesAsync(tokenPip, identificacion);
+
+                if (empleado is null)
+                {
+                    return NotFound(new { message = "No se encontró información del funcionario." });
+                }
+
+                // Validar situaciÃ³n laboral
+                //var situacionLaboral = (empleado.situacionLaboral ?? string.Empty).Trim().ToUpperInvariant();
+                //if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO")
+                //{
+                //    return BadRequest(new
+                //    {
+                //        success = false,
+                //        message = $"Usuario no estÃ¡ en situaciÃ³n laboral vÃ¡lida. SituaciÃ³n actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÃ“N DEL SERVICIO'."
+                //    });
+                //}
+
+                // Persistir automÃ¡ticamente en DB local si no existe.
+                // No debe romper la consulta principal si falla la persistencia local.
+                if (empleado is not null)
+                {
+                    try
+                    {
+                        await _dbUsuarioRepository.EnsureUsuarioExistsAsync(empleado, HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(
+                            ex,
+                            "No se pudo persistir el usuario local para identificacion={Identificacion}, usuario={Usuario}",
+                            empleado.identificacion,
+                            empleado.usuario);
+                    }
+                }
+
+                // Si el usuario existe en BD local, reflejar estado real (bloqueado/activo).
+                if (empleado is not null)
+                {
+                    try
+                    {
+                        var activoDb = await _dbUsuarioRepository.GetActivoByIdentificacionOrUsernameAsync(
+                            empleado.identificacion,
+                            empleado.usuario,
+                            HttpContext.RequestAborted);
+                        if (activoDb.HasValue)
+                        {
+                            empleado.activo = activoDb.Value;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "No se pudo resolver estado local de usuario. identificacion={Identificacion}, usuario={Usuario}",
+                            empleado.identificacion, empleado.usuario);
+                    }
+                }
+
+                return Ok(empleado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando empleado para PersonajeMes");
                 return StatusCode(500, new { message = "Error al consultar empleado" });
             }
         }
@@ -491,6 +576,15 @@ namespace ofic.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Fecha fin requerida" });
                 }
 
+                if (request.rolId == SuperAdministradorRolId && !UsuarioActualEsSuperAdministrador(User))
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        message = "Solo un Super administrador puede asignar el rol Super administrador."
+                    });
+                }
+
                 if (!DateTime.TryParse(request.fechaFin, out var fechaFin))
                 {
                     return BadRequest(new { success = false, message = "Fecha fin invÃ¡lida" });
@@ -572,6 +666,14 @@ namespace ofic.Controllers.Administracion
                     message = "Error al asignar rol"
                 });
             }
+        }
+
+        private static bool UsuarioActualEsSuperAdministrador(ClaimsPrincipal? user)
+        {
+            var roleClaims = user?.FindAll(ClaimTypes.Role).Select(x => x.Value)
+                ?? Enumerable.Empty<string>();
+
+            return roleClaims.Any(r => string.Equals(r?.Trim(), SuperAdministradorRolId.ToString(), StringComparison.Ordinal));
         }
 
         [HttpDelete("Roles/{rolId}")]

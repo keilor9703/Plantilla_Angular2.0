@@ -130,15 +130,26 @@ namespace Negocio.Gestion
                 return true;
 
             var cleanBase64 = base64.Trim();
+            var dataPart = cleanBase64;
 
-            if (!cleanBase64.StartsWith("data:image/"))
+            if (cleanBase64.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            {
+                var commaIndex = cleanBase64.IndexOf(',');
+                if (commaIndex < 0 || commaIndex >= cleanBase64.Length - 1)
+                    return false;
+
+                dataPart = cleanBase64.Substring(commaIndex + 1);
+            }
+            else if (cleanBase64.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                // Si trae data-uri pero no es imagen, se rechaza.
                 return false;
+            }
 
-            var commaIndex = cleanBase64.IndexOf(',');
-            if (commaIndex < 0 || commaIndex >= cleanBase64.Length - 1)
-                return false;
-
-            var dataPart = cleanBase64.Substring(commaIndex + 1);
+            dataPart = dataPart
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty)
+                .Trim();
 
             try
             {

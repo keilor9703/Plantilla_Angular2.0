@@ -27,7 +27,7 @@
             <div class="ui-field ui-col-12">
               <label class="ui-label">Dominio padre</label>
               <select class="ui-control" [(ngModel)]="form.IdPadre">
-                <option [ngValue]="0">Dominio principal</option>
+                <option [ngValue]="0">Dominio principal (Raíz)</option>
                 <option *ngFor="let opt of dominioOptions" [ngValue]="opt.id">
                   {{ opt.descripcion }}
                 </option>
@@ -69,93 +69,46 @@
 
           <div class="dominio-list" *ngIf="!loading && dominiosTree.length > 0">
             <div class="dominio-tree">
-              <ng-container *ngFor="let grupo of dominiosTree; let i = index">
-                <div class="dominio-item is-parent">
-                  <div class="dominio-item__content">
-                    <i 
-                      class="fa-solid dominio-icon expand-icon" 
-                      [class.fa-folder]="!grupo.expanded"
-                      [class.fa-folder-open]="grupo.expanded"
-                      [class.is-hidden]="grupo.children.length === 0"
-                      (click)="toggleExpand(i)"
-                    ></i>
-                    <strong>{{ grupo.item.descripcion }}</strong>
-                    <!-- <span class="badge" [class.active]="grupo.item.vigente === 1">{{ grupo.item.vigente === 1 ? 'Vigente' : 'Inactivo' }}</span> -->
-                    
-                  </div>
-                  <div class="dominio-item__actions">
-                    <button class="ui-btn secondary" type="button" (click)="editar(grupo.item)">Editar</button>
-                    <button
-                      class="ui-btn"
-                      [class.primary]="grupo.item.vigente === 0"
-                      [class.secondary]="grupo.item.vigente === 1"
-                      type="button"
-                      (click)="cambiarEstado(grupo.item)"
-                    >
-                      {{ grupo.item.vigente === 1 ? 'Inactivar' : 'Activar' }}
-                    </button>
-                    <button class="ui-btn danger" type="button" (click)="eliminar(grupo.item)">
-                      <i class="fa-solid fa-trash"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="dominio-children" *ngIf="grupo.expanded && grupo.children.length > 0">
-                  <ng-container *ngFor="let child of grupo.children; let childIdx = index">
-                    <div class="dominio-item is-child">
-                      <div class="dominio-item__content">
-                        <i 
-                          class="fa-solid dominio-icon expand-icon" 
-                          [class.fa-folder]="!child.expanded"
-                          [class.fa-folder-open]="child.expanded"
-                          [class.is-hidden]="child.children.length === 0"
-                          (click)="toggleChildExpand(i, childIdx)"
-                        ></i>
-                        <span>{{ child.item.descripcion }}</span>
-                      </div>
-                      <div class="dominio-item__actions">
-                        <button class="ui-btn secondary" type="button" (click)="editar(child.item)">Editar</button>
-                        <button
-                          class="ui-btn"
-                          [class.primary]="child.item.vigente === 0"
-                          [class.secondary]="child.item.vigente === 1"
-                          type="button"
-                          (click)="cambiarEstado(child.item)"
-                        >
-                          {{ child.item.vigente === 1 ? 'Inactivar' : 'Activar' }}
-                        </button>
-                        <button class="ui-btn danger" type="button" (click)="eliminar(child.item)">
-                          <i class="fa-solid fa-trash"></i>
-                        </button>
-                      </div>
-                    </div>
-                    <div class="dominio-children" *ngIf="child.expanded && child.children.length > 0">
-                      <div class="dominio-item is-grandchild" *ngFor="let grandchild of child.children">
-                        <div class="dominio-item__content">
-                          <i class="fa-solid fa-file-lines dominio-icon"></i>
-                          <span>{{ grandchild.descripcion }}</span>
-                        </div>
-                        <div class="dominio-item__actions">
-                          <button class="ui-btn secondary" type="button" (click)="editar(grandchild)">Editar</button>
-                          <button
-                            class="ui-btn"
-                            [class.primary]="grandchild.vigente === 0"
-                            [class.secondary]="grandchild.vigente === 1"
-                            type="button"
-                            (click)="cambiarEstado(grandchild)"
-                          >
-                            {{ grandchild.vigente === 1 ? 'Inactivar' : 'Activar' }}
-                          </button>
-                          <button class="ui-btn danger" type="button" (click)="eliminar(grandchild)">
-                            <i class="fa-solid fa-trash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </ng-container>
-                </div>
-              </ng-container>
+              <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: dominiosTree, level: 0 }"></ng-container>
             </div>
           </div>
+
+          <!-- Template Recursivo para el Árbol -->
+          <ng-template #nodeTemplate let-nodes let-level="level">
+            <ng-container *ngFor="let node of nodes">
+              <div class="dominio-item" [class.is-parent]="level === 0">
+                <div class="dominio-item__content">
+                  <i 
+                    class="fa-solid dominio-icon expand-icon" 
+                    [class.fa-folder]="!node.expanded"
+                    [class.fa-folder-open]="node.expanded"
+                    [class.is-hidden]="node.children.length === 0"
+                    (click)="toggleNode(node)"
+                  ></i>
+                  <i class="fa-solid fa-file-lines dominio-icon" *ngIf="node.children.length === 0"></i>
+                  <span [style.font-weight]="level === 0 ? '700' : '400'">{{ node.item.descripcion }}</span>
+                </div>
+                <div class="dominio-item__actions">
+                  <button class="ui-btn secondary" type="button" (click)="editar(node.item)">Editar</button>
+                  <button
+                    class="ui-btn"
+                    [class.primary]="node.item.vigente === 0"
+                    [class.secondary]="node.item.vigente === 1"
+                    type="button"
+                    (click)="cambiarEstado(node.item)"
+                  >
+                    {{ node.item.vigente === 1 ? 'Inactivar' : 'Activar' }}
+                  </button>
+                  <button class="ui-btn danger" type="button" (click)="eliminar(node.item)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="dominio-children-container" *ngIf="node.expanded && node.children.length > 0">
+                <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node.children, level: level + 1 }"></ng-container>
+              </div>
+            </ng-container>
+          </ng-template>
 
           <div class="news-state" *ngIf="!loading && listaDominios.length === 0">
             No hay dominios registrados.
