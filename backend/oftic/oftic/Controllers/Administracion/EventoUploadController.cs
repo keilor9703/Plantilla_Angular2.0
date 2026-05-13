@@ -26,9 +26,17 @@ namespace ofic.Controllers.Administracion
         public EventoUploadController(IConfiguration configuration, IWebHostEnvironment environment, ILogger<EventoUploadController> logger)
         {
             _logger = logger;
-            // Mantener la misma convención local del proyecto:
-            // backend/oftic/oftic/uploads/eventos/yyyy-MM/archivo.ext
-            _uploadsPath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "uploads", "eventos"));
+            var configuredBasePath = configuration["AppSettings:UploadsPath"];
+            var basePath = string.IsNullOrWhiteSpace(configuredBasePath)
+                ? Path.Combine(environment.ContentRootPath, "uploads")
+                : configuredBasePath;
+
+            if (!Path.IsPathRooted(basePath))
+            {
+                basePath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, basePath));
+            }
+
+            _uploadsPath = Path.GetFullPath(Path.Combine(basePath, "eventos"));
         }
 
         [HttpPost("imagen")]

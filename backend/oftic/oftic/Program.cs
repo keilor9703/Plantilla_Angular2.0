@@ -35,7 +35,7 @@ builder.Services.AddCors(options =>
 {
     // Política Dev: solo localhost
     options.AddPolicy("DevCors", p =>
-        p.WithOrigins("http://localhost:4200", "https://localhost:4200", "http://localhost:4300", "https://localhost:4300")
+        p.WithOrigins("http://localhost:4200")
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials());
@@ -175,19 +175,26 @@ builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
 
 var app = builder.Build();
 
-var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
+var configuredUploadsBase = app.Configuration["AppSettings:UploadsPath"];
+var uploadsBase = string.IsNullOrWhiteSpace(configuredUploadsBase)
+    ? Path.Combine(app.Environment.ContentRootPath, "uploads")
+    : (Path.IsPathRooted(configuredUploadsBase)
+        ? configuredUploadsBase
+        : Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, configuredUploadsBase)));
+
+var uploadsRoot = Path.Combine(uploadsBase, "sliders");
 Directory.CreateDirectory(uploadsRoot);
 
-var radioLogosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "radio");
+var radioLogosRoot = Path.Combine(uploadsBase, "radio");
 Directory.CreateDirectory(radioLogosRoot);
 
-var noticiasRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "noticias");
+var noticiasRoot = Path.Combine(uploadsBase, "noticias");
 Directory.CreateDirectory(noticiasRoot);
 
-var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
+var modalesRoot = Path.Combine(uploadsBase, "modales");
 Directory.CreateDirectory(modalesRoot);
 
-var eventosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "eventos");
+var eventosRoot = Path.Combine(uploadsBase, "eventos");
 Directory.CreateDirectory(eventosRoot);
 
 app.UseCors("DevCors");
