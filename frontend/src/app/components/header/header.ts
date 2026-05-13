@@ -184,8 +184,9 @@ export class HeaderComponent implements OnInit {
     const value = (raw ?? '').trim();
     if (!value) return '';
     if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/')) return value;
-    return `/api/EventoUpload/Imagen/${encodeURIComponent(value)}`;
+    if (value.startsWith('/api/')) return value;
+    const file = value.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
+    return file ? `/api/EventoUpload/Imagen/${encodeURIComponent(file)}` : '';
   }
 
   getEventoFechaRango(evento: any): string {

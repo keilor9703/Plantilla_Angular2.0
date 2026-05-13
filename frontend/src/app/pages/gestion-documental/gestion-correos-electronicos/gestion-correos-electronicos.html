@@ -153,7 +153,7 @@
 
     </main>
   </div>
-  <!-- Modal de Éxito Estilizada -->
+  <!-- Modal de Éxito -->
   <div class="success-modal-overlay" *ngIf="showSuccessModal" (click)="closeSuccessModal()">
     <div class="success-modal-card" (click)="$event.stopPropagation()">
       <div class="success-icon-wrapper">
@@ -170,24 +170,34 @@
       <button class="ui-btn primary full-width" (click)="closeSuccessModal()">Aceptar</button>
     </div>
   </div>
-  <!-- Modal de Detalle de Correo -->
-  <div class="success-modal-overlay" *ngIf="selectedCorreo" (click)="selectedCorreo = null">
-    <div class="email-detail-card" (click)="$event.stopPropagation()">
-      <div class="detail-header">
-        <h3>Detalle del Envío</h3>
-        <button class="close-btn" (click)="selectedCorreo = null">&times;</button>
+  <!-- Modal de Detalle de Correo (estilo ui-modal estándar) -->
+  <div class="ui-modal" *ngIf="selectedCorreo" (click)="selectedCorreo = null">
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-envelope-open-text"></i>
+          Detalle del Envío
+        </div>
+        <button class="ui-modal__close" type="button" (click)="selectedCorreo = null" aria-label="Cerrar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
-      <div class="detail-info">
-        <p><strong>Radicado:</strong> {{ selectedCorreo.radicado }}</p>
-        <p><strong>Para:</strong> {{ selectedCorreo.para }}</p>
-        <p><strong>Asunto:</strong> {{ selectedCorreo.asunto }}</p>
-        <p><strong>Fecha:</strong> {{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</p>
+      <div class="ui-modal__body">
+        <div class="detail-info">
+          <p><strong>Radicado:</strong> {{ selectedCorreo.radicado }}</p>
+          <p><strong>Para:</strong> {{ selectedCorreo.para }}</p>
+          <p><strong>Asunto:</strong> {{ selectedCorreo.asunto }}</p>
+          <p><strong>Fecha:</strong> {{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</p>
+        </div>
+        <div class="detail-body-container">
+          <ngx-editor [editor]="detailEditor" [ngModel]="selectedCorreo!.cuerpo" [disabled]="true"></ngx-editor>
+        </div>
       </div>
-      <div class="detail-body-container">
-        <ngx-editor [editor]="detailEditor" [ngModel]="selectedCorreo!.cuerpo" [disabled]="true"></ngx-editor>
-      </div>
-      <div class="detail-footer">
-        <button class="ui-btn secondary" (click)="selectedCorreo = null">Cerrar</button>
+      <div class="ui-modal__foot">
+        <button class="ui-btn secondary" type="button" (click)="selectedCorreo = null">
+          <i class="fa-solid fa-xmark"></i>
+          Cerrar
+        </button>
       </div>
     </div>
   </div>

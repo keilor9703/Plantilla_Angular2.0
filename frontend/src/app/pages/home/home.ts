@@ -395,15 +395,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     const value = (raw ?? '').trim();
     if (!value) return '';
     if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/')) return value;
-
-    const normalized = value.replace(/\\/g, '/');
-    if (normalized.includes('/')) {
-      return `/${normalized.replace(/^\/+/, '')}`;
-    }
-    const file = normalized.split('/').filter(Boolean).pop() ?? '';
-    if (!file) return '';
-    return `/api/EventoUpload/Imagen/${encodeURIComponent(file)}`;
+    if (value.startsWith('/api/')) return value;
+    const file = value.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
+    return file ? `/api/EventoUpload/Imagen/${encodeURIComponent(file)}` : '';
   }
 
   getEventoFechaRango(evento: DtoEvento): string {

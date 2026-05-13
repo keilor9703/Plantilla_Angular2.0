@@ -26,9 +26,17 @@ namespace ofic.Controllers.Administracion
         public EventoUploadController(IConfiguration configuration, IWebHostEnvironment environment, ILogger<EventoUploadController> logger)
         {
             _logger = logger;
-            // Mantener la misma convención local del proyecto:
-            // backend/oftic/oftic/uploads/eventos/yyyy-MM/archivo.ext
-            _uploadsPath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "uploads", "eventos"));
+            var configuredBasePath = configuration["AppSettings:UploadsPath"];
+            var basePath = string.IsNullOrWhiteSpace(configuredBasePath)
+                ? Path.Combine(environment.ContentRootPath, "uploads")
+                : configuredBasePath;
+
+            if (!Path.IsPathRooted(basePath))
+            {
+                basePath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, basePath));
+            }
+
+            _uploadsPath = Path.GetFullPath(Path.Combine(basePath, "eventos"));
         }
 
         [HttpPost("imagen")]
@@ -61,6 +69,7 @@ namespace ofic.Controllers.Administracion
                 }
 
                 Directory.CreateDirectory(_uploadsPath);
+
                 var monthFolder = DateTime.Now.ToString("yyyy-MM");
                 var monthPath = Path.Combine(_uploadsPath, monthFolder);
                 Directory.CreateDirectory(monthPath);
@@ -73,7 +82,7 @@ namespace ofic.Controllers.Administracion
                     await file.CopyToAsync(stream);
                 }
 
-                var publicUrl = $"/uploads/eventos/{monthFolder}/{safeName}";
+                var publicUrl = $"/api/EventoUpload/Imagen/{safeName}";
                 return Ok(new
                 {
                     success = true,
@@ -113,6 +122,12 @@ namespace ofic.Controllers.Administracion
 
         private string? FindImagePath(string safeFileName)
         {
+            if (string.IsNullOrWhiteSpace(_uploadsPath) || !Directory.Exists(_uploadsPath))
+            {
+                _logger.LogWarning("Ruta de uploads no encontrada: {UploadsPath}", _uploadsPath);
+                return null;
+            }
+
             var rootCandidate = Path.Combine(_uploadsPath, safeFileName);
             if (System.IO.File.Exists(rootCandidate))
             {
