@@ -137,6 +137,60 @@
   cursor: not-allowed;
 }
 
+.encabezado-upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.encabezado-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px dashed rgba(21, 27, 59, .35);
+  border-radius: var(--ui-radius);
+  background: rgba(21, 27, 59, .03);
+  color: var(--policia-oscuro);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s ease;
+  width: fit-content;
+
+  &:hover {
+    border-color: var(--policia-claro);
+    background: rgba(21, 27, 59, .06);
+  }
+
+  &.loading {
+    opacity: .65;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+.encabezado-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.encabezado-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  img {
+    max-width: 260px;
+    max-height: 80px;
+    object-fit: contain;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    background: #f8fafc;
+    padding: 4px;
+  }
+}
+
 @media (max-width: 1200px) {
   .admin-grid {
     grid-template-columns: 1fr;

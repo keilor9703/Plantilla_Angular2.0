@@ -20,7 +20,12 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/uploads/noticias && \
     mkdir -p /app/uploads/sliders && \
     mkdir -p /app/uploads/login && \
-    mkdir -p /app/uploads/videos
+    mkdir -p /app/uploads/videos && \
+    mkdir -p /app/uploads/eventos && \
+    mkdir -p /app/uploads/modales && \
+    mkdir -p /app/uploads/radio && \
+    mkdir -p /app/uploads/personaje && \
+    mkdir -p /app/uploads/email-headers
 
 COPY --from=api-build /app/publish .
 

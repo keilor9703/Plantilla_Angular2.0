@@ -50,7 +50,8 @@ namespace Datos.Gestion
                                     UsarSsl = GetInt(reader, "USAR_SSL"),
                                     Vigente = GetInt(reader, "VIGENTE"),
                                     NombreGrupo = GetString(reader, "NOMBRE_GRUPO"),
-                                    FirmaHtml = GetString(reader, "FIRMA_HTML")
+                                    FirmaHtml = GetString(reader, "FIRMA_HTML"),
+                                    ImagenEncabezado = GetString(reader, "IMAGEN_ENCABEZADO")
                                 });
                             }
                         }
@@ -90,6 +91,7 @@ namespace Datos.Gestion
                         command.Parameters.Add("P_USUARIO_AUD", OracleDbType.Varchar2).Value = request.UsuarioAuditoria;
                         command.Parameters.Add("P_IP_AUD", OracleDbType.Varchar2).Value = request.IpAuditoria;
                         command.Parameters.Add("P_FIRMA_HTML", OracleDbType.Clob).Value = request.FirmaHtml;
+                        command.Parameters.Add("P_IMAGEN_ENCABEZADO", OracleDbType.Varchar2).Value = (object?)request.ImagenEncabezado ?? DBNull.Value;
                         command.Parameters.Add("P_ID_OUT", OracleDbType.Int32).Direction = ParameterDirection.Output;
 
                         command.ExecuteNonQuery();
