@@ -32,6 +32,7 @@ namespace Comun.Dtos.Administracion
         public string? UsuarioCrea { get; set; }
         public DateTime? FechaCrea { get; set; }
         public string? FirmaHtml { get; set; }
+        public string? ImagenEncabezado { get; set; }
     }
 
     public class DtoCuentaEmailRequest
@@ -51,5 +52,6 @@ namespace Comun.Dtos.Administracion
         public string? UsuarioAuditoria { get; set; }
         public string? IpAuditoria { get; set; }
         public string? FirmaHtml { get; set; }
+        public string? ImagenEncabezado { get; set; }
     }
 }
