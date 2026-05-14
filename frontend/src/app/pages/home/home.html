@@ -428,7 +428,7 @@
           </span>
         </div>
         <h3 class="news-modal__title">{{ selectedNews.title }}</h3>
-        <p class="news-modal__text">{{ selectedNews.content }}</p>
+        <div class="news-modal__text" [innerHTML]="selectedNews.content "></div>
       </div>
     </div>
     <div class="ui-modal__foot">
