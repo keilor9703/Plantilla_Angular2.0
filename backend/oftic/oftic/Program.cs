@@ -197,6 +197,9 @@ Directory.CreateDirectory(modalesRoot);
 var eventosRoot = Path.Combine(uploadsBase, "eventos");
 Directory.CreateDirectory(eventosRoot);
 
+var emailHeadersRoot = Path.Combine(uploadsBase, "email-headers");
+Directory.CreateDirectory(emailHeadersRoot);
+
 app.UseCors("DevCors");
 
 if (app.Environment.IsDevelopment())
@@ -227,6 +230,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(eventosRoot),
     RequestPath = "/uploads/eventos"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(emailHeadersRoot),
+    RequestPath = "/uploads/email-headers"
 });
 
 app.UseAuthentication();

@@ -121,7 +121,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let h of paginatedHistorial">
-                <td><span class="consecutive-badge">{{ h.radicado }}</span></td>
+                <td><span class="radicado-text">{{ h.radicado }}</span></td>
                 <td><small>{{ h.nombreCompleto }}</small></td>
                 <td>{{ h.para }}</td>
                 <td>
@@ -139,14 +139,18 @@
           </table>
 
         <!-- Controles de Paginación -->
-        <div class="pagination-controls" *ngIf="historial.length > pageSize">
-          <button (click)="prevPage()" [disabled]="p === 1" class="btn-page">
-            <i class="fas fa-chevron-left"></i> Anterior
-          </button>
-          <span class="page-info">Página {{ p }} de {{ totalPages }}</span>
-          <button (click)="nextPage()" [disabled]="p === totalPages" class="btn-page">
-            Siguiente <i class="fas fa-chevron-right"></i>
-          </button>
+        <div class="table-pagination" *ngIf="historial.length > pageSize">
+          <span class="pagination-summary">
+            Página {{ p }} de {{ totalPages }} | Registros: {{ historial.length }}
+          </span>
+          <div class="pagination-actions">
+            <button class="ui-btn secondary" type="button" (click)="prevPage()" [disabled]="p === 1">
+              <i class="fa-solid fa-chevron-left"></i> Anterior
+            </button>
+            <button class="ui-btn secondary" type="button" (click)="nextPage()" [disabled]="p === totalPages">
+              Siguiente <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
         </div>
       </ng-container>
@@ -171,22 +175,41 @@
     </div>
   </div>
   <!-- Modal de Detalle de Correo -->
-  <div class="success-modal-overlay" *ngIf="selectedCorreo" (click)="selectedCorreo = null">
-    <div class="email-detail-card" (click)="$event.stopPropagation()">
-      <div class="detail-header">
-        <h3>Detalle del Envío</h3>
-        <button class="close-btn" (click)="selectedCorreo = null">&times;</button>
+  <div class="ui-modal" *ngIf="selectedCorreo" (click)="selectedCorreo = null">
+    <div class="ui-modal__dialog ui-modal__dialog--correo" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-envelope-open-text"></i>
+          Detalle del Envío
+        </div>
+        <button class="ui-btn icon-only ghost" (click)="selectedCorreo = null" title="Cerrar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
-      <div class="detail-info">
-        <p><strong>Radicado:</strong> {{ selectedCorreo.radicado }}</p>
-        <p><strong>Para:</strong> {{ selectedCorreo.para }}</p>
-        <p><strong>Asunto:</strong> {{ selectedCorreo.asunto }}</p>
-        <p><strong>Fecha:</strong> {{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</p>
+      <div class="ui-modal__body">
+        <div class="correo-detail-meta">
+          <div class="correo-meta-row">
+            <span class="correo-meta-label">Radicado</span>
+            <span class="correo-meta-value mono">{{ selectedCorreo.radicado }}</span>
+          </div>
+          <div class="correo-meta-row">
+            <span class="correo-meta-label">Para</span>
+            <span class="correo-meta-value">{{ selectedCorreo.para }}</span>
+          </div>
+          <div class="correo-meta-row">
+            <span class="correo-meta-label">Asunto</span>
+            <span class="correo-meta-value">{{ selectedCorreo.asunto }}</span>
+          </div>
+          <div class="correo-meta-row">
+            <span class="correo-meta-label">Fecha</span>
+            <span class="correo-meta-value">{{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+          </div>
+        </div>
+        <div class="correo-detail-body">
+          <div class="correo-body-html" [innerHTML]="selectedCorreo!.cuerpo"></div>
+        </div>
       </div>
-      <div class="detail-body-container">
-        <ngx-editor [editor]="detailEditor" [ngModel]="selectedCorreo!.cuerpo" [disabled]="true"></ngx-editor>
-      </div>
-      <div class="detail-footer">
+      <div class="ui-modal__foot">
         <button class="ui-btn secondary" (click)="selectedCorreo = null">Cerrar</button>
       </div>
     </div>

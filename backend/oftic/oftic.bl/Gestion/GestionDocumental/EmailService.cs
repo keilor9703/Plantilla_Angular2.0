@@ -6,6 +6,7 @@ using Comun.Dtos.GestionDocumental;
 using Datos.Interfaz;
 using Datos.Interfaz.GestionDocumental;
 using Comun.Security;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 
@@ -23,15 +24,24 @@ namespace Negocio.Gestion.GestionDocumental
         private readonly IDbCuentaEmailRepository _cuentaRepo;
         private readonly IDbGestionCorreosRepository _gestionRepo;
         private readonly ILogger<EmailService> _logger;
+        private readonly string _uploadsBase;
 
         public EmailService(
-            IDbCuentaEmailRepository cuentaRepo, 
+            IDbCuentaEmailRepository cuentaRepo,
             IDbGestionCorreosRepository gestionRepo,
-            ILogger<EmailService> logger)
+            ILogger<EmailService> logger,
+            IConfiguration configuration)
         {
             _cuentaRepo = cuentaRepo;
             _gestionRepo = gestionRepo;
             _logger = logger;
+
+            var configured = configuration["AppSettings:UploadsPath"];
+            _uploadsBase = string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.BaseDirectory, "uploads")
+                : (Path.IsPathRooted(configured)
+                    ? configured
+                    : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configured)));
         }
 
         public async Task<DtoEnvioCorreoResult> EnviarCorreoAsync(DtoEnvioCorreoRequest request, string usuario, string maquina, int? idUsuario)
@@ -86,9 +96,18 @@ namespace Negocio.Gestion.GestionDocumental
                         IsBodyHtml = true
                     };
 
-                    string cuerpoFinal = $@"<p style='font-family: Arial, sans-serif; font-size: 14px; margin-bottom: 20px;margin-top: 20px;'>
-                                           Correo Electrónico  <b>No. {radicadoReal} </b> de fecha  <b>{DateTime.Now:dd/MM/yyyy}</b>
-                                          </p>" + request.Cuerpo;
+                    string encabezadoImg = string.Empty;
+                    if (!string.IsNullOrWhiteSpace(cuenta.ImagenEncabezado))
+                    {
+                        encabezadoImg = $@"<div style='text-align:center;margin-bottom:16px;'>
+                            <img src='cid:encabezado_cuenta' style='max-width:100%;height:auto;' alt='{cuenta.NombreCuenta}' />
+                        </div>";
+                    }
+
+                    string cuerpoFinal = encabezadoImg +
+                        $@"<p style='font-family: Arial, sans-serif; font-size: 14px; margin-bottom: 20px;margin-top: 20px;'>
+                           Correo Electrónico  <b>No. {radicadoReal} </b> de fecha  <b>{DateTime.Now:dd/MM/yyyy}</b>
+                          </p>" + request.Cuerpo;
 
                     // Añadir Firma de la Cuenta (si existe)
                     if (!string.IsNullOrEmpty(cuenta.FirmaHtml))
@@ -121,11 +140,46 @@ namespace Negocio.Gestion.GestionDocumental
                     // --- PROCESAMIENTO DE IMÁGENES EMBEBIDAS (BASE64 TO CID) ---
                     var regex = new Regex(@"<img[^>]+src=""data:(image\/[^;]+);base64,([^""]+)""[^>]*>", RegexOptions.IgnoreCase);
                     var matches = regex.Matches(cuerpoFinal);
-                    
-                    if (matches.Count > 0)
+                    bool tieneEncabezado = !string.IsNullOrWhiteSpace(cuenta.ImagenEncabezado);
+
+                    if (matches.Count > 0 || tieneEncabezado)
                     {
                         int imgCount = 0;
                         var resView = AlternateView.CreateAlternateViewFromString(cuerpoFinal, null, MediaTypeNames.Text.Html);
+
+                        // Adjuntar imagen de encabezado como recurso CID
+                        if (tieneEncabezado)
+                        {
+                            try
+                            {
+                                // cuenta.ImagenEncabezado es la URL pública: /uploads/email-headers/xxx.png
+                                // Convertimos a ruta del sistema de archivos usando _uploadsBase
+                                var urlPath = cuenta.ImagenEncabezado!.TrimStart('/');
+                                // urlPath: "uploads/email-headers/xxx.png"
+                                // Quitamos el prefijo "uploads/" para obtener la sub-ruta dentro de _uploadsBase
+                                var subPath = urlPath.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase)
+                                    ? urlPath.Substring("uploads/".Length)
+                                    : urlPath;
+                                var encabezadoFsPath = Path.Combine(_uploadsBase, subPath);
+
+                                if (File.Exists(encabezadoFsPath))
+                                {
+                                    var ext = Path.GetExtension(encabezadoFsPath).ToLowerInvariant();
+                                    var mime = ext switch { ".png" => "image/png", ".webp" => "image/webp", _ => "image/jpeg" };
+                                    var imgBytes = await File.ReadAllBytesAsync(encabezadoFsPath);
+                                    var lr = new LinkedResource(new MemoryStream(imgBytes), mime) { ContentId = "encabezado_cuenta" };
+                                    resView.LinkedResources.Add(lr);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Imagen de encabezado no encontrada en disco: {Path}", encabezadoFsPath);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "No se pudo adjuntar imagen de encabezado.");
+                            }
+                        }
 
                         foreach (Match match in matches)
                         {
@@ -134,17 +188,15 @@ namespace Negocio.Gestion.GestionDocumental
                                 string contentType = match.Groups[1].Value;
                                 string base64Data = match.Groups[2].Value;
                                 byte[] imageBytes = Convert.FromBase64String(base64Data);
-                                
+
                                 string contentId = $"img_{imgCount++}";
-                                
-                                // Crear recurso vinculado
-                                var lr = new LinkedResource(new MemoryStream(imageBytes), contentType) 
-                                { 
-                                    ContentId = contentId 
+
+                                var lr = new LinkedResource(new MemoryStream(imageBytes), contentType)
+                                {
+                                    ContentId = contentId
                                 };
                                 resView.LinkedResources.Add(lr);
-                                
-                                // Reemplazar en el HTML para que apunte al CID
+
                                 cuerpoFinal = cuerpoFinal.Replace(match.Value, $@"<img src=""cid:{contentId}"" style=""max-width: 100%;"" />");
                             }
                             catch (Exception ex)
@@ -153,7 +205,6 @@ namespace Negocio.Gestion.GestionDocumental
                             }
                         }
 
-                        // Re-creamos la vista con el HTML que ya tiene los CIDs y le pasamos los recursos
                         var finalView = AlternateView.CreateAlternateViewFromString(cuerpoFinal, null, MediaTypeNames.Text.Html);
                         foreach (var res in resView.LinkedResources)
                         {

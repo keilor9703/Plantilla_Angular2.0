@@ -24,7 +24,8 @@ RUN mkdir -p /app/uploads/noticias && \
     mkdir -p /app/uploads/eventos && \
     mkdir -p /app/uploads/modales && \
     mkdir -p /app/uploads/radio && \
-    mkdir -p /app/uploads/personaje
+    mkdir -p /app/uploads/personaje && \
+    mkdir -p /app/uploads/email-headers
 
 COPY --from=api-build /app/publish .
 
