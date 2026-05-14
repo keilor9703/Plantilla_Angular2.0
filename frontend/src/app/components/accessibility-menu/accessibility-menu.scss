@@ -310,6 +310,11 @@
   &.active {
     background: var(--policia-acento);
     color: var(--policia-oscuro);
+  }
+
+  &.speaking {
+    background: var(--policia-acento);
+    color: var(--policia-oscuro);
     animation: soundPulse 1.5s infinite;
   }
 }

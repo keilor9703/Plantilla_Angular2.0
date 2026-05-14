@@ -84,12 +84,13 @@
   <!-- Botón Texto a Voz -->
   <button 
     class="accessibility-btn text-to-speech-btn "
-    [class.active]="isSpeaking"
+    [class.active]="isHoverMode"
+    [class.speaking]="isSpeaking"
     [class.disabled]="!textToSpeechAvailable"
     (click)="toggleTextToSpeech()"
     [disabled]="!textToSpeechAvailable"
-    title="Texto a voz"
-    aria-label="Convertir texto a voz">
+    title="Texto a voz (pase el cursor sobre cualquier elemento)"
+    aria-label="Activar o desactivar texto a voz al pasar el cursor">
     <span class="icon" [attr.aria-hidden]="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <!-- Icono Altavoz -->
@@ -98,7 +99,7 @@
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
       </svg>
     </span>
-    <span class="tooltip">{{ isSpeaking ? 'Leyendo...' : 'Texto a voz' }}</span>
+    <span class="tooltip">{{ isSpeaking ? 'Leyendo...' : isHoverMode ? 'Pase el cursor...' : 'Texto a voz' }}</span>
   </button>
 
   <button

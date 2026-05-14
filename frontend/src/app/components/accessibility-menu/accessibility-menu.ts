@@ -28,6 +28,7 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
 
   isListening = false;
   isSpeaking = false;
+  isHoverMode = false;
   speechToTextAvailable = false;
   textToSpeechAvailable = false;
   socialExpanded = false;
@@ -66,6 +67,13 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
       .subscribe((speaking) => {
         this.isSpeaking = speaking;
       });
+
+    // Suscribirse al modo hover
+    this.textToSpeechService.hoverMode$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((active) => {
+        this.isHoverMode = active;
+      });
   }
 
   ngOnDestroy(): void {
@@ -73,7 +81,7 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     // Detener cualquier proceso de voz pendiente
     this.speechToTextService.stopListening();
-    this.textToSpeechService.stop();
+    this.textToSpeechService.disableHoverMode();
   }
 
   toggleDarkMode(): void {
@@ -93,12 +101,10 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   }
 
   toggleTextToSpeech(): void {
-    if (this.isSpeaking) {
-      this.textToSpeechService.stop();
-      this.isSpeaking = false;
+    if (this.isHoverMode) {
+      this.textToSpeechService.disableHoverMode();
     } else {
-      this.isSpeaking = true;
-      this.textToSpeechService.toggleSpeaking();
+      this.textToSpeechService.enableHoverMode();
     }
   }
 
