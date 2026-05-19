@@ -1,4 +1,4 @@
-.redes-sociales-admin-page {
+﻿.redes-sociales-admin-page {
   display: block;
 }
 
@@ -21,7 +21,7 @@
 .redes-group {
   border: 1px solid var(--ui-border, #dbe2ef);
   border-radius: 12px;
-  background: #fff;
+  background: var(--ui-surface);
   overflow: hidden;
 }
 
@@ -39,21 +39,21 @@
 
 .redes-group__title {
   font-weight: 700;
-  color: #1e3a5f;
+  color: var(--ui-text);
 }
 
 .redes-group__count {
   margin-left: auto;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #2b4f77;
-  background: #d6e5f8;
+  color: var(--ui-muted);
+  background: var(--color-info-bg);
   border-radius: 999px;
   padding: 0.15rem 0.5rem;
 }
 
 .redes-group__icon {
-  color: #2b4f77;
+  color: var(--ui-muted);
   transition: transform 0.2s ease;
 }
 
@@ -89,7 +89,7 @@
 .redes-item__titulo {
   font-weight: 600;
   font-size: 0.95rem;
-  color: #1a202c;
+  color: var(--ui-text);
 }
 
 .redes-item__meta {
@@ -97,7 +97,7 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   font-size: 0.8rem;
-  color: #718096;
+  color: var(--ui-muted);
 }
 
 .redes-item__meta > span {
@@ -110,4 +110,14 @@
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
+}
+
+:host-context(html.dark-mode) {
+  .redes-item {
+    background: #252f45;
+  }
+
+  .redes-group__head {
+    background: #1e2840;
+  }
 }

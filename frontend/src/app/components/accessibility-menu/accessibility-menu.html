@@ -138,7 +138,10 @@
     <span class="tooltip">Redes sociales</span>
   </button>
 
-  <div class="social-list" *ngIf="socialExpanded">
+  <div
+    class="social-list"
+    [class.social-list--expanded]="socialExpanded"
+    [attr.aria-hidden]="!socialExpanded">
     <button
       type="button"
       class="accessibility-btn social-network-btn"

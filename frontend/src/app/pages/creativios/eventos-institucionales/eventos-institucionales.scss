@@ -4,7 +4,7 @@
 
 .eventos-home .meta {
   font-size: calc(12px * var(--font-size-scale));
-  color: rgba(83, 86, 90, .92);
+  color: rgba(var(--policia-neutral-oscuro-rgb), .92);
 }
 
 .evento-preview {
@@ -12,7 +12,7 @@
   border: 1px solid var(--ui-border);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(21, 27, 59, .03);
+  background: rgba(var(--policia-oscuro-rgb), .03);
 }
 
 .evento-preview img {
@@ -55,7 +55,7 @@
   border: 1px solid var(--ui-border);
   border-radius: 10px;
   overflow: hidden;
-  background: rgba(21, 27, 59, .03);
+  background: rgba(var(--policia-oscuro-rgb), .03);
 }
 
 .evento-imagen-detalle img {

@@ -11,6 +11,9 @@ interface CuentaEmail {
   nombreCuenta: string;
   email: string;
   vigente: number;
+  prioridadAlta: number;
+  acuseRecibido: number;
+  copiaPrivada: number;
 }
 
 interface CorreoEnviado {
@@ -48,7 +51,10 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
     para: '',
     asunto: '',
     cuerpo: '',
-    idClasificacion: null as number | null
+    idClasificacion: null as number | null,
+    prioridadAlta: false,
+    acuseRecibido: false,
+    copiaPrivada: false
   };
   
   clasificaciones: any[] = [];
@@ -156,6 +162,7 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
         this.cuentas = data.filter(c => c.vigente === 1);
         if (this.cuentas.length > 0) {
           this.selectedCuentaId = this.cuentas[0].idCuenta;
+          this.prefillOpcionesDesdeCtenta(this.cuentas[0]);
         } else {
           this.selectedCuentaId = null;
         }
@@ -169,6 +176,17 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
     if (newView === 'history') {
       this.cargarHistorial();
     }
+  }
+
+  onCuentaChange(): void {
+    const cuenta = this.cuentas.find(c => c.idCuenta === this.selectedCuentaId);
+    if (cuenta) this.prefillOpcionesDesdeCtenta(cuenta);
+  }
+
+  private prefillOpcionesDesdeCtenta(cuenta: CuentaEmail): void {
+    this.emailForm.prioridadAlta = cuenta.prioridadAlta === 1;
+    this.emailForm.acuseRecibido = cuenta.acuseRecibido === 1;
+    this.emailForm.copiaPrivada = cuenta.copiaPrivada === 1;
   }
 
   cargarHistorial(): void {
@@ -219,6 +237,10 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
     formData.append('asunto', this.emailForm.asunto);
     formData.append('cuerpo', this.emailForm.cuerpo);
 
+    formData.append('prioridadAlta', this.emailForm.prioridadAlta ? 'true' : 'false');
+    formData.append('acuseRecibido', this.emailForm.acuseRecibido ? 'true' : 'false');
+    formData.append('copiaPrivada', this.emailForm.copiaPrivada ? 'true' : 'false');
+
     if (this.emailForm.idClasificacion) {
       formData.append('idClasificacion', this.emailForm.idClasificacion.toString());
       const clasif = this.clasificaciones.find(c => c.idDominio === this.emailForm.idClasificacion);
@@ -266,7 +288,10 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   }
 
   limpiarFormulario(): void {
-    this.emailForm = { para: '', asunto: '', cuerpo: '', idClasificacion: null };
+    this.emailForm = { para: '', asunto: '', cuerpo: '', idClasificacion: null, prioridadAlta: false, acuseRecibido: false, copiaPrivada: false };
+    // Restaurar defaults de la cuenta seleccionada
+    const cuenta = this.cuentas.find(c => c.idCuenta === this.selectedCuentaId);
+    if (cuenta) this.prefillOpcionesDesdeCtenta(cuenta);
     this.adjuntos = [];
   }
 

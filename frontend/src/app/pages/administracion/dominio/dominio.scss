@@ -1,4 +1,4 @@
-.dominio-admin-page {
+﻿.dominio-admin-page {
   display: block;
 }
 
@@ -21,7 +21,7 @@
   border: 1px solid var(--ui-border, #dbe2ef);
   border-radius: 12px;
   padding: 0.85rem;
-  background: #fff;
+  background: var(--ui-surface);
   margin-bottom: 0.5rem;
   transition: all 0.2s ease;
 
@@ -46,7 +46,7 @@
 
 .dominio-icon {
   margin-right: 0.5rem;
-  color: #718096;
+  color: var(--ui-muted);
 }
 
 .expand-icon {
@@ -64,7 +64,7 @@
 }
 
 .is-parent .dominio-icon {
-  color: #4a90d9;
+  color: var(--color-info-text);
 }
 
 .badge {

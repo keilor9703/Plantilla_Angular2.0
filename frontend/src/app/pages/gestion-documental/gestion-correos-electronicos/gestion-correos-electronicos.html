@@ -41,7 +41,7 @@
         <div class="composer-form">
           <div class="form-row">
             <span class="form-label">De:</span>
-            <select class="email-input" [(ngModel)]="selectedCuentaId">
+            <select class="email-input" [(ngModel)]="selectedCuentaId" (ngModelChange)="onCuentaChange()">
               <option *ngFor="let c of cuentas" [value]="c.idCuenta">{{ c.nombreCuenta }} <{{ c.email }}>
               </option>
             </select>
@@ -67,9 +67,25 @@
 
           <div class="editor-wrapper">
             <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
-            <ngx-editor [editor]="editor" [(ngModel)]="emailForm.cuerpo"
-              (paste)="onPaste($event)"
+            <ngx-editor [editor]="editor" [(ngModel)]="emailForm.cuerpo" (paste)="onPaste($event)"
               [placeholder]="'Escribe el cuerpo del mensaje aquí...'"></ngx-editor>
+            <div class="opciones-envio-bar">
+              <label class="opcion-envio-check">
+                <input type="checkbox" [(ngModel)]="emailForm.prioridadAlta">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                Importancia Alta
+              </label>
+              <label class="opcion-envio-check">
+                <input type="checkbox" [(ngModel)]="emailForm.acuseRecibido">
+                <i class="fa-solid fa-envelope-circle-check"></i>
+                Acuse de Recibido
+              </label>
+              <label class="opcion-envio-check">
+                <input type="checkbox" [(ngModel)]="emailForm.copiaPrivada">
+                <i class="fa-solid fa-eye-slash"></i>
+                Copia Privada (BCC)
+              </label>
+            </div>
           </div>
 
           <div class="attachments-area">
@@ -90,6 +106,8 @@
             </div>
           </div>
         </div>
+
+        
 
         <div class="composer-footer">
           <button class="ui-btn neutral" (click)="limpiarFormulario()">Descartar</button>

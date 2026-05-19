@@ -96,6 +96,22 @@ namespace Negocio.Gestion.GestionDocumental
                         IsBodyHtml = true
                     };
 
+                    // Importancia Alta
+                    if (request.PrioridadAlta)
+                    {
+                        mailMessage.Priority = MailPriority.High;
+                        mailMessage.Headers.Add("X-Priority", "1");
+                        mailMessage.Headers.Add("X-MSMail-Priority", "High");
+                        mailMessage.Headers.Add("Importance", "High");
+                    }
+
+                    // Acuse de Recibido
+                    if (request.AcuseRecibido)
+                    {
+                        mailMessage.Headers.Add("Disposition-Notification-To", cuenta.Email);
+                        mailMessage.Headers.Add("Return-Receipt-To", cuenta.Email);
+                    }
+
                     string encabezadoImg = string.Empty;
                     if (!string.IsNullOrWhiteSpace(cuenta.ImagenEncabezado))
                     {
@@ -218,10 +234,24 @@ namespace Negocio.Gestion.GestionDocumental
                         mailMessage.IsBodyHtml = true;
                     }
 
-                    foreach (var dest in request.Para.Split(';', ','))
+                    // Copia Privada: enviar todos como BCC para que los destinatarios no se vean entre sí
+                    if (request.CopiaPrivada)
                     {
-                        if (!string.IsNullOrWhiteSpace(dest))
-                            mailMessage.To.Add(dest.Trim());
+                        foreach (var dest in request.Para.Split(';', ','))
+                        {
+                            if (!string.IsNullOrWhiteSpace(dest))
+                                mailMessage.Bcc.Add(dest.Trim());
+                        }
+                        // TO requerido por servidores SMTP — se usa la cuenta emisora
+                        mailMessage.To.Add(cuenta.Email);
+                    }
+                    else
+                    {
+                        foreach (var dest in request.Para.Split(';', ','))
+                        {
+                            if (!string.IsNullOrWhiteSpace(dest))
+                                mailMessage.To.Add(dest.Trim());
+                        }
                     }
 
                     // 5. Gestionar Adjuntos

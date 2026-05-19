@@ -1,4 +1,4 @@
-.mv-overlay {
+﻿.mv-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
@@ -12,7 +12,7 @@
 
 .mv-panel {
   position: relative;
-  background: #fff;
+  background: var(--ui-surface);
   border-radius: 16px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22);
   width: 100%;
@@ -34,7 +34,7 @@
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.08);
-  color: #4a5568;
+  color: var(--ui-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -81,13 +81,13 @@
 .mv-titulo {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--ui-text);
   margin: 0 0 0.5rem;
 }
 
 .mv-descripcion {
   font-size: 0.9rem;
-  color: #4a5568;
+  color: var(--ui-muted);
   line-height: 1.55;
   margin: 0;
 }
@@ -113,15 +113,15 @@
   &.primary {
     background: #3182ce;
     color: #fff;
-    border-color: #3182ce;
-    &:hover { background: #2b6cb0; border-color: #2b6cb0; }
+    border-color: var(--color-info-text);
+    &:hover { background: var(--color-info-bg); border-color: var(--color-info-border); }
   }
 
   &.secondary {
-    background: #fff;
-    color: #4a5568;
-    border-color: #cbd5e0;
-    &:hover { background: #f7fafc; }
+    background: var(--ui-surface);
+    color: var(--ui-muted);
+    border-color: var(--ui-border);
+    &:hover { background: var(--ui-surface); }
   }
 }
 
