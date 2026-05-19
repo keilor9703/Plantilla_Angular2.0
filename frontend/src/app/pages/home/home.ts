@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
@@ -120,6 +120,18 @@ export class HomeComponent implements OnInit, OnDestroy {
   };
   currentBannerIndex = 0;
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
+  // --- Banner drag (mouse) ---
+  sliderIsDragging = false;
+  sliderDragOffset = 0;
+  sliderNeighborIndex = -1;
+  private sliderDragStartX = 0;
+  private sliderDragMoved = false;
+  private readonly DRAG_THRESHOLD = 50;
+  @ViewChild('mainSlider') mainSliderRef!: ElementRef<HTMLDivElement>;
+  showCursorVerMas = false;
+  showSliderCursor = false;
+  cursorX = 0;
+  cursorY = 0;
   videoUnidadUrl = '';
   videoInstitucionalUrl = '';
   lineaMando: DtoLineaMando[] = [];
@@ -766,7 +778,101 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.currentBannerIndex = index;
   }
 
+  nextBanner(): void {
+    if (this.banners.length <= 1) return;
+    this.currentBannerIndex = (this.currentBannerIndex + 1) % this.banners.length;
+    this.stopBannerRotation();
+    this.startBannerRotation();
+  }
+
+  prevBanner(): void {
+    if (this.banners.length <= 1) return;
+    this.currentBannerIndex = (this.currentBannerIndex - 1 + this.banners.length) % this.banners.length;
+    this.stopBannerRotation();
+    this.startBannerRotation();
+  }
+
+  onSliderDragStart(e: MouseEvent): void {
+    e.preventDefault();
+    this.sliderDragStartX = e.clientX;
+    this.sliderIsDragging = true;
+    this.sliderDragMoved = false;
+    this.sliderDragOffset = 0;
+    this.sliderNeighborIndex = -1;
+    this.stopBannerRotation();
+  }
+
+  onSliderDragMove(e: MouseEvent): void {
+    if (!this.sliderIsDragging) return;
+    const delta = e.clientX - this.sliderDragStartX;
+    if (Math.abs(delta) > 5) {
+      this.sliderDragMoved = true;
+    }
+    this.sliderDragOffset = delta;
+    if (this.banners.length > 1) {
+      if (delta < 0) {
+        this.sliderNeighborIndex = (this.currentBannerIndex + 1) % this.banners.length;
+      } else if (delta > 0) {
+        this.sliderNeighborIndex = (this.currentBannerIndex - 1 + this.banners.length) % this.banners.length;
+      }
+    }
+  }
+
+  onSliderDragEnd(e: MouseEvent): void {
+    if (!this.sliderIsDragging) return;
+    const delta = e.clientX - this.sliderDragStartX;
+    this.sliderIsDragging = false;
+    this.sliderDragOffset = 0;
+    this.sliderNeighborIndex = -1;
+    if (Math.abs(delta) >= this.DRAG_THRESHOLD && this.banners.length > 1) {
+      if (delta < 0) {
+        this.currentBannerIndex = (this.currentBannerIndex + 1) % this.banners.length;
+      } else {
+        this.currentBannerIndex = (this.currentBannerIndex - 1 + this.banners.length) % this.banners.length;
+      }
+    }
+    this.startBannerRotation();
+  }
+
+  onSliderDragCancel(): void {
+    if (this.sliderIsDragging) {
+      this.sliderIsDragging = false;
+      this.sliderDragOffset = 0;
+      this.sliderNeighborIndex = -1;
+      this.startBannerRotation();
+    }
+  }
+
+  getSlideItemTransform(i: number): string | null {
+    if (!this.sliderIsDragging) return null;
+    const w = this.mainSliderRef?.nativeElement?.offsetWidth ?? 800;
+    if (i === this.currentBannerIndex) {
+      return `translateX(${this.sliderDragOffset}px)`;
+    }
+    if (i === this.sliderNeighborIndex) {
+      const base = this.sliderDragOffset < 0 ? w : -w;
+      return `translateX(${base + this.sliderDragOffset}px)`;
+    }
+    return null;
+  }
+
+  onSlideMouseMove(e: MouseEvent, banner: DtoSliders): void {
+    this.cursorX = e.clientX;
+    this.cursorY = e.clientY;
+    this.showSliderCursor = true;
+    this.showCursorVerMas = !!banner.urlDestino;
+  }
+
+  onSlideMouseLeave(): void {
+    this.showCursorVerMas = false;
+    this.showSliderCursor = false;
+  }
+
   openBannerLink(item: DtoSliders): void {
+    if (this.sliderDragMoved) {
+      this.sliderDragMoved = false;
+      return;
+    }
     const url = (item.urlDestino ?? '').trim();
     if (!url) {
       return;

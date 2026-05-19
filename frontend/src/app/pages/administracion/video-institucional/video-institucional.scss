@@ -1,4 +1,4 @@
-.video-inst-page {
+﻿.video-inst-page {
   padding: 0;
 }
 
@@ -44,7 +44,7 @@
 .mt-3 { margin-top: 16px; }
 
 .required {
-  color: #e53e3e;
+  color: var(--color-danger-text);
   margin-left: 2px;
 }
 
@@ -85,18 +85,18 @@
 .videos-table th,
 .videos-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(21, 27, 59, .12);
+  border-bottom: 1px solid rgba(var(--policia-oscuro-rgb), .12);
   text-align: left;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
 }
 
 .videos-table th {
   font-weight: 800;
-  background: rgba(21, 27, 59, .04);
+  background: rgba(var(--policia-oscuro-rgb), .04);
 }
 
 .url-cell a {
-  color: #0b4a8b;
+  color: var(--color-info-text);
   text-decoration: none;
 }
 

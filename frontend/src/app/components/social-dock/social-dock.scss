@@ -1,4 +1,4 @@
-:host {
+﻿:host {
   --dock-btn-size: 30px;
   --dock-icon-size: 14px;
   --dock-gap: 8px;
@@ -89,8 +89,8 @@
   right: 0;
   width: min(92vw, 420px);
   height: 100vh;
-  background: #f8fafc;
-  border-left: 1px solid rgba(15, 23, 42, 0.12);
+  background: var(--ui-surface);
+  border-left: 1px solid var(--ui-border);
   box-shadow: -12px 0 34px rgba(0, 0, 0, 0.28);
   z-index: 1399;
   display: flex;
@@ -108,13 +108,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
-  background: #eaf0f8;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
 }
 
 .social-drawer__title {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ui-text);
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -125,8 +125,8 @@
   height: 32px;
   border-radius: 50%;
   border: 0;
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
+  background: var(--ui-border);
+  color: var(--ui-text);
   cursor: pointer;
 }
 
@@ -138,8 +138,8 @@
 }
 
 .social-account {
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
   border-radius: 14px;
   padding: 10px;
   display: grid;
@@ -155,8 +155,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #dbe7f6;
-  color: #0f172a;
+  background: var(--color-info-bg);
+  color: var(--ui-text);
   font-weight: 700;
 }
 
@@ -174,19 +174,19 @@
 }
 
 .social-account__meta strong {
-  color: #111827;
-  font-size: 13px;
+  color: var(--ui-text);
+  font-size: calc(13px * var(--font-size-scale));
 }
 
 .social-account__handle {
-  color: #64748b;
-  font-size: 12px;
+  color: var(--ui-muted);
+  font-size: calc(12px * var(--font-size-scale));
   margin: 2px 0 6px;
 }
 
 .social-account__meta a {
-  color: #0b6bd3;
-  font-size: 12px;
+  color: var(--color-info-text);
+  font-size: calc(12px * var(--font-size-scale));
   text-decoration: none;
 }
 
@@ -200,7 +200,7 @@
   border-radius: 999px;
   background: #dc2626;
   color: #fff;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-size-scale));
   display: inline-flex;
   align-items: center;
   justify-content: center;

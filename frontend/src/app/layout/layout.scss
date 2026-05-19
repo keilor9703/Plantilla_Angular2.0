@@ -6,7 +6,7 @@
   --app-shell-bg: #f3f6fb;
   --content-bg: rgba(255, 255, 255, 0.8);
   --content-border: var(--policia-neutral-claro);
-  --content-shadow: 0 10px 30px rgba(21, 27, 59, 0.08);
+  --content-shadow: 0 10px 30px rgba(var(--policia-oscuro-rgb), 0.08);
 }
 
 html.dark-mode {

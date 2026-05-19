@@ -2,22 +2,46 @@
   <section class="view-container">
     <!-- Banner Slider -->
     <div class="slider-wrapper">
-      <div class="main-slider">
+      <div class="main-slider"
+        #mainSlider
+        [class.is-dragging]="sliderIsDragging"
+        (mousedown)="onSliderDragStart($event)"
+        (mousemove)="onSliderDragMove($event)"
+        (mouseup)="onSliderDragEnd($event)"
+        (mouseleave)="onSliderDragCancel()">
         <div
           class="slide-item"
           *ngFor="let banner of banners; let i = index"
-          [class.active]="i === currentBannerIndex">
+          [class.active]="i === currentBannerIndex"
+          [class.has-link]="!!banner.urlDestino"
+          [class.is-drag-neighbor]="i === sliderNeighborIndex"
+          [style.transform]="getSlideItemTransform(i)"
+          [style.transition]="sliderIsDragging ? 'none' : null"
+          (click)="openBannerLink(banner)"
+          (mousemove)="onSlideMouseMove($event, banner)"
+          (mouseleave)="onSlideMouseLeave()"
+          (dragstart)="$event.preventDefault()">
           <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
           <div class="slide-overlay"></div>
           <div class="slide-content">
-            <span class="badge">Informacion</span>
-            <h2>{{ getBannerTitle(banner) }}</h2>
-            <p>{{ getBannerSubtitle(banner) }}</p>
-            <button class="btn-slider" type="button" *ngIf="banner.urlDestino" (click)="openBannerLink(banner)">
-              Ver mas
-            </button>
+            <span class="badge">{{ getBannerTitle(banner) }}</span>
           </div>
         </div>
+
+        <button
+          type="button"
+          class="slider-nav-btn slider-nav-btn--prev"
+          (click)="prevBanner(); $event.stopPropagation()"
+          aria-label="Banner anterior">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button
+          type="button"
+          class="slider-nav-btn slider-nav-btn--next"
+          (click)="nextBanner(); $event.stopPropagation()"
+          aria-label="Banner siguiente">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
 
         <div class="slider-controls">
           <button
@@ -30,7 +54,15 @@
       </div>
     </div>
 
-    <!-- Stats Grid -->
+    <!-- Cursor tooltip Ver más -->
+    <div class="cursor-dot-verde" *ngIf="showSliderCursor"
+      [style.left.px]="cursorX"
+      [style.top.px]="cursorY"></div>
+    <!-- <div class="cursor-ver-mas" *ngIf="showCursorVerMas"
+      [style.left.px]="cursorX"
+      [style.top.px]="cursorY - 40">
+      Ver más
+    </div> -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
@@ -199,13 +231,7 @@
       </div>
     </div>
 
-    <!-- Actividad Reciente -->
-    <div class="card-view mt-4 rounded-xl shadow-subtle">
-      <h3 class="title-cards"><i class="fa-solid fa-clock-rotate-left"></i> Actividad Reciente</h3>
-      <hr />
-      <p style="color: #666; margin: 10px;">No hay movimientos recientes en tu cuenta.</p>
-    </div>
-
+  
       
       <!-- Spotlight: Personajes del Mes y grupo  -->
     <section class="home-spotlight mt-4">
@@ -434,7 +460,7 @@
           </span>
         </div>
         <h3 class="news-modal__title">{{ selectedNews.title }}</h3>
-        <p class="news-modal__text">{{ selectedNews.content }}</p>
+        <div class="news-modal__text" [innerHTML]="selectedNews.content "></div>
       </div>
     </div>
     <div class="ui-modal__foot">
