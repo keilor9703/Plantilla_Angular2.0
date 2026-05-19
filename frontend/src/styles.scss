@@ -224,7 +224,6 @@ html.dark-mode {
       background: #252f45;
       color: var(--ui-text);
       border-color: var(--ui-border);
-      margin: 10px;
       &:hover {
         background: #2a3450;
       }
@@ -539,11 +538,14 @@ html.dark-mode {
   }
 
   .news-card,
-  .news-date,
+  .news-date {
+    background: var(--policia-oscuro);
+    color: var(--ui-text);
+  }
+
   .news-title,
   .news-lead,
   .news-link {
-    background: var(--policia-oscuro);
     color: var(--ui-text);
   }
 
@@ -665,7 +667,42 @@ html.dark-mode {
     color: #0a0f1b;
   }
 
-  
+  /* Clases globales sin override de color en modo oscuro */
+  .cmd-title {
+    color: var(--ui-text);
+  }
+
+  .ui-acc[open] .ui-acc__summary {
+    color: var(--ui-text);
+  }
+
+  /* Form Controls */
+  .ui-control {
+    background: #1e2840;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+
+    &::placeholder { color: var(--ui-muted); }
+    &:hover { border-color: rgba(200, 200, 200, 0.2); }
+    &:focus { border-color: rgba(8, 166, 203, .75); }
+  }
+
+  select.ui-control {
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgba(200, 200, 200, 0.55) 50%),
+      linear-gradient(135deg, rgba(200, 200, 200, 0.55) 50%, transparent 50%);
+  }
+
+  .ui-input-group {
+    background: #1e2840;
+    border-color: var(--ui-border);
+  }
+
+  .table-pagination {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+    }
 
 
 
@@ -685,13 +722,17 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
   font-family: 'Montserrat', sans-serif;
 }
 
+/* Escalar TODOS los rem automáticamente: 1rem = 16px × escala de accesibilidad */
+html {
+  font-size: calc(16px * var(--font-size-scale));
+}
+
 body {
   background: #f4f7fa;
   overflow-x: hidden;
   color: var(--policia-neutral-oscuro);
   min-height: 100vh;
-  /* Tamaño base responsive - se escala con --font-size-scale (niveles 0-6) */
-  font-size: calc(16px * var(--font-size-scale));
+  font-size: 1rem;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -1101,7 +1142,7 @@ textarea.ui-control {
 
 .ui-badge.success { background: rgba(34, 197, 94, .14); color: #166534; }
 .ui-badge.warning { background: rgba(245, 158, 11, .16); color: #92400e; }
-.ui-badge.info { background: rgba(8, 166, 203, .16); color: var(--policia-medio); }
+.ui-badge.info { background: rgba(255, 255, 255, 0.16); color: #ffffff; }
 
 /* Mini buttons */
 .ui-mini-btn.danger {
@@ -1762,3 +1803,5 @@ body.ui-modal-open .content {
   font-size: calc(16px * var(--font-size-scale));
   font-weight: 900;
 }
+
+

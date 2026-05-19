@@ -1,4 +1,4 @@
-.section-header {
+﻿.section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -41,15 +41,15 @@
 .form-group label {
     font-weight: 600;
     color: var(--policia-oscuro);
-    font-size: 14px;
+    font-size: calc(14px * var(--font-size-scale));
 }
 
 .form-group .required {
-    color: #dc2626;
+    color: var(--color-danger-text);
 }
 
 .meta {
-    font-size: 12px;
+    font-size: calc(12px * var(--font-size-scale));
     color: var(--policia-neutral-medio);
 }
 
@@ -59,8 +59,8 @@
     padding: 10px 12px;
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius-sm);
-    font-size: 14px;
-    background: white;
+    font-size: calc(14px * var(--font-size-scale));
+    background: var(--ui-surface);
     transition: border-color var(--transition-speed);
 }
 
@@ -106,12 +106,12 @@
 }
 
 .file-upload-hint i {
-    font-size: 32px;
+    font-size: calc(32px * var(--font-size-scale));
     color: var(--policia-medio);
 }
 
 .file-upload-hint span {
-    font-size: 14px;
+    font-size: calc(14px * var(--font-size-scale));
 }
 
 .file-upload-info {
@@ -135,7 +135,7 @@
 }
 
 .file-upload-loading i {
-    font-size: 24px;
+    font-size: calc(24px * var(--font-size-scale));
     animation: spin 1s linear infinite;
 }
 
@@ -151,7 +151,7 @@
     border: 1px solid var(--ui-border);
     border-radius: 10px;
     overflow: hidden;
-    background: #fff;
+    background: var(--ui-surface);
     aspect-ratio: 1 / 1;
 }
 
@@ -168,9 +168,9 @@
     bottom: 6px;
     padding: 2px 6px;
     border-radius: 999px;
-    background: rgba(21, 27, 59, 0.85);
+    background: rgba(var(--policia-oscuro-rgb), 0.85);
     color: #fff;
-    font-size: 11px;
+    font-size: calc(11px * var(--font-size-scale));
     font-weight: 700;
 }
 
@@ -204,7 +204,7 @@
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius-sm);
     overflow: hidden;
-    background: #fff;
+    background: var(--ui-surface);
 }
 
 :host ::ng-deep .news-editor .NgxEditor__MenuBar {
@@ -216,7 +216,7 @@
     min-height: 180px;
     border: 0;
     padding: 12px;
-    font-size: 14px;
+    font-size: calc(14px * var(--font-size-scale));
 }
 
 .form-actions {
@@ -240,14 +240,14 @@
 
 .loading-state i,
 .empty-state i {
-    font-size: 48px;
+    font-size: calc(48px * var(--font-size-scale));
     margin-bottom: 16px;
     opacity: 0.5;
 }
 
 .empty-state p {
     margin: 0 0 20px;
-    font-size: 16px;
+    font-size: calc(16px * var(--font-size-scale));
 }
 
 .table-container {
@@ -270,7 +270,7 @@
     background: var(--policia-neutral-claro);
     font-weight: 600;
     color: var(--policia-oscuro);
-    font-size: 13px;
+    font-size: calc(13px * var(--font-size-scale));
     text-transform: uppercase;
 }
 
@@ -308,58 +308,58 @@
 
 .icon-btn.danger:hover {
     background: rgba(220, 38, 38, 0.1);
-    color: #dc2626;
+    color: var(--color-danger-text);
 }
 
 .tag {
     display: inline-block;
     padding: 4px 10px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: calc(12px * var(--font-size-scale));
     font-weight: 600;
 }
 
 .tag-comunicado {
     background: rgba(59, 130, 246, 0.15);
-    color: #1d4ed8;
+    color: var(--color-info-text);
 }
 
 .tag-servicio {
     background: rgba(34, 197, 94, 0.15);
-    color: #15803d;
+    color: var(--color-success-text);
 }
 
 .tag-importante {
     background: rgba(220, 38, 38, 0.15);
-    color: #dc2626;
+    color: var(--color-danger-text);
 }
 
 .tag-evento {
     background: rgba(168, 85, 247, 0.15);
-    color: #7c3aed;
+    color: var(--color-info-text);
 }
 
 .tag-galeria {
     background: rgba(245, 158, 11, 0.15);
-    color: #d97706;
+    color: var(--color-warning-text);
 }
 
 .badge {
     display: inline-block;
     padding: 4px 10px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: calc(12px * var(--font-size-scale));
     font-weight: 600;
 }
 
 .badge.active {
     background: rgba(34, 197, 94, 0.15);
-    color: #15803d;
+    color: var(--color-success-text);
 }
 
 .badge.inactive {
     background: rgba(107, 114, 128, 0.15);
-    color: #4b5563;
+    color: var(--ui-muted);
 }
 
 @media (max-width: 768px) {
@@ -383,11 +383,34 @@
     }
 
     .ui-table {
-        font-size: 12px;
+        font-size: calc(12px * var(--font-size-scale));
     }
 
     .ui-table th,
     .ui-table td {
         padding: 8px;
     }
+}
+
+/* --- MODO OSCURO --- */
+:host-context(html.dark-mode) {
+  .section-header h2 {
+    color: var(--ui-text);
+  }
+
+  .form-group label {
+    color: var(--ui-text);
+  }
+
+  .file-upload-info {
+    color: var(--ui-text);
+  }
+
+  .ui-table th {
+    color: var(--ui-text);
+  }
+
+  .cell-title {
+    color: var(--ui-text);
+  }
 }
