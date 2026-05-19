@@ -1,4 +1,4 @@
-.cuentas-email-page {
+﻿.cuentas-email-page {
   display: block;
 }
 
@@ -10,7 +10,7 @@
 }
 
 .tab-card {
-  background: white;
+  background: var(--ui-surface);
   border-radius: var(--ui-radius);
   border: 1px solid var(--ui-border);
   padding: 2rem;
@@ -38,7 +38,7 @@
 .list-loading {
   padding: 2rem;
   text-align: center;
-  color: #64748b;
+  color: var(--ui-muted);
   font-style: italic;
 }
 
@@ -58,8 +58,8 @@
   height: 34px;
   border-radius: 50%;
   border: 1px solid #d7e0ea;
-  background: #fff;
-  color: #1f3b57;
+  background: var(--ui-surface);
+  color: var(--ui-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,19 +67,19 @@
 }
 
 .ui-btn-icon:hover {
-  border-color: #0d6efd;
-  color: #0d6efd;
+  border-color: var(--color-info-text);
+  color: var(--color-info-text);
   transform: translateY(-1px);
   box-shadow: 0 6px 14px rgba(13, 110, 253, 0.16);
 }
 
 .ui-btn-icon.danger {
-  color: #b02a37;
+  color: var(--color-danger-text);
 }
 
 .ui-btn-icon.danger:hover {
-  border-color: #dc3545;
-  color: #dc3545;
+  border-color: var(--color-danger-text);
+  color: var(--color-danger-text);
   box-shadow: 0 6px 14px rgba(220, 53, 69, 0.16);
 }
 
@@ -148,9 +148,9 @@
   align-items: center;
   gap: 8px;
   padding: 9px 18px;
-  border: 1px dashed rgba(21, 27, 59, .35);
+  border: 1px dashed rgba(var(--policia-oscuro-rgb), .35);
   border-radius: var(--ui-radius);
-  background: rgba(21, 27, 59, .03);
+  background: rgba(var(--policia-oscuro-rgb), .03);
   color: var(--policia-oscuro);
   font-size: 0.875rem;
   font-weight: 600;
@@ -160,7 +160,7 @@
 
   &:hover {
     border-color: var(--policia-claro);
-    background: rgba(21, 27, 59, .06);
+    background: rgba(var(--policia-oscuro-rgb), .06);
   }
 
   &.loading {
@@ -172,7 +172,7 @@
 
 .encabezado-hint {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ui-muted);
 }
 
 .encabezado-preview {
@@ -186,7 +186,7 @@
     object-fit: contain;
     border: 1px solid var(--ui-border);
     border-radius: 6px;
-    background: #f8fafc;
+    background: var(--ui-surface);
     padding: 4px;
   }
 }
@@ -196,3 +196,4 @@
     grid-template-columns: 1fr;
   }
 }
+

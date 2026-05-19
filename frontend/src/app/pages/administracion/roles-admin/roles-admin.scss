@@ -25,7 +25,7 @@
   border: 1px solid var(--ui-border, #dbe2ef);
   border-radius: 12px;
   padding: 0.85rem;
-  background: #fff;
+  background: var(--ui-surface);
 }
 
 .role-item__content {

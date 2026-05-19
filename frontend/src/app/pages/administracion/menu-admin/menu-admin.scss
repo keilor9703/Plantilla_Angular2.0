@@ -17,14 +17,14 @@
 }
 
 .menu-item {
-  border: 1px solid rgba(21, 27, 59, .12);
+  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
   border-radius: 12px;
   padding: 10px;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
-  background: rgba(21, 27, 59, .02);
+  background: rgba(var(--policia-oscuro-rgb), .02);
 }
 
 .menu-item--parent {
@@ -38,8 +38,8 @@
 }
 
 .menu-item--child {
-  border-left: 3px solid rgba(21, 27, 59, .25);
-  background: rgba(21, 27, 59, .01);
+  border-left: 3px solid rgba(var(--policia-oscuro-rgb), .25);
+  background: rgba(var(--policia-oscuro-rgb), .01);
 }
 
 .menu-item__content {
@@ -54,7 +54,7 @@
 
 .meta {
   font-size: calc(11px * var(--font-size-scale));
-  color: rgba(83, 86, 90, .9);
+  color: rgba(var(--policia-neutral-oscuro-rgb), .9);
 }
 
 .menu-item__actions {
@@ -64,7 +64,7 @@
 
 .menu-roles-panel {
   margin-top: 14px;
-  border-top: 1px solid rgba(21, 27, 59, .12);
+  border-top: 1px solid rgba(var(--policia-oscuro-rgb), .12);
   padding-top: 12px;
   display: grid;
   gap: 10px;
@@ -85,10 +85,10 @@
 }
 
 .menu-role-item {
-  border: 1px solid rgba(21, 27, 59, .12);
+  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
   border-radius: 10px;
   padding: 8px 10px;
-  background: rgba(21, 27, 59, .02);
+  background: rgba(var(--policia-oscuro-rgb), .02);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -110,5 +110,12 @@
 
   .role-action {
     align-items: stretch;
+  }
+}
+
+/* --- MODO OSCURO --- */
+:host-context(html.dark-mode) {
+  .menu-item__content strong {
+    color: var(--ui-text);
   }
 }

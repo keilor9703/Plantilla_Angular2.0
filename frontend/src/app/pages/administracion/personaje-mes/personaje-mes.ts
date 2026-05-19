@@ -213,6 +213,7 @@ export class PersonajeMesAdminComponent implements OnInit {
               this.saving = false;
               this.toast.success('Equipo', grupoResp.message ?? 'Equipo actualizado correctamente');
               this.cerrarModalEquipoAltoRendimiento();
+              this.cargarPersonajes();
               this.cargarEquipos();
             },
             error: (err) => {

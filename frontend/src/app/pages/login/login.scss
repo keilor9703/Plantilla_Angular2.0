@@ -1,4 +1,4 @@
-/* Configuración Base */
+﻿/* Configuración Base */
 * {
     margin: 0;
     padding: 0;
@@ -93,7 +93,7 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     left: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #666;
+    color: var(--ui-muted);
 }
 
 .input-group input {
@@ -115,7 +115,7 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     border: none;
     border-radius: 50%;
     background: transparent;
-    color: #4b5563;
+    color: var(--ui-muted);
     cursor: pointer;
     display: inline-flex;
     align-items: center;

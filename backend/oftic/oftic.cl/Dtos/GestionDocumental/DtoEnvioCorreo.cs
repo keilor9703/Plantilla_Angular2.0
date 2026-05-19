@@ -11,6 +11,10 @@ namespace Comun.Dtos.GestionDocumental
         public string Asunto { get; set; } = string.Empty;
         public string Cuerpo { get; set; } = string.Empty;
         public List<IFormFile>? Adjuntos { get; set; }
+        // Opciones de envío por mensaje (se combinan con las de la cuenta)
+        public bool PrioridadAlta { get; set; } = false;
+        public bool AcuseRecibido { get; set; } = false;
+        public bool CopiaPrivada { get; set; } = false;
     }
 
     public class DtoEnvioCorreoResult
