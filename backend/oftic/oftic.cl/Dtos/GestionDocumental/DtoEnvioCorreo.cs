@@ -8,13 +8,13 @@ namespace Comun.Dtos.GestionDocumental
         public int? IdClasificacion { get; set; }
         public string? NombreClasificacion { get; set; }
         public string Para { get; set; } = string.Empty;
+        public string? Cc { get; set; }
         public string Asunto { get; set; } = string.Empty;
         public string Cuerpo { get; set; } = string.Empty;
         public List<IFormFile>? Adjuntos { get; set; }
-        // Opciones de envío por mensaje (se combinan con las de la cuenta)
+        // Opciones de envío por mensaje
         public bool PrioridadAlta { get; set; } = false;
         public bool AcuseRecibido { get; set; } = false;
-        public bool CopiaPrivada { get; set; } = false;
     }
 
     public class DtoEnvioCorreoResult
