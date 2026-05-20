@@ -36,6 +36,7 @@
           },
           "configurations": {
             "production": {
+              "baseHref": "/sicoe/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -68,6 +69,7 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
+              "baseHref": "/sicoe/",
               "buildTarget": "policiadev-app:build:production"
             },
             "development": {
