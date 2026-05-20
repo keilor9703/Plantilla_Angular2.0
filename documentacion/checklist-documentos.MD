@@ -1,6 +1,6 @@
 Checklis de documentación SICOE
 
-Procedimiento 1DT-PR-0017 VERSIÓN 9 DEL 03/02/2022 
+Procedimiento 1DT-PR-0017 VERSIÓN 9 DEL 03/02/2022 ==> Cargado
 
 Tarea 1: Formato 1DT-FR-0033 Identificación de requerimientos funcionales del software.   ===>
 
