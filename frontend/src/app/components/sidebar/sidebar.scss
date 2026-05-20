@@ -1,5 +1,9 @@
 
 /* --- CONTENEDOR OFF-CANVAS (Amazon-like) --- */
+:host {
+  pointer-events: none;
+}
+
 .sidebar {
   position: fixed;
   top: 0;
@@ -21,6 +25,7 @@
 
 .sidebar.open {
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 /* Scroll solo si se necesita (si no hay overflow, no aparece scrollbar) */
@@ -75,7 +80,9 @@
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  width: 100%;
+  width: fit-content;
+  padding: 3px 14px;
+  border-radius: 8px;
 }
 
 .logo-icon {
@@ -84,12 +91,11 @@
   justify-content: center;
   width: 42px;
   flex: 0 0 auto;
-  margin-left: 20px;
 }
 
 .header-logo-img {
-  width: 32px;
-  height: 32px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
   filter: drop-shadow(0 0 5px rgba(205, 255, 0, 0.3));
 }

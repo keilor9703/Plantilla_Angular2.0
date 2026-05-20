@@ -205,12 +205,10 @@
   .ui-table td {
     vertical-align: middle;
   }
-}
 
-@media (max-width: 1024px) {
-  .radio-admin-page {
-    .ui-table-wrap {
-      overflow-x: auto;
-    }
+  /* Overflow siempre activo para scroll horizontal en tablas */
+  .ui-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
