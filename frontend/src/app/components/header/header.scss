@@ -489,7 +489,13 @@
 /* --- RESPONSIVE --- */
 @media (max-width: 1024px) {
   .brand-title { font-size: 1rem; }
-  .header-search { flex: 0 1 350px; }
+  .header-search { flex: 0 1 300px; }
+}
+
+@media (max-width: 900px) {
+  .header-search { flex: 0 1 200px; padding: 0 12px; }
+  .brand-title { font-size: 0.95rem; }
+  .modern-header { padding: 0 20px; }
 }
 
 @media (max-width: 768px) {

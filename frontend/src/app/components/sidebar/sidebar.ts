@@ -162,7 +162,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const name = (cfg?.systemName ?? '').trim();
+        const name = (cfg?.sigla ?? '').trim();
         this.systemName = name || 'OFTIC';
         this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/imagenes/oftic-logo-app.png';
       },

@@ -47,7 +47,7 @@
           <button
             type="button"
             *ngFor="let _ of banners; let i = index"
-            [class.active]="i === currentBannerIndex"
+            [class.slideractive]="i === currentBannerIndex"
             (click)="goToBanner(i)"
             [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
         </div>
@@ -72,10 +72,10 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
+        <div class="stat-icon green"><i class="fa-solid fa-share-nodes"></i></div>
         <div class="stat-info">
-          <h3>{{ stats.reportesGenerados | number }}</h3>
-          <p>Reportes del Mes</p>
+          <h3>{{ redesSocialesActivas | number }}</h3>
+          <p>Redes Sociales Activas</p>
         </div>
       </div>
       <div class="stat-card">
@@ -272,7 +272,7 @@
                   <div class="slider-controls slider-controls--personaje" *ngIf="grupo.items.length > 1" style="margin-top: 8px;">
                     <button
                       *ngFor="let item of grupo.items; let i = index"
-                      [class.active]="sliderIndices[grupo.categoria] === i"
+                      [class.slideractive]="sliderIndices[grupo.categoria] === i"
                       (click)="sliderIndices[grupo.categoria] = i"
                       [attr.aria-label]="'Cambiar a ' + grupo.categoria + ' ' + (i + 1)">
                     </button>
@@ -319,7 +319,7 @@
                   </button>
                   <button
                     *ngFor="let grupo of equiposAltoRendimiento; let i = index"
-                    [class.active]="grupoSliderIndex === i"
+                    [class.slideractive]="grupoSliderIndex === i"
                     (click)="goToGrupo(i)"
                     [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
                   </button>
