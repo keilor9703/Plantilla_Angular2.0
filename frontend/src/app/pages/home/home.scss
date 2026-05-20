@@ -561,6 +561,25 @@ h3.title-cards {
     }
 }
 
+.card-body--scroll {
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--policia-acento) transparent;
+
+    &::-webkit-scrollbar {
+        width: 5px;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: var(--policia-acento);
+        border-radius: 999px;
+    }
+}
+
 .spotlight-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

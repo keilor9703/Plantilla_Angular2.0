@@ -53,6 +53,11 @@
           </div>
 
           <div class="form-row">
+            <span class="form-label">Con Copia Oculta:</span>
+            <input type="text" class="email-input" placeholder="Opcional · separar múltiples con ; o ," [(ngModel)]="emailForm.cc">
+          </div>
+
+          <div class="form-row">
             <span class="form-label">Clasificación de la Informacion:</span>
             <select class="email-input" [(ngModel)]="emailForm.idClasificacion">
               <option [ngValue]="null">-- Seleccione Clasificación --</option>
@@ -79,11 +84,6 @@
                 <input type="checkbox" [(ngModel)]="emailForm.acuseRecibido">
                 <i class="fa-solid fa-envelope-circle-check"></i>
                 Acuse de Recibido
-              </label>
-              <label class="opcion-envio-check">
-                <input type="checkbox" [(ngModel)]="emailForm.copiaPrivada">
-                <i class="fa-solid fa-eye-slash"></i>
-                Copia Privada (BCC)
               </label>
             </div>
           </div>

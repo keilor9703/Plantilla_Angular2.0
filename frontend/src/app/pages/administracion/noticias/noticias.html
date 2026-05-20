@@ -170,15 +170,18 @@
   </div>
 
   <!-- Lista de noticias -->
-  <div class="card-view" *ngIf="!isEditing">
-    <div class="card-head card-head--dark">
-      <div class="card-title">
+  <div class="ui-panel" *ngIf="!isEditing">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
         <i class="fa-solid fa-list"></i>
-        <span>Noticias ({{ noticias.length }})</span>
+        Noticias configuradas
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge info">Registros: {{ noticias.length }}</span>
       </div>
     </div>
-    <div class="card-body">
-      <div class="loading-state" *ngIf="loading">
+    <div class="ui-panel__body">
+      <div class="empty-state" *ngIf="loading">
         <i class="fa-solid fa-circle-notch fa-spin"></i>
         <p>Cargando noticias...</p>
       </div>
@@ -191,7 +194,7 @@
         </button>
       </div>
 
-      <div class="table-container" *ngIf="!loading && noticias.length > 0">
+      <div class="ui-table-wrap" *ngIf="!loading && noticias.length > 0">
         <table class="ui-table">
           <thead>
             <tr>
@@ -217,16 +220,16 @@
               </td>
               <td>{{ item.ciudad }}</td>
               <td>
-                <span class="badge" [class.active]="item.vigente === 1" [class.inactive]="item.vigente === 0">
+                <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
                   {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
               <td>{{ item.fechaCreacion | date:'dd/MM/yyyy' }}</td>
-              <td class="cell-actions">
-                <button class="icon-btn" type="button" (click)="editarNoticia(item)" title="Editar">
+              <td>
+                <button class="ui-mini-btn" type="button" (click)="editarNoticia(item)" title="Editar">
                   <i class="fa-solid fa-pen"></i>
                 </button>
-                <button class="icon-btn danger" type="button" (click)="eliminarNoticia(item)" title="Eliminar" [disabled]="deleting">
+                <button class="ui-mini-btn danger" type="button" (click)="eliminarNoticia(item)" title="Eliminar" [disabled]="deleting">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </td>

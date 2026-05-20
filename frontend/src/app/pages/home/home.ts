@@ -44,8 +44,9 @@ interface CalendarDay {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
-    // Slider de grupos de alto rendimiento
-    grupoSliderIndex: number = 0;
+  // Slider de grupos de alto rendimiento
+  grupoSliderIndex: number = 0;
+  grupoSliderTimer: any = null;
   readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
 
   // --- Pausa de sliders por hover ---
@@ -73,6 +74,10 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   pauseGrupoSlider(): void {
     this.grupoSliderPaused = true;
+    if (this.grupoSliderTimer) {
+      clearInterval(this.grupoSliderTimer);
+      this.grupoSliderTimer = null;
+    }
     if (this.grupoScrollTimer) {
       clearInterval(this.grupoScrollTimer);
       this.grupoScrollTimer = null;
@@ -82,8 +87,21 @@ export class HomeComponent implements OnInit, OnDestroy {
   resumeGrupoSlider(): void {
     if (this.grupoSliderPaused) {
       this.grupoSliderPaused = false;
+      this.startGrupoSlider();
       this.startGrupoScroll();
     }
+  }
+
+  startGrupoSlider(): void {
+    if (this.grupoSliderTimer) {
+      clearInterval(this.grupoSliderTimer);
+    }
+    if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length <= 1) return;
+    this.grupoSliderTimer = setInterval(() => {
+      if (!this.grupoSliderPaused) {
+        this.grupoSliderIndex = (this.grupoSliderIndex + 1) % this.equiposAltoRendimiento.length;
+      }
+    }, 3000);
   }
 
   // Devuelve el estilo de transformación para el scroll visual tipo créditos
@@ -235,6 +253,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
 
   ngAfterViewInit(): void {
+    this.startGrupoSlider();
     this.startGrupoScroll();
   }
 
@@ -521,7 +540,11 @@ export class HomeComponent implements OnInit, OnDestroy {
 
    ngOnDestroy(): void {
      this.stopBannerRotation();
-     document.body.classList.remove('ui-modal-open');
+     if (this.grupoSliderTimer) {
+      clearInterval(this.grupoSliderTimer);
+      this.grupoSliderTimer = null;
+    }
+    document.body.classList.remove('ui-modal-open');
    }
 
    private loadPersonajesMes(): void {
@@ -568,6 +591,7 @@ export class HomeComponent implements OnInit, OnDestroy {
          Promise.all(requests).then((result) => {
            this.equiposAltoRendimiento = result;
            this.grupoSliderIndex = 0;
+           this.startGrupoSlider();
          });
        },
        error: () => {
@@ -1159,6 +1183,28 @@ export class HomeComponent implements OnInit, OnDestroy {
     const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     if (!mes || isNaN(mes)) return '';
     return meses[(mes - 1) % 12] || '';
+  }
+
+  prevGrupo(): void {
+    if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length <= 1) return;
+    this.grupoSliderIndex = (this.grupoSliderIndex - 1 + this.equiposAltoRendimiento.length) % this.equiposAltoRendimiento.length;
+    this.restartGrupoSlider();
+  }
+
+  nextGrupo(): void {
+    if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length <= 1) return;
+    this.grupoSliderIndex = (this.grupoSliderIndex + 1) % this.equiposAltoRendimiento.length;
+    this.restartGrupoSlider();
+  }
+
+  goToGrupo(idx: number): void {
+    if (!this.equiposAltoRendimiento || idx < 0 || idx >= this.equiposAltoRendimiento.length) return;
+    this.grupoSliderIndex = idx;
+    this.restartGrupoSlider();
+  }
+
+  restartGrupoSlider(): void {
+    this.startGrupoSlider();
   }
 }
 

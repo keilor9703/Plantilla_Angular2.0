@@ -245,7 +245,7 @@
             </span>
           </div>
         </div>
-        <div class="card-body">
+        <div class="card-body card-body--scroll">
           <div class="spotlight-grid mb-4">
             <ng-container *ngFor="let grupo of personajesMesPorCategoria">
               <ng-container *ngIf="getPersonajeMesActual(grupo.categoria) as personaje">
@@ -311,10 +311,24 @@
                 </div>
                 <div class="slider-controls slider-controls--personaje" *ngIf="equiposAltoRendimiento.length > 1" style="margin-top: 6px;">
                   <button
+                    type="button"
+                    class="slider-nav-btn slider-nav-btn--prev"
+                    (click)="prevGrupo(); $event.stopPropagation()"
+                    aria-label="Grupo anterior">
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button
                     *ngFor="let grupo of equiposAltoRendimiento; let i = index"
                     [class.active]="grupoSliderIndex === i"
-                    (click)="grupoSliderIndex = i"
+                    (click)="goToGrupo(i)"
                     [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
+                  </button>
+                  <button
+                    type="button"
+                    class="slider-nav-btn slider-nav-btn--next"
+                    (click)="nextGrupo(); $event.stopPropagation()"
+                    aria-label="Grupo siguiente">
+                    <i class="fa-solid fa-chevron-right"></i>
                   </button>
                 </div>
               </article>

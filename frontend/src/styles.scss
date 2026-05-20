@@ -678,13 +678,13 @@ html.dark-mode {
 
   /* Form Controls */
   .ui-control {
-    background: #1e2840;
-    color: var(--ui-text);
-    border-color: var(--ui-border);
+    background: #1e2840 !important;
+    color: var(--ui-text) !important;
+    border-color: var(--ui-border) !important;
 
     &::placeholder { color: var(--ui-muted); }
-    &:hover { border-color: rgba(200, 200, 200, 0.2); }
-    &:focus { border-color: rgba(8, 166, 203, .75); }
+    &:hover { border-color: rgba(200, 200, 200, 0.2) !important; }
+    &:focus { border-color: rgba(8, 166, 203, .75) !important; }
   }
 
   select.ui-control {
