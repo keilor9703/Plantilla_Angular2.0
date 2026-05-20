@@ -222,3 +222,16 @@
     display: none;
   }
 }
+
+@media (max-width: 480px) {
+  :host {
+    --dock-btn-size: 26px;
+    --dock-icon-size: 12px;
+    --dock-gap: 5px;
+    top: 40%;
+  }
+
+  .social-dock {
+    padding: 5px;
+  }
+}

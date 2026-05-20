@@ -9,7 +9,7 @@ import { DtoLineaMando, LineaMandoService } from '../../core/services/administra
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 import { environment } from '../../../environments/environment';
-import { DtoDominio } from '../../core/services/gestion-digital/redes-sociales.service';
+import { DtoDominio, RedesSocialesService } from '../../core/services/gestion-digital/redes-sociales.service';
 import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
 import { DominioService } from '../../core/services/administracion/dominio.service';
 import { DtoEvento, EventoService } from '../../core/services/administracion/evento.service';
@@ -136,6 +136,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     reportesGenerados: 0,
     alertasSistema: 0
   };
+  redesSocialesActivas = 0;
   currentBannerIndex = 0;
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
   // --- Banner drag (mouse) ---
@@ -224,7 +225,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private noticiaService: NoticiaService,
     private personajeMesService: PersonajeMesService,
     private dominioService: DominioService,
-    private eventoService: EventoService
+    private eventoService: EventoService,
+    private redesSocialesService: RedesSocialesService
   ) {}
 
   openGrupoLightbox(grupo: any): void {
@@ -293,6 +295,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadEquiposAltoRendimiento();
     this.loadCategoriasPersonajeMes();
     this.loadEventosActivos();
+    this.loadRedesSocialesActivas();
+  }
+
+  private loadRedesSocialesActivas(): void {
+    this.redesSocialesService.getAll().subscribe({
+      next: (items) => {
+        this.redesSocialesActivas = (items ?? []).filter(r => String(r.vigente) === '1').length;
+      },
+      error: () => {
+        this.redesSocialesActivas = 0;
+      }
+    });
   }
 
   private loadEventosActivos(): void {
