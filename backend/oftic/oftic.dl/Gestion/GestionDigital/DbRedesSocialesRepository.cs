@@ -100,26 +100,34 @@ public class DbRedesSocialesRepository : IDbRedesSocialesRepository
 
     public async Task<DtoRedesSocialesResult> DeleteAsync(int id, string usuario)
     {
-        using (var connection = new OracleConnection(_cs))
+        try
         {
-            await connection.OpenAsync();
-            using (var command = new OracleCommand("PK_MEDIOS_DIGITALES.P_DELETE_RED_SOCIAL", connection))
+            using (var connection = new OracleConnection(_cs))
             {
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.Add("P_IdRedSocial", OracleDbType.Int32).Value = id;
-                command.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = usuario;
-                command.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = Environment.MachineName;
-                command.Parameters.Add("SRV_Message", OracleDbType.Varchar2, 4000).Direction = ParameterDirection.Output;
-                command.Parameters.Add("P_Resultado", OracleDbType.Int32).Direction = ParameterDirection.Output;
+                await connection.OpenAsync();
+                using (var command = new OracleCommand("PK_MEDIOS_DIGITALES.P_DELETE_RED_SOCIAL", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.BindByName = true;
+                    command.Parameters.Add("P_IdRedSocial", OracleDbType.Int32).Value = id;
+                    command.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = usuario;
+                    command.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = Environment.MachineName;
+                    command.Parameters.Add("SRV_Message", OracleDbType.Varchar2, 4000).Direction = ParameterDirection.Output;
+                    command.Parameters.Add("P_Resultado", OracleDbType.Decimal).Direction = ParameterDirection.Output;
 
-                await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync();
 
-                int resultado = Convert.ToInt32(command.Parameters["P_Resultado"].Value);
-                string mensaje = command.Parameters["SRV_Message"].Value?.ToString() ?? string.Empty;
-                bool success = resultado > 0;
+                    int resultado = ReadOutInt(command.Parameters["P_Resultado"].Value);
+                    string mensaje = command.Parameters["SRV_Message"].Value?.ToString() ?? string.Empty;
 
-                return new DtoRedesSocialesResult { Id = id, Success = success, Message = mensaje };
+                    return new DtoRedesSocialesResult { Id = id, Success = resultado > 0, Message = mensaje };
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al eliminar red social {Id}", id);
+            return new DtoRedesSocialesResult { Id = id, Success = false, Message = $"Error al eliminar la red social: {ex.Message}" };
         }
     }
 

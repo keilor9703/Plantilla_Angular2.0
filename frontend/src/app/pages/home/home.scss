@@ -248,7 +248,7 @@
     transition: var(--transition-speed);
     padding: 0;
 }
-.slider-controls button.active {
+.slider-controls button.slideractive {
     background: var(--policia-acento);
     width: 30px;
     border-radius: 6px;
@@ -307,7 +307,7 @@
     padding: 0;
     box-shadow: 0 1px 2px rgba(8,166,203,0.08);
 }
-.slider-controls--personaje button.active {
+.slider-controls--personaje button.slideractive {
     background: var(--policia-acento);
     width: 22px;
     border-radius: 6px;
@@ -558,6 +558,25 @@ h3.title-cards {
 @media (max-width: 980px) {
     .home-spotlight {
         grid-template-columns: 1fr;
+    }
+}
+
+.card-body--scroll {
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--policia-acento) transparent;
+
+    &::-webkit-scrollbar {
+        width: 5px;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: var(--policia-acento);
+        border-radius: 999px;
     }
 }
 
@@ -1413,7 +1432,7 @@ h3.title-cards {
     }
 
     .slide-item {
-        padding: 0 30px;
+        padding: 0 24px 40px;
     }
 
     .slide-content h2 {
@@ -1442,11 +1461,16 @@ h3.title-cards {
 
 @media (max-width: 480px) {
     .main-slider {
-        height: 300px;
+        height: 260px;
+    }
+
+    .slide-item {
+        padding: 0 16px 32px;
     }
 
     .slide-content h2 {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
+        margin: 6px 0;
     }
 
     .slide-content .badge {
@@ -1458,6 +1482,18 @@ h3.title-cards {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        font-size: 0.8rem;
+    }
+
+    /* Stack news cards vertically on small phones */
+    .news-card {
+        flex-direction: column;
+    }
+
+    .news-card__img {
+        width: 100%;
+        min-width: 0;
+        height: 140px;
     }
 }
 
@@ -1486,5 +1522,9 @@ h3.title-cards {
     .event-modal__title,
     .events-detail__title {
         color: var(--ui-text);
+    }
+
+    .slider-controls button.slideractive {
+        background: var(--policia-acento);
     }
 }

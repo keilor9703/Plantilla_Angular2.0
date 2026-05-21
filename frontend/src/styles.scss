@@ -97,7 +97,12 @@ html.dark-mode {
 
   .meta {
   color: var(--ui-text);
-  }  
+  } 
+  
+  .btn-ver-todas {
+    background: var(--policia-cielo);
+    color: #0a0f1b;
+  }
 
   
 
@@ -119,12 +124,13 @@ html.dark-mode {
     background: rgba(30, 40, 64, 0.8);
     border-color: var(--ui-border);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    
   }
 
   /* Componentes UI Panel */
   .ui-panel {
     background: var(--ui-surface);
-    border-color: var(--ui-border);
+    border-color: var(--policia-acento);
   }
 
   .ui-panel__head {
@@ -260,13 +266,13 @@ html.dark-mode {
   }
 
   /* Tablas */
-  .ui-table-wrap {
-    color: var(--ui-text);
+  .ui-table-wrap {     
+    border: 1px solid var(--policia-acento);
   }
 
   .ui-table {
     background: var(--ui-surface);
-    border-color: var(--ui-border);
+    border-color: var(--policia-acento);
 
     th {
       background: #252f45;
@@ -678,13 +684,13 @@ html.dark-mode {
 
   /* Form Controls */
   .ui-control {
-    background: #1e2840;
-    color: var(--ui-text);
-    border-color: var(--ui-border);
+    background: #1e2840 !important;
+    color: var(--ui-text) !important;
+    border-color: var(--ui-border) !important;
 
     &::placeholder { color: var(--ui-muted); }
-    &:hover { border-color: rgba(200, 200, 200, 0.2); }
-    &:focus { border-color: rgba(8, 166, 203, .75); }
+    &:hover { border-color: rgba(200, 200, 200, 0.2) !important; }
+    &:focus { border-color: rgba(8, 166, 203, .75) !important; }
   }
 
   select.ui-control {
@@ -703,8 +709,6 @@ html.dark-mode {
     border-color: var(--ui-border);
     color: var(--ui-text);
     }
-
-
 
   
 }
@@ -1100,7 +1104,9 @@ textarea.ui-control {
 .ui-table-wrap {
   border: 1px solid rgba(21, 27, 59, .14);
   border-radius: var(--ui-radius);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
 }
 
@@ -1804,4 +1810,51 @@ body.ui-modal-open .content {
   font-weight: 900;
 }
 
+/* ==========================================
+   RESPONSIVE GLOBAL — TABLET & MOBILE
+   ========================================== */
+
+/* Tablet (portrait) — 768px */
+@media (max-width: 768px) {
+  .video-grid,
+  .login-visual-grid,
+  .menu-grid,
+  .sliders-grid {
+    grid-template-columns: 1fr;
+  }
+
+  section.home-view {
+    padding: 20px;
+  }
+
+  .content-area {
+    padding: 0 16px;
+  }
+}
+
+/* Mobile — 480px */
+@media (max-width: 480px) {
+  .content-area {
+    padding: 0 8px;
+  }
+
+  section.home-view {
+    padding: 12px;
+  }
+
+  /* Ensure all admin pages have proper padding */
+  .video-admin-page,
+  .menu-admin-page,
+  .sliders-page,
+  .user-admin-page {
+    padding: 6px;
+  }
+
+  /* 12-col grid collapses on small phones */
+  .ui-col-3,
+  .ui-col-4,
+  .ui-col-6 {
+    grid-column: span 12;
+  }
+}
 

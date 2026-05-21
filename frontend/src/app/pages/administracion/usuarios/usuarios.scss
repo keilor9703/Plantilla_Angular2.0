@@ -206,10 +206,10 @@
   padding: 16px;
 }
 
-.ui-control {
-  background: rgba(var(--policia-oscuro), .05);
-  border-color: rgba(var(--policia-oscuro), .14);
-  color: rgba(var(--policia-oscuro), .85);
+.ui-control[readonly] {
+  background: rgba(var(--policia-oscuro-rgb), .05);
+  border-color: rgba(var(--policia-oscuro-rgb), .14);
+  color: rgba(var(--policia-oscuro-rgb), .85);
 }
 
 .tab-actions {

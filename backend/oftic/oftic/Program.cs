@@ -24,7 +24,14 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 150 * 1024 * 1024; // 150MB
 });
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // En .NET 8 con <Nullable>enable>, los string no-nullables reciben
+        // implícitamente [Required(AllowEmptyStrings=false)], lo que rechaza
+        // campos vacíos en form-data antes de llegar al controlador.
+        // Lo suprimimos porque cada servicio valida sus propias reglas de negocio.
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;

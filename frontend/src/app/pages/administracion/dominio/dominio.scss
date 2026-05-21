@@ -110,3 +110,18 @@
     justify-content: flex-start;
   }
 }
+
+:host-context(html.dark-mode) {
+  .dominio-item.is-parent {
+    background: #252f45;
+  }
+
+  .dominio-children-container {
+    border-left-color: var(--ui-border);
+  }
+
+  .form-card h3,
+  .list-card h3 {
+    color: var(--ui-text);
+  }
+}

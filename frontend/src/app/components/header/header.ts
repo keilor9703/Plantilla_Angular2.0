@@ -105,10 +105,10 @@ export class HeaderComponent implements OnInit {
 
   notifications: Notification[] = [
     { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 0, tooltip: 'Eventos' },
-    { id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
-    { id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },
-    { id: 3, icon: 'fa-tasks', color: 'success', count: 2, tooltip: 'Tareas' },
-    { id: 5, icon: 'fa-chart-line', color: 'accent', count: 0, tooltip: 'Reportes' }
+    //{ id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
+    //{ id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },
+    //{ id: 3, icon: 'fa-tasks', color: 'success', count: 2, tooltip: 'Tareas' },
+    //{ id: 5, icon: 'fa-chart-line', color: 'accent', count: 0, tooltip: 'Reportes' }
   ];
 
   searchQuery: string = '';
@@ -184,8 +184,9 @@ export class HeaderComponent implements OnInit {
     const value = (raw ?? '').trim();
     if (!value) return '';
     if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/')) return value;
-    return `/api/EventoUpload/Imagen/${encodeURIComponent(value)}`;
+    if (value.startsWith('/api/')) return value;
+    const file = value.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
+    return file ? `/api/EventoUpload/Imagen/${encodeURIComponent(file)}` : '';
   }
 
   getEventoFechaRango(evento: any): string {

@@ -69,6 +69,7 @@ namespace ofic.Controllers.Administracion
                 }
 
                 Directory.CreateDirectory(_uploadsPath);
+
                 var monthFolder = DateTime.Now.ToString("yyyy-MM");
                 var monthPath = Path.Combine(_uploadsPath, monthFolder);
                 Directory.CreateDirectory(monthPath);
@@ -81,7 +82,7 @@ namespace ofic.Controllers.Administracion
                     await file.CopyToAsync(stream);
                 }
 
-                var publicUrl = $"/uploads/eventos/{monthFolder}/{safeName}";
+                var publicUrl = $"/api/EventoUpload/Imagen/{safeName}";
                 return Ok(new
                 {
                     success = true,
@@ -121,6 +122,12 @@ namespace ofic.Controllers.Administracion
 
         private string? FindImagePath(string safeFileName)
         {
+            if (string.IsNullOrWhiteSpace(_uploadsPath) || !Directory.Exists(_uploadsPath))
+            {
+                _logger.LogWarning("Ruta de uploads no encontrada: {UploadsPath}", _uploadsPath);
+                return null;
+            }
+
             var rootCandidate = Path.Combine(_uploadsPath, safeFileName);
             if (System.IO.File.Exists(rootCandidate))
             {

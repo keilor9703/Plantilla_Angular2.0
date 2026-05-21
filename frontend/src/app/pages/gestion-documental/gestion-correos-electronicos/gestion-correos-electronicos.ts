@@ -13,7 +13,6 @@ interface CuentaEmail {
   vigente: number;
   prioridadAlta: number;
   acuseRecibido: number;
-  copiaPrivada: number;
 }
 
 interface CorreoEnviado {
@@ -49,12 +48,12 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   // Formulario de redacción
   emailForm = {
     para: '',
+    cc: '',
     asunto: '',
     cuerpo: '',
     idClasificacion: null as number | null,
     prioridadAlta: false,
-    acuseRecibido: false,
-    copiaPrivada: false
+    acuseRecibido: false
   };
   
   clasificaciones: any[] = [];
@@ -186,7 +185,6 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   private prefillOpcionesDesdeCtenta(cuenta: CuentaEmail): void {
     this.emailForm.prioridadAlta = cuenta.prioridadAlta === 1;
     this.emailForm.acuseRecibido = cuenta.acuseRecibido === 1;
-    this.emailForm.copiaPrivada = cuenta.copiaPrivada === 1;
   }
 
   cargarHistorial(): void {
@@ -225,21 +223,21 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   }
 
   enviarCorreo(): void {
-    if (!this.selectedCuentaId || !this.emailForm.para || !this.emailForm.asunto || !this.emailForm.idClasificacion) {
-      this.toast.warning('Campos requeridos', 'Por favor complete destinatario, asunto y clasificación.');
+    if (!this.selectedCuentaId || (!this.emailForm.para?.trim() && !this.emailForm.cc?.trim()) || !this.emailForm.asunto || !this.emailForm.idClasificacion) {
+      this.toast.warning('Campos requeridos', 'Por favor complete al menos un destinatario (Para o CCO), asunto y clasificación.');
       return;
     }
 
     this.isSending = true;
     const formData = new FormData();
     formData.append('idCuentaEmail', this.selectedCuentaId.toString());
-    formData.append('para', this.emailForm.para);
+    if (this.emailForm.para?.trim()) formData.append('para', this.emailForm.para.trim());
+    if (this.emailForm.cc?.trim()) formData.append('cc', this.emailForm.cc.trim());
     formData.append('asunto', this.emailForm.asunto);
     formData.append('cuerpo', this.emailForm.cuerpo);
 
     formData.append('prioridadAlta', this.emailForm.prioridadAlta ? 'true' : 'false');
     formData.append('acuseRecibido', this.emailForm.acuseRecibido ? 'true' : 'false');
-    formData.append('copiaPrivada', this.emailForm.copiaPrivada ? 'true' : 'false');
 
     if (this.emailForm.idClasificacion) {
       formData.append('idClasificacion', this.emailForm.idClasificacion.toString());
@@ -277,18 +275,22 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
         this.lastRadicado = res.radicado;
         this.showSuccessModal = true;
         this.toast.success('Envío Exitoso', `Radicado: ${res.radicado}`);
+        if (res.message && res.message.toLowerCase().includes('advertencia')) {
+          this.toast.warning('Advertencia', res.message);
+        }
         this.limpiarFormulario();
       },
       error: (err) => {
         this.isSending = false;
         console.error('Error enviando correo', err);
-        this.toast.error('Error de Envío', err.error?.message || 'No se pudo procesar el envío');
+        const msg = err.error?.message || err.error?.title || 'No se pudo procesar el envío';
+        this.toast.error('Error de Envío', msg);
       }
     });
   }
 
   limpiarFormulario(): void {
-    this.emailForm = { para: '', asunto: '', cuerpo: '', idClasificacion: null, prioridadAlta: false, acuseRecibido: false, copiaPrivada: false };
+    this.emailForm = { para: '', cc: '', asunto: '', cuerpo: '', idClasificacion: null, prioridadAlta: false, acuseRecibido: false };
     // Restaurar defaults de la cuenta seleccionada
     const cuenta = this.cuentas.find(c => c.idCuenta === this.selectedCuentaId);
     if (cuenta) this.prefillOpcionesDesdeCtenta(cuenta);

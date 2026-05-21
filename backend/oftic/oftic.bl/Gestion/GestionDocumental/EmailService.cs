@@ -69,6 +69,24 @@ namespace Negocio.Gestion.GestionDocumental
                     };
                 }
 
+                // Parsear y validar que al menos un destinatario (Para o CCO) esté presente
+                var paraAddresses = string.IsNullOrWhiteSpace(request.Para)
+                    ? Array.Empty<string>()
+                    : request.Para.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+                var bccAddresses = string.IsNullOrWhiteSpace(request.Cc)
+                    ? Array.Empty<string>()
+                    : request.Cc.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+
+                if (paraAddresses.Length == 0 && bccAddresses.Length == 0)
+                {
+                    return new DtoEnvioCorreoResult { Success = false, Message = "Debe indicar al menos un destinatario en 'Para' o 'CCO'." };
+                }
+
+                _logger.LogInformation("[CORREO] Para={Para} | CCO={Cco} | Asunto={Asunto}",
+                    request.Para,
+                    string.IsNullOrWhiteSpace(request.Cc) ? "(sin CCO)" : request.Cc,
+                    request.Asunto);
+
                 // 1. Obtener la configuración de la cuenta
                 var cuenta = _cuentaRepo.ConsultarCuentas(request.IdCuentaEmail).FirstOrDefault();
                 if (cuenta == null || cuenta.Vigente == 0)
@@ -152,7 +170,15 @@ namespace Negocio.Gestion.GestionDocumental
                             </tr>
                         </table>";
 
-                  
+                    // Guardar versión del cuerpo para las copias ocultas (antes de que el procesamiento
+                    // de imágenes reemplace los data-URLs por referencias CID).
+                    // Las copias CCO se envían como transacciones SMTP completamente independientes
+                    // para que el servidor SMTP nunca incluya el header Bcc: en el mensaje que
+                    // reciben los destinatarios en "Para".
+                    string cuerpoFinalParaBcc = encabezadoImg.Length > 0
+                        ? cuerpoFinal.Substring(encabezadoImg.Length)
+                        : cuerpoFinal;
+
                     // --- PROCESAMIENTO DE IMÁGENES EMBEBIDAS (BASE64 TO CID) ---
                     var regex = new Regex(@"<img[^>]+src=""data:(image\/[^;]+);base64,([^""]+)""[^>]*>", RegexOptions.IgnoreCase);
                     var matches = regex.Matches(cuerpoFinal);
@@ -234,24 +260,10 @@ namespace Negocio.Gestion.GestionDocumental
                         mailMessage.IsBodyHtml = true;
                     }
 
-                    // Copia Privada: enviar todos como BCC para que los destinatarios no se vean entre sí
-                    if (request.CopiaPrivada)
+                    // Destinatarios principales (Para)
+                    foreach (var dest in paraAddresses)
                     {
-                        foreach (var dest in request.Para.Split(';', ','))
-                        {
-                            if (!string.IsNullOrWhiteSpace(dest))
-                                mailMessage.Bcc.Add(dest.Trim());
-                        }
-                        // TO requerido por servidores SMTP — se usa la cuenta emisora
-                        mailMessage.To.Add(cuenta.Email);
-                    }
-                    else
-                    {
-                        foreach (var dest in request.Para.Split(';', ','))
-                        {
-                            if (!string.IsNullOrWhiteSpace(dest))
-                                mailMessage.To.Add(dest.Trim());
-                        }
+                        mailMessage.To.Add(dest);
                     }
 
                     // 5. Gestionar Adjuntos
@@ -273,10 +285,59 @@ namespace Negocio.Gestion.GestionDocumental
                     // Forzar TLS 1.2 (Requerido por Office 365)
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 
-                    // Timeout asíncrono real (60 segundos)
-                    await client.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(60));
-                    
-                    _logger.LogInformation("Conexión SMTP exitosa. Correo enviado.");
+                    // Timeout asíncrono real (60 segundos) — solo si hay destinatarios en "Para"
+                    if (mailMessage.To.Count > 0)
+                    {
+                        await client.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(60));
+                        _logger.LogInformation("Conexión SMTP exitosa. Correo principal enviado.");
+                    }
+                    _logger.LogInformation("Conexión SMTP exitosa. Correo principal enviado.");
+
+                    // Enviar cada copia oculta como una transacción SMTP separada.
+                    // Así el servidor nunca incluye el header Bcc: en el correo que reciben
+                    // los destinatarios de "Para" — la copia es completamente invisible para ellos.
+                    _logger.LogInformation("[CORREO] CCO: {Count} destinatario(s) a enviar. Valores: {Addrs}",
+                        bccAddresses.Length, string.Join(", ", bccAddresses));
+                    foreach (var bccAddr in bccAddresses)
+                    {
+                        try
+                        {
+                            using var bccMsg = new MailMessage
+                            {
+                                From = mailMessage.From,
+                                Subject = mailMessage.Subject,
+                                IsBodyHtml = true,
+                                Body = cuerpoFinalParaBcc
+                            };
+                            bccMsg.To.Add(bccAddr);
+                            if (request.PrioridadAlta)
+                            {
+                                bccMsg.Priority = MailPriority.High;
+                                bccMsg.Headers.Add("X-Priority", "1");
+                                bccMsg.Headers.Add("X-MSMail-Priority", "High");
+                                bccMsg.Headers.Add("Importance", "High");
+                            }
+                            if (request.AcuseRecibido)
+                            {
+                                bccMsg.Headers.Add("Disposition-Notification-To", cuenta.Email);
+                                bccMsg.Headers.Add("Return-Receipt-To", cuenta.Email);
+                            }
+                            if (request.Adjuntos != null)
+                            {
+                                foreach (var file in request.Adjuntos)
+                                {
+                                    if (file.Length > 0)
+                                        bccMsg.Attachments.Add(new Attachment(file.OpenReadStream(), file.FileName));
+                                }
+                            }
+                            await client.SendMailAsync(bccMsg).WaitAsync(TimeSpan.FromSeconds(30));
+                            _logger.LogInformation("[CORREO] Copia oculta (CCO) enviada a: {BccAddress}", bccAddr);
+                        }
+                        catch (Exception bccEx)
+                        {
+                            _logger.LogError(bccEx, "[CORREO] Error al enviar copia oculta a {BccAddress}", bccAddr);
+                        }
+                    }
                 }
 
                 _logger.LogInformation("Correo enviado exitosamente desde {Email} para {Para}. Radicado: {Radicado}", cuenta.Email, request.Para, radicadoReal);
@@ -286,17 +347,14 @@ namespace Negocio.Gestion.GestionDocumental
                 if (!ok)
                 {
                     _logger.LogError("El correo se envió por SMTP pero falló el registro en la base de datos para el radicado {Radicado}", radicadoReal);
-                    return new DtoEnvioCorreoResult 
-                    { 
-                        Success = false, 
-                        Message = "El correo se envió, pero hubo un problema al guardarlo en el historial." 
-                    };
                 }
 
                 return new DtoEnvioCorreoResult 
                 { 
                     Success = true, 
-                    Message = "Correo enviado y registrado correctamente.",
+                    Message = ok 
+                        ? "Correo enviado y registrado correctamente."
+                        : "Correo enviado correctamente. Advertencia: no se pudo guardar en el historial.",
                     Radicado = radicadoReal 
                 };
             }

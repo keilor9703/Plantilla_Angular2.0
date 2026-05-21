@@ -260,6 +260,35 @@
   }
 }
 
+@media (max-width: 480px) {
+  .modern-footer {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .footer-center {
+    display: none;
+  }
+
+  .footer-right .footer-sep {
+    display: none;
+  }
+
+  .footer-link {
+    font-size: 0.68rem;
+    padding: 3px 6px;
+  }
+
+  .radio-label {
+    display: none;
+  }
+
+  .radio-select {
+    min-width: 80px;
+    font-size: 0.68rem;
+  }
+}
+
 /* --- POLICY TEXT (Optimized with existing typography) --- */
 .ui-policy {
   color: var(--policia-neutral-medio);
