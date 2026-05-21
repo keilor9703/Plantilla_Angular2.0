@@ -45,6 +45,7 @@ namespace ofic.Controllers
         public async Task<IActionResult> GetPublicas()
         {
             var data = await _radioService.GetPublicasAsync(HttpContext.RequestAborted);
+            Response.Headers["Cache-Control"] = "public, max-age=60";
             return Ok(data);
         }
 

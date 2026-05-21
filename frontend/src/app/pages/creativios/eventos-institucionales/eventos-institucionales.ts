@@ -7,6 +7,7 @@ import { DtoDepartamento, DtoMunicipio, UbicacionService } from '../../../core/s
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { DtoEvento, DtoEventoRequest, EventoService } from '../../../core/services/administracion/evento.service';
+import { environment } from '../../../../environments/environment';
 
 interface EventoForm {
   nombreEvento: string;
@@ -451,8 +452,10 @@ export class EventosInstitucionalesComponent implements OnInit {
   getImagenEventoUrl(evento: DtoEvento): string {
     const raw = (evento.imagenEvento ?? '').trim();
     if (!raw) return '';
-    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
-    return `/uploads/eventos/${raw}`;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    if (raw.startsWith('/api/')) return raw;
+    const file = raw.split('/').pop() ?? '';
+    return file ? `${environment.apiBaseUrl}/EventoUpload/Imagen/${file}` : '';
   }
 
   private getUnidadNombre(id: number): string {
@@ -501,4 +504,3 @@ export class EventosInstitucionalesComponent implements OnInit {
     this.panelTableCollapsed = !this.panelTableCollapsed;
   }
 }
-

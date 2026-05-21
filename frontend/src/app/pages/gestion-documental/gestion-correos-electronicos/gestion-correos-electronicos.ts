@@ -88,6 +88,7 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   
   // Editor de texto enriquecido
   editor!: Editor;
+  detailEditor!: Editor;
   toolbar: Toolbar = [
     ['bold', 'italic'],
     ['underline', 'strike'],
@@ -111,6 +112,11 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
       schema: schema,
       history: true,
       keyboardShortcuts: true
+    });
+    this.detailEditor = new Editor({
+      schema: schema,
+      history: false,
+      keyboardShortcuts: false
     });
     
     // Escuchar cambios para asegurar que el contenido se actualiza
@@ -143,6 +149,7 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.editor.destroy();
+    this.detailEditor.destroy();
   }
 
   cargarClasificaciones(): void {

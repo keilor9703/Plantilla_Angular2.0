@@ -46,6 +46,7 @@ namespace ofic.Controllers.Administracion
             try
             {
                 var data = await _dbSliders.GetPublicosAsync(HttpContext.RequestAborted);
+                Response.Headers["Cache-Control"] = "public, max-age=120";
                 return Ok(data);
             }
             catch (Exception ex)

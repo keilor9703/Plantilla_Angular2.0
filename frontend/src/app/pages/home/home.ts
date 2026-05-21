@@ -440,15 +440,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     const value = (raw ?? '').trim();
     if (!value) return '';
     if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/')) return value;
-
-    const normalized = value.replace(/\\/g, '/');
-    if (normalized.includes('/')) {
-      return `/${normalized.replace(/^\/+/, '')}`;
-    }
-    const file = normalized.split('/').filter(Boolean).pop() ?? '';
-    if (!file) return '';
-    return `/api/EventoUpload/Imagen/${encodeURIComponent(file)}`;
+    if (value.startsWith('/api/')) return value;
+    const file = value.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
+    return file ? `/api/EventoUpload/Imagen/${encodeURIComponent(file)}` : '';
   }
 
   getEventoFechaRango(evento: DtoEvento): string {
@@ -1220,6 +1214,15 @@ export class HomeComponent implements OnInit, OnDestroy {
   restartGrupoSlider(): void {
     this.startGrupoSlider();
   }
+
+  trackByBanner(_: number, item: DtoSliders): number { return item.idSlider; }
+  trackByIndex(index: number): number { return index; }
+  trackByCalendarDay(_: number, day: CalendarDay): number { return day.date.getTime(); }
+  trackByEvento(_: number, ev: DtoEvento): number { return ev.idEvento; }
+  trackByNews(_: number, item: NewsItem): number { return item.id; }
+  trackByGrupo(_: number, grupo: { categoria: string }): string { return grupo.categoria; }
+  trackByPersonajeMes(_: number, item: DtoPersonajeMes): number { return item.idPersonajeMes; }
+  trackByLineaMando(_: number, item: DtoLineaMando): number { return item.idLineaMando; }
 }
 
 

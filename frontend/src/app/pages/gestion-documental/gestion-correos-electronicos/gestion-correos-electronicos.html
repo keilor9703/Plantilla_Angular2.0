@@ -175,7 +175,7 @@
 
     </main>
   </div>
-  <!-- Modal de Éxito Estilizada -->
+  <!-- Modal de Éxito -->
   <div class="success-modal-overlay" *ngIf="showSuccessModal" (click)="closeSuccessModal()">
     <div class="success-modal-card" (click)="$event.stopPropagation()">
       <div class="success-icon-wrapper">
@@ -192,43 +192,34 @@
       <button class="ui-btn primary full-width" (click)="closeSuccessModal()">Aceptar</button>
     </div>
   </div>
-  <!-- Modal de Detalle de Correo -->
+  <!-- Modal de Detalle de Correo (estilo ui-modal estándar) -->
   <div class="ui-modal" *ngIf="selectedCorreo" (click)="selectedCorreo = null">
-    <div class="ui-modal__dialog ui-modal__dialog--correo" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-envelope-open-text"></i>
           Detalle del Envío
         </div>
-        <button class="ui-btn icon-only ghost" (click)="selectedCorreo = null" title="Cerrar">
+        <button class="ui-modal__close" type="button" (click)="selectedCorreo = null" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
       <div class="ui-modal__body">
-        <div class="correo-detail-meta">
-          <div class="correo-meta-row">
-            <span class="correo-meta-label">Radicado</span>
-            <span class="correo-meta-value mono">{{ selectedCorreo.radicado }}</span>
-          </div>
-          <div class="correo-meta-row">
-            <span class="correo-meta-label">Para</span>
-            <span class="correo-meta-value">{{ selectedCorreo.para }}</span>
-          </div>
-          <div class="correo-meta-row">
-            <span class="correo-meta-label">Asunto</span>
-            <span class="correo-meta-value">{{ selectedCorreo.asunto }}</span>
-          </div>
-          <div class="correo-meta-row">
-            <span class="correo-meta-label">Fecha</span>
-            <span class="correo-meta-value">{{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</span>
-          </div>
+        <div class="detail-info">
+          <p><strong>Radicado:</strong> {{ selectedCorreo.radicado }}</p>
+          <p><strong>Para:</strong> {{ selectedCorreo.para }}</p>
+          <p><strong>Asunto:</strong> {{ selectedCorreo.asunto }}</p>
+          <p><strong>Fecha:</strong> {{ selectedCorreo.fecha | date:'dd/MM/yyyy HH:mm:ss' }}</p>
         </div>
-        <div class="correo-detail-body">
-          <div class="correo-body-html" [innerHTML]="selectedCorreo!.cuerpo"></div>
+        <div class="detail-body-container">
+          <ngx-editor [editor]="detailEditor" [ngModel]="selectedCorreo!.cuerpo" [disabled]="true"></ngx-editor>
         </div>
       </div>
       <div class="ui-modal__foot">
-        <button class="ui-btn secondary" (click)="selectedCorreo = null">Cerrar</button>
+        <button class="ui-btn secondary" type="button" (click)="selectedCorreo = null">
+          <i class="fa-solid fa-xmark"></i>
+          Cerrar
+        </button>
       </div>
     </div>
   </div>
