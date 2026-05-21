@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Comun.Dtos;
 using Datos.Interfaz;
 using Servicios.ApiInterfaz;
@@ -17,17 +18,20 @@ namespace ofic.Controllers.Administracion
         private readonly IDbUsuarioRepository _dbUsuarioRepository;
         private readonly ILogger<UsuarioController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IMemoryCache _memoryCache;
 
         public UsuarioController(
             IApiWebToken apiWebToken,
             IDbUsuarioRepository dbUsuarioRepository,
             ILogger<UsuarioController> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IMemoryCache memoryCache)
         {
             _apiWebToken = apiWebToken;
             _dbUsuarioRepository = dbUsuarioRepository;
             _logger = logger;
             _configuration = configuration;
+            _memoryCache = memoryCache;
         }
 
         private async Task<string> GetTechnicalTokenAsync(CancellationToken ct)
@@ -287,6 +291,12 @@ namespace ofic.Controllers.Administracion
                     return NotFound(new { message = "No se encontrÃ³ identificaciÃ³n para el usuario autenticado." });
                 }
 
+                var cacheKey = $"foto_{identificacion}";
+                if (_memoryCache.TryGetValue(cacheKey, out string? cachedFoto))
+                {
+                    return Ok(cachedFoto);
+                }
+
                 var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
                 if (string.IsNullOrEmpty(tokenPip))
                 {
@@ -294,6 +304,7 @@ namespace ofic.Controllers.Administracion
                 }
 
                 var fotoBase64 = await _apiWebToken.GetFotoFuncionarioAsync(tokenPip, identificacion.Trim());
+                _memoryCache.Set(cacheKey, fotoBase64, TimeSpan.FromMinutes(5));
                 return Ok(fotoBase64);
             }
             catch (Exception ex)
