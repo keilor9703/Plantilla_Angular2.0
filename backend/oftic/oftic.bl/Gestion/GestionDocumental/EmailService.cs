@@ -69,6 +69,19 @@ namespace Negocio.Gestion.GestionDocumental
                     };
                 }
 
+                // Parsear y validar que al menos un destinatario (Para o CCO) esté presente
+                var paraAddresses = string.IsNullOrWhiteSpace(request.Para)
+                    ? Array.Empty<string>()
+                    : request.Para.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+                var bccAddresses = string.IsNullOrWhiteSpace(request.Cc)
+                    ? Array.Empty<string>()
+                    : request.Cc.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+
+                if (paraAddresses.Length == 0 && bccAddresses.Length == 0)
+                {
+                    return new DtoEnvioCorreoResult { Success = false, Message = "Debe indicar al menos un destinatario en 'Para' o 'CCO'." };
+                }
+
                 _logger.LogInformation("[CORREO] Para={Para} | CCO={Cco} | Asunto={Asunto}",
                     request.Para,
                     string.IsNullOrWhiteSpace(request.Cc) ? "(sin CCO)" : request.Cc,
@@ -165,9 +178,6 @@ namespace Negocio.Gestion.GestionDocumental
                     string cuerpoFinalParaBcc = encabezadoImg.Length > 0
                         ? cuerpoFinal.Substring(encabezadoImg.Length)
                         : cuerpoFinal;
-                    var bccAddresses = string.IsNullOrWhiteSpace(request.Cc)
-                        ? Array.Empty<string>()
-                        : request.Cc.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
 
                     // --- PROCESAMIENTO DE IMÁGENES EMBEBIDAS (BASE64 TO CID) ---
                     var regex = new Regex(@"<img[^>]+src=""data:(image\/[^;]+);base64,([^""]+)""[^>]*>", RegexOptions.IgnoreCase);
@@ -251,10 +261,9 @@ namespace Negocio.Gestion.GestionDocumental
                     }
 
                     // Destinatarios principales (Para)
-                    foreach (var dest in request.Para.Split(';', ','))
+                    foreach (var dest in paraAddresses)
                     {
-                        if (!string.IsNullOrWhiteSpace(dest))
-                            mailMessage.To.Add(dest.Trim());
+                        mailMessage.To.Add(dest);
                     }
 
                     // 5. Gestionar Adjuntos
@@ -276,8 +285,12 @@ namespace Negocio.Gestion.GestionDocumental
                     // Forzar TLS 1.2 (Requerido por Office 365)
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 
-                    // Timeout asíncrono real (60 segundos)
-                    await client.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(60));
+                    // Timeout asíncrono real (60 segundos) — solo si hay destinatarios en "Para"
+                    if (mailMessage.To.Count > 0)
+                    {
+                        await client.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(60));
+                        _logger.LogInformation("Conexión SMTP exitosa. Correo principal enviado.");
+                    }
                     _logger.LogInformation("Conexión SMTP exitosa. Correo principal enviado.");
 
                     // Enviar cada copia oculta como una transacción SMTP separada.
@@ -334,17 +347,14 @@ namespace Negocio.Gestion.GestionDocumental
                 if (!ok)
                 {
                     _logger.LogError("El correo se envió por SMTP pero falló el registro en la base de datos para el radicado {Radicado}", radicadoReal);
-                    return new DtoEnvioCorreoResult 
-                    { 
-                        Success = false, 
-                        Message = "El correo se envió, pero hubo un problema al guardarlo en el historial." 
-                    };
                 }
 
                 return new DtoEnvioCorreoResult 
                 { 
                     Success = true, 
-                    Message = "Correo enviado y registrado correctamente.",
+                    Message = ok 
+                        ? "Correo enviado y registrado correctamente."
+                        : "Correo enviado correctamente. Advertencia: no se pudo guardar en el historial.",
                     Radicado = radicadoReal 
                 };
             }

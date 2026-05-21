@@ -197,22 +197,3 @@
   }
 }
 
-@media (max-width: 480px) {
-  .tab-card {
-    padding: 1rem;
-  }
-
-  .tab-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .encabezado-preview img {
-    max-width: 100%;
-  }
-
-  .cuentas-head {
-    flex-wrap: wrap;
-  }
-}
-

@@ -45,7 +45,7 @@
 
 .profile-avatar {
   width: 200px;
-  max-width: 100%;
+
   border-radius: 16px;
   border: 3px solid #fff;
   object-fit: cover;
@@ -206,10 +206,10 @@
   padding: 16px;
 }
 
-.ui-control {
-  background: rgba(var(--policia-oscuro), .05);
-  border-color: rgba(var(--policia-oscuro), .14);
-  color: rgba(var(--policia-oscuro), .85);
+.ui-control[readonly] {
+  background: rgba(var(--policia-oscuro-rgb), .05);
+  border-color: rgba(var(--policia-oscuro-rgb), .14);
+  color: rgba(var(--policia-oscuro-rgb), .85);
 }
 
 .tab-actions {
