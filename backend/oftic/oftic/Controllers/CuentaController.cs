@@ -213,6 +213,37 @@ namespace ofic.Controllers
             }
         }
 
+        [HttpPost("Refresh")]
+        [AllowAnonymous]
+        public IActionResult Refresh([FromBody] DtoRefreshTokenRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.Token))
+                {
+                    return BadRequest(new DtoTokenResponse { success = false, message = "Token requerido" });
+                }
+
+                var newToken = _jwtService.RefreshToken(request.Token);
+                if (newToken == null)
+                {
+                    return Unauthorized(new DtoTokenResponse { success = false, message = "Token inválido o expirado" });
+                }
+
+                return Ok(new DtoTokenResponse
+                {
+                    token = newToken,
+                    success = true,
+                    message = "Token renovado"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing token");
+                return StatusCode(500, new DtoTokenResponse { success = false, message = "Error al renovar token" });
+            }
+        }
+
         private bool CanImpersonate(long userId, ClaimsPrincipal? user)
         {
             if (_impersonationAllowedUserIds.Contains(userId))
