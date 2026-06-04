@@ -11,7 +11,7 @@
         (mouseleave)="onSliderDragCancel()">
         <div
           class="slide-item"
-          *ngFor="let banner of banners; let i = index"
+          *ngFor="let banner of banners; let i = index; trackBy: trackByBanner"
           [class.active]="i === currentBannerIndex"
           [class.has-link]="!!banner.urlDestino"
           [class.is-drag-neighbor]="i === sliderNeighborIndex"
@@ -46,8 +46,8 @@
         <div class="slider-controls">
           <button
             type="button"
-            *ngFor="let _ of banners; let i = index"
-            [class.active]="i === currentBannerIndex"
+            *ngFor="let _ of banners; let i = index; trackBy: trackByIndex"
+            [class.slideractive]="i === currentBannerIndex"
             (click)="goToBanner(i)"
             [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
         </div>
@@ -72,10 +72,10 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
+        <div class="stat-icon green"><i class="fa-solid fa-share-nodes"></i></div>
         <div class="stat-info">
-          <h3>{{ stats.reportesGenerados | number }}</h3>
-          <p>Reportes del Mes</p>
+          <h3>{{ redesSocialesActivas | number }}</h3>
+          <p>Redes Sociales Activas</p>
         </div>
       </div>
       <div class="stat-card">
@@ -94,7 +94,7 @@
         <!-- Video de la Unidad (16:9 aspect ratio) -->
         <div class="card-view rounded-xl shadow-subtle video-inst-card">
           <h3 class="title-cards">
-            <i class="fa-solid fa-play-circle"></i> Video de la Unidad
+            <i class="fa-solid fa-play-circle"></i> Acerda de nosotros
           </h3>
           <hr />
           <div class="video-institutional-wrapper">
@@ -162,7 +162,7 @@
                 <button
                   type="button"
                   class="events-day"
-                  *ngFor="let day of calendarDays"
+                  *ngFor="let day of calendarDays; trackBy: trackByCalendarDay"
                   [class.is-outside]="!day.inCurrentMonth"
                   [class.is-today]="day.isToday"
                   [class.is-selected]="day.isSelected"
@@ -172,7 +172,7 @@
                   <div class="events-day__badges" *ngIf="day.eventos.length > 0">
                     <span
                       class="events-day__badge"
-                      *ngFor="let ev of day.eventos | slice:0:4"
+                      *ngFor="let ev of day.eventos | slice:0:4; trackBy: trackByEvento"
                       [ngClass]="getEventoBadgeClass(ev)"
                       (click)="openCalendarEventoModal(ev, $event)"
                       [title]="ev.nombreEvento">
@@ -201,7 +201,7 @@
           </div>
           <hr />
           <div class="news-list">
-            <article class="news-card" *ngFor="let item of news" (click)="openNews(item)">
+            <article class="news-card" *ngFor="let item of news; trackBy: trackByNews" (click)="openNews(item)">
               <div class="news-card__img" [style.background-image]="'url(' + item.image + ')'"></div>
               <div class="news-card__content">
                 <div class="news-meta">
@@ -245,9 +245,9 @@
             </span>
           </div>
         </div>
-        <div class="card-body">
+        <div class="card-body card-body--scroll">
           <div class="spotlight-grid mb-4">
-            <ng-container *ngFor="let grupo of personajesMesPorCategoria">
+            <ng-container *ngFor="let grupo of personajesMesPorCategoria; trackBy: trackByGrupo">
               <ng-container *ngIf="getPersonajeMesActual(grupo.categoria) as personaje">
                 <article class="spotlight-card spotlight-card--slider"
                   (mouseenter)="pauseSliderCategoria(grupo.categoria)"
@@ -271,8 +271,8 @@
                   </div>
                   <div class="slider-controls slider-controls--personaje" *ngIf="grupo.items.length > 1" style="margin-top: 8px;">
                     <button
-                      *ngFor="let item of grupo.items; let i = index"
-                      [class.active]="sliderIndices[grupo.categoria] === i"
+                      *ngFor="let item of grupo.items; let i = index; trackBy: trackByPersonajeMes"
+                      [class.slideractive]="sliderIndices[grupo.categoria] === i"
                       (click)="sliderIndices[grupo.categoria] = i"
                       [attr.aria-label]="'Cambiar a ' + grupo.categoria + ' ' + (i + 1)">
                     </button>
@@ -301,7 +301,7 @@
                     <div class="spotlight-grade">
                       <div class="integrantes-list-outer" style="max-height: 60px; overflow-y: auto;">
                         <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(equiposAltoRendimiento[grupoSliderIndex])">
-                          <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
+                          <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes; trackBy: trackByIndex" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
                             <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
                           </li>
                         </ul>
@@ -311,10 +311,24 @@
                 </div>
                 <div class="slider-controls slider-controls--personaje" *ngIf="equiposAltoRendimiento.length > 1" style="margin-top: 6px;">
                   <button
-                    *ngFor="let grupo of equiposAltoRendimiento; let i = index"
-                    [class.active]="grupoSliderIndex === i"
-                    (click)="grupoSliderIndex = i"
+                    type="button"
+                    class="slider-nav-btn slider-nav-btn--prev"
+                    (click)="prevGrupo(); $event.stopPropagation()"
+                    aria-label="Grupo anterior">
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button
+                    *ngFor="let grupo of equiposAltoRendimiento; let i = index; trackBy: trackByIndex"
+                    [class.slideractive]="grupoSliderIndex === i"
+                    (click)="goToGrupo(i)"
                     [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
+                  </button>
+                  <button
+                    type="button"
+                    class="slider-nav-btn slider-nav-btn--next"
+                    (click)="nextGrupo(); $event.stopPropagation()"
+                    aria-label="Grupo siguiente">
+                    <i class="fa-solid fa-chevron-right"></i>
                   </button>
                 </div>
               </article>
@@ -325,7 +339,7 @@
           </div>
           
           <!-- <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">
-            <article class="cmd-item" *ngFor="let item of personajesMes">
+            <article class="cmd-item" *ngFor="let item of personajesMes; trackBy: trackByPersonajeMes">
               <button
                 class="cmd-photo-btn"
                 type="button"
@@ -357,7 +371,7 @@
          </div>
          <div class="card-body">
           <div class="cmd-row" *ngIf="lineaMando.length > 0; else emptyLineaMandoTpl">
-            <article class="cmd-item" *ngFor="let item of lineaMando">
+            <article class="cmd-item" *ngFor="let item of lineaMando; trackBy: trackByLineaMando">
               <button
                 class="cmd-photo-btn"
                 type="button"
@@ -446,7 +460,7 @@
           <div class="news-modal__dots" *ngIf="(selectedNews.images?.length ?? 0) > 1">
             <button
               type="button"
-              *ngFor="let img of selectedNews.images; let i = index"
+              *ngFor="let img of selectedNews.images; let i = index; trackBy: trackByIndex"
               class="news-modal__dot"
               [class.is-active]="i === newsModalImageIndex"
               (click)="goToNewsModalImage(i)"
@@ -515,7 +529,7 @@
           <div class="cmd-lightbox__name">{{ grupo.nombreGrupo }}</div>
           <div class="cmd-lightbox__role">Integrantes:</div>
           <ul style="margin:0; padding-left: 18px; list-style: none; text-align: left; ">
-            <li *ngFor="let integrante of grupo.integrantes">
+            <li *ngFor="let integrante of grupo.integrantes; trackBy: trackByIndex">
              <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
             </li>
           </ul>

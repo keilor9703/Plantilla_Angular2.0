@@ -114,6 +114,51 @@ namespace Negocio.Gestion
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        public string? RefreshToken(string token)
+        {
+            var principal = ValidateToken(token);
+            if (principal == null) return null;
+
+            var idUsuario = long.Parse(principal.FindFirstValue("id_usuario") ?? "0");
+            var usuario = principal.FindFirstValue(ClaimTypes.Name) ?? "";
+            var roles = principal.FindAll(ClaimTypes.Role)
+                .Select(x => long.TryParse(x.Value, out var r) ? r : 0)
+                .Where(r => r > 0)
+                .ToList();
+
+            if (principal.FindFirstValue("impersonating") == "1")
+            {
+                var actorId = long.Parse(principal.FindFirstValue("impersonated_by_id") ?? "0");
+                var actorUser = principal.FindFirstValue("impersonated_by_user") ?? "";
+                return CreateImpersonationToken(idUsuario, usuario, roles, actorId, actorUser);
+            }
+
+            return CreateToken(idUsuario, usuario, roles);
+        }
+
+        public ClaimsPrincipal? ValidateToken(string token)
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var parameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = false,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = _cfg["Jwt:Issuer"] ?? _issuer,
+                    ValidAudience = _cfg["Jwt:Audience"] ?? _audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_cfg["Jwt:Key"] ?? _key))
+                };
+                return handler.ValidateToken(token, parameters, out _);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 
 }

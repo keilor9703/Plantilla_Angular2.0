@@ -1,4 +1,21 @@
 services:
+  reverse-proxy:
+    build: ./reverse-proxy
+    image: sicoe-reverse-proxy:latest
+    container_name: sicoe-reverse-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/proyectos/landing/html:/usr/share/nginx/landing:ro
+      - /var/proyectos/DYCK/tableu:/usr/share/nginx/tableu:ro
+    networks:
+      - sicoe_default
+      - sisinfo_default
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -20,6 +37,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - sicoe_default
 
   frontend:
     build:
@@ -34,6 +53,15 @@ services:
     ports:
       - "8091:80"
     restart: unless-stopped
+    networks:
+      - sicoe_default
+
+networks:
+  sicoe_default:
+    name: sicoe_default
+  sisinfo_default:
+    name: sisinfo_default
+    external: true
 
 volumes:
   uploads:
