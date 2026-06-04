@@ -47,7 +47,7 @@
           <button
             type="button"
             *ngFor="let _ of banners; let i = index"
-            [class.slideractive]="i === currentBannerIndex"
+            [class.active]="i === currentBannerIndex"
             (click)="goToBanner(i)"
             [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
         </div>
@@ -72,10 +72,10 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon green"><i class="fa-solid fa-share-nodes"></i></div>
+        <div class="stat-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
         <div class="stat-info">
-          <h3>{{ redesSocialesActivas | number }}</h3>
-          <p>Redes Sociales Activas</p>
+          <h3>{{ stats.reportesGenerados | number }}</h3>
+          <p>Reportes del Mes</p>
         </div>
       </div>
       <div class="stat-card">
@@ -245,7 +245,7 @@
             </span>
           </div>
         </div>
-        <div class="card-body card-body--scroll">
+        <div class="card-body">
           <div class="spotlight-grid mb-4">
             <ng-container *ngFor="let grupo of personajesMesPorCategoria">
               <ng-container *ngIf="getPersonajeMesActual(grupo.categoria) as personaje">
@@ -272,7 +272,7 @@
                   <div class="slider-controls slider-controls--personaje" *ngIf="grupo.items.length > 1" style="margin-top: 8px;">
                     <button
                       *ngFor="let item of grupo.items; let i = index"
-                      [class.slideractive]="sliderIndices[grupo.categoria] === i"
+                      [class.active]="sliderIndices[grupo.categoria] === i"
                       (click)="sliderIndices[grupo.categoria] = i"
                       [attr.aria-label]="'Cambiar a ' + grupo.categoria + ' ' + (i + 1)">
                     </button>
@@ -311,24 +311,10 @@
                 </div>
                 <div class="slider-controls slider-controls--personaje" *ngIf="equiposAltoRendimiento.length > 1" style="margin-top: 6px;">
                   <button
-                    type="button"
-                    class="slider-nav-btn slider-nav-btn--prev"
-                    (click)="prevGrupo(); $event.stopPropagation()"
-                    aria-label="Grupo anterior">
-                    <i class="fa-solid fa-chevron-left"></i>
-                  </button>
-                  <button
                     *ngFor="let grupo of equiposAltoRendimiento; let i = index"
-                    [class.slideractive]="grupoSliderIndex === i"
-                    (click)="goToGrupo(i)"
+                    [class.active]="grupoSliderIndex === i"
+                    (click)="grupoSliderIndex = i"
                     [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
-                  </button>
-                  <button
-                    type="button"
-                    class="slider-nav-btn slider-nav-btn--next"
-                    (click)="nextGrupo(); $event.stopPropagation()"
-                    aria-label="Grupo siguiente">
-                    <i class="fa-solid fa-chevron-right"></i>
                   </button>
                 </div>
               </article>

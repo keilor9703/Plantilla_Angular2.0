@@ -9,7 +9,7 @@ import { DtoLineaMando, LineaMandoService } from '../../core/services/administra
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 import { environment } from '../../../environments/environment';
-import { DtoDominio, RedesSocialesService } from '../../core/services/gestion-digital/redes-sociales.service';
+import { DtoDominio } from '../../core/services/gestion-digital/redes-sociales.service';
 import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
 import { DominioService } from '../../core/services/administracion/dominio.service';
 import { DtoEvento, EventoService } from '../../core/services/administracion/evento.service';
@@ -44,9 +44,8 @@ interface CalendarDay {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  // Slider de grupos de alto rendimiento
-  grupoSliderIndex: number = 0;
-  grupoSliderTimer: any = null;
+    // Slider de grupos de alto rendimiento
+    grupoSliderIndex: number = 0;
   readonly INTEGRANTE_HEIGHT = 24; // px, debe coincidir con el CSS
 
   // --- Pausa de sliders por hover ---
@@ -74,10 +73,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   pauseGrupoSlider(): void {
     this.grupoSliderPaused = true;
-    if (this.grupoSliderTimer) {
-      clearInterval(this.grupoSliderTimer);
-      this.grupoSliderTimer = null;
-    }
     if (this.grupoScrollTimer) {
       clearInterval(this.grupoScrollTimer);
       this.grupoScrollTimer = null;
@@ -87,21 +82,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   resumeGrupoSlider(): void {
     if (this.grupoSliderPaused) {
       this.grupoSliderPaused = false;
-      this.startGrupoSlider();
       this.startGrupoScroll();
     }
-  }
-
-  startGrupoSlider(): void {
-    if (this.grupoSliderTimer) {
-      clearInterval(this.grupoSliderTimer);
-    }
-    if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length <= 1) return;
-    this.grupoSliderTimer = setInterval(() => {
-      if (!this.grupoSliderPaused) {
-        this.grupoSliderIndex = (this.grupoSliderIndex + 1) % this.equiposAltoRendimiento.length;
-      }
-    }, 3000);
   }
 
   // Devuelve el estilo de transformación para el scroll visual tipo créditos
@@ -136,7 +118,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     reportesGenerados: 0,
     alertasSistema: 0
   };
-  redesSocialesActivas = 0;
   currentBannerIndex = 0;
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
   // --- Banner drag (mouse) ---
@@ -225,8 +206,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private noticiaService: NoticiaService,
     private personajeMesService: PersonajeMesService,
     private dominioService: DominioService,
-    private eventoService: EventoService,
-    private redesSocialesService: RedesSocialesService
+    private eventoService: EventoService
   ) {}
 
   openGrupoLightbox(grupo: any): void {
@@ -255,7 +235,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
 
   ngAfterViewInit(): void {
-    this.startGrupoSlider();
     this.startGrupoScroll();
   }
 
@@ -295,18 +274,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadEquiposAltoRendimiento();
     this.loadCategoriasPersonajeMes();
     this.loadEventosActivos();
-    this.loadRedesSocialesActivas();
-  }
-
-  private loadRedesSocialesActivas(): void {
-    this.redesSocialesService.getAll().subscribe({
-      next: (items) => {
-        this.redesSocialesActivas = (items ?? []).filter(r => String(r.vigente) === '1').length;
-      },
-      error: () => {
-        this.redesSocialesActivas = 0;
-      }
-    });
   }
 
   private loadEventosActivos(): void {
@@ -554,11 +521,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
    ngOnDestroy(): void {
      this.stopBannerRotation();
-     if (this.grupoSliderTimer) {
-      clearInterval(this.grupoSliderTimer);
-      this.grupoSliderTimer = null;
-    }
-    document.body.classList.remove('ui-modal-open');
+     document.body.classList.remove('ui-modal-open');
    }
 
    private loadPersonajesMes(): void {
@@ -605,7 +568,6 @@ export class HomeComponent implements OnInit, OnDestroy {
          Promise.all(requests).then((result) => {
            this.equiposAltoRendimiento = result;
            this.grupoSliderIndex = 0;
-           this.startGrupoSlider();
          });
        },
        error: () => {
@@ -1197,28 +1159,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     if (!mes || isNaN(mes)) return '';
     return meses[(mes - 1) % 12] || '';
-  }
-
-  prevGrupo(): void {
-    if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length <= 1) return;
-    this.grupoSliderIndex = (this.grupoSliderIndex - 1 + this.equiposAltoRendimiento.length) % this.equiposAltoRendimiento.length;
-    this.restartGrupoSlider();
-  }
-
-  nextGrupo(): void {
-    if (!this.equiposAltoRendimiento || this.equiposAltoRendimiento.length <= 1) return;
-    this.grupoSliderIndex = (this.grupoSliderIndex + 1) % this.equiposAltoRendimiento.length;
-    this.restartGrupoSlider();
-  }
-
-  goToGrupo(idx: number): void {
-    if (!this.equiposAltoRendimiento || idx < 0 || idx >= this.equiposAltoRendimiento.length) return;
-    this.grupoSliderIndex = idx;
-    this.restartGrupoSlider();
-  }
-
-  restartGrupoSlider(): void {
-    this.startGrupoSlider();
   }
 }
 
