@@ -66,6 +66,11 @@ namespace Comun.Dtos
         public string? Usuario { get; set; }
     }
 
+    public class DtoRefreshTokenRequest
+    {
+        public string? Token { get; set; }
+    }
+
     public class DtoTokenResponse
     {
         public string? token { get; set; }

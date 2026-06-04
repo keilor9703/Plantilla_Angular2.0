@@ -7,6 +7,7 @@ services:
       - "80:80"
     volumes:
       - /var/proyectos/landing/html:/usr/share/nginx/landing:ro
+      - /var/proyectos/DYCK/tableu:/usr/share/nginx/tableu:ro
     networks:
       - sicoe_default
       - sisinfo_default
