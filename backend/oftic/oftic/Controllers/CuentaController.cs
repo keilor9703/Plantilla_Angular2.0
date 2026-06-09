@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Comun.Dtos;
 using Negocio.Gestion;
 using Negocio.Interfaz;
@@ -41,6 +42,8 @@ namespace ofic.Controllers
         }
 
         [HttpPost("Token")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> GetToken([FromBody] DtoTokenRequest request)
         {
             try
@@ -63,10 +66,10 @@ namespace ofic.Controllers
 
                 if (idUsuario is null)
                 {
-                    return Unauthorized(new DtoTokenResponse 
-                    { 
-                        success = false, 
-                        message = "Usuario no encontrado o inactivo" 
+                    return Unauthorized(new DtoTokenResponse
+                    {
+                        success = false,
+                        message = "Usuario o contraseña incorrectos"
                     });
                 }
 
@@ -87,7 +90,7 @@ namespace ofic.Controllers
                         return Unauthorized(new DtoTokenResponse
                         {
                             success = false,
-                            message = "Credenciales incorrectas"
+                            message = "Usuario o contraseña incorrectos"
                         });
                     }
 
@@ -215,6 +218,7 @@ namespace ofic.Controllers
 
         [HttpPost("Refresh")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public IActionResult Refresh([FromBody] DtoRefreshTokenRequest request)
         {
             try

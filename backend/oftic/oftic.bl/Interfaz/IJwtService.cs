@@ -15,7 +15,6 @@ namespace Negocio.Interfaz
             List<long> roles,
             long actorId,
             string actorUsuario);
-        string GenerateToken(string usuario);
         string? RefreshToken(string token);
         System.Security.Claims.ClaimsPrincipal? ValidateToken(string token);
     }

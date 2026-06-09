@@ -5,63 +5,83 @@ namespace Comun.Security
 {
     public static class CryptoUtility
     {
-        private static readonly string Key = "SICOE_COEST_2024_SECURE_KEY_32CH"; 
-        private static readonly string Iv = "SICOE_IV_VECTOR_"; // 16 chars
+        // Clave legacy usada antes de migrar a config — solo para descifrar datos viejos en BD.
+        private static readonly byte[] LegacyKey = Encoding.UTF8.GetBytes("SICOE_COEST_2024_SECURE_KEY_32CH");
+        private static readonly byte[] LegacyIv  = Encoding.UTF8.GetBytes("SICOE_IV_VECTOR_");
 
-        public static string Encrypt(string plainText)
+        private const string V2Prefix = "v2:";
+
+        /// <summary>
+        /// Cifra con IV aleatorio y clave de configuración.
+        /// Formato de salida: "v2:" + Base64(IV_16bytes + ciphertext)
+        /// </summary>
+        public static string Encrypt(string plainText, byte[] key)
         {
             if (string.IsNullOrEmpty(plainText)) return plainText;
 
-            using (Aes aesAlg = Aes.Create())
-            {
-                aesAlg.Key = Encoding.UTF8.GetBytes(Key);
-                aesAlg.IV = Encoding.UTF8.GetBytes(Iv);
+            using var aes = Aes.Create();
+            aes.Key = key;
+            aes.GenerateIV();
 
-                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+            using var encryptor = aes.CreateEncryptor();
+            using var ms = new MemoryStream();
+            ms.Write(aes.IV, 0, aes.IV.Length);
+            using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+            using (var sw = new StreamWriter(cs))
+                sw.Write(plainText);
 
-                using (MemoryStream msEncrypt = new MemoryStream())
-                {
-                    using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            swEncrypt.Write(plainText);
-                        }
-                        return Convert.ToBase64String(msEncrypt.ToArray());
-                    }
-                }
-            }
+            return V2Prefix + Convert.ToBase64String(ms.ToArray());
         }
 
-        public static string Decrypt(string cipherText)
+        /// <summary>
+        /// Descifra automáticamente formato v2 (IV aleatorio + clave config)
+        /// o formato legacy (IV fijo + clave hardcodeada) para datos existentes en BD.
+        /// </summary>
+        public static string Decrypt(string cipherText, byte[] key)
         {
             if (string.IsNullOrEmpty(cipherText)) return cipherText;
 
+            return cipherText.StartsWith(V2Prefix, StringComparison.Ordinal)
+                ? DecryptV2(cipherText[V2Prefix.Length..], key)
+                : DecryptLegacy(cipherText);
+        }
+
+        private static string DecryptV2(string base64, byte[] key)
+        {
             try
             {
-                using (Aes aesAlg = Aes.Create())
-                {
-                    aesAlg.Key = Encoding.UTF8.GetBytes(Key);
-                    aesAlg.IV = Encoding.UTF8.GetBytes(Iv);
+                var data = Convert.FromBase64String(base64);
+                var iv   = data[..16];
+                var body = data[16..];
 
-                    ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.IV  = iv;
 
-                    using (MemoryStream msDecrypt = new MemoryStream(Convert.FromBase64String(cipherText)))
-                    {
-                        using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
-                        {
-                            using (StreamReader srDecrypt = new StreamReader(csDecrypt))
-                            {
-                                return srDecrypt.ReadToEnd();
-                            }
-                        }
-                    }
-                }
+                using var decryptor = aes.CreateDecryptor();
+                using var ms = new MemoryStream(body);
+                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+                using var sr = new StreamReader(cs);
+                return sr.ReadToEnd();
             }
-            catch
+            catch { return base64; }
+        }
+
+        private static string DecryptLegacy(string cipherText)
+        {
+            try
             {
-                return cipherText;
+                using var aes = Aes.Create();
+                aes.Key = LegacyKey;
+                aes.IV  = LegacyIv;
+
+                using var decryptor = aes.CreateDecryptor();
+                using var ms = new MemoryStream(Convert.FromBase64String(cipherText));
+                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+                using var sr = new StreamReader(cs);
+                return sr.ReadToEnd();
             }
+            catch { return cipherText; }
         }
     }
 }
