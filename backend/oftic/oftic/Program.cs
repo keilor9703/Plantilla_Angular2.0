@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Threading.RateLimiting;
 using Datos.Gestion;
 using Datos.Interfaz;
 using Negocio.Gestion;
 using Negocio.Interfaz;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
-using Datos.Gestion;
-using Datos.Interfaz;
 using Negocio.Gestion.GestionDocumental;
 using Negocio.Gestion.Administracion;
 using Datos.Interfaz.GestionDocumental;
@@ -82,6 +82,30 @@ builder.Services.AddAuthentication("Bearer")
     });
 
 builder.Services.AddAuthorization();
+
+// Rate limiting — protege endpoints anónimos de fuerza bruta
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Login y Refresh: máx 10 intentos por minuto por IP
+    options.AddPolicy("auth", httpContext =>
+    {
+        var ip = httpContext.Request.Headers["X-Forwarded-For"]
+                     .FirstOrDefault()?.Split(',')[0].Trim()
+                 ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                 ?? "unknown";
+
+        return RateLimitPartition.GetSlidingWindowLimiter(ip, _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit      = 10,
+            Window           = TimeSpan.FromMinutes(1),
+            SegmentsPerWindow = 2,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit       = 0
+        });
+    });
+});
 
 builder.Services.AddMemoryCache();
 
@@ -247,6 +271,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));

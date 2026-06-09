@@ -176,7 +176,7 @@
           </span>
         </div>
         <h3 class="news-modal__title">{{ selectedNoticia.titulo }}</h3>
-        <div class="news-modal__text" [innerHTML]="selectedNoticia.contenido"></div>
+        <div class="news-modal__text" [innerHTML]="selectedNoticia.contenido | safeHtml"></div>
       </div>
     </div>
     <div class="ui-modal__foot">

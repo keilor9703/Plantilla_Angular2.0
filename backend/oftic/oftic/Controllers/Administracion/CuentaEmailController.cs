@@ -13,10 +13,15 @@ namespace ofic.Controllers.Administracion
     public class CuentaEmailController : ControllerBase
     {
         private readonly IDbCuentaEmailRepository _repository;
+        private readonly byte[] _cryptoKey;
 
-        public CuentaEmailController(IDbCuentaEmailRepository repository)
+        public CuentaEmailController(IDbCuentaEmailRepository repository, IConfiguration configuration)
         {
             _repository = repository;
+            var keyStr = configuration["Crypto:Key"] ?? string.Empty;
+            if (keyStr.Length < 32)
+                throw new InvalidOperationException("Crypto:Key debe tener al menos 32 caracteres.");
+            _cryptoKey = System.Text.Encoding.UTF8.GetBytes(keyStr[..32]);
         }
 
         [HttpGet]
@@ -27,7 +32,7 @@ namespace ofic.Controllers.Administracion
                 var data = _repository.ConsultarCuentas(0);
                 // Descifrar para uso interno si es necesario (aunque al front no deberíamos mandarla)
                 foreach(var item in data) {
-                    item.ClaveSmtp = CryptoUtility.Decrypt(item.ClaveSmtp);
+                    item.ClaveSmtp = CryptoUtility.Decrypt(item.ClaveSmtp, _cryptoKey);
                 }
                 return Ok(data);
             }
@@ -63,7 +68,7 @@ namespace ofic.Controllers.Administracion
             try
             {
                 var data = _repository.ConsultarCuentas(id).FirstOrDefault();
-                if (data != null) data.ClaveSmtp = CryptoUtility.Decrypt(data.ClaveSmtp);
+                if (data != null) data.ClaveSmtp = CryptoUtility.Decrypt(data.ClaveSmtp, _cryptoKey);
                 return Ok(data);
             }
             catch (Exception ex)
@@ -82,7 +87,7 @@ namespace ofic.Controllers.Administracion
                 request.IpAuditoria = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
                 
                 // Cifrar la contraseña antes de guardar
-                request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp);
+                request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp, _cryptoKey);
                 
                 var success = _repository.GestionarCuenta(request);
                 return Ok(new { success, message = "Cuenta creada correctamente y protegida" });
@@ -103,7 +108,7 @@ namespace ofic.Controllers.Administracion
                 request.IpAuditoria = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
                 
                 // Cifrar la contraseña antes de actualizar
-                request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp);
+                request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp, _cryptoKey);
                 
                 var success = _repository.GestionarCuenta(request);
                 return Ok(new { success, message = "Cuenta actualizada y protegida" });

@@ -8,6 +8,7 @@ import { VideoInstitucionalService } from '../../core/services/administracion/vi
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
+import { SafeHtmlPipe } from '../../shared/pipes/safe-html.pipe';
 import { environment } from '../../../environments/environment';
 import { DtoDominio, RedesSocialesService } from '../../core/services/gestion-digital/redes-sociales.service';
 import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
@@ -39,7 +40,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, SafeUrlPipe, RouterLink],
+  imports: [CommonModule, SafeUrlPipe, SafeHtmlPipe, RouterLink],
   templateUrl: './home.html',
   styleUrls: ['./home.scss'],
 })

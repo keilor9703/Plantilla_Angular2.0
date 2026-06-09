@@ -25,6 +25,7 @@ namespace Negocio.Gestion.GestionDocumental
         private readonly IDbGestionCorreosRepository _gestionRepo;
         private readonly ILogger<EmailService> _logger;
         private readonly string _uploadsBase;
+        private readonly byte[] _cryptoKey;
 
         public EmailService(
             IDbCuentaEmailRepository cuentaRepo,
@@ -35,6 +36,11 @@ namespace Negocio.Gestion.GestionDocumental
             _cuentaRepo = cuentaRepo;
             _gestionRepo = gestionRepo;
             _logger = logger;
+
+            var keyStr = configuration["Crypto:Key"] ?? string.Empty;
+            if (keyStr.Length < 32)
+                throw new InvalidOperationException("Crypto:Key debe tener al menos 32 caracteres.");
+            _cryptoKey = System.Text.Encoding.UTF8.GetBytes(keyStr[..32]);
 
             var configured = configuration["AppSettings:UploadsPath"];
             _uploadsBase = string.IsNullOrWhiteSpace(configured)
@@ -95,7 +101,7 @@ namespace Negocio.Gestion.GestionDocumental
                 }
 
                 // 2. Descifrar la contraseña
-                string claveDescifrada = CryptoUtility.Decrypt(cuenta.ClaveSmtp);
+                string claveDescifrada = CryptoUtility.Decrypt(cuenta.ClaveSmtp, _cryptoKey);
 
                 // 3. Generar Radicado Oficial
                 string radicadoReal = _cuentaRepo.GetNextRadicado(request.IdCuentaEmail);
