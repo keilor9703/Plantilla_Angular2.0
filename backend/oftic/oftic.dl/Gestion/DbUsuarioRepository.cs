@@ -434,6 +434,67 @@ UPDATE ctr_roles_user_admin
             };
         }
 
+        public async Task<DtoGuardarUsuarioResult> EditarRolAsync(
+            long idUsuario,
+            int rolId,
+            string justificacion,
+            DateTime fechaFin,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct)
+        {
+            try
+            {
+                await using var conn = new OracleConnection(_cs);
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PK_ADMINISTRACION.P_UPD_ROL_USER";
+
+                cmd.Parameters.Add("P_IdUsuario", OracleDbType.Int64).Value = idUsuario;
+                cmd.Parameters.Add("P_IdRol", OracleDbType.Int32).Value = rolId;
+                cmd.Parameters.Add("P_Justificacion", OracleDbType.Varchar2).Value =
+                    AsRequiredDbValue(justificacion, "SIN JUSTIFICACION", 1000);
+                cmd.Parameters.Add("P_FechaFin", OracleDbType.Date).Value = fechaFin.Date;
+                cmd.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria, 100);
+                cmd.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
+
+                var pMessage = new OracleParameter("SRV_Message", OracleDbType.Varchar2, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var pResultado = new OracleParameter("P_Resultado", OracleDbType.Int64)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                cmd.Parameters.Add(pMessage);
+                cmd.Parameters.Add(pResultado);
+
+                await cmd.ExecuteNonQueryAsync(ct);
+
+                var message = (pMessage.Value?.ToString() ?? string.Empty).Trim();
+                var resultado = 0L;
+                if (pResultado.Value != null && pResultado.Value != DBNull.Value)
+                {
+                    resultado = ToInt64Safe(pResultado.Value);
+                }
+
+                return new DtoGuardarUsuarioResult
+                {
+                    idUsuario = resultado > 0 ? resultado : 0,
+                    message = message
+                };
+            }
+            catch (OracleException ex)
+            {
+                _logger.LogError(ex, "Error Oracle ejecutando PK_ADMINISTRACION.P_UPD_ROL_USER");
+                throw new InvalidOperationException($"Oracle: {ex.Message}", ex);
+            }
+        }
+
         public async Task<List<DtoRol>> GetRolesAsync(CancellationToken ct)
         {
             var result = new List<DtoRol>();

@@ -96,6 +96,18 @@ export interface EliminarRolResponse {
   message: string;
 }
 
+export interface EditarRolRequest {
+  usuario: string;
+  identificacion: string;
+  justificacion: string;
+  fechaFin: string;
+}
+
+export interface EditarRolResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface EliminarUsuarioResponse {
   success: boolean;
   message: string;
@@ -167,6 +179,10 @@ export class UsuarioAdminService {
         identificacion: (identificacion ?? '').trim()
       }
     });
+  }
+
+  editarRol(rolId: number, payload: EditarRolRequest): Observable<EditarRolResponse> {
+    return this.http.put<EditarRolResponse>(`${this.baseUrl}/Roles/${rolId}`, payload);
   }
 
   eliminarUsuario(idUsuario: number): Observable<EliminarUsuarioResponse> {

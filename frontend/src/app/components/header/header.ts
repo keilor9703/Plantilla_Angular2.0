@@ -8,7 +8,15 @@ import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 import { EventoService } from '../../core/services/administracion/evento.service';
+import { MenuService, DbMenuItem } from '../../core/services/administracion/menu.service';
 import { finalize } from 'rxjs/operators';
+
+interface SearchResult {
+  label: string;
+  route: string;
+  icon: string;
+  isExternal?: boolean;
+}
 
 interface Notification {
   id: number;
@@ -53,14 +61,21 @@ export class HeaderComponent implements OnInit {
     private http: HttpClient,
     private router: Router,
     private brandingService: BrandingService,
-    private eventoService: EventoService
+    private eventoService: EventoService,
+    private menuService: MenuService
   ) {}
+
+  private allSearchItems: SearchResult[] = [];
+  searchResults: SearchResult[] = [];
+  showSearchDropdown = false;
+  searchActiveIndex = -1;
 
   ngOnInit(): void {
     this.userName = this.authService.getUsuario();
     this.loadBranding();
     this.loadMyPhoto();
     this.loadEventosCount();
+    this.loadSearchIndex();
   }
 
   toggleMenu() {
@@ -95,12 +110,20 @@ export class HeaderComponent implements OnInit {
         this.isCalendarDropdownOpen = false;
       }
     }
+
+    // Cierre de dropdown de búsqueda
+    if (this.showSearchDropdown) {
+      if (!target.closest('.header-search')) {
+        this.showSearchDropdown = false;
+      }
+    }
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeUserDropdown();
     this.isCalendarDropdownOpen = false;
+    this.showSearchDropdown = false;
   }
 
   notifications: Notification[] = [
@@ -159,7 +182,142 @@ export class HeaderComponent implements OnInit {
     });
   }
 
+  private loadSearchIndex(): void {
+    this.menuService.getMyMenu().subscribe({
+      next: (items) => {
+        this.allSearchItems = this.flattenMenuItems(items ?? []);
+      },
+      error: () => {
+        const userId = this.authService.getUserId();
+        if (!userId) return;
+        this.menuService.getByUser(userId).subscribe({
+          next: (items) => {
+            this.allSearchItems = this.flattenMenuItems(items ?? []);
+          }
+        });
+      }
+    });
+  }
+
+  private flattenMenuItems(items: DbMenuItem[]): SearchResult[] {
+    const normalized = items.map((x: any) => ({
+      idMenu: Number(x.idMenu ?? x.IdMenu ?? 0),
+      descripcion: String(x.descripcion ?? x.Descripcion ?? ''),
+      idPadre: Number(x.idPadre ?? x.IdPadre ?? 0),
+      posicion: Number(x.posicion ?? x.Posicion ?? 0),
+      icono: x.icono ?? x.Icono,
+      detalle: x.detalle ?? x.Detalle,
+      vigente: Number(x.vigente ?? x.Vigente ?? 1)
+    }));
+
+    const active = normalized.filter(x => !!x.descripcion && x.vigente === 1);
+    const byId = new Map(active.map(x => [x.idMenu, x]));
+
+    const results: SearchResult[] = [];
+
+    for (const item of active) {
+      const route = this.resolveRoute(item.detalle);
+      if (!route) continue;
+      const isExternal = route.startsWith('http://') || route.startsWith('https://');
+      const parent = byId.get(item.idPadre);
+      const label = parent && parent.idMenu !== 1
+        ? `${parent.descripcion} › ${item.descripcion}`
+        : item.descripcion;
+      const icon = this.resolveIcon(item.icono ?? parent?.icono);
+      results.push({ label, route, icon, isExternal });
+    }
+
+    return results;
+  }
+
+  private resolveRoute(raw: unknown): string {
+    const value = String(raw ?? '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('www.')) {
+      return value.startsWith('www.') ? 'https://' + value : value;
+    }
+    if (value.startsWith('/administracion/')) return value;
+    const configRoutes = ['/video-unidad', '/configuracion-imagen-sitio', '/admin-multimedia', '/configuracion-sistema'];
+    if (configRoutes.includes(value)) return '/administracion/configuracion-sistema';
+    const routeMap: Record<string, string> = {
+      '/formularios': '/administracion/formularios',
+      '/usuarios': '/administracion/usuarios',
+      '/roles': '/administracion/roles',
+      '/linea-mando': '/administracion/linea-mando',
+      '/radio': '/administracion/radio',
+      '/menu': '/administracion/menu',
+      '/auditoria': '/administracion/auditoria',
+      '/sliders': '/administracion/sliders'
+    };
+    return routeMap[value] || (value.startsWith('/') ? value : `/${value}`);
+  }
+
+  private resolveIcon(raw: unknown): string {
+    const value = String(raw ?? '').trim();
+    if (!value) return 'fa-solid fa-circle-dot';
+    return value.includes('fa-') ? value : `fa-solid ${value}`;
+  }
+
+  private normalizeText(text: string): string {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  onSearchInput(): void {
+    const q = this.normalizeText(this.searchQuery ?? '');
+    this.searchActiveIndex = -1;
+    if (!q.trim()) {
+      this.searchResults = [];
+      this.showSearchDropdown = false;
+      return;
+    }
+    this.searchResults = this.allSearchItems
+      .filter(r => this.normalizeText(r.label).includes(q))
+      .slice(0, 8);
+    this.showSearchDropdown = true;
+  }
+
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (!this.showSearchDropdown || this.searchResults.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.searchActiveIndex = Math.min(this.searchActiveIndex + 1, this.searchResults.length - 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.searchActiveIndex = Math.max(this.searchActiveIndex - 1, -1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (this.searchActiveIndex >= 0) {
+        this.navigateSearchResult(this.searchResults[this.searchActiveIndex]);
+      } else if (this.searchResults.length === 1) {
+        this.navigateSearchResult(this.searchResults[0]);
+      }
+    }
+  }
+
   onSearch(): void {
+    if (this.searchActiveIndex >= 0 && this.searchResults[this.searchActiveIndex]) {
+      this.navigateSearchResult(this.searchResults[this.searchActiveIndex]);
+    } else if (this.searchResults.length === 1) {
+      this.navigateSearchResult(this.searchResults[0]);
+    }
+  }
+
+  navigateSearchResult(result: SearchResult): void {
+    this.showSearchDropdown = false;
+    this.searchQuery = '';
+    this.searchResults = [];
+    this.searchActiveIndex = -1;
+    if (result.isExternal) {
+      window.open(result.route, '_blank', 'noopener,noreferrer');
+    } else {
+      this.router.navigate([result.route]);
+    }
+  }
+
+  closeSearchDropdown(): void {
+    this.showSearchDropdown = false;
+    this.searchActiveIndex = -1;
   }
 
   onNotificationClick(notification: Notification): void {

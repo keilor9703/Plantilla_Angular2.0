@@ -112,6 +112,14 @@ namespace Comun.Dtos
         public int vigente { get; set; } = 1;
     }
 
+    public class DtoEditarRolRequest
+    {
+        public string? usuario { get; set; }
+        public string? identificacion { get; set; }
+        public string? justificacion { get; set; }
+        public string? fechaFin { get; set; }
+    }
+
     public class DtoRolAdmin
     {
         public int id { get; set; }

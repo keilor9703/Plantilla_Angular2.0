@@ -183,7 +183,16 @@ html.dark-mode {
     }
   }
 
-  /* Labels */
+  .ui-control[readonly] {
+    background: rgba(244, 238, 238, 0.094) !important;    
+    border-style: dashed;
+    color: #6b7891;
+    cursor: not-allowed;
+  }
+
+
+
+  
   label {
     color: var(--ui-text);
   }
@@ -207,6 +216,8 @@ html.dark-mode {
     }
   }
 
+  
+
   /* Botones genéricos */
   button:not([class*="btn-primary"]):not([class*="btn-success"]):not([class*="btn-danger"]):not([class*="btn-warning"]) {
     background: #252f45;
@@ -223,6 +234,8 @@ html.dark-mode {
       color: #7a8290;
     }
   }
+
+  
 
   /* UI Buttons */
   .ui-btn {
@@ -313,7 +326,7 @@ html.dark-mode {
   }
 
   thead {
-    background: #252f45;
+    background: #254527;
     color: var(--ui-text);
   }
 
@@ -425,6 +438,18 @@ html.dark-mode {
   }
 
   /* Modales */
+  .modal-backdrop {
+    background: rgba(2, 6, 23, .70);
+  }
+
+  .modal-card {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+
+    h3 { color: var(--ui-text); }
+    p { color: var(--ui-muted); }
+  }
+
   .ui-modal__dialog {
     background: var(--ui-surface);
     color: var(--ui-text);
@@ -854,6 +879,17 @@ section.home-view { padding: 40px; }
 .ui-control:focus {
   border-color: rgba(8, 166, 203, .75);
   box-shadow: var(--ui-focus-ring);
+}
+
+.ui-control[readonly] {
+  background: #e8eaed;
+  border-color: #c8cdd4;
+  color: #0b1220;;
+  cursor: not-allowed;
+}
+
+.ui-control[readonly]:hover {
+  border-color: #cad4c8;
 }
 
 select.ui-control {
@@ -1423,8 +1459,10 @@ body.ui-modal-open .content {
   backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
+  align-items: start;
   padding: 18px;
   z-index: 9999;
+  overflow-y: auto;
 }
 
 .ui-modal__dialog {
@@ -1436,6 +1474,21 @@ body.ui-modal-open .content {
   border: 1px solid rgba(255, 255, 255, .14);
   box-shadow: 0 30px 80px rgba(2, 6, 23, .35);
   animation: uiModalIn .16s ease-out;
+  margin: auto;
+}
+
+.ui-modal__dialog {
+  width: min(1200px, 98vw);
+  max-height: 95vh;
+  margin-top: 1.5vh;
+  margin-bottom: 1.5vh;
+  overflow-y: auto;
+  animation: uiModalInTop .2s ease-out;
+}
+
+@keyframes uiModalInTop {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes uiModalIn {
@@ -1484,6 +1537,45 @@ body.ui-modal-open .content {
   margin-top: 8px;
   color: rgba(83, 86, 90, .92);
   font-size: calc(12px * var(--font-size-scale));
+}
+
+/* Modal backdrop (alias de .ui-modal para modales legacy) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, .55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 9999;
+}
+
+.modal-card {
+  width: min(560px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 30px 80px rgba(2, 6, 23, .35);
+  padding: 24px;
+  animation: uiModalIn .16s ease-out;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: calc(16px * var(--font-size-scale));
+    font-weight: 900;
+    color: var(--policia-oscuro);
+  }
+
+  p {
+    margin: 0 0 14px;
+    color: rgba(83, 86, 90, .95);
+    line-height: 1.5;
+    font-size: calc(14px * var(--font-size-scale));
+  }
 }
 
 /* --- TOAST --- */

@@ -34,6 +34,14 @@ namespace Datos.Interfaz
             string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct);
+        Task<DtoGuardarUsuarioResult> EditarRolAsync(
+            long idUsuario,
+            int rolId,
+            string justificacion,
+            DateTime fechaFin,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct);
         Task<List<DtoRolAdmin>> GetRolesAdminAsync(CancellationToken ct);
         Task<DtoSaveRolResult> SaveRolAdminAsync(
             DtoSaveRolRequest request,

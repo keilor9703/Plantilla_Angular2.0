@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
-import { DtoRolCatalogo, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
+import { DtoRolCatalogo, EditarRolRequest, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { AuthService } from '../../../core/auth/auth.service';
 
 type TabKey = 'datos' | 'roles';
@@ -191,12 +191,12 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.user.activo = !this.user.activo;
   }
 
-  get activeRolesCount(): number {
-    return this.rolesVigentes.length;
-  }
+ get activeRolesCount(): number {
+    return this.user?.roles.filter(r => r.estado === 'Vigente').length ?? 0;
+}
 
   get rolesVigentes(): UserRole[] {
-    return this.user?.roles.filter((r) => r.estado === 'Vigente') ?? [];
+    return this.user?.roles ?? [];
   }
 
   agregarRol(): void {
@@ -340,7 +340,48 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.editingRole === null) {
+      const rolCatalogo = this.rolesCatalogo.find(r => r.id === this.newRole.rolId);
+      const rolNombre = (rolCatalogo?.nombre ?? '').trim().toUpperCase();
+      const yaAsignado = this.user.roles.some(r =>
+        r.nombre.trim().toUpperCase() === rolNombre
+        && r.estado === 'Vigente'
+      );
+      if (yaAsignado) {
+        this.toast.warning('Roles', 'El usuario ya tiene este rol asignado y vigente.');
+        return;
+      }
+    }
+
     this.savingRole = true;
+
+    if (this.editingRole !== null) {
+      const editPayload: EditarRolRequest = {
+        usuario: this.user.usuarioEmpresarial,
+        identificacion: this.user.identificacion,
+        justificacion: this.newRole.justificacion.trim(),
+        fechaFin: this.newRole.fechaFin
+      };
+      this.usuarioAdminService.editarRol(this.editingRole.id, editPayload).subscribe({
+        next: (resp) => {
+          this.savingRole = false;
+          if (!resp?.success) {
+            this.toast.warning('Roles', resp?.message || 'No fue posible editar el rol.');
+            return;
+          }
+          this.toast.success('Roles', resp.message || 'Rol actualizado correctamente.');
+          this.cancelarNuevoRol();
+          this.consultarUsuario();
+          this.cargarListadoUsuarios();
+        },
+        error: (err) => {
+          this.savingRole = false;
+          this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error editando rol.');
+        }
+      });
+      return;
+    }
+
     this.usuarioAdminService.asignarRol({
       usuarioId: 0,
       usuario: this.user.usuarioEmpresarial,
@@ -604,6 +645,35 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     const m = String(parsed.getMonth() + 1).padStart(2, '0');
     const d = String(parsed.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+
+  tiempoRestante(fechaExpiracion: string): string {
+    if (!fechaExpiracion) return 'Sin fecha';
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fin = new Date(fechaExpiracion + 'T00:00:00');
+    if (Number.isNaN(fin.getTime())) return 'Sin fecha';
+
+    const diff = fin.getTime() - hoy.getTime();
+    if (diff < 0) return 'Vencido';
+    if (diff === 0) return 'Vence hoy';
+
+    let anios = fin.getFullYear() - hoy.getFullYear();
+    let meses = fin.getMonth() - hoy.getMonth();
+    let dias  = fin.getDate()  - hoy.getDate();
+
+    if (dias < 0) {
+      meses--;
+      const ultimoDiaMesAnterior = new Date(fin.getFullYear(), fin.getMonth(), 0).getDate();
+      dias += ultimoDiaMesAnterior;
+    }
+    if (meses < 0) { anios--; meses += 12; }
+
+    const partes: string[] = [];
+    if (anios > 0)  partes.push(`${anios} ${anios === 1 ? 'año' : 'años'}`);
+    if (meses > 0)  partes.push(`${meses} ${meses === 1 ? 'mes' : 'meses'}`);
+    if (dias > 0)   partes.push(`${dias} ${dias === 1 ? 'día' : 'días'}`);
+    return partes.length ? partes.join(', ') : 'Vence hoy';
   }
 
   private filtrarRolesCatalogo(roles: DtoRolCatalogo[]): DtoRolCatalogo[] {
