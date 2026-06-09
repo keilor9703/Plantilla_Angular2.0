@@ -25,11 +25,32 @@
     <!-- Barra de Búsqueda -->
     <div class="header-search">
         <!-- <i class="fa-solid fa-magnifying-glass search-icon"></i> -->
-        <input type="text" placeholder="Buscar..." [(ngModel)]="searchQuery" (keyup.enter)="onSearch()"
-            class="search-input">
+        <input type="text" placeholder="Buscar..." [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchInput()"
+            (keydown)="onSearchKeydown($event)"
+            (keyup.escape)="closeSearchDropdown()"
+            class="search-input"
+            autocomplete="off">
         <button class="search-btn" (click)="onSearch()">
             <i class="fa-solid fa-search"></i>
         </button>
+
+        <!-- Dropdown de resultados -->
+        <div class="search-dropdown" *ngIf="showSearchDropdown && searchResults.length > 0">
+            <div class="search-result-item"
+                *ngFor="let result of searchResults; let i = index"
+                [class.search-result-item--active]="i === searchActiveIndex"
+                (click)="navigateSearchResult(result)">
+                <i [class]="result.icon + ' search-result-icon'"></i>
+                <span class="search-result-label">{{ result.label }}</span>
+                <i *ngIf="result.isExternal" class="fa-solid fa-arrow-up-right-from-square search-result-external"></i>
+            </div>
+        </div>
+
+        <!-- Sin resultados -->
+        <div class="search-dropdown search-dropdown--empty" *ngIf="showSearchDropdown && searchResults.length === 0">
+            <span>Sin resultados</span>
+        </div>
     </div>
 
     <div class="header-notifications">

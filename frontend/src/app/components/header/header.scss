@@ -1,4 +1,9 @@
-﻿.impersonation-banner {
+﻿@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.impersonation-banner {
   position: fixed;
   top: 0;
   left: 0;
@@ -195,6 +200,66 @@
       transform: scale(1.1);
       box-shadow: 0 4px 12px rgba(205, 255, 0, 0.4);
     }
+  }
+
+  .search-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    z-index: 9999;
+    animation: fadeInDown 0.15s ease;
+
+    &--empty {
+      padding: 12px 16px;
+      color: #888;
+      font-size: calc(13px * var(--font-size-scale));
+    }
+  }
+
+  .search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #1a1a2e;
+    font-size: calc(13px * var(--font-size-scale));
+    transition: background 0.15s ease;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    &:hover,
+    &--active {
+      background: #f4f6ff;
+    }
+  }
+
+  .search-result-icon {
+    color: var(--policia-primario, #003366);
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+  }
+
+  .search-result-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .search-result-external {
+    color: #888;
+    font-size: 11px;
+    flex-shrink: 0;
   }
 }
 

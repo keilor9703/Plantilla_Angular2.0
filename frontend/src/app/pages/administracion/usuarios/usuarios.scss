@@ -11,13 +11,25 @@
 
 .admin-grid {
   display: grid;
-  grid-template-columns: 40% 60%;
+  grid-template-columns: 4fr 6fr;
   gap: 16px;
+  align-items: stretch;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.left-column,
+
 .right-column {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.left-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .profile-card {
@@ -105,7 +117,7 @@
   height: 26px;
   border: none;
   border-radius: 999px;
-  background: rgba(var(--policia-neutral-oscuro-rgb), .4);
+  background: linear-gradient(135deg, #7b8794 0%, #9aa5b1 100%);
   padding: 0 4px;
   cursor: pointer;
   display: inline-flex;
@@ -170,19 +182,20 @@
 .tabs-shell {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  background: rgba(var(--policia-oscuro-rgb), .04);
-  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
-  border-radius: 14px;
-  padding: 6px;
+  gap: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 .tab-btn {
-  border: none;
-  border-radius: 10px;
+  border: 1px solid rgba(var(--policia-oscuro-rgb), .14);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
   padding: 10px 12px;
-  background: transparent;
-  color: var(--policia-neutral-oscuro);
+  background: rgba(var(--policia-oscuro-rgb), .07);
+  color: rgba(var(--policia-neutral-oscuro-rgb), .45);
   font-size: calc(13px * var(--font-size-scale));
   font-weight: 800;
   display: inline-flex;
@@ -190,26 +203,68 @@
   justify-content: center;
   gap: 8px;
   cursor: pointer;
+  position: relative;
+  transition: color .15s ease, background .15s ease, box-shadow .15s ease;
+  margin-bottom: -1px;
+  box-shadow: inset 0 -5px 10px rgb(2 6 23 / 20%), inset 0 2px 4px rgb(2 6 23 / 0%);
+}
+
+.tab-btn:first-child {
+  border-right: none;
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--policia-medio);
+  background: rgba(var(--policia-oscuro-rgb), .10);
 }
 
 .tab-btn.active {
-  background: var(--policia-medio);
+  background: var(--policia-gradiente-principal);
   color: #fff;
+  border-color: var(--policia-medio);
+  border-bottom-color: var(--policia-medio);
+  font-weight: 900;
+  box-shadow: 0 -2px 8px rgba(8, 166, 203, .25);
 }
 
 .tab-card {
-  margin-top: 12px;
-  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
-  border-radius: 16px;
+  margin-top: 0;
+  border: 1px solid rgba(var(--policia-oscuro-rgb), .14);
+  border-radius: 0 0 14px 14px;
   background: var(--ui-surface);
   box-shadow: 0 10px 22px rgba(2, 6, 23, .08);
   padding: 16px;
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.ui-control[readonly] {
-  background: rgba(var(--policia-oscuro-rgb), .05);
-  border-color: rgba(var(--policia-oscuro-rgb), .14);
-  color: rgba(var(--policia-oscuro-rgb), .85);
+/* Tabla de roles: altura máxima + scroll vertical */
+.right-column .tab-card {
+  max-height: calc(100vh - 260px);
+  min-height: calc(100vh - 690px);
+}
+
+.right-column .tab-card > .ui-table-wrap {
+  height: 500px;
+  max-height: 500px;
+  min-height: 500px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+
+.tab-card .ui-table-wrap .ui-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Keep tab actions pinned to the bottom of the card */
+.tab-card .tab-actions {
+  margin-top: auto;
 }
 
 .tab-actions {
@@ -367,10 +422,10 @@
 }
 
 .search-btn i {
-  color: #fff !important;
+  color: var(--policia-medio) !important;
   font-size: calc(23px * var(--font-size-scale)) !important;
 }
-
+  
 .empty-search .ui-btn i {
   color: #fff !important;
   font-size: calc(23px * var(--font-size-scale)) !important;
@@ -440,6 +495,7 @@
   padding: 16px;
 }
 
+
 .modal-card {
   width: min(540px, 100%);
   background: var(--ui-surface);
@@ -457,6 +513,17 @@
 .modal-card p {
   margin: 0 0 12px 0;
   color: rgba(var(--policia-neutral-oscuro-rgb), .95);
+}
+
+.thead-usuario th {
+  text-align: left;
+  padding: 12px;
+  font-size: calc(12px * var(--font-size-scale));
+  text-transform: uppercase;
+  letter-spacing: .25px;
+  color: rgba(83, 86, 90, .95);
+  background: transparent;
+  border-bottom: 1px solid rgba(21, 27, 59, .10);
 }
 
 /* --- MODO OSCURO --- */
@@ -485,4 +552,49 @@
   .modal-card h3 {
     color: var(--ui-text);
   }
+
+  .tab-btn {
+    background: rgba(255, 255, 255, .05);
+    border-color: rgba(200, 200, 200, .1);
+    color: rgba(228, 231, 235, .35);
+    box-shadow: inset 0 -5px 10px rgba(0, 0, 0, .2), inset 0 2px 4px rgba(0, 0, 0, .15);
+  }
+
+  .tab-btn:hover:not(.active) {
+    color: var(--policia-cielo);
+    background: rgba(255, 255, 255, .08);
+  }
+
+  .tab-btn.active {
+    background: var(--policia-cielo);
+    color: #fff;
+    border-color: var(--policia-cielo);
+    border-bottom-color: var(--policia-cielo);
+    box-shadow: 0 -2px 8px rgba(8, 166, 203, .3);
+  }
+
+  .tab-card {
+    border-color: rgba(200, 200, 200, .1);
+  }
+  
+
+  .switch span {
+    background: #fff !important;
+  }
+
+  .switch.active {
+    background: var(--policia-cielo) !important;
+  }
+
+  .search-btn i {
+  color: var(--policia-cielo) !important;
+  
+}
+
+.thead-usuario th {
+  background: var(--policia-oscuro) !important;
+  
+}
+
+  
 }

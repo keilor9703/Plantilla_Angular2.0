@@ -687,6 +687,60 @@ namespace ofic.Controllers.Administracion
             return roleClaims.Any(r => string.Equals(r?.Trim(), SuperAdministradorRolId.ToString(), StringComparison.Ordinal));
         }
 
+        [HttpPut("Roles/{rolId}")]
+        public async Task<IActionResult> EditarRol(int rolId, [FromBody] DtoEditarRolRequest request)
+        {
+            try
+            {
+                if (rolId <= 0)
+                    return BadRequest(new { success = false, message = "Rol inválido." });
+
+                if (string.IsNullOrWhiteSpace(request?.justificacion))
+                    return BadRequest(new { success = false, message = "La justificación es obligatoria." });
+
+                if (string.IsNullOrWhiteSpace(request.fechaFin) || !DateTime.TryParse(request.fechaFin, out var fechaFin))
+                    return BadRequest(new { success = false, message = "Fecha fin inválida." });
+
+                long idUsuario = 0;
+
+                if (!string.IsNullOrWhiteSpace(request.identificacion))
+                {
+                    var id = await _dbUsuarioRepository.GetUsuarioIdByIdentificacionAsync(request.identificacion.Trim(), HttpContext.RequestAborted);
+                    if (id.HasValue) idUsuario = id.Value;
+                }
+
+                if (idUsuario <= 0 && !string.IsNullOrWhiteSpace(request.usuario))
+                {
+                    var id = await _dbUsuarioRepository.GetUsuarioIdByUsernameAsync(request.usuario.Trim(), HttpContext.RequestAborted);
+                    if (id.HasValue) idUsuario = id.Value;
+                }
+
+                if (idUsuario <= 0)
+                    return BadRequest(new { success = false, message = "No se encontró el usuario." });
+
+                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(User, request.identificacion, HttpContext.RequestAborted);
+                var maquinaAuditoria = HttpContext.Connection.RemoteIpAddress?.ToString() ?? Environment.MachineName ?? "N/A";
+
+                var result = await _dbUsuarioRepository.EditarRolAsync(
+                    idUsuario, rolId,
+                    request.justificacion.Trim(),
+                    fechaFin,
+                    usuarioAuditoria,
+                    maquinaAuditoria,
+                    HttpContext.RequestAborted);
+
+                if (result.idUsuario <= 0)
+                    return BadRequest(new { success = false, message = result.message });
+
+                return Ok(new { success = true, message = result.message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error editando rol id={RolId}", rolId);
+                return StatusCode(500, new { success = false, message = "Error al editar el rol." });
+            }
+        }
+
         [HttpDelete("Roles/{rolId}")]
         public async Task<IActionResult> EliminarRol(
             int rolId,
