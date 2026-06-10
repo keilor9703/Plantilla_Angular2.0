@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Datos.Gestion
 {
@@ -91,12 +92,41 @@ namespace Datos.Gestion
         {
             var result = new DtoLineaMandoResult();
 
+            // Buscar duplicados activos (Mismo Peso)
+            var all = await GetAllAsync(ct);
+            var duplicated = all.FirstOrDefault(x => string.Equals(x.Peso, request.Peso, StringComparison.OrdinalIgnoreCase) && x.Vigente == 1);
+
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
 
             await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
+                if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
+                {
+                    _logger.LogInformation("Desactivando registro anterior ID {Id} para el peso {Peso}", duplicated.IdLineaMando, request.Peso);
+                    await using var cmdDesactivar = conn.CreateCommand();
+                    cmdDesactivar.Transaction = (OracleTransaction)transaction;
+                    cmdDesactivar.BindByName = true;
+                    cmdDesactivar.CommandType = CommandType.StoredProcedure;
+                    cmdDesactivar.CommandText = "PKG_LINEA_MANDO.P_SET_VIGENTE";
+                    
+                    cmdDesactivar.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = duplicated.IdLineaMando;
+                    cmdDesactivar.Parameters.Add("p_vigente", OracleDbType.Int32).Value = 0;
+                    
+                    var uStr = usuarioAuditoria.ToString();
+                    var mStr = maquinaAuditoria ?? "N/A";
+                    cmdDesactivar.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = uStr.Length > 50 ? uStr.Substring(0, 50) : uStr;
+                    cmdDesactivar.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = mStr.Length > 100 ? mStr.Substring(0, 100) : mStr;
+                    
+                    var pSucc = new OracleParameter("p_success", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+                    cmdDesactivar.Parameters.Add(pSucc);
+                    var pMsg = new OracleParameter("p_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                    cmdDesactivar.Parameters.Add(pMsg);
+                    
+                    await cmdDesactivar.ExecuteNonQueryAsync(ct);
+                }
+
                 _logger.LogInformation("Ejecutando PKG_LINEA_MANDO.P_CREATE con datos: Identificacion={Ident}, Nombre={Nombre}, Cargo={Cargo}",
                     request.Identificacion, request.Nombre, request.Cargo);
 

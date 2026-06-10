@@ -1,4 +1,4 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -32,6 +32,10 @@ export class LineaMandoAdminComponent implements OnInit {
   fotoPreview: string | null = null;
   fotoCambiada = false;
   hayFuncionario = false;
+
+  showConfirmModal = false;
+  confirmText = '';
+  modalFuncionarioAnterior = '';
 
   pesoOpciones: CargoOpcion[] = [
     { id: 'Director Policía', nombre: 'Director Policía' },
@@ -135,25 +139,7 @@ export class LineaMandoAdminComponent implements OnInit {
     });
   }
 
-  validarPesoUnico(): boolean {
-    if (!this.formData.peso) {
-      return true;
-    }
-
-    const pesoActual = this.formData.peso;
-    const existentes = this.listaLineaMando.filter(item => 
-      item.peso === pesoActual && 
-      item.vigente === 1 && 
-      item.idLineaMando !== (this.idEditando ?? 0)
-    );
-
-    if (existentes.length > 0) {
-      this.toast.warning('Peso', `Ya existe un ${pesoActual} activo en la línea de mando`);
-      return false;
-    }
-
-    return true;
-  }
+  // validarPesoUnico eliminado porque el backend ahora lo gestiona automáticamente
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -268,21 +254,9 @@ export class LineaMandoAdminComponent implements OnInit {
     );
 
     if (existenteMismoPeso && !this.modoEdicion) {
-      const confirmado = confirm(
-        `Ya existe un registro activo con el cargo "${this.formData.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
-        `¿Está seguro que desea reemplazarlo?\n\n` +
-        `El registro anterior pasará a estado Inactivo.`
-      );
-      
-      if (!confirmado) {
-        return;
-      }
-      
-      this.sustituirRegistro(existenteMismoPeso.idLineaMando);
-      return;
-    }
-
-    if (!this.validarPesoUnico()) {
+      this.modalFuncionarioAnterior = `${existenteMismoPeso.grado} ${existenteMismoPeso.nombre} ${existenteMismoPeso.apellidos}`;
+      this.confirmText = '';
+      this.showConfirmModal = true;
       return;
     }
 
@@ -368,23 +342,18 @@ export class LineaMandoAdminComponent implements OnInit {
     });
   }
 
-  sustituirRegistro(idAnterior: number): void {
-    this.saving = true;
+  cancelarSustitucion(): void {
+    this.showConfirmModal = false;
+    this.confirmText = '';
+  }
 
-    this.lineaMandoService.setVigente(idAnterior, 0).subscribe({
-      next: (resp) => {
-        if (resp.success) {
-          this.ejecutarGuardado();
-        } else {
-          this.saving = false;
-          this.toast.error('Sustituir', 'Error al inactivar registro anterior');
-        }
-      },
-      error: () => {
-        this.saving = false;
-        this.toast.error('Sustituir', 'Error al inactivar registro anterior');
-      }
-    });
+  confirmarSustitucion(): void {
+    if (this.confirmText === 'CONFIRMAR') {
+      this.showConfirmModal = false;
+      this.ejecutarGuardado();
+    } else {
+      this.toast.warning('Confirmación', 'Debe escribir exactamente CONFIRMAR');
+    }
   }
 
   getNombreCompleto(): string {

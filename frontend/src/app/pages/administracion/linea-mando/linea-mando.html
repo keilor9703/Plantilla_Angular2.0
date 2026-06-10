@@ -196,4 +196,46 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL DE CONFIRMACIÓN DE SUSTITUCIÓN -->
+  <div class="ui-modal" *ngIf="showConfirmModal">
+    <div class="ui-modal__dialog" role="dialog" aria-modal="true" style="max-width: 500px;">
+      <div class="ui-modal__head" style="background-color: var(--warning-color, #ff9800); color: white;">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          Confirmar Actualización de Cargo
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cancelarSustitucion()" aria-label="Cerrar" style="color: white;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="ui-modal__body">
+        <p style="margin-bottom: 15px; font-size: 15px;">
+          Actualmente el cargo <strong>{{ formData.peso }}</strong> está ocupado por <strong>{{ modalFuncionarioAnterior }}</strong>.
+        </p>
+        <div class="ui-alert warning" style="margin-bottom: 15px;">
+          <i class="fa-solid fa-circle-info"></i>
+          Si procede, el oficial anterior pasará a estado inactivo y será reemplazado.
+        </div>
+        <p style="margin-bottom: 10px; font-weight: 500;">
+          ¿Desea actualizar? Escriba la palabra <strong style="color: red;">CONFIRMAR</strong> en la caja de texto para proceder:
+        </p>
+        <input 
+          class="ui-control" 
+          type="text" 
+          [(ngModel)]="confirmText" 
+          placeholder="Escriba CONFIRMAR aquí..." 
+          style="text-transform: uppercase; font-weight: bold; text-align: center; font-size: 16px; letter-spacing: 2px;"
+        />
+      </div>
+      <div class="ui-modal__foot" style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #eee;">
+        <button class="ui-btn outline" type="button" (click)="cancelarSustitucion()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn primary" type="button" (click)="confirmarSustitucion()" [disabled]="confirmText !== 'CONFIRMAR'">
+          <i class="fa-solid fa-check"></i> Aceptar Reemplazo
+        </button>
+      </div>
+    </div>
+  </div>
 </section>
