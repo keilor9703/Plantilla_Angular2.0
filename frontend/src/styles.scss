@@ -1,7 +1,7 @@
 /* ==========================================
    VARIABLES Y CONFIGURACIÓN BASE
    ========================================== */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+@import 'fonts';
 
 :root {
   /* --- Paleta Institucional --- */
@@ -768,7 +768,7 @@ body {
 /* Soporte íconos Font Awesome */
 .fa, .fas, .far, .fal, .fab,
 .fa-solid, .fa-regular, .fa-light, .fa-brands {
-  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
+  font-family: "Font Awesome 7 Free", "Font Awesome 7 Brands" !important;
 }
 html.no-scroll,
 body.no-scroll{
