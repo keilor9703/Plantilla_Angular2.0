@@ -94,7 +94,11 @@ namespace Datos.Gestion
 
             // Buscar duplicados activos (Mismo Peso)
             var all = await GetAllAsync(ct);
-            var duplicated = all.FirstOrDefault(x => string.Equals(x.Peso, request.Peso, StringComparison.OrdinalIgnoreCase) && x.Vigente == 1);
+            var duplicated = all.FirstOrDefault(x => 
+                !string.IsNullOrEmpty(x.Peso) &&
+                !string.IsNullOrEmpty(request.Peso) &&
+                request.Peso.Trim().StartsWith(x.Peso.Trim(), StringComparison.OrdinalIgnoreCase) 
+                && x.Vigente == 1);
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -216,12 +220,46 @@ namespace Datos.Gestion
 
             var result = new DtoLineaMandoResult();
 
+            // Buscar duplicados activos (Mismo Peso) pero excluyendo el que estamos editando
+            var all = await GetAllAsync(ct);
+            var duplicated = all.FirstOrDefault(x => 
+                x.IdLineaMando != id &&
+                !string.IsNullOrEmpty(x.Peso) &&
+                !string.IsNullOrEmpty(request.Peso) &&
+                request.Peso.Trim().StartsWith(x.Peso.Trim(), StringComparison.OrdinalIgnoreCase) 
+                && x.Vigente == 1);
+
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
 
             await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
+                if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
+                {
+                    _logger.LogInformation("Desactivando registro anterior ID {Id} para el peso {Peso}", duplicated.IdLineaMando, request.Peso);
+                    await using var cmdDesactivar = conn.CreateCommand();
+                    cmdDesactivar.Transaction = (OracleTransaction)transaction;
+                    cmdDesactivar.BindByName = true;
+                    cmdDesactivar.CommandType = CommandType.StoredProcedure;
+                    cmdDesactivar.CommandText = "PKG_LINEA_MANDO.P_SET_VIGENTE";
+                    
+                    cmdDesactivar.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = duplicated.IdLineaMando;
+                    cmdDesactivar.Parameters.Add("p_vigente", OracleDbType.Int32).Value = 0;
+                    
+                    var uStr = usuarioAuditoria.ToString();
+                    var mStr = maquinaAuditoria ?? "N/A";
+                    cmdDesactivar.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = uStr.Length > 50 ? uStr.Substring(0, 50) : uStr;
+                    cmdDesactivar.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = mStr.Length > 100 ? mStr.Substring(0, 100) : mStr;
+                    
+                    var pSucc = new OracleParameter("p_success", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+                    cmdDesactivar.Parameters.Add(pSucc);
+                    var pMsg = new OracleParameter("p_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                    cmdDesactivar.Parameters.Add(pMsg);
+                    
+                    await cmdDesactivar.ExecuteNonQueryAsync(ct);
+                }
+
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandTimeout = 60;
                 cmd.Transaction = (OracleTransaction)transaction;
@@ -399,9 +437,24 @@ namespace Datos.Gestion
 
                 await cmd.ExecuteNonQueryAsync(ct);
 
-                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)pSuccess.Value;
-                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
-                result.Message = pMessage.Value?.ToString() ?? string.Empty;
+                var pMessageParam = cmd.Parameters["p_message"];
+                var pSuccessVal = pSuccess.Value;
+                
+                // Procesar el éxito
+                if (pSuccessVal is Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
+                {
+                    result.Success = !oracleDecimal.IsNull && oracleDecimal.ToInt32() == 1;
+                }
+                else if (pSuccessVal is int intVal)
+                {
+                    result.Success = intVal == 1;
+                }
+                else
+                {
+                    result.Success = Convert.ToInt32(pSuccessVal?.ToString() ?? "0") == 1;
+                }
+
+                result.Message = pMessageParam.Value?.ToString() ?? string.Empty;
 
                 if (result.Success)
                 {
@@ -411,22 +464,52 @@ namespace Datos.Gestion
                 else
                 {
                     await transaction.RollbackAsync(ct);
-                    _logger.LogWarning("Error al actualizar vigente: {Message}", result.Message);
                 }
+            }
+            catch (OracleException ex) when (ex.Number == 1) // Unique constraint violation
+            {
+                await transaction.RollbackAsync(ct);
+                _logger.LogWarning("Restricción única violada al desactivar. Borrando inactivo previo...");
+                
+                // Si la base de datos se queja de que ya hay un inactivo (Vigente=0) para esta identificación,
+                // vamos a buscar el anterior inactivo, lo borramos permanentemente, y reintentamos.
+                try
+                {
+                    var current = await GetByIdAsync(id, ct);
+                    if (current != null)
+                    {
+                        var all = await GetAllAsync(ct);
+                        var previousInactive = all.FirstOrDefault(x => x.Identificacion == current.Identificacion && x.Vigente == 0 && x.IdLineaMando != id);
+                        
+                        if (previousInactive != null)
+                        {
+                            // Borramos físicamente el inactivo viejo usando el service
+                            await DeleteAsync(previousInactive.IdLineaMando, usuarioAuditoria, maquinaAuditoria, ct);
+                            
+                            // Reintentamos la desactivación actual
+                            return await SetVigenteAsync(id, vigente, usuarioAuditoria, maquinaAuditoria, ct);
+                        }
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogError(fallbackEx, "Error en fallback de desactivación");
+                }
+                
+                result.Success = false;
+                result.Message = $"Error al desactivar: El funcionario ya tiene un registro inactivo previo y no se pudo limpiar. ({ex.Message})";
             }
             catch (OracleException ex)
             {
                 await transaction.RollbackAsync(ct);
                 result.Success = false;
-                result.Message = $"Error Oracle: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle al actualizar vigente - Code: {Code}, Message: {Message}", ex.Number, ex.Message);
+                result.Message = $"Error al eliminar: {ex.Message}";
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(ct);
                 result.Success = false;
-                result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general al actualizar vigente: {Message}", ex.Message);
+                result.Message = $"Error al eliminar: {ex.Message}";
             }
 
             return result;
