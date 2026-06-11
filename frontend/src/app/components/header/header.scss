@@ -59,6 +59,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    /* ---
     background-image:
       repeating-linear-gradient(
         45deg,
@@ -67,6 +68,7 @@
         rgba(255, 255, 255, 0.02) 10px,
         rgba(255, 255, 255, 0.02) 20px
       );
+      --- */
     pointer-events: none;
   }
 

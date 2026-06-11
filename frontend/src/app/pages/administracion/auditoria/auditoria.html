@@ -74,10 +74,24 @@
         </table>
       </div>
 
-      <div class="pager">
-        <button class="ui-btn secondary" type="button" (click)="anterior()" [disabled]="paginaActual === 1">Anterior</button>
-        <span>Página {{ paginaActual }} de {{ totalPaginas }}</span>
-        <button class="ui-btn secondary" type="button" (click)="siguiente()" [disabled]="paginaActual >= totalPaginas">Siguiente</button>
+      <div class="table-pagination" *ngIf="total > 0">
+        <div class="pagination-actions pagination-numbers">
+          <button class="ui-icon-btn" type="button" (click)="anterior()" [disabled]="paginaActual === 1">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+
+          <ng-container *ngFor="let p of pageNumbers">
+            <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === paginaActual"
+              (click)="onPageClick(p)">
+              {{ p }}
+            </button>
+            <span *ngIf="p === '...'" class="page-dots">...</span>
+          </ng-container>
+
+          <button class="ui-icon-btn" type="button" (click)="siguiente()" [disabled]="paginaActual >= totalPaginas">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>

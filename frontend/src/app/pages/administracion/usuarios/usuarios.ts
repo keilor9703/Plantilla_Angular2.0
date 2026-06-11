@@ -77,7 +77,8 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   searchNombreListado = '';
   private searchNombreTimeout: ReturnType<typeof setTimeout> | null = null;
   readonly minSearchChars = 6;
-  readonly pageSize = 10;
+  pageSize = 10;
+  pageSizeOptions: number[] = [5, 10, 20, 30, 50, 100];
   currentPage = 1;
   isSearchMode = false;
   activeTab: TabKey = 'datos';
@@ -491,6 +492,78 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil(this.totalUsuariosListado / this.pageSize));
   }
 
+  /**
+   * Page numbers for compact pagination UI.
+   * If total pages <= 11, show all. Otherwise show 1..10, '...', last.
+   */
+  get pageNumbers(): Array<number | string> {
+    const total = this.totalPaginasListado;
+    const current = this.currentPage;
+    const window = 5; // pages before/after
+
+    // If total small, show all
+    if (total <= window * 2 + 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages: Array<number | string> = [];
+    // always show first
+    pages.push(1);
+
+    let start = Math.max(2, current - window);
+    let end = Math.min(total - 1, current + window);
+
+    // adjust when close to boundaries
+    if (start <= 2) start = 2;
+    if (end >= total - 1) end = total - 1;
+
+    if (start > 2) pages.push('...');
+
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    if (end < total - 1) pages.push('...');
+
+    pages.push(total);
+    return pages;
+  }
+
+  goToPage(page: number): void {
+    if (!Number.isFinite(page) || page < 1 || page > this.totalPaginasListado) return;
+    this.currentPage = page;
+  }
+
+  onPageClick(p: number | string): void {
+    if (p === '...') return;
+    const n = Number(p);
+    if (Number.isFinite(n)) this.goToPage(n);
+  }
+
+  onPageSizeChange(size: number | string): void {
+    const n = Number(size) || 10;
+    console.log('[DEBUG] onPageSizeChange start', { requestedSize: n, currentPageBefore: this.currentPage, pageSizeBefore: this.pageSize, totalItems: this.usuariosListado.length });
+
+    // compute last page based on the new page size before applying it
+    const totalItems = this.usuariosListado.length;
+    const lastPage = Math.max(1, Math.ceil(totalItems / n));
+
+    this.pageSize = n;
+    console.log('[DEBUG] onPageSizeChange - applied pageSize', { pageSize: this.pageSize, lastPage });
+
+    // Ensure currentPage is within bounds for the new page size
+    this.currentPage = Math.min(this.currentPage, lastPage);
+    console.log('[DEBUG] onPageSizeChange - clamped currentPage', this.currentPage);
+
+    // If the current page (after resize) has no items, jump to last page that has items
+    const pageItemsNow = this.usuariosListadoPaginado;
+    console.log('[DEBUG] onPageSizeChange - pageItemsNow.length', pageItemsNow.length);
+    if (pageItemsNow.length === 0 && totalItems > 0) {
+      this.currentPage = lastPage;
+      console.log('[DEBUG] onPageSizeChange - jumped to lastPage', lastPage);
+    }
+
+    console.log('[DEBUG] onPageSizeChange end', { currentPageAfter: this.currentPage, pageSizeAfter: this.pageSize });
+  }
+
   get usuariosListadoPaginado(): UsuarioListadoItem[] {
     const start = (this.currentPage - 1) * this.pageSize;
     return this.usuariosListado.slice(start, start + this.pageSize);
@@ -577,6 +650,24 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.toast.error('Usuarios', err?.error?.detail ?? err?.error?.message ?? 'Error eliminando usuario.');
       }
     });
+  }
+
+  impersonarUsuarioActual(): void {
+    if (!this.user) {
+      this.toast.warning('Impersonación', 'No hay usuario seleccionado.');
+      return;
+    }
+
+    const usuarioListadoItem: UsuarioListadoItem = {
+      idUsuario: 0,
+      identificacion: this.user.identificacion,
+      username: this.user.usuarioEmpresarial,
+      nombreCompleto: this.user.nombreCompleto,
+      rol: this.user.roles?.[0]?.nombre || '',
+      fechaFinRol: this.user.roles?.[0]?.fechaExpiracion
+    };
+
+    this.impersonarDesdeListado(usuarioListadoItem);
   }
 
   impersonarDesdeListado(item: UsuarioListadoItem): void {

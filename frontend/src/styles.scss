@@ -419,6 +419,54 @@ html.dark-mode {
     color: var(--ui-text);
   }
 
+  /* Global pagination styles for tablas (numerada) */
+  .table-pagination {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .pagination-actions.pagination-numbers {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ui-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+    background: #fff;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease; 
+    }
+
+  .page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+    background: transparent;
+    font-weight: 800;
+    cursor: pointer;
+    color: var(--ui-text);
+  }
+
+  .page-btn.page-active {
+    background: var(--policia-acento);
+    color: #fff;
+    border-color: var(--policia-acento);
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  }
+
+  .page-dots {
+    padding: 0 6px;
+    color: rgba(var(--policia-neutral-oscuro-rgb), .6);
+    font-weight: 800;
+  }
+
   /* Accordion */
   .ui-acc__summary {
     background: var(--policia-gradiente-deep);
@@ -1138,6 +1186,7 @@ textarea.ui-control {
 
 /* --- TABLA --- */
 .ui-table-wrap {
+  height: 100%;
   border: 1px solid rgba(21, 27, 59, .14);
   border-radius: var(--ui-radius);
   overflow-x: auto;
@@ -1147,7 +1196,7 @@ textarea.ui-control {
 }
 
 .ui-table {
-  width: 100%;
+  width: 100%;  
   border-collapse: collapse;
   font-size: calc(14px * var(--font-size-scale));
 }
