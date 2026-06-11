@@ -174,6 +174,19 @@ export class LineaMandoAdminComponent implements OnInit {
     }
   }
 
+  onPesoChange(): void {
+    const peso = this.formData.peso;
+    if (peso === 'Director Policía') {
+      this.formData.orden = 1;
+    } else if (peso === 'Subdirector Policía') {
+      this.formData.orden = 2;
+    } else if (peso === 'Jefe Unidad') {
+      this.formData.orden = 3;
+    } else if (peso === 'Mando Ejecutivo') {
+      this.formData.orden = 4;
+    }
+  }
+
   limpiarForm(): void {
     this.formData = {
       identificacion: '',
@@ -247,16 +260,19 @@ export class LineaMandoAdminComponent implements OnInit {
       return;
     }
 
-    const existenteMismoPeso = this.listaLineaMando.find(item => 
-      item.peso === this.formData.peso && 
-      item.vigente === 1 && 
-      item.idLineaMando !== (this.idEditando ?? 0)
-    );
+    const existenteMismoPeso = this.listaLineaMando.find(item => {
+      const dbPeso = item.peso?.trim().toLowerCase() || '';
+      const formPeso = this.formData.peso?.trim().toLowerCase() || '';
+      return formPeso.startsWith(dbPeso) && 
+             item.vigente === 1 && 
+             item.idLineaMando !== (this.idEditando ?? 0);
+    });
 
-    if (existenteMismoPeso && !this.modoEdicion) {
+    if (existenteMismoPeso) {
       this.modalFuncionarioAnterior = `${existenteMismoPeso.grado} ${existenteMismoPeso.nombre} ${existenteMismoPeso.apellidos}`;
       this.confirmText = '';
       this.showConfirmModal = true;
+      document.body.classList.add('ui-modal-open');
       return;
     }
 
@@ -266,10 +282,8 @@ export class LineaMandoAdminComponent implements OnInit {
   ejecutarGuardado(): void {
     this.saving = true;
 
+    // Enviamos siempre la foto que esté en formData, ya sea de SIATH, de la BD (en edición) o una nueva cargada
     let fotoBase64: string | null = this.formData.fotoBase64;
-    if (!this.fotoCambiada) {
-      fotoBase64 = this.modoEdicion ? this.formData.fotoBase64 : null;
-    }
 
     const request: DtoLineaMandoRequest = {
       identificacion: this.formData.identificacion || '',
@@ -345,11 +359,13 @@ export class LineaMandoAdminComponent implements OnInit {
   cancelarSustitucion(): void {
     this.showConfirmModal = false;
     this.confirmText = '';
+    document.body.classList.remove('ui-modal-open');
   }
 
   confirmarSustitucion(): void {
     if (this.confirmText === 'CONFIRMAR') {
       this.showConfirmModal = false;
+      document.body.classList.remove('ui-modal-open');
       this.ejecutarGuardado();
     } else {
       this.toast.warning('Confirmación', 'Debe escribir exactamente CONFIRMAR');
