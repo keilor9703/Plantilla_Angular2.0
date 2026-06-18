@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
+import { AlertService } from '../../../core/services/alert.service';
 import { DtoRolCatalogo, EditarRolRequest, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { AuthService } from '../../../core/auth/auth.service';
 
@@ -61,7 +62,8 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     private toast: ToastService,
     private usuarioAdminService: UsuarioAdminService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private alert: AlertService
   ) {}
 
   minimized = false;
@@ -411,14 +413,19 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     });
   }
 
-  eliminarRol(rol: UserRole): void {
+  async eliminarRol(rol: UserRole): Promise<void> {
     if (!this.user) {
       this.toast.warning('Roles', 'Consulta un usuario primero.');
       return;
     }
 
-    const confirmar = confirm(`¿Deseas retirar el rol "${rol.nombre}" del usuario?`);
-    if (!confirmar) {
+    const confirmed = await this.alert.confirm(
+      'Retirar rol',
+      `¿Deseas retirar el rol "${rol.nombre}" del usuario?`,
+      'Retirar',
+      'Cancelar'
+    );
+    if (!confirmed) {
       return;
     }
 

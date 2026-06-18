@@ -7,6 +7,7 @@ import {
   RadioService
 } from '../../../core/services/administracion/radio.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 type TestStatus = 'idle' | 'testing' | 'ok' | 'error';
 
@@ -39,6 +40,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
   constructor(
     private radioService: RadioService,
     private toast: ToastService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -141,10 +143,14 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
     });
   }
 
-  eliminar(item: DtoRadioEmisora): void {
-    if (!confirm(`¿Desea eliminar la emisora "${item.nombre}"?`)) {
-      return;
-    }
+  async eliminar(item: DtoRadioEmisora): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar emisora',
+      `¿Desea eliminar la emisora "${item.nombre}"?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.radioService.remove(item.idEmisora).subscribe({
       next: (resp) => {

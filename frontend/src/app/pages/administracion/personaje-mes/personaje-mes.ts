@@ -11,6 +11,7 @@ import {
   sortPersonajesMes
 } from '../../../core/services/administracion/personaje-mes.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-personaje-mes',
@@ -159,26 +160,32 @@ export class PersonajeMesAdminComponent implements OnInit {
       
     }
 
-    eliminarEquipo(grupo: any): void {
-      if (confirm('¿Está seguro que desea eliminar este equipo? Esta acción no se puede deshacer.')) {
-        const idGrupo = grupo.idPersonajeGrupo || grupo.IdPersonajeGrupo;
-        this.saving = true;
-        this.personajeMesService.deleteGrupo(idGrupo).subscribe({
-          next: (resp) => {
-            this.saving = false;
-            if (resp.success) {
-              this.toast.success('Equipo', resp.message || 'Equipo eliminado correctamente');
-              this.cargarEquipos();
-            } else {
-              this.toast.error('Equipo', resp.message || 'No se pudo eliminar el equipo');
-            }
-          },
-          error: (err) => {
-            this.saving = false;
-            this.toast.error('Equipo', err?.error?.message || 'Error al eliminar el equipo');
+    async eliminarEquipo(grupo: any): Promise<void> {
+      const confirmed = await this.alert.confirm(
+        'Eliminar equipo',
+        '¿Está seguro que desea eliminar este equipo? Esta acción no se puede deshacer.',
+        'Eliminar',
+        'Cancelar'
+      );
+      if (!confirmed) return;
+
+      const idGrupo = grupo.idPersonajeGrupo || grupo.IdPersonajeGrupo;
+      this.saving = true;
+      this.personajeMesService.deleteGrupo(idGrupo).subscribe({
+        next: (resp) => {
+          this.saving = false;
+          if (resp.success) {
+            this.toast.success('Equipo', resp.message || 'Equipo eliminado correctamente');
+            this.cargarEquipos();
+          } else {
+            this.toast.error('Equipo', resp.message || 'No se pudo eliminar el equipo');
           }
-        });
-      }
+        },
+        error: (err) => {
+          this.saving = false;
+          this.toast.error('Equipo', err?.error?.message || 'Error al eliminar el equipo');
+        }
+      });
     }
 
     // Al guardar equipo, si está en modo edición, actualizar; si no, crear
@@ -381,6 +388,7 @@ loading = false;
     private dominioService: DominioService,
     private toast: ToastService,
     private usuarioAdminService: UsuarioAdminService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -860,10 +868,14 @@ loading = false;
     }
   }
 
-  eliminar(item: DtoPersonajeMes): void {
-    if (!confirm(`¿Está seguro de eliminar el registro de ${this.getNombreCompleto(item)}?`)) {
-      return;
-    }
+  async eliminar(item: DtoPersonajeMes): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar registro',
+      `¿Está seguro de eliminar el registro de ${this.getNombreCompleto(item)}?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.personajeMesService.delete(item.idPersonajeMes).subscribe({
       next: (resp) => {
@@ -885,14 +897,18 @@ loading = false;
     });
   }
 
-  cambiarEstado(item: DtoPersonajeMes): void {
+  async cambiarEstado(item: DtoPersonajeMes): Promise<void> {
     const nuevoEstado = Number(item.vigente) === 1 ? 0 : 1;
     const accion = nuevoEstado === 1 ? 'activar' : 'inactivar';
     const accionCompleta = nuevoEstado === 1 ? 'activado' : 'inactivado';
 
-    if (!confirm(`¿Desea ${accion} el registro de ${this.getNombreCompleto(item)}?`)) {
-      return;
-    }
+    const confirmed = await this.alert.confirm(
+      'Confirmar',
+      `¿Desea ${accion} el registro de ${this.getNombreCompleto(item)}?`,
+      'Aceptar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.personajeMesService.setVigente(item.idPersonajeMes, nuevoEstado).subscribe({
       next: (resp) => {

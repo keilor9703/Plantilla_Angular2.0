@@ -1,0 +1,212 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-container {
+  background: var(--ui-surface);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(var(--policia-oscuro-rgb), 0.1);
+
+  h3 {
+    margin: 0;
+    font-size: calc(16px * var(--font-size-scale));
+    color: var(--policia-oscuro);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    color: var(--ui-text-muted);
+    transition: background 0.2s, color 0.2s;
+
+    &:hover {
+      background: rgba(var(--policia-oscuro-rgb), 0.1);
+      color: var(--policia-oscuro);
+    }
+  }
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-instruction {
+  margin: 0 0 16px;
+  font-size: calc(13px * var(--font-size-scale));
+  color: var(--ui-text-muted);
+}
+
+.reorder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reorder-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(var(--policia-oscuro-rgb), 0.03);
+  border: 1px solid rgba(var(--policia-oscuro-rgb), 0.08);
+  border-radius: 10px;
+  transition: box-shadow 0.2s, background 0.2s;
+
+  &.cdk-drag-preview {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    transform: rotate(2deg);
+  }
+
+  &.cdk-drag-animating {
+    transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  &.cdk-drag-placeholder {
+    opacity: 0.3;
+    background: rgba(var(--policia-primario-rgb), 0.1);
+    border: 2px dashed var(--policia-primario);
+  }
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  cursor: grab;
+  color: var(--ui-text-muted);
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba(var(--policia-oscuro-rgb), 0.1);
+    color: var(--policia-oscuro);
+  }
+
+  .cdk-drag-dragging & {
+    cursor: grabbing;
+    background: rgba(var(--policia-oscuro-rgb), 0.1);
+  }
+}
+
+.item-preview {
+  width: 60px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #e5e7eb;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.item-order {
+  font-weight: 700;
+  font-size: calc(14px * var(--font-size-scale));
+  color: var(--policia-primario);
+}
+
+.item-title {
+  font-weight: 600;
+  font-size: calc(13px * var(--font-size-scale));
+  color: var(--ui-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-subtitle {
+  font-size: calc(12px * var(--font-size-scale));
+  color: var(--ui-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-file {
+  font-size: calc(11px * var(--font-size-scale));
+  color: var(--ui-text-muted);
+  font-family: monospace;
+}
+
+.drag-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  color: var(--ui-text-muted);
+  opacity: 0.5;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ui-text-muted);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(var(--policia-oscuro-rgb), 0.1);
+}
+
+@media (max-width: 600px) {
+  .modal-container {
+    max-height: 95vh;
+  }
+
+  .item-preview {
+    width: 50px;
+    height: 35px;
+  }
+
+  .item-info {
+    font-size: calc(12px * var(--font-size-scale));
+  }
+}

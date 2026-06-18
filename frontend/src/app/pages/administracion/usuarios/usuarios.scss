@@ -646,10 +646,45 @@
   
 }
 
-.thead-usuario th {
-  background: var(--policia-oscuro) !important;
-  
-}
+  /* Table-specific dark-mode overrides (roles + usuarios list) */
+  .right-column .tab-card > .ui-table-wrap,
+  .users-table-card .ui-table-wrap {
+    border-color: var(--ui-border);
+    background: var(--ui-surface);
+  }
 
-  
+  .right-column .tab-card > .ui-table-wrap .ui-table,
+  .users-table-card .ui-table {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .right-column .tab-card > .ui-table-wrap .ui-table th,
+  .users-table-card .ui-table th,
+  .right-column .tab-card > .ui-table-wrap thead.thead-usuario th {
+    background: #252f45;
+    color: var(--ui-text);
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .right-column .tab-card > .ui-table-wrap .ui-table td,
+  .users-table-card .ui-table td {
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+    background: transparent;
+  }
+
+  .right-column .tab-card > .ui-table-wrap .ui-table tbody tr:hover,
+  .users-table-card .ui-table tbody tr:hover {
+    background: rgba(255,255,255,0.03);
+  }
+
+  /* Sticky header fallback / ensure contrast */
+  .thead-usuario th {
+    background: #252f45 !important;
+  }
+
 }

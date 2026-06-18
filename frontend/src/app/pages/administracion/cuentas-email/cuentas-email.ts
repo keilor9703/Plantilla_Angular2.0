@@ -7,6 +7,7 @@ import { DominioService, DtoDominio } from '../../../core/services/administracio
 import { CuentaEmailService, DtoCuentaEmail, DtoCuentaEmailRequest, DtoCuentaEmailUsuario } from '../../../core/services/administracion/cuenta-email.service';
 import { UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { finalize } from 'rxjs';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-cuentas-email',
@@ -52,6 +53,7 @@ export class CuentasEmailComponent implements OnInit {
     private dominioService: DominioService,
     private cuentaEmailService: CuentaEmailService,
     private usuarioAdminService: UsuarioAdminService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -215,9 +217,15 @@ export class CuentasEmailComponent implements OnInit {
     }
   }
 
-  eliminar(item: DtoCuentaEmail): void {
-    if (!confirm(`¿Está seguro de eliminar la cuenta "${item.nombreCuenta}"?`)) return;
-    
+  async eliminar(item: DtoCuentaEmail): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar cuenta',
+      `¿Está seguro de eliminar la cuenta "${item.nombreCuenta}"?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
+
     this.cuentaEmailService.delete(item.idCuenta).subscribe({
       next: () => {
         this.toast.success('Éxito', 'Cuenta eliminada');

@@ -10,6 +10,7 @@ import {
 import { ToastService } from '../../../core/services/toast.service';
 import { DominioService, DtoDominio, DtoUnidad } from '../../../core/services/administracion/dominio.service';
 import { DtoDepartamento, DtoMunicipio, UbicacionService } from '../../../core/services/administracion/ubicacion.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-noticias',
@@ -65,6 +66,7 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     private dominioService: DominioService,
     private ubicacionService: UbicacionService,
     private toast: ToastService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -299,26 +301,32 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
   }
 
   eliminarNoticia(noticia: DtoNoticia): void {
-    if (!confirm(`¿Está seguro de eliminar la noticia "${noticia.titulo}"?`)) {
-      return;
-    }
+    (async () => {
+      const confirmed = await this.alert.confirm(
+        'Eliminar noticia',
+        `¿Está seguro de eliminar la noticia "${noticia.titulo}"?`,
+        'Eliminar',
+        'Cancelar'
+      );
+      if (!confirmed) return;
 
-    this.deleting = true;
-    this.service.delete(noticia.idNoticia).subscribe({
-      next: (resp) => {
-        this.deleting = false;
-        if (!resp.success) {
-          this.toast.warning('Noticias', resp.message ?? 'No fue posible eliminar.');
-          return;
+      this.deleting = true;
+      this.service.delete(noticia.idNoticia).subscribe({
+        next: (resp) => {
+          this.deleting = false;
+          if (!resp.success) {
+            this.toast.warning('Noticias', resp.message ?? 'No fue posible eliminar.');
+            return;
+          }
+          this.toast.success('Noticias', resp.message ?? 'Noticia eliminada correctamente.');
+          this.cargar();
+        },
+        error: (err) => {
+          this.deleting = false;
+          this.toast.error('Noticias', err?.error?.message ?? 'Error eliminando noticia.');
         }
-        this.toast.success('Noticias', resp.message ?? 'Noticia eliminada correctamente.');
-        this.cargar();
-      },
-      error: (err) => {
-        this.deleting = false;
-        this.toast.error('Noticias', err?.error?.message ?? 'Error eliminando noticia.');
-      }
-    });
+      });
+    })();
   }
 
   getSeccionClass(seccion: string): string {

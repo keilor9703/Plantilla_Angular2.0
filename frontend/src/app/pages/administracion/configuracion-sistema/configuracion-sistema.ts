@@ -6,11 +6,12 @@ import { LoginVisualItem, LoginVisualService } from '../../../core/services/admi
 import { BrandingService } from '../../../core/services/administracion/branding.service';
 import { UbicacionService, DtoUnidadOrg } from '../../../core/services/administracion/ubicacion.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-configuracion-sistema',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   templateUrl: './configuracion-sistema.html',
   styleUrls: ['./configuracion-sistema.scss']
 })
@@ -31,7 +32,11 @@ export class ConfiguracionSistemaComponent implements OnInit {
   loginUploading = false;
   loginIntervalMs = 6000;
   loginItems: LoginVisualItem[] = [];
-  brandingLoading = false;
+  selectedLoginImageFile: File | null = null;
+  loginPreviewUrl = '';
+  newLoginImage = { order: 1, title: '', subtitle: '' };
+
+brandingLoading = false;
   brandingSaving = false;
   brandingUploading = false;
   brandingUploadingFavicon = false;
@@ -45,9 +50,17 @@ export class ConfiguracionSistemaComponent implements OnInit {
   brandingNombreUnidad = '';
   brandingIdBranding = 0;
   brandingUnidadSistemaId = 0;
+
+  selectedBrandingLogoFile: File | null = null;
+  selectedBrandingLogoPreviewUrl = '';
+  selectedBrandingFaviconFile: File | null = null;
+  selectedBrandingFaviconPreviewUrl = '';
   
-  unidades: DtoUnidadOrg[] = [];
+unidades: DtoUnidadOrg[] = [];
   selectedUnidadConsecutivo: number | null = null;
+
+  showReorderModal = false;
+  reorderItems: LoginVisualItem[] = [];
 
   constructor(
     private videoService: VideoUnidadService,
@@ -114,7 +127,11 @@ export class ConfiguracionSistemaComponent implements OnInit {
     }
 
     this.selectedVideoFile = file;
-    this.selectedVideoPreviewUrl = URL.createObjectURL(file);
+if (this.selectedVideoPreviewUrl) {
+    URL.revokeObjectURL(this.selectedVideoPreviewUrl);
+}
+this.selectedVideoPreviewUrl = URL.createObjectURL(file);
+input.value = '';  // ← esto fuerza que el change event se dispare de nuevo
   }
 
   saveVideo(): void {
@@ -155,7 +172,17 @@ export class ConfiguracionSistemaComponent implements OnInit {
     });
   }
 
-  loadLoginVisualConfig(): void {
+  limpiarFormulario(): void {
+    this.selectedVideoFile = null;
+    if (this.selectedVideoPreviewUrl) {
+      URL.revokeObjectURL(this.selectedVideoPreviewUrl);
+    }
+    this.selectedVideoPreviewUrl = '';
+    this.videoDescripcion = '';
+    this.videoObservaciones = '';
+  }
+
+loadLoginVisualConfig(): void {
     this.loginLoading = true;
     this.loginVisualService.getAdminConfig().subscribe({
       next: (config) => {
@@ -170,11 +197,13 @@ export class ConfiguracionSistemaComponent implements OnInit {
             url: x.url ?? ''
           }))
           .sort((a, b) => a.order - b.order);
+        this.originalOrder = [...this.loginItems];
         this.loginLoading = false;
       },
       error: (err) => {
         this.loginLoading = false;
         this.loginItems = [];
+        this.originalOrder = [];
         this.toast.error('Visual Login', err?.error?.message ?? 'No fue posible cargar la configuración.');
       }
     });
@@ -200,69 +229,148 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.loginUploading = true;
-    this.loginVisualService.upload(file).subscribe({
+    this.selectedLoginImageFile = file;
+    if (this.loginPreviewUrl) {
+      URL.revokeObjectURL(this.loginPreviewUrl);
+    }
+    this.loginPreviewUrl = URL.createObjectURL(file);
+    this.newLoginImage = { order: 1, title: '', subtitle: '' };
+    input.value = '';
+  }
+
+saveLoginImage(): void {
+    if (!this.selectedLoginImageFile) {
+      this.toast.warning('Visual Login', 'Seleccione una imagen.');
+      return;
+    }
+
+    if (this.newLoginImage.order === null || this.newLoginImage.order === undefined) {
+      this.toast.warning('Visual Login', 'Seleccione un orden para la imagen.');
+      return;
+    }
+
+    const orderUsed = this.loginItems.some(item => item.order === this.newLoginImage.order);
+    if (orderUsed) {
+      this.toast.warning('Visual Login', 'Ese orden ya está en uso. Seleccione otro.');
+      return;
+    }
+
+    this.loginSaving = true;
+    this.loginVisualService.upload(this.selectedLoginImageFile).subscribe({
       next: (resp) => {
-        this.loginUploading = false;
         if (!resp?.success || !resp?.fileName) {
+          this.loginSaving = false;
           this.toast.warning('Visual Login', resp?.message || 'No fue posible cargar la imagen.');
           return;
         }
 
-        const maxOrder = this.loginItems.length > 0
-          ? Math.max(...this.loginItems.map((x) => Number(x.order || 0)))
-          : 0;
-
-        this.loginItems.push({
+        const newItem: LoginVisualItem = {
           file: resp.fileName,
           active: true,
-          order: maxOrder + 1,
-          title: '',
-          subtitle: '',
+          order: this.newLoginImage.order,
+          title: this.newLoginImage.title || null,
+          subtitle: this.newLoginImage.subtitle || null,
           url: resp.url
-        });
+        };
 
-        this.loginItems = this.loginItems.sort((a, b) => a.order - b.order);
-        this.toast.success('Visual Login', resp.message || 'Imagen cargada correctamente.');
+        this.loginVisualService.saveConfig({
+          intervalMs: this.loginIntervalMs,
+          items: [...this.loginItems, newItem]
+        }).subscribe({
+          next: (saveResp) => {
+            this.loginSaving = false;
+            if (!saveResp?.success) {
+              this.toast.warning('Visual Login', saveResp?.message || 'No fue posible guardar.');
+              return;
+            }
+
+            this.selectedLoginImageFile = null;
+            if (this.loginPreviewUrl) {
+              URL.revokeObjectURL(this.loginPreviewUrl);
+              this.loginPreviewUrl = '';
+            }
+            this.newLoginImage = { order: 1, title: '', subtitle: '' };
+            this.loadLoginVisualConfig();
+            this.toast.success('Visual Login', saveResp.message || 'Imagen guardada correctamente.');
+          },
+          error: (err) => {
+            this.loginSaving = false;
+            this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error guardando.');
+          }
+        });
       },
       error: (err) => {
-        this.loginUploading = false;
-        this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error cargando imagen.');
+        this.loginSaving = false;
+        this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error al subir.');
       }
     });
   }
 
-  saveLoginConfig(): void {
+limpiarLoginForm(): void {
+    this.selectedLoginImageFile = null;
+    if (this.loginPreviewUrl) {
+      URL.revokeObjectURL(this.loginPreviewUrl);
+      this.loginPreviewUrl = '';
+    }
+    this.newLoginImage = { order: 1, title: '', subtitle: '' };
+  }
+
+  get availableOrders(): number[] {
+    const usedOrders = this.loginItems.map(item => item.order).filter(o => o > 0);
+    const maxOrder = usedOrders.length > 0 ? Math.max(...usedOrders) : 0;
+    const allOrders = Array.from({ length: maxOrder + 1 }, (_, i) => i + 1);
+    return allOrders.filter(order => !usedOrders.includes(order));
+  }
+
+    originalOrder: LoginVisualItem[] = [];
+
+  openReorderInline(): void {
+    this.originalOrder = [...this.loginItems].sort((a, b) => a.order - b.order);
+    this.loginItems = [...this.originalOrder];
+  }
+
+  hasOrderChanged(): boolean {
+    return this.loginItems.some((item, index) => 
+      item.file !== this.originalOrder[index]?.file
+    );
+  }
+
+  resetReorderInline(): void {
+    this.loginItems = [...this.originalOrder];
+  }
+
+  onDropInline(event: CdkDragDrop<LoginVisualItem[]>): void {
+    moveItemInArray(this.loginItems, event.previousIndex, event.currentIndex);
+  }
+
+  saveReorderInline(): void {
+    const updatedItems = this.loginItems.map((item, index) => ({
+      ...item,
+      order: index + 1
+    }));
     this.loginSaving = true;
-
-    const payload = {
-      intervalMs: Number(this.loginIntervalMs || 6000),
-      items: this.loginItems
-        .map((x) => ({
-          file: (x.file ?? '').trim(),
-          active: !!x.active,
-          order: Number(x.order || 0),
-          title: (x.title ?? '').trim() || null,
-          subtitle: (x.subtitle ?? '').trim() || null
-        }))
-        .filter((x) => !!x.file)
-    };
-
-    this.loginVisualService.saveConfig(payload).subscribe({
+    this.loginVisualService.saveConfig({
+      intervalMs: this.loginIntervalMs,
+      items: updatedItems
+    }).subscribe({
       next: (resp) => {
         this.loginSaving = false;
         if (!resp?.success) {
-          this.toast.warning('Visual Login', resp?.message || 'No fue posible guardar la configuración.');
+          this.toast.warning('Visual Login', resp?.message || 'No fue posible guardar el orden.');
           return;
         }
-        this.toast.success('Visual Login', resp.message || 'Configuración guardada correctamente.');
+        this.toast.success('Visual Login', resp.message || 'Orden guardado correctamente.');
         this.loadLoginVisualConfig();
       },
       error: (err) => {
         this.loginSaving = false;
-        this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
+        this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error guardando orden.');
       }
     });
+  }
+
+  getImageUrl(item: LoginVisualItem): string {
+    return item.url || '/api/LoginVisual/image/' + item.file;
   }
 
   deleteLoginImage(item: LoginVisualItem): void {
@@ -326,7 +434,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
     });
   }
 
-  onBrandingLogoSelected(event: Event): void {
+onBrandingLogoSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files.length > 0 ? input.files[0] : null;
     if (!file) {
@@ -346,23 +454,20 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.brandingUploading = true;
-    this.brandingService.uploadLogo(file).subscribe({
-      next: (resp) => {
-        this.brandingUploading = false;
-        if (!resp?.success) {
-          this.toast.warning('Marca del sistema', resp?.message || 'No fue posible cargar el logo.');
-          return;
-        }
-        this.brandingLogoFileName = resp.fileName;
-        this.brandingLogoUrl = resp.logoUrl;
-        this.toast.success('Marca del sistema', resp.message || 'Logo cargado correctamente.');
-      },
-      error: (err) => {
-        this.brandingUploading = false;
-        this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando logo.');
-      }
-    });
+    this.selectedBrandingLogoFile = file;
+    if (this.selectedBrandingLogoPreviewUrl) {
+      URL.revokeObjectURL(this.selectedBrandingLogoPreviewUrl);
+    }
+    this.selectedBrandingLogoPreviewUrl = URL.createObjectURL(file);
+    input.value = '';
+  }
+
+  limpiarBrandingLogo(): void {
+    this.selectedBrandingLogoFile = null;
+    if (this.selectedBrandingLogoPreviewUrl) {
+      URL.revokeObjectURL(this.selectedBrandingLogoPreviewUrl);
+      this.selectedBrandingLogoPreviewUrl = '';
+    }
   }
 
   onBrandingFaviconSelected(event: Event): void {
@@ -385,23 +490,28 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.brandingUploadingFavicon = true;
-    this.brandingService.uploadFavicon(file).subscribe({
-      next: (resp) => {
-        this.brandingUploadingFavicon = false;
-        if (!resp?.success) {
-          this.toast.warning('Marca del sistema', resp?.message || 'No fue posible cargar el favicon.');
-          return;
-        }
-        this.brandingFaviconFileName = resp.fileName;
-        this.brandingFaviconUrl = resp.faviconUrl ?? null;
-        this.toast.success('Marca del sistema', resp.message || 'Favicon cargado correctamente.');
-      },
-      error: (err) => {
-        this.brandingUploadingFavicon = false;
-        this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando favicon.');
-      }
-    });
+    this.selectedBrandingFaviconFile = file;
+    if (this.selectedBrandingFaviconPreviewUrl) {
+      URL.revokeObjectURL(this.selectedBrandingFaviconPreviewUrl);
+    }
+    this.selectedBrandingFaviconPreviewUrl = URL.createObjectURL(file);
+    input.value = '';
+  }
+
+limpiarBrandingFavicon(): void {
+    this.selectedBrandingFaviconFile = null;
+    if (this.selectedBrandingFaviconPreviewUrl) {
+      URL.revokeObjectURL(this.selectedBrandingFaviconPreviewUrl);
+      this.selectedBrandingFaviconPreviewUrl = '';
+    }
+  }
+
+  limpiarBrandingConfig(): void {
+    this.brandingSistema = 'OFTIC';
+    this.brandingNombreSistema = 'OFTIC';
+    this.brandingSigla = '';
+    this.limpiarBrandingLogo();
+    this.limpiarBrandingFavicon();
   }
 
   saveBrandingConfig(): void {
@@ -426,30 +536,80 @@ export class ConfiguracionSistemaComponent implements OnInit {
     }
 
     this.brandingSaving = true;
-    this.brandingService.saveConfig({
-      idBranding: this.brandingIdBranding,
-      sistema,
-      nombreSistema,
-      sigla: this.brandingSigla,
-      nombreUnidad: this.brandingNombreUnidad,
-      unidadSistemaId: this.brandingUnidadSistemaId,
-      logoFileName: this.brandingLogoFileName,
-      faviconFileName: this.brandingFaviconFileName
-    }).subscribe({
-      next: (resp) => {
-        this.brandingSaving = false;
-        if (!resp?.success) {
-          this.toast.warning('Marca del sistema', resp?.message || 'No fue posible guardar la configuración.');
-          return;
+
+    const uploadLogo$ = this.selectedBrandingLogoFile
+      ? this.brandingService.uploadLogo(this.selectedBrandingLogoFile)
+      : null;
+
+    const uploadFavicon$ = this.selectedBrandingFaviconFile
+      ? this.brandingService.uploadFavicon(this.selectedBrandingFaviconFile)
+      : null;
+
+    const uploads = [];
+    if (uploadLogo$) uploads.push(uploadLogo$);
+    if (uploadFavicon$) uploads.push(uploadFavicon$);
+
+    const saveAfterUpload = () => {
+      this.brandingService.saveConfig({
+        idBranding: this.brandingIdBranding,
+        sistema,
+        nombreSistema,
+        sigla: this.brandingSigla,
+        nombreUnidad: this.brandingNombreUnidad,
+        unidadSistemaId: this.brandingUnidadSistemaId,
+        logoFileName: this.selectedBrandingLogoFile ? undefined : this.brandingLogoFileName,
+        faviconFileName: this.selectedBrandingFaviconFile ? undefined : this.brandingFaviconFileName
+      }).subscribe({
+        next: (resp) => {
+          this.brandingSaving = false;
+          if (!resp?.success) {
+            this.toast.warning('Marca del sistema', resp?.message || 'No fue posible guardar la configuración.');
+            return;
+          }
+          this.toast.success('Marca del sistema', resp.message || 'Configuración guardada correctamente.');
+          this.loadBrandingConfig();
+        },
+        error: (err) => {
+          this.brandingSaving = false;
+          this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
         }
-        this.toast.success('Marca del sistema', resp.message || 'Configuración guardada correctamente.');
-        this.loadBrandingConfig();
-      },
-      error: (err) => {
-        this.brandingSaving = false;
-        this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
-      }
-    });
+      });
+    };
+
+    if (uploads.length === 0) {
+      saveAfterUpload();
+      return;
+    }
+
+    let completed = 0;
+    const total = uploads.length;
+
+    for (const upload$ of uploads) {
+      upload$.subscribe({
+        next: (resp) => {
+          if (!resp?.success) {
+            this.brandingSaving = false;
+            this.toast.warning('Marca del sistema', resp?.message || 'Error subiendo archivo.');
+            return;
+          }
+          if (upload$ === uploadLogo$) {
+            this.brandingLogoFileName = resp.fileName;
+            this.brandingLogoUrl = resp.logoUrl;
+          } else {
+            this.brandingFaviconFileName = resp.fileName;
+            this.brandingFaviconUrl = resp.faviconUrl ?? null;
+          }
+          completed++;
+          if (completed === total) {
+            saveAfterUpload();
+          }
+        },
+        error: (err) => {
+          this.brandingSaving = false;
+          this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error subiendo archivo.');
+        }
+      });
+    }
   }
 }
 

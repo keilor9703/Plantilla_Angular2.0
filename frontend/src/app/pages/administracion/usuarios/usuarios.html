@@ -10,7 +10,6 @@
         <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
           <i class="fa-solid fa-minus"></i>
         </button>
-
       </div>
     </div>
 
@@ -256,32 +255,31 @@
 
     <div class="ui-panel__body">
       
-      <div class="ui-table-wrap" *ngIf="!loadingListado && usuariosListado.length > 0; else noUsersTable">
-        <!-- Search and page-size controls combined -->
-
-      <div class="empty-state" *ngIf="loadingListado">
-        <i class="fa-solid fa-circle-notch fa-spin"></i>
-        <p>Consultando usuarios...</p>
-      </div>
-
-      <div class="table-controls" *ngIf="!loadingListado && usuariosListado.length > 0" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
-        <div class="search-group">
-          <label class="ui-label" style="margin:0;">Buscar</label>
-          <input class="ui-control" type="text" [(ngModel)]="searchNombreListado"
-            (ngModelChange)="onSearchNombreListadoChange()" placeholder="Escribe un nombre"
-            style="min-width:260px;" />
-          <small class="search-hint" style="margin-left:6px;color:#666;white-space: nowrap;">(mínimo {{ minSearchChars }} caracteres)...</small>
+      <div class="ui-table-wrap">
+        <div class="empty-state" *ngIf="loadingListado">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <p>Consultando usuarios...</p>
         </div>
 
-        <div class="search-mostrar ">
-          <label style="margin:0;">Mostrar</label>
-          <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
-            <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
-          </select>
-          <span>por página</span>
+        <div class="table-controls" *ngIf="!loadingListado" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+          <div class="search-group">
+            <label class="ui-label" style="margin:0;">Buscar</label>
+            <input class="ui-control" type="text" [(ngModel)]="searchNombreListado"
+              (ngModelChange)="onSearchNombreListadoChange()" placeholder="Escribe un nombre"
+              style="min-width:260px;" />
+            <small class="search-hint" style="margin-left:6px;color:#666;white-space: nowrap;">(mínimo {{ minSearchChars }} caracteres)...</small>
+          </div>
+
+          <div class="search-mostrar ">
+            <label style="margin:0;">Mostrar</label>
+            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+            </select>
+            <span>por página</span>
+          </div>
         </div>
-      </div>
-        <table class="ui-table">
+
+        <table class="ui-table" *ngIf="!loadingListado">
           <thead>
             <tr>
               <th>Usuario empresarial</th>
@@ -291,7 +289,7 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody *ngIf="usuariosListado.length > 0; else noUsersTable">
             <tr *ngFor="let item of usuariosListadoPaginado">
               <td>{{ item.username || 'N/A' }}</td>
               <td>{{ item.nombreCompleto || 'N/A' }}</td>
@@ -337,14 +335,18 @@
       </div>
 
       <ng-template #noUsersTable>
-        <div class="empty-state" *ngIf="!loadingListado">
-          <i class="fa-solid fa-users"></i>
-          <p>{{
-            isSearchMode
-            ? ((searchNombreListado || '').trim().length < minSearchChars ? ('Escribe mínimo ' + minSearchChars + '
-              caracteres para activar la búsqueda.') : 'No hay resultados para la búsqueda.' )
-              : 'No hay usuarios para mostrar.' }}</p>
-        </div>
+        <tr>
+          <td colspan="5">
+            <div class="empty-state">
+              <i class="fa-solid fa-users"></i>
+              <p>{{
+                isSearchMode
+                ? ((searchNombreListado || '').trim().length < minSearchChars ? ('Escribe mínimo ' + minSearchChars + '
+                  caracteres para activar la búsqueda.') : 'No hay resultados para la búsqueda.' )
+                  : 'No hay usuarios para mostrar.' }}</p>
+            </div>
+          </td>
+        </tr>
       </ng-template>
     </div>
   </div>

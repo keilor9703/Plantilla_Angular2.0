@@ -1,0 +1,51 @@
+<div class="modal-overlay" *ngIf="isOpen" (click)="onCancel()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-arrows-up-down-left-right"></i> Cambiar orden de imágenes</h3>
+      <button class="modal-close" (click)="onCancel()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <p class="modal-instruction">Arrastre las imágenes para cambiar su orden. El orden se guarda al hacer clic en "Guardar orden".</p>
+
+      <div class="reorder-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+        <div class="reorder-item" *ngFor="let item of reorderItems; let i = index" cdkDrag>
+          <div class="drag-handle" cdkDragHandle>
+            <i class="fa-solid fa-grip-vertical"></i>
+          </div>
+
+          <div class="item-preview">
+            <img [src]="getImageUrl(item)" alt="Vista previa" />
+          </div>
+
+          <div class="item-info">
+            <span class="item-order">{{ i + 1 }}</span>
+            <span class="item-title">{{ item.title || 'Sin título' }}</span>
+            <span class="item-subtitle" *ngIf="item.subtitle">{{ item.subtitle }}</span>
+            <span class="item-file">{{ item.file }}</span>
+          </div>
+
+          <div class="drag-hint">
+            <i class="fa-solid fa-arrows-up-down"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="reorderItems.length === 0">
+        No hay imágenes para reordenar.
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="ui-btn secondary" (click)="onCancel()" [disabled]="reorderItems.length < 2">
+        Cancelar
+      </button>
+      <button class="ui-btn primary" (click)="onSave()" [disabled]="reorderItems.length < 2">
+        <i class="fa-solid fa-floppy-disk"></i>
+        Guardar orden
+      </button>
+    </div>
+  </div>
+</div>

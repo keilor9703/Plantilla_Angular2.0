@@ -29,9 +29,13 @@
 
 .menu-item--parent {
   border-left: 4px solid var(--policia-cielo);
+  border-right: 1px solid var(--policia-cielo);
+  //border-bottom: 1px solid var(--policia-cielo);
+  border-top: 1px solid var(--policia-cielo); 
 }
 
 .menu-children {
+  border-left: 2px solid var(--policia-cielo);
   display: grid;
   gap: 8px;
   padding-left: 14px;

@@ -6,6 +6,7 @@ import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
 import { ToastService } from '../../../core/services/toast.service';
 import { LineaMandoService, DtoLineaMando, DtoLineaMandoRequest } from '../../../core/services/administracion/linea-mando.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 interface CargoOpcion {
   id: string;
@@ -61,6 +62,7 @@ export class LineaMandoAdminComponent implements OnInit {
     private lineaMandoService: LineaMandoService,
     private usuarioAdminService: UsuarioAdminService,
     private sanitizer: DomSanitizer
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -336,10 +338,14 @@ export class LineaMandoAdminComponent implements OnInit {
     }
   }
 
-  eliminar(item: DtoLineaMando): void {
-    if (!confirm(`¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`)) {
-      return;
-    }
+  async eliminar(item: DtoLineaMando): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar',
+      `¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.lineaMandoService.setVigente(item.idLineaMando, 0).subscribe({
       next: (resp) => {
