@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../../core/services/toast.service';
+import { AlertService } from '../../../core/services/alert.service';
 import {
   RedesSocialesService,
   DtoRedesSociales,
@@ -39,7 +40,8 @@ export class RedesSocialesAdminComponent implements OnInit {
 
   constructor(
     private toast: ToastService,
-    private redesSocialesService: RedesSocialesService
+    private redesSocialesService: RedesSocialesService,
+    private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -179,8 +181,14 @@ export class RedesSocialesAdminComponent implements OnInit {
     }
   }
 
-  eliminar(item: DtoRedesSociales): void {
-    if (!confirm(`¿Está seguro de eliminar la cuenta "${item.nombreCuenta}" de ${item.redSocial}?`)) return;
+  async eliminar(item: DtoRedesSociales): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar cuenta',
+      `¿Está seguro de eliminar la cuenta "${item.nombreCuenta}" de ${item.redSocial}?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.redesSocialesService.delete(item.id).subscribe({
       next: () => {

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import { DominioService, DtoDominio, DtoDominioRequest } from '../../../core/services/administracion/dominio.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-dominio',
@@ -36,6 +37,7 @@ export class DominioAdminComponent implements OnInit {
   constructor(
     private toast: ToastService,
     private dominioService: DominioService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -190,10 +192,14 @@ export class DominioAdminComponent implements OnInit {
     }
   }
 
-  eliminar(item: DtoDominio): void {
-    if (!confirm(`¿Está seguro de eliminar el dominio "${item.descripcion}"?`)) {
-      return;
-    }
+  async eliminar(item: DtoDominio): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar dominio',
+      `¿Está seguro de eliminar el dominio "${item.descripcion}"?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.dominioService.delete(item.idDominio).subscribe({
       next: (resp) => {

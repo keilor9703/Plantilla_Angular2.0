@@ -20,6 +20,7 @@ namespace Api.Controllers
         {
             _service = service;
             _logger = logger;
+        
         }
         [HttpGet]
         public async Task<ActionResult> GetAll()

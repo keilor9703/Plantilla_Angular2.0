@@ -9,6 +9,7 @@ import {
   DtoModalInteraccion,
 } from '../../../core/services/administracion/modal.service';
 import { DominioService, DtoUnidad } from '../../../core/services/administracion/dominio.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-modal-admin',
@@ -46,6 +47,7 @@ export class ModalAdminComponent implements OnInit {
     private toast: ToastService,
     private modalService: ModalService,
     private dominioService: DominioService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -165,8 +167,14 @@ export class ModalAdminComponent implements OnInit {
     });
   }
 
-  eliminar(item: DtoModal): void {
-    if (!confirm(`¿Está seguro de eliminar el modal "${item.titulo}"?`)) return;
+  async eliminar(item: DtoModal): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar modal',
+      `¿Está seguro de eliminar el modal "${item.titulo}"?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.modalService.delete(item.idModal).subscribe({
       next: (resp) => {

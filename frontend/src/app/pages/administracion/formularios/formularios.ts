@@ -1,4 +1,4 @@
-﻿import { Component, inject  } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../../core/services/toast.service';
@@ -13,7 +13,7 @@ import { AlertService } from '../../../core/services/alert.service';
   styleUrls: ['./formularios.scss'],
 })
 export class Formularios {
-  constructor(private toast: ToastService) {}
+  constructor(private toast: ToastService, private alert: AlertService) {}
 
   textValue = '';
   emailValue = '';
@@ -32,11 +32,21 @@ onNuevo(): void {
   this.toast.success('Nuevo', 'Formulario listo para crear un registro.');
 }
 
-onEliminar(): void {
-  this.toast.warning('Eliminar', 'Selecciona un registro antes de eliminar.');
-}
- private alert = inject(AlertService);
+  async onEliminar(): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Confirmar eliminación',
+      '¿Desea eliminar el registro seleccionado?',
+      'Eliminar',
+      'Cancelar'
+    );
 
+    if (confirmed) {
+      this.toast.success('Eliminar', 'Registro eliminado.');
+      // TODO: implementar la lógica real de eliminación aquí
+    } else {
+      this.toast.info('Eliminar', 'Operación cancelada.');
+    }
+  }
   btnAdvertencia() {
     this.alert.warning('Advertencia', 'No se encontraron datos para el EKOGUI proporcionado');
   }

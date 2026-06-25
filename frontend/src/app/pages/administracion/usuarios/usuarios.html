@@ -10,11 +10,8 @@
         <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
           <i class="fa-solid fa-minus"></i>
         </button>
-
       </div>
     </div>
-
-
 
     <div class="ui-panel__body" *ngIf="!minimized">
       <div class="admin-grid" *ngIf="user; else emptyState">
@@ -36,9 +33,15 @@
                     {{ user.activo ? 'ACTIVO' : 'INACTIVO' }}
                   </span>
                 </div>
-                <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
-                  <span></span>
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="ui-icon-btn" type="button" title="Ver como este usuario" (click)="impersonarUsuarioActual()"
+                    *ngIf="rolesVigentes.length > 0">
+                    <i class="fa-solid fa-user-secret"></i>
+                  </button>
+                  <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
+                    <span></span>
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -172,7 +175,7 @@
                       <div class="table-actions">
                         <button class="ui-btn secondary" type="button" title="Editar" (click)="prepararEdicionRol(rol)">
                           <i class="fa-solid fa-pen-to-square"></i>
-                        </button>
+                        </button>                        
                         <button class=" ui-btn danger" type="button" title="Retirar rol"
                           (click)="eliminarRol(rol)"                          
                           [disabled]="deletingRoleId === rol.id">
@@ -235,6 +238,8 @@
     </div>
   </div>
 
+
+  <!-- tabla de Usuarios existentes -->
   <div class="ui-panel users-table-card">
     <div class="ui-panel__head">
       <div class="ui-panel__title">
@@ -249,23 +254,32 @@
     </div>
 
     <div class="ui-panel__body">
-      <div class="ui-grid">
-        <div class="ui-field ui-col-6">
-          <label class="ui-label">Buscar por nombre</label>
-          <input class="ui-control" type="text" [(ngModel)]="searchNombreListado"
-            (ngModelChange)="onSearchNombreListadoChange()" placeholder="Escribe un nombre (mínimo 6 caracteres)...">
-          <small class="search-hint">Al buscar, la tabla mostrará solo coincidencias desde el carácter {{ minSearchChars
-            }}.</small>
+      
+      <div class="ui-table-wrap">
+        <div class="empty-state" *ngIf="loadingListado">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <p>Consultando usuarios...</p>
         </div>
-      </div>
 
-      <div class="empty-state" *ngIf="loadingListado">
-        <i class="fa-solid fa-circle-notch fa-spin"></i>
-        <p>Consultando usuarios...</p>
-      </div>
+        <div class="table-controls" *ngIf="!loadingListado" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+          <div class="search-group">
+            <label class="ui-label" style="margin:0;">Buscar</label>
+            <input class="ui-control" type="text" [(ngModel)]="searchNombreListado"
+              (ngModelChange)="onSearchNombreListadoChange()" placeholder="Escribe un nombre"
+              style="min-width:260px;" />
+            <small class="search-hint" style="margin-left:6px;color:#666;white-space: nowrap;">(mínimo {{ minSearchChars }} caracteres)...</small>
+          </div>
 
-      <div class="ui-table-wrap" *ngIf="!loadingListado && usuariosListado.length > 0; else noUsersTable">
-        <table class="ui-table">
+          <div class="search-mostrar ">
+            <label style="margin:0;">Mostrar</label>
+            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+            </select>
+            <span>por página</span>
+          </div>
+        </div>
+
+        <table class="ui-table" *ngIf="!loadingListado">
           <thead>
             <tr>
               <th>Usuario empresarial</th>
@@ -275,7 +289,7 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody *ngIf="usuariosListado.length > 0; else noUsersTable">
             <tr *ngFor="let item of usuariosListadoPaginado">
               <td>{{ item.username || 'N/A' }}</td>
               <td>{{ item.nombreCompleto || 'N/A' }}</td>
@@ -300,18 +314,20 @@
         </table>
 
         <div class="table-pagination" *ngIf="totalUsuariosListado > 0">
-          <span class="pagination-summary">
-            Página {{ currentPage }} de {{ totalPaginasListado }} | Registros: {{ totalUsuariosListado }}
-          </span>
-          <div class="pagination-actions">
-            <button class="ui-btn secondary" type="button" (click)="prevPaginaListado()"
-              [disabled]="!canGoPrevListado()">
+          <div class="pagination-actions pagination-numbers">
+            <button class="ui-icon-btn" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
               <i class="fa-solid fa-chevron-left"></i>
-              Anterior
             </button>
-            <button class="ui-btn secondary" type="button" (click)="nextPaginaListado()"
-              [disabled]="!canGoNextListado()">
-              Siguiente
+
+            <ng-container *ngFor="let p of pageNumbers">
+              <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === currentPage"
+                (click)="onPageClick(p)">
+                {{ p }}
+              </button>
+              <span *ngIf="p === '...'" class="page-dots">...</span>
+            </ng-container>
+
+            <button class="ui-icon-btn" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
               <i class="fa-solid fa-chevron-right"></i>
             </button>
           </div>
@@ -319,14 +335,18 @@
       </div>
 
       <ng-template #noUsersTable>
-        <div class="empty-state" *ngIf="!loadingListado">
-          <i class="fa-solid fa-users"></i>
-          <p>{{
-            isSearchMode
-            ? ((searchNombreListado || '').trim().length < minSearchChars ? ('Escribe mínimo ' + minSearchChars + '
-              caracteres para activar la búsqueda.') : 'No hay resultados para la búsqueda.' )
-              : 'No hay usuarios para mostrar.' }}</p>
-        </div>
+        <tr>
+          <td colspan="5">
+            <div class="empty-state">
+              <i class="fa-solid fa-users"></i>
+              <p>{{
+                isSearchMode
+                ? ((searchNombreListado || '').trim().length < minSearchChars ? ('Escribe mínimo ' + minSearchChars + '
+                  caracteres para activar la búsqueda.') : 'No hay resultados para la búsqueda.' )
+                  : 'No hay usuarios para mostrar.' }}</p>
+            </div>
+          </td>
+        </tr>
       </ng-template>
     </div>
   </div>

@@ -1,7 +1,7 @@
 /* ==========================================
    VARIABLES Y CONFIGURACIÓN BASE
    ========================================== */
-@import 'fonts';
+@use 'fonts' as *;
 
 :root {
   /* --- Paleta Institucional --- */
@@ -15,6 +15,12 @@
   --policia-neutral-medio: #76777a;
   --policia-neutral-claro: #c8c8c8;
   --policia-degradado-oro: linear-gradient(260deg, #b36e1a 0%, #f3c677 100%);
+
+  /* --- RGB variants for rgba() usage --- */
+  --policia-primario-rgb: 8, 166, 203;
+  --policia-secundario-rgb: 0, 42, 102;
+  --policia-oscuro-rgb: 21, 27, 59;
+  --policia-acento-rgb: 205, 255, 0;
 
   /* --- Degradados --- */
   --policia-gradiente-principal: linear-gradient(135deg, #00193a 0%, #08a6cb 100%);
@@ -417,6 +423,54 @@ html.dark-mode {
   .ui-tabs__panels {
     background: var(--ui-surface);
     color: var(--ui-text);
+  }
+
+  /* Global pagination styles for tablas (numerada) */
+  .table-pagination {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .pagination-actions.pagination-numbers {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ui-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+    background: #fff;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease; 
+    }
+
+  .page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+    background: transparent;
+    font-weight: 800;
+    cursor: pointer;
+    color: var(--ui-text);
+  }
+
+  .page-btn.page-active {
+    background: var(--policia-acento);
+    color: #fff;
+    border-color: var(--policia-acento);
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  }
+
+  .page-dots {
+    padding: 0 6px;
+    color: rgba(var(--policia-neutral-oscuro-rgb), .6);
+    font-weight: 800;
   }
 
   /* Accordion */
@@ -1138,6 +1192,7 @@ textarea.ui-control {
 
 /* --- TABLA --- */
 .ui-table-wrap {
+  height: 100%;
   border: 1px solid rgba(21, 27, 59, .14);
   border-radius: var(--ui-radius);
   overflow-x: auto;
@@ -1147,7 +1202,7 @@ textarea.ui-control {
 }
 
 .ui-table {
-  width: 100%;
+  width: 100%;  
   border-collapse: collapse;
   font-size: calc(14px * var(--font-size-scale));
 }
@@ -1185,6 +1240,25 @@ textarea.ui-control {
 .ui-badge.success { background: rgba(34, 197, 94, .14); color: #166534; }
 .ui-badge.warning { background: rgba(245, 158, 11, .16); color: #92400e; }
 .ui-badge.info { background: rgba(255, 255, 255, 0.16); color: #ffffff; }
+
+/* Dark-mode overrides for badge variants to ensure contrast */
+html.dark-mode .ui-badge.success {
+  background: rgba(34, 197, 94, .14);
+  color: #d1fae5;
+  border-color: rgba(34, 197, 94, .22);
+}
+
+html.dark-mode .ui-badge.warning {
+  background: rgba(245, 158, 11, .12);
+  color: #ffedd5;
+  border-color: rgba(245, 158, 11, .22);
+}
+
+html.dark-mode .ui-badge.info {
+  background: rgba(8, 166, 203, .12);
+  color: #e6fbff;
+  border-color: rgba(8, 166, 203, .22);
+}
 
 /* Mini buttons */
 .ui-mini-btn.danger {

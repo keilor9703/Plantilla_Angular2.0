@@ -248,7 +248,7 @@
     transition: var(--transition-speed);
     padding: 0;
 }
-.slider-controls button.active {
+.slider-controls button.slideractive {
     background: var(--policia-acento);
     width: 30px;
     border-radius: 6px;
@@ -307,7 +307,7 @@
     padding: 0;
     box-shadow: 0 1px 2px rgba(8,166,203,0.08);
 }
-.slider-controls--personaje button.active {
+.slider-controls--personaje button.slideractive {
     background: var(--policia-acento);
     width: 22px;
     border-radius: 6px;

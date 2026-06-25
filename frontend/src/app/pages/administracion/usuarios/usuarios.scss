@@ -228,6 +228,7 @@
 }
 
 .tab-card {
+  height: 560px;
   margin-top: 0;
   border: 1px solid rgba(var(--policia-oscuro-rgb), .14);
   border-radius: 0 0 14px 14px;
@@ -237,30 +238,43 @@
   position: relative;
   z-index: 0;
   display: flex;
-  flex-direction: column;
-}
-
-/* Tabla de roles: altura máxima + scroll vertical */
-.right-column .tab-card {
-  max-height: calc(100vh - 260px);
-  min-height: calc(100vh - 690px);
+  flex-direction: column;  
 }
 
 .right-column .tab-card > .ui-table-wrap {
-  height: 500px;
-  max-height: 500px;
-  min-height: 500px;
+  position: relative;
+  height: 490px;
+  min-height: 490px;
+  max-height: 460px;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   -webkit-overflow-scrolling: touch;
 }
 
-
-
-.tab-card .ui-table-wrap .ui-table {
+.right-column .tab-card > .ui-table-wrap .ui-table {
   width: 100%;
   border-collapse: collapse;
 }
+
+.right-column .tab-card > .ui-table-wrap thead.thead-usuario th {
+  position: sticky;
+  top: 0;
+  background: var(--ui-surface);
+  z-index: 2;
+}
+
+.search-group{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin:9px;
+}
+
+.search-mostrar {
+  margin: 10px;
+  margin-left:auto;  
+}
+
 
 /* Keep tab actions pinned to the bottom of the card */
 .tab-card .tab-actions {
@@ -397,6 +411,44 @@
   }
 }
 
+/* Pagination numbers styling */
+.table-pagination {
+  margin: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.pagination-actions.pagination-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+
+.page-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-btn.page-active {
+  background: var(--policia-acento);
+  border-color: var(--policia-acento);
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+}
+
+.page-dots {
+  padding: 0 6px;
+  color: rgba(var(--policia-neutral-oscuro-rgb), .6);
+  font-weight: 800;
+}
+
 @media (max-width: 980px) {
   .admin-grid {
     grid-template-columns: 1fr;
@@ -458,16 +510,19 @@
 .table-pagination {
   margin-top: 10px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+  
 }
 
 .pagination-summary {
   font-size: calc(12px * var(--font-size-scale));
   color: rgba(var(--policia-neutral-oscuro-rgb), .95);
   font-weight: 700;
+  
 }
 
 .pagination-actions {
@@ -591,10 +646,45 @@
   
 }
 
-.thead-usuario th {
-  background: var(--policia-oscuro) !important;
-  
-}
+  /* Table-specific dark-mode overrides (roles + usuarios list) */
+  .right-column .tab-card > .ui-table-wrap,
+  .users-table-card .ui-table-wrap {
+    border-color: var(--ui-border);
+    background: var(--ui-surface);
+  }
 
-  
+  .right-column .tab-card > .ui-table-wrap .ui-table,
+  .users-table-card .ui-table {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .right-column .tab-card > .ui-table-wrap .ui-table th,
+  .users-table-card .ui-table th,
+  .right-column .tab-card > .ui-table-wrap thead.thead-usuario th {
+    background: #252f45;
+    color: var(--ui-text);
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .right-column .tab-card > .ui-table-wrap .ui-table td,
+  .users-table-card .ui-table td {
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+    background: transparent;
+  }
+
+  .right-column .tab-card > .ui-table-wrap .ui-table tbody tr:hover,
+  .users-table-card .ui-table tbody tr:hover {
+    background: rgba(255,255,255,0.03);
+  }
+
+  /* Sticky header fallback / ensure contrast */
+  .thead-usuario th {
+    background: #252f45 !important;
+  }
+
 }

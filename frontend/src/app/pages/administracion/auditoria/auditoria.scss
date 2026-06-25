@@ -47,6 +47,44 @@
   gap: 10px;
 }
 
+/* Pagination numbers styling (align with usuarios table) */
+.table-pagination {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.pagination-actions.pagination-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+
+.page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(21,27,59,.12);
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-btn.page-active {
+  background: var(--policia-acento);
+  border-color: var(--policia-acento);
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+}
+
+.page-dots {
+  padding: 0 6px;
+  color: rgba(83,86,90,.6);
+  font-weight: 800;
+}
+
 @media (max-width: 768px) {
   .table-wrap {
     overflow-x: auto;
