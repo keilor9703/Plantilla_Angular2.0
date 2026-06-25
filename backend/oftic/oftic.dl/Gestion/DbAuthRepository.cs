@@ -51,15 +51,17 @@ namespace Datos.Gestion
             // 2) Roles vigentes
             var roles = new List<long>();
 
+//            SELECT DISTINCT id_rol
+//  FROM ctr_roles_user
+// WHERE id_usuario = :pIdUsuario
+//UNION
+
             await using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandType = CommandType.Text;
                 cmd.BindByName = true;
                 cmd.CommandText = @"
-SELECT DISTINCT id_rol
-  FROM ctr_roles_user
- WHERE id_usuario = :pIdUsuario
-UNION
+
 SELECT DISTINCT rua.id_rol
   FROM ctr_roles_user_admin rua
  WHERE rua.id_usuario = :pIdUsuario

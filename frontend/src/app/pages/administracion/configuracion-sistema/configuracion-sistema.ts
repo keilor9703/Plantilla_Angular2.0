@@ -19,24 +19,26 @@ export class ConfiguracionSistemaComponent implements OnInit {
   videoPanelMinimized = false;
   loginPanelMinimized = false;
   brandingPanelMinimized = false;
-  loading = false;
-  uploading = false;
   info: VideoUnidadInfo | null = null;
   previewUrl = '';
+  loading = false;
+  uploading = false;
   selectedVideoFile: File | null = null;
   selectedVideoPreviewUrl = '';
+  videoDragOver = false;
   videoDescripcion = '';
   videoObservaciones = '';
   loginLoading = false;
   loginSaving = false;
   loginUploading = false;
   loginIntervalMs = 6000;
-  loginItems: LoginVisualItem[] = [];
-  selectedLoginImageFile: File | null = null;
+loginItems: LoginVisualItem[] = [];
+selectedLoginImageFile: File | null = null;
   loginPreviewUrl = '';
+  loginImageDragOver = false;
   newLoginImage = { order: 1, title: '', subtitle: '' };
 
-brandingLoading = false;
+  brandingLoading = false;
   brandingSaving = false;
   brandingUploading = false;
   brandingUploadingFavicon = false;
@@ -53,8 +55,10 @@ brandingLoading = false;
 
   selectedBrandingLogoFile: File | null = null;
   selectedBrandingLogoPreviewUrl = '';
+  logoDragOver = false;
   selectedBrandingFaviconFile: File | null = null;
   selectedBrandingFaviconPreviewUrl = '';
+  faviconDragOver = false;
   
 unidades: DtoUnidadOrg[] = [];
   selectedUnidadConsecutivo: number | null = null;
@@ -132,6 +136,32 @@ if (this.selectedVideoPreviewUrl) {
 }
 this.selectedVideoPreviewUrl = URL.createObjectURL(file);
 input.value = '';  // ← esto fuerza que el change event se dispare de nuevo
+  }
+
+  onVideoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.add('drag-over');
+    this.videoDragOver = true;
+  }
+
+  onVideoDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.videoDragOver = false;
+  }
+
+  onVideoDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.videoDragOver = false;
+    const file = event.dataTransfer?.files[0];
+    if (file) {
+      const mockEvent = { target: { files: [file] } } as unknown as Event;
+      this.onFileSelected(mockEvent);
+    }
   }
 
   saveVideo(): void {
@@ -234,8 +264,34 @@ loadLoginVisualConfig(): void {
       URL.revokeObjectURL(this.loginPreviewUrl);
     }
     this.loginPreviewUrl = URL.createObjectURL(file);
-    this.newLoginImage = { order: 1, title: '', subtitle: '' };
+this.newLoginImage = { order: 1, title: '', subtitle: '' };
     input.value = '';
+  }
+
+  onLoginImageDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.add('drag-over');
+    this.loginImageDragOver = true;
+  }
+
+  onLoginImageDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.loginImageDragOver = false;
+  }
+
+  onLoginImageDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.loginImageDragOver = false;
+    const file = event.dataTransfer?.files[0];
+    if (file) {
+      const mockEvent = { target: { files: [file] } } as unknown as Event;
+      this.onLoginImageSelected(mockEvent);
+    }
   }
 
 saveLoginImage(): void {
@@ -373,6 +429,14 @@ limpiarLoginForm(): void {
     return item.url || '/api/LoginVisual/image/' + item.file;
   }
 
+  getBrandingLogoUrl(): string {
+    return this.brandingLogoUrl || (this.brandingLogoFileName ? '/api/Branding/logo/' + this.brandingLogoFileName : '');
+  }
+
+  getBrandingFaviconUrl(): string {
+    return this.brandingFaviconUrl || (this.brandingFaviconFileName ? '/api/Branding/favicon/' + this.brandingFaviconFileName : '');
+  }
+
   deleteLoginImage(item: LoginVisualItem): void {
     if (!item?.file) {
       return;
@@ -455,19 +519,30 @@ onBrandingLogoSelected(event: Event): void {
     }
 
     this.selectedBrandingLogoFile = file;
-    if (this.selectedBrandingLogoPreviewUrl) {
-      URL.revokeObjectURL(this.selectedBrandingLogoPreviewUrl);
-    }
-    this.selectedBrandingLogoPreviewUrl = URL.createObjectURL(file);
+    this.createPreviewUrl(file).then(url => {
+      if (this.selectedBrandingLogoPreviewUrl) {
+        URL.revokeObjectURL(this.selectedBrandingLogoPreviewUrl);
+      }
+      this.selectedBrandingLogoPreviewUrl = url;
+    });
     input.value = '';
+  }
+
+  private createPreviewUrl(file: File): Promise<string> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = () => resolve(URL.createObjectURL(file));
+      reader.readAsDataURL(file);
+    });
   }
 
   limpiarBrandingLogo(): void {
     this.selectedBrandingLogoFile = null;
-    if (this.selectedBrandingLogoPreviewUrl) {
+    if (this.selectedBrandingLogoPreviewUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(this.selectedBrandingLogoPreviewUrl);
-      this.selectedBrandingLogoPreviewUrl = '';
     }
+    this.selectedBrandingLogoPreviewUrl = '';
   }
 
   onBrandingFaviconSelected(event: Event): void {
@@ -491,19 +566,21 @@ onBrandingLogoSelected(event: Event): void {
     }
 
     this.selectedBrandingFaviconFile = file;
-    if (this.selectedBrandingFaviconPreviewUrl) {
-      URL.revokeObjectURL(this.selectedBrandingFaviconPreviewUrl);
-    }
-    this.selectedBrandingFaviconPreviewUrl = URL.createObjectURL(file);
+    this.createPreviewUrl(file).then(url => {
+      if (this.selectedBrandingFaviconPreviewUrl) {
+        URL.revokeObjectURL(this.selectedBrandingFaviconPreviewUrl);
+      }
+      this.selectedBrandingFaviconPreviewUrl = url;
+    });
     input.value = '';
   }
 
 limpiarBrandingFavicon(): void {
     this.selectedBrandingFaviconFile = null;
-    if (this.selectedBrandingFaviconPreviewUrl) {
+    if (this.selectedBrandingFaviconPreviewUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(this.selectedBrandingFaviconPreviewUrl);
-      this.selectedBrandingFaviconPreviewUrl = '';
     }
+    this.selectedBrandingFaviconPreviewUrl = '';
   }
 
   limpiarBrandingConfig(): void {
@@ -512,6 +589,65 @@ limpiarBrandingFavicon(): void {
     this.brandingSigla = '';
     this.limpiarBrandingLogo();
     this.limpiarBrandingFavicon();
+  }
+
+  clearBrandingFileInputs(): void {
+    this.selectedBrandingLogoFile = null;
+    this.selectedBrandingLogoPreviewUrl = '';
+    this.selectedBrandingFaviconFile = null;
+    this.selectedBrandingFaviconPreviewUrl = '';
+  }
+
+  onBrandingLogoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.add('drag-over');
+    this.logoDragOver = true;
+  }
+
+  onBrandingLogoDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.logoDragOver = false;
+  }
+
+  onBrandingLogoDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.logoDragOver = false;
+    const file = event.dataTransfer?.files[0];
+    if (file) {
+      const mockEvent = { target: { files: [file] } } as unknown as Event;
+      this.onBrandingLogoSelected(mockEvent);
+    }
+  }
+
+  onBrandingFaviconDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.add('drag-over');
+    this.faviconDragOver = true;
+  }
+
+  onBrandingFaviconDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.faviconDragOver = false;
+  }
+
+  onBrandingFaviconDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.faviconDragOver = false;
+    const file = event.dataTransfer?.files[0];
+    if (file) {
+      const mockEvent = { target: { files: [file] } } as unknown as Event;
+      this.onBrandingFaviconSelected(mockEvent);
+    }
   }
 
   saveBrandingConfig(): void {
@@ -537,6 +673,9 @@ limpiarBrandingFavicon(): void {
 
     this.brandingSaving = true;
 
+    let uploadedLogoFileName: string | null = null;
+    let uploadedFaviconFileName: string | null = null;
+
     const uploadLogo$ = this.selectedBrandingLogoFile
       ? this.brandingService.uploadLogo(this.selectedBrandingLogoFile)
       : null;
@@ -546,8 +685,8 @@ limpiarBrandingFavicon(): void {
       : null;
 
     const uploads = [];
-    if (uploadLogo$) uploads.push(uploadLogo$);
-    if (uploadFavicon$) uploads.push(uploadFavicon$);
+    if (uploadLogo$) uploads.push({ observable: uploadLogo$, type: 'logo' });
+    if (uploadFavicon$) uploads.push({ observable: uploadFavicon$, type: 'favicon' });
 
     const saveAfterUpload = () => {
       this.brandingService.saveConfig({
@@ -557,8 +696,8 @@ limpiarBrandingFavicon(): void {
         sigla: this.brandingSigla,
         nombreUnidad: this.brandingNombreUnidad,
         unidadSistemaId: this.brandingUnidadSistemaId,
-        logoFileName: this.selectedBrandingLogoFile ? undefined : this.brandingLogoFileName,
-        faviconFileName: this.selectedBrandingFaviconFile ? undefined : this.brandingFaviconFileName
+        logoFileName: uploadedLogoFileName ?? this.brandingLogoFileName,
+        faviconFileName: uploadedFaviconFileName ?? this.brandingFaviconFileName
       }).subscribe({
         next: (resp) => {
           this.brandingSaving = false;
@@ -567,6 +706,7 @@ limpiarBrandingFavicon(): void {
             return;
           }
           this.toast.success('Marca del sistema', resp.message || 'Configuración guardada correctamente.');
+          this.clearBrandingFileInputs();
           this.loadBrandingConfig();
         },
         error: (err) => {
@@ -584,18 +724,20 @@ limpiarBrandingFavicon(): void {
     let completed = 0;
     const total = uploads.length;
 
-    for (const upload$ of uploads) {
-      upload$.subscribe({
+    for (const item of uploads) {
+      item.observable.subscribe({
         next: (resp) => {
           if (!resp?.success) {
             this.brandingSaving = false;
             this.toast.warning('Marca del sistema', resp?.message || 'Error subiendo archivo.');
             return;
           }
-          if (upload$ === uploadLogo$) {
+          if (item.type === 'logo') {
+            uploadedLogoFileName = resp.fileName;
             this.brandingLogoFileName = resp.fileName;
             this.brandingLogoUrl = resp.logoUrl;
           } else {
+            uploadedFaviconFileName = resp.fileName;
             this.brandingFaviconFileName = resp.fileName;
             this.brandingFaviconUrl = resp.faviconUrl ?? null;
           }

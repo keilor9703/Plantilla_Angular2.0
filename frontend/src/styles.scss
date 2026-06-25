@@ -16,6 +16,12 @@
   --policia-neutral-claro: #c8c8c8;
   --policia-degradado-oro: linear-gradient(260deg, #b36e1a 0%, #f3c677 100%);
 
+  /* --- RGB variants for rgba() usage --- */
+  --policia-primario-rgb: 8, 166, 203;
+  --policia-secundario-rgb: 0, 42, 102;
+  --policia-oscuro-rgb: 21, 27, 59;
+  --policia-acento-rgb: 205, 255, 0;
+
   /* --- Degradados --- */
   --policia-gradiente-principal: linear-gradient(135deg, #00193a 0%, #08a6cb 100%);
   --policia-gradiente-soft: linear-gradient(135deg, #03173d 0%, #1c45b4 100%);

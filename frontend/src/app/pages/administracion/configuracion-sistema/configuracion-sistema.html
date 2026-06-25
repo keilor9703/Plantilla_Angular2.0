@@ -19,8 +19,26 @@
 
           <div class="ui-field">
             <label class="ui-label">Archivo (máx 100MB)</label>
-            <input class="ui-control" type="file" accept=".mp4,.webm,.ogg,.mov,video/*"
-              (change)="onFileSelected($event)">
+            <div class="custom-file-input" [class.has-file]="selectedVideoPreviewUrl">
+              <input #videoInput type="file" accept=".mp4,.webm,.ogg,.mov,video/*"
+                (change)="onFileSelected($event)" [disabled]="uploading" hidden>
+              <div class="file-input-wrapper" (click)="videoInput.click()"
+                (dragover)="onVideoDragOver($event)"
+                (dragleave)="onVideoDragLeave($event)"
+                (drop)="onVideoDrop($event)">
+                <div class="file-preview-area" *ngIf="selectedVideoPreviewUrl; else videoPlaceholder">
+                  <video class="branding-preview-img-inline" controls preload="metadata" [src]="selectedVideoPreviewUrl">
+                  </video>
+                </div>
+                <ng-template #videoPlaceholder>
+                  <div>
+                    <i class="fa-solid fa-upload"></i>
+                    <span *ngIf="!videoDragOver">Haz clic o arrastra para seleccionar video</span>
+                    <span *ngIf="videoDragOver" class="drag-active-text">¡Suelta el archivo para cargarlo!</span>
+                  </div>
+                </ng-template>
+              </div>
+            </div>
             <small class="meta">Se conserva un solo video activo. Al cargar uno nuevo se reemplaza el anterior.</small>
           </div>
 
@@ -110,14 +128,26 @@
 
           <div class="ui-field">
             <label class="ui-label">Archivo (máx 10MB)</label>
-            <input class="ui-control" type="file" accept=".jpg,.jpeg,.png,.webp,image/*"
-              (change)="onLoginImageSelected($event)">
+            <div class="custom-file-input" [class.has-file]="selectedLoginImageFile">
+              <input #loginImageInput type="file" accept=".jpg,.jpeg,.png,.webp,image/*"
+                (change)="onLoginImageSelected($event)" [disabled]="loginSaving" hidden>
+              <div class="file-input-wrapper" (click)="loginImageInput.click()"
+                (dragover)="onLoginImageDragOver($event)"
+                (dragleave)="onLoginImageDragLeave($event)"
+                (drop)="onLoginImageDrop($event)">
+                <div class="file-preview-area" *ngIf="selectedLoginImageFile; else loginImagePlaceholder">
+                  <img [src]="loginPreviewUrl" alt="Vista previa" class="branding-preview-img-inline">
+                </div>
+                <ng-template #loginImagePlaceholder>
+                  <div>
+                    <i class="fa-solid fa-upload"></i>
+                    <span *ngIf="!loginImageDragOver">Haz clic o arrastra para seleccionar imagen</span>
+                    <span *ngIf="loginImageDragOver" class="drag-active-text">¡Suelta el archivo para cargarlo!</span>
+                  </div>
+                </ng-template>
+              </div>
+            </div>
             <small class="meta">Formatos: JPG, PNG, WEBP.</small>
-          </div>
-
-          <div *ngIf="selectedLoginImageFile" class="video-preview">
-            <small class="meta">Vista previa (pendiente de guardar)</small>
-            <img [src]="loginPreviewUrl" alt="Vista previa" class="preview-image">
           </div>
 
           <div class="ui-field">
@@ -262,34 +292,57 @@
           <div class="ui-field">
             <label class="ui-label">Logo del sistema</label>
             <small class="meta">Formatos: JPG, PNG, WEBP o SVG. Maximo 5MB.</small>
-            <input class="ui-control" type="file" accept=".jpg,.jpeg,.png,.webp,.svg,image/*"
-              (change)="onBrandingLogoSelected($event)">
-            <div class="file-preview" *ngIf="selectedBrandingLogoPreviewUrl">
-              <img [src]="selectedBrandingLogoPreviewUrl" alt="Vista previa logo" class="branding-preview-img">
-              <button class="ui-btn btn-sm btn-icon" type="button" (click)="limpiarBrandingLogo()" [disabled]="brandingSaving">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-            <div class="current-file" *ngIf="!selectedBrandingLogoPreviewUrl && brandingLogoUrl">
-              <small class="meta">Actual: {{ brandingLogoFileName }}</small>
-            </div>
+            <div class="custom-file-input" [class.has-file]="selectedBrandingLogoPreviewUrl">
+              <input #logoInput type="file" accept=".jpg,.jpeg,.png,.webp,.svg,image/*"
+                (change)="onBrandingLogoSelected($event)" [disabled]="brandingSaving" hidden>
+              <div class="file-input-wrapper" (click)="logoInput.click()"
+                (dragover)="onBrandingLogoDragOver($event)"
+                (dragleave)="onBrandingLogoDragLeave($event)"
+                (drop)="onBrandingLogoDrop($event)">
+                <div class="file-preview-area" *ngIf="selectedBrandingLogoPreviewUrl; else logoPlaceholder">
+                  <img [src]="selectedBrandingLogoPreviewUrl" alt="Vista previa logo" class="branding-preview-img-inline">
+                  <button class="btn-remove-file" type="button" (click)="limpiarBrandingLogo(); $event.stopPropagation()" [disabled]="brandingSaving">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <ng-template #logoPlaceholder>
+                  <div>
+                    <i class="fa-solid fa-upload"></i>
+                    <span *ngIf="!logoDragOver">Haz clic o arrastra para seleccionar logo</span>
+                    <span *ngIf="logoDragOver" class="drag-active-text">¡Suelta el archivo para cargarlo!</span>
+                  </div>
+                </ng-template>
+              </div>
+            </div>            
           </div>
 
           <div class="ui-field">
             <label class="ui-label">Favicon</label>
             <small class="meta">Formatos: ICO, PNG, WEBP o SVG. Maximo 50Kb.</small>
-            <input class="ui-control" type="file"
-              accept=".ico,.png,.webp,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/webp,image/svg+xml"
-              (change)="onBrandingFaviconSelected($event)">
-            <div class="file-preview" *ngIf="selectedBrandingFaviconPreviewUrl">
-              <img [src]="selectedBrandingFaviconPreviewUrl" alt="Vista previa favicon" class="branding-preview-img">
-              <button class="ui-btn btn-sm btn-icon" type="button" (click)="limpiarBrandingFavicon()" [disabled]="brandingSaving">
-                <i class="fa-solid fa-trash"></i>
-              </button>
+            <div class="custom-file-input" [class.has-file]="selectedBrandingFaviconPreviewUrl">
+              <input #faviconInput type="file"
+                accept=".ico,.png,.webp,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/webp,image/svg+xml"
+                (change)="onBrandingFaviconSelected($event)" [disabled]="brandingSaving" hidden>
+              <div class="file-input-wrapper" (click)="faviconInput.click()"
+                (dragover)="onBrandingFaviconDragOver($event)"
+                (dragleave)="onBrandingFaviconDragLeave($event)"
+                (drop)="onBrandingFaviconDrop($event)">
+                <div class="file-preview-area" *ngIf="selectedBrandingFaviconPreviewUrl; else faviconPlaceholder">
+                  <img [src]="selectedBrandingFaviconPreviewUrl" alt="Vista previa favicon" class="branding-preview-img-inline">
+                  <button class="btn-remove-file" type="button" (click)="limpiarBrandingFavicon(); $event.stopPropagation()" [disabled]="brandingSaving">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <ng-template #faviconPlaceholder>
+                  <div>
+                    <i class="fa-solid fa-upload"></i>
+                    <span *ngIf="!faviconDragOver">Haz clic o arrastra para seleccionar favicon</span>
+                    <span *ngIf="faviconDragOver" class="drag-active-text">¡Suelta el archivo para cargarlo!</span>
+                  </div>
+                </ng-template>
+              </div>
             </div>
-            <div class="current-file" *ngIf="!selectedBrandingFaviconPreviewUrl && brandingFaviconUrl">
-              <small class="meta">Actual: {{ brandingFaviconFileName }}</small>
-            </div>
+            
           </div>
 
           <div class="list-loading" *ngIf="brandingSaving">Guardando, por favor espere...</div>
@@ -300,7 +353,8 @@
               <i class="fa-solid fa-eraser"></i>
               Limpiar
             </button>
-            <button class="ui-btn primary" type="button" (click)="saveBrandingConfig()" [disabled]="brandingSaving">
+            <button class="ui-btn primary" type="button" (click)="saveBrandingConfig()"
+              [disabled]="brandingSaving || (!selectedBrandingLogoFile && !selectedBrandingFaviconFile)">
               <i class="fa-solid fa-floppy-disk"></i>
               {{ brandingSaving ? 'Guardando...' : 'Guardar marca del sistema' }}
             </button>
@@ -309,27 +363,36 @@
 
         <article class="tab-card list-card">
           <h3 class="sub-title">Vista previa</h3>
-          <div class="news-state" *ngIf="!brandingLogoUrl && !brandingFaviconUrl">No hay marca configurada.</div>
+          <div class="news-state" *ngIf="brandingIdBranding === 0">No hay marca configurada.</div>
 
-          <div class="login-item" *ngIf="brandingLogoUrl">
-            <div class="login-item__preview">
-              <img [src]="brandingLogoUrl" alt="Logo del sistema">
-            </div>
-            <div class="login-item__content">
-              <div><strong>Sistema:</strong> {{ brandingSistema }}</div>
-              <div><strong>Nombre del sistema:</strong> {{ brandingNombreSistema }}</div>
-              <small class="meta">Archivo logo: {{ brandingLogoFileName || 'N/D' }}</small>
-              <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
-            </div>
-          </div>
+          <div class="branding-preview" *ngIf="brandingIdBranding > 0">
+            
 
-          <div class="login-item" *ngIf="brandingFaviconUrl">
-            <div class="login-item__preview">
-              <img [src]="brandingFaviconUrl" alt="Favicon del sistema">
-            </div>
-            <div class="login-item__content">
-              <div><strong>Favicon actual</strong></div>
-              <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
+            <div class="branding-files">
+              <div class="file-preview-item" *ngIf="getBrandingLogoUrl()">
+                <div class="file-preview__image">
+                  <img [src]="getBrandingLogoUrl()" alt="Logo del sistema">
+                </div>
+                <div class="file-preview__info">
+                  <strong>Logo del sistema</strong>
+                  <small class="meta">{{ brandingLogoFileName }}</small>
+                </div>
+              </div>
+
+              <div class="file-preview-item" *ngIf="getBrandingFaviconUrl()">
+                <div class="file-preview__image">
+                  <img [src]="getBrandingFaviconUrl()" alt="Favicon del sistema">
+                </div>
+                <div class="file-preview__info">
+                  <strong>Favicon</strong>
+                  <small class="meta">{{ brandingFaviconFileName }}</small>
+                </div>
+              </div>
+
+              <div class="no-files" *ngIf="!getBrandingLogoUrl() && !getBrandingFaviconUrl()">
+                <i class="fa-solid fa-image"></i>
+                <span>No hay archivos subidos aún</span>
+              </div>
             </div>
           </div>
         </article>

@@ -13,12 +13,13 @@
 
 .menu-parent-block {
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .menu-item {
   border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
   border-radius: 12px;
+  border-bottom-right-radius: 1px ;
   padding: 10px;
   display: grid;
   grid-template-columns: 1fr auto;
@@ -35,15 +36,18 @@
 }
 
 .menu-children {
-  border-left: 2px solid var(--policia-cielo);
+  //border-left: 2px solid var(--policia-cielo);
   display: grid;
-  gap: 8px;
-  padding-left: 14px;
+  gap: 0;
+  padding-left: 9px;
+  padding-bottom: 1px;
 }
 
 .menu-item--child {
-  border-left: 3px solid rgba(var(--policia-oscuro-rgb), .25);
+  border-left: 2px solid var(--policia-cielo);  
   background: rgba(var(--policia-oscuro-rgb), .01);
+  padding-left: 8px;
+  border-radius: 0;   
 }
 
 .menu-item__content {
