@@ -77,113 +77,116 @@
           </div>
         </article>
 
-        <article class="tab-card list-card">
+        <article class="tab-card ">
           <h3>Ítems de menú</h3>
 
           <div class="list-loading" *ngIf="loading">Cargando menú...</div>
 
-          <div class="menu-list" *ngIf="!loading && parentMenuItems.length > 0">
-            <div class="menu-parent-block" *ngFor="let parent of parentMenuItems">
-              <div class="menu-item menu-item--parent">
-                <div class="menu-item__content">
-                  <strong>{{ parent.descripcion }}</strong>
-                  <span class="meta">ID: {{ parent.idMenu }} | Padre: {{ parent.idPadre }} | Posición: {{ parent.posicion }}</span>
-                  <span class="meta">Tipo: {{ parent.tipo }} | Vigente: {{ parent.vigente === 1 ? 'Sí' : 'No' }}</span>
-                  <span class="meta">Detalle: {{ parent.detalle || '-' }}</span>
-                </div>
+          <div class="menu-list" *ngIf="!loading && menuTree.length > 0">
+            <div class="menu-tree">
+              <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: menuTree, level: 0 }"></ng-container>
+            </div>
+          </div>
 
+          <!-- Template Recursivo para el Árbol -->
+          <ng-template #nodeTemplate let-nodes let-level="level">
+            <ng-container *ngFor="let node of nodes">
+              <div class="menu-item" [class.is-parent]="level === 0">
+                <div class="menu-item__content">
+                  <div class="menu-item__title">
+                    <i
+                      class="fa-solid menu-tree-icon expand-icon"
+                      [class.fa-folder]="!node.expanded"
+                      [class.fa-folder-open]="node.expanded"
+                      [class.is-hidden]="node.children.length === 0"
+                      (click)="toggleNode(node)"
+                    ></i>
+                    <i class="fa-solid fa-file-lines menu-tree-icon" *ngIf="node.children.length === 0"></i>
+                    <strong [style.font-weight]="level === 0 ? '700' : '500'">{{ node.item.descripcion }}</strong>
+                  </div>
+                  <span class="meta">ID: {{ node.item.idMenu }} | Padre: {{ node.item.idPadre }} | Posición: {{ node.item.posicion }}</span>
+                  <span class="meta">Tipo: {{ node.item.tipo }} | Vigente: {{ node.item.vigente === 1 ? 'Sí' : 'No' }}</span>
+                  <span class="meta">Detalle: {{ node.item.detalle || '-' }}</span>
+                </div>
                 <div class="menu-item__actions">
-                  <button
-                    class="ui-btn secondary"
-                    type="button"
-                    *ngIf="hasChildren(parent.idMenu)"
-                    (click)="toggleChildren(parent.idMenu)">
-                    {{ isExpanded(parent.idMenu) ? 'Ocultar hijos' : 'Ver hijos' }}
-                  </button>
-                  <button class="ui-btn secondary" type="button" (click)="gestionarRoles(parent)">Roles</button>
-                  <button class="ui-btn secondary" type="button" (click)="editar(parent)">Editar</button>
+                  <button class="ui-btn secondary" type="button" (click)="gestionarRoles(node.item)">Roles</button>
+                  <button class="ui-btn secondary" type="button" (click)="editar(node.item)">Editar</button>
                   <button
                     class="ui-btn"
-                    [class.primary]="parent.vigente === 0"
-                    [class.secondary]="parent.vigente === 1"
+                    [class.primary]="node.item.vigente === 0"
+                    [class.secondary]="node.item.vigente === 1"
                     type="button"
-                    (click)="cambiarEstado(parent)"
+                    (click)="cambiarEstado(node.item)"
                   >
-                    {{ parent.vigente === 1 ? 'Desactivar' : 'Activar' }}
+                    {{ node.item.vigente === 1 ? 'Desactivar' : 'Activar' }}
                   </button>
                 </div>
               </div>
-
-              <div class="menu-children" *ngIf="isExpanded(parent.idMenu)">
-                <div class="news-state" *ngIf="getChildrenOf(parent.idMenu).length === 0">
-                  Este menú padre no tiene hijos.
-                </div>
-
-                <div class="menu-item menu-item--child" *ngFor="let child of getChildrenOf(parent.idMenu)">
-                  <div class="menu-item__content">
-                    <strong>{{ child.descripcion }}</strong>
-                    <span class="meta">ID: {{ child.idMenu }} | Padre: {{ child.idPadre }} | Posición: {{ child.posicion }}</span>
-                    <span class="meta">Tipo: {{ child.tipo }} | Vigente: {{ child.vigente === 1 ? 'Sí' : 'No' }}</span>
-                    <span class="meta">Detalle: {{ child.detalle || '-' }}</span>
-                  </div>
-
-                  <div class="menu-item__actions">
-                    <button class="ui-btn secondary" type="button" (click)="gestionarRoles(child)">Roles</button>
-                    <button class="ui-btn secondary" type="button" (click)="editar(child)">Editar</button>
-                    <button
-                      class="ui-btn"
-                      [class.primary]="child.vigente === 0"
-                      [class.secondary]="child.vigente === 1"
-                      type="button"
-                      (click)="cambiarEstado(child)"
-                    >
-                      {{ child.vigente === 1 ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
-                </div>
+              <div class="menu-children-container" *ngIf="node.expanded && node.children.length > 0">
+                <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node.children, level: level + 1 }"></ng-container>
               </div>
-            </div>
-          </div>
+            </ng-container>
+          </ng-template>
 
-          <div class="news-state" *ngIf="!loading && parentMenuItems.length === 0">
-            No hay menús padre (idPadre = 1) registrados.
-          </div>
-
-          <div class="menu-roles-panel" *ngIf="selectedMenuForRoles">
-            <h3>Permisos por rol</h3>
-            <span class="meta">Menú seleccionado: {{ selectedMenuForRoles.descripcion }} (ID {{ selectedMenuForRoles.idMenu }})</span>
-
-            <div class="ui-grid mt-roles">
-              <div class="ui-field ui-col-8">
-                <label class="ui-label">Rol</label>
-                <select class="ui-control" [(ngModel)]="selectedRolId">
-                  <option [ngValue]="null">Seleccione un rol</option>
-                  <option *ngFor="let rol of rolesCatalog" [ngValue]="rol.idRol">
-                    {{ rol.descripcion }} ({{ rol.idRol }})
-                  </option>
-                </select>
-              </div>
-              <div class="ui-field ui-col-4 role-action">
-                <button class="ui-btn primary" type="button" (click)="asignarRolMenu()" [disabled]="savingRole">
-                  {{ savingRole ? 'Guardando...' : 'Asignar rol' }}
-                </button>
-              </div>
-            </div>
-
-            <div class="list-loading" *ngIf="loadingRoles">Consultando roles asignados...</div>
-
-            <div class="menu-role-list" *ngIf="!loadingRoles && rolesAsignados.length > 0">
-              <div class="menu-role-item" *ngFor="let r of rolesAsignados">
-                <span><strong>{{ r.descripcionRol }}</strong> ({{ r.idRol }})</span>
-                <button class="ui-btn secondary" type="button" (click)="quitarRolMenu(r)">Quitar</button>
-              </div>
-            </div>
-
-            <div class="news-state" *ngIf="!loadingRoles && rolesAsignados.length === 0">
-              No hay roles asignados a este menú.
-            </div>
+          <div class="news-state" *ngIf="!loading && menuTree.length === 0">
+            No hay ítems de menú registrados.
           </div>
         </article>
+      </div>
+    </div>
+  </div>
+
+<div class="ui-modal" *ngIf="showRolesModal" (click)="closeRolesModal()">
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-shield-alt"></i>
+          <span>Permisos por rol</span>
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="closeRolesModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <span class="meta">Men\u00fa seleccionado: {{ selectedMenuForRoles?.descripcion }} (ID {{ selectedMenuForRoles?.idMenu }})</span>
+
+        <div class="ui-grid mt-roles">
+          <div class="ui-field ui-col-8">
+            <label class="ui-label">Rol</label>
+            <select class="ui-control" [(ngModel)]="selectedRolId">
+              <option [ngValue]="null">Seleccione un rol</option>
+              <option *ngFor="let rol of rolesCatalog" [ngValue]="rol.idRol">
+                {{ rol.descripcion }} ({{ rol.idRol }})
+              </option>
+            </select>
+          </div>
+          <div class="ui-field ui-col-4 role-action">
+            <button class="ui-btn primary" type="button" (click)="asignarRolMenu()" [disabled]="savingRole">
+              {{ savingRole ? 'Guardando...' : 'Asignar rol' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="list-loading" *ngIf="loadingRoles">Consultando roles asignados...</div>
+
+        <div class="menu-role-list" *ngIf="!loadingRoles && rolesAsignados.length > 0">
+          <div class="menu-role-item" *ngFor="let r of rolesAsignados">
+            <span><strong>{{ r.descripcionRol }}</strong> ({{ r.idRol }})</span>
+            <button class="ui-btn secondary" type="button" (click)="quitarRolMenu(r)">Quitar</button>
+          </div>
+        </div>
+
+        <div class="news-state" *ngIf="!loadingRoles && rolesAsignados.length === 0">
+          No hay roles asignados a este men\u00fa.
+        </div>
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn secondary" type="button" (click)="closeRolesModal()">
+          <i class="fa-solid fa-xmark"></i>
+          Cerrar
+        </button>
       </div>
     </div>
   </div>

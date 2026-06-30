@@ -6,48 +6,150 @@
   resize: vertical;
 }
 
-.menu-list {
-  display: grid;
-  gap: 10px;
+login-visual-card {
+  margin-top: 12px;
 }
 
-.menu-parent-block {
+/* Tab Card Variants */
+.tab-card {
+  border-radius: 12px;
+    
+}
+
+.tab-card.form-card {
+  background: var(--ui-surface);
+  border: 1px solid rgba(2, 6, 23, 0.08);
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.08);
+  padding: 16px;
+  height:min-content;
+}
+
+
+
+.tab-card.form-card h3 {
+  margin: 0 0 16px;
+  color: var(--policia-oscuro);
+  font-size: calc(15px * var(--font-size-scale));
+  font-weight: 900;
+  border-bottom: 1px solid rgba(var(--policia-primario-rgb), 0.1);
+  padding-bottom: 12px;
+}
+
+.tab-card.list-card {
+  background: var(--ui-surface);
+  border: 1px solid rgba(var(--policia-secundario-rgb), 0.15);
+  box-shadow: 0 2px 8px rgba(var(--policia-secundario-rgb), 0.08);
+}
+
+.tab-card.list-card:hover {
+  box-shadow: 0 4px 16px rgba(var(--policia-secundario-rgb), 0.12);
+  border-color: rgba(var(--policia-secundario-rgb), 0.25);
+}
+
+.tab-card.list-card .sub-title,
+.tab-card.list-card h3 {
+  margin: 0;
+  padding: 16px 20px 0;
+  color: var(--policia-secundario);
+  font-size: calc(15px * var(--font-size-scale));
+  font-weight: 700;
+  border-bottom: 1px solid rgba(var(--policia-secundario-rgb), 0.1);
+  padding-bottom: 12px;
+}
+
+.tab-card.list-card .list-header {
+  margin: 0 20px;
+  padding-top: 12px;
+}
+
+.tab-card > *:last-child {
+  margin-bottom: 0;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(var(--policia-oscuro-rgb), 0.1); 
+}
+
+.tab-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(var(--policia-oscuro-rgb), 0.1);
+}
+
+
+// ── Árbol recursivo de menú ──────────────────────────────────────────────────
+
+.menu-list {
   display: grid;
+  gap: 0.75rem;
+}
+
+.menu-tree {
+  display: flex;
+  flex-direction: column;
   gap: 0;
 }
 
 .menu-item {
-  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+  border: 1px solid var(--ui-border, rgba(var(--policia-oscuro-rgb), .12));
   border-radius: 12px;
-  border-bottom-right-radius: 1px ;
-  padding: 10px;
+  padding: 0.85rem 1rem;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 10px;
+  gap: 0.75rem;
   align-items: center;
-  background: rgba(var(--policia-oscuro-rgb), .02);
+  background: var(--ui-surface);
+  margin-bottom: 0.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: var(--policia-cielo);
+    box-shadow: var(--ui-shadow-sm);
+  }
+
+  &.is-parent {
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+    border-left: 4px solid var(--policia-cielo);
+  }
 }
 
-.menu-item--parent {
-  border-left: 4px solid var(--policia-cielo);
-  border-right: 1px solid var(--policia-cielo);
-  //border-bottom: 1px solid var(--policia-cielo);
-  border-top: 1px solid var(--policia-cielo); 
+.menu-children-container {
+  margin-left: 15px;
+  padding-left: 10px;
+  border-left: 1px dashed rgba(var(--policia-oscuro-rgb), .25);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
 }
 
-.menu-children {
-  //border-left: 2px solid var(--policia-cielo);
-  display: grid;
-  gap: 0;
-  padding-left: 9px;
-  padding-bottom: 1px;
+.menu-tree-icon {
+  margin-right: 0.5rem;
+  color: var(--ui-muted);
 }
 
-.menu-item--child {
-  border-left: 2px solid var(--policia-cielo);  
-  background: rgba(var(--policia-oscuro-rgb), .01);
-  padding-left: 8px;
-  border-radius: 0;   
+.expand-icon {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &.is-hidden {
+    display: none;
+    pointer-events: none;
+  }
+}
+
+.is-parent .menu-tree-icon {
+    color: var(--color-info-text);
+}
+
+.menu-item__title {
+  display: flex;
+  align-items: center;
 }
 
 .menu-item__content {
@@ -55,8 +157,7 @@
   gap: 4px;
 }
 
-.menu-item__content strong {
-  color: var(--policia-oscuro);
+.menu-item__content strong {  
   font-size: calc(13px * var(--font-size-scale));
 }
 
@@ -121,9 +222,43 @@
   }
 }
 
+/* Ajustes específicos para el modal de roles */
+.ui-modal__body .menu-role-list {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.menu-role-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--policia-oscuro-rgb), 0.12);
+  border-radius: 10px;
+  background: rgba(var(--policia-oscuro-rgb), 0.02);
+}
+
+.menu-role-item span {
+  flex: 1;
+}
+
 /* --- MODO OSCURO --- */
 :host-context(html.dark-mode) {
   .menu-item__content strong {
     color: var(--ui-text);
+  }
+
+  .menu-item.is-parent {
+    background: #252f45;
+  }
+
+  .menu-children-container {
+    border-left-color: var(--ui-border);
+  }
+
+  .menu-role-item {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.03);
   }
 }

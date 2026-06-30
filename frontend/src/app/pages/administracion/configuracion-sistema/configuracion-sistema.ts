@@ -489,6 +489,7 @@ limpiarLoginForm(): void {
         this.brandingNombreUnidad = cfg?.nombreUnidad ?? '';
         this.brandingIdBranding = cfg?.idBranding ?? 0;
         this.brandingUnidadSistemaId = cfg?.unidadSistemaId ?? 0;
+        this.selectedUnidadConsecutivo = cfg?.unidadSistemaId ?? null;
         this.brandingLoading = false;
       },
       error: (err) => {
@@ -584,9 +585,11 @@ limpiarBrandingFavicon(): void {
   }
 
   limpiarBrandingConfig(): void {
-    this.brandingSistema = 'OFTIC';
-    this.brandingNombreSistema = 'OFTIC';
+    this.brandingSistema = '';
+    this.brandingNombreSistema = '';
     this.brandingSigla = '';
+    this.brandingUnidadSistemaId = 0;
+    this.selectedUnidadConsecutivo = null;
     this.limpiarBrandingLogo();
     this.limpiarBrandingFavicon();
   }

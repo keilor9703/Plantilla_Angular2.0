@@ -6,178 +6,17 @@
     </button>
   </div>
 
-  <!-- Formulario de edición/creación -->
-  <div class="card-view" *ngIf="isEditing">
-    <div class="card-head card-head--dark">
-      <div class="card-title">
-        <i class="fa-solid fa-pen-to-square"></i>
-        <span>{{ noticiaActual ? 'Editar Noticia' : 'Nueva Noticia' }}</span>
-      </div>
-      <button class="ui-icon-btn" type="button" (click)="cancelar()">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-    <div class="card-body">
-      <form (ngSubmit)="guardar()">
-        <div class="form-grid">
-          <div class="form-group span-2">
-            <label for="titulo">Título <span class="required">*</span></label>
-            <input
-              type="text"
-              id="titulo"
-              class="ui-input"
-              [(ngModel)]="form.titulo"
-              name="titulo"
-              placeholder="Título de la noticia"
-              required />
-          </div>
+  
 
-         <div class="form-group span-2">
-            <label for="subtitulo">Subtítulo</label>
-            <input
-              type="text"
-              id="subtitulo"
-              class="ui-input"
-              [(ngModel)]="form.subtitulo"
-              name="subtitulo"
-              placeholder="Breve descripción o subtítulo" />
-          </div>
-
-          <div class="form-group span-1">
-            <label for="seccion">Sección <span class="required">*</span></label>
-            <select
-              id="seccion"
-              class="ui-select"
-              [(ngModel)]="form.seccion"
-              name="seccion"
-              [disabled]="seccionesLoading"
-              required>
-              <option value="">Seleccionar sección</option>
-              <option *ngFor="let s of secciones" [value]="s">{{ s }}</option>
-            </select>
-            <small class="meta" *ngIf="seccionesLoading">Cargando secciones...</small>
-          </div>
-
-          <div class="form-group span-1">
-            <label for="unidad">Unidad <span class="required">*</span></label>
-            <select
-              id="unidad"
-              class="ui-select"
-              [(ngModel)]="form.unidad"
-              name="unidad"
-              [disabled]="unidadesLoading"
-              required>
-              <option value="">Seleccionar unidad</option>
-              <option *ngFor="let u of unidades" [value]="u.text">{{ u.text }}</option>
-            </select>
-            <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
-          </div>
-
-          <div class="form-group span-1">
-            <label for="departamento">Departamento <span class="required">*</span></label>
-            <select
-              id="departamento"
-              class="ui-select"
-              [(ngModel)]="selectedDepartamentoId"
-              name="departamento"
-              (ngModelChange)="onDepartamentoChange()"
-              [disabled]="departamentosLoading"
-              required>
-              <option [ngValue]="null">Seleccionar departamento</option>
-              <option *ngFor="let d of departamentos" [ngValue]="d.idDepartamento">{{ d.nombre }}</option>
-            </select>
-            <small class="meta" *ngIf="departamentosLoading">Cargando departamentos...</small>
-          </div>
-
-          <div class="form-group span-1">
-            <label for="ciudad">Ciudad <span class="required">*</span></label>
-            <select
-              id="ciudad"
-              class="ui-select"
-              [(ngModel)]="form.ciudad"
-              name="ciudad"
-              [disabled]="municipiosLoading"
-              required>
-              <option value="">Seleccionar municipio</option>
-              <option *ngFor="let m of municipios" [value]="m.nombre">{{ m.nombre }}</option>
-            </select>
-            <small class="meta" *ngIf="municipiosLoading">Cargando municipios...</small>
-          </div>
-
-        
-
-          <div class="form-group full-width">
-            <label for="imagenNoticia">Imagen</label>
-            <div class="file-upload-wrapper">
-              <input
-                type="file"
-                id="imagenNoticia"
-                class="ui-control"
-                accept=".jpg,.jpeg,.png,.webp,image/*"
-                multiple
-                (change)="onImageSelected($event)"
-                [disabled]="uploading" />
-              <div class="file-upload-info" *ngIf="uploadedImages.length > 0 && !uploading">
-                <i class="fa-solid fa-images"></i>
-                <span>{{ uploadedImages.length }} de 4 imágenes cargadas</span>
-              </div>
-              <div class="file-upload-hint" *ngIf="uploadedImages.length === 0 && !uploading">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                <span>Click para seleccionar hasta 4 imágenes</span>
-              </div>
-              <div class="file-upload-loading" *ngIf="uploading">
-                <i class="fa-solid fa-circle-notch fa-spin"></i>
-                <span>Cargando imagen...</span>
-              </div>
-            </div>
-            <div class="image-thumbs" *ngIf="uploadedImages.length > 0">
-              <div class="image-thumb" *ngFor="let imageName of uploadedImages; let i = index">
-                <img [src]="getUploadedImageUrl(imageName)" [alt]="'Imagen ' + (i + 1)" />
-                <button type="button" class="image-thumb__remove" (click)="removeUploadedImage(i)" title="Quitar imagen">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                <small>{{ i + 1 }}</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group full-width">
-            <label for="contenido">Contenido</label>
-            <div class="news-editor">
-              <ngx-editor-menu [editor]="editor" [toolbar]="editorToolbar"></ngx-editor-menu>
-              <ngx-editor
-                id="contenido"
-                [editor]="editor"
-                [(ngModel)]="form.contenido"
-                name="contenido"
-                [placeholder]="'Escriba el contenido de la noticia'">
-              </ngx-editor>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="ui-btn outline" (click)="cancelar()">
-            Cancelar
-          </button>
-          <button type="submit" class="ui-btn primary" [disabled]="saving">
-            <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i>
-            {{ saving ? 'Guardando...' : 'Guardar' }}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Lista de noticias -->
-  <div class="ui-panel" *ngIf="!isEditing">
+<!-- Lista de noticias -->
+  <div class="ui-panel" >
     <div class="ui-panel__head">
       <div class="ui-panel__title">
         <i class="fa-solid fa-list"></i>
         Noticias configuradas
       </div>
       <div class="ui-panel__actions">
-        <span class="ui-badge info">Registros: {{ noticias.length }}</span>
+        <span class="ui-badge info">Registros: {{ totalNoticias }}</span>
       </div>
     </div>
     <div class="ui-panel__body">
@@ -195,6 +34,25 @@
       </div>
 
       <div class="ui-table-wrap" *ngIf="!loading && noticias.length > 0">
+
+        <div class="table-controls" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+          <div class="search-group">
+            <label class="ui-label" style="margin:0;">Buscar</label>
+            <input class="ui-control" type="text" [(ngModel)]="searchNoticias"
+              (ngModelChange)="onSearchNoticiasChange()" placeholder="Título, sección, unidad o ciudad"
+              style="min-width:260px;" />
+            <small class="search-hint" style="margin-left:6px;color:#666;white-space:nowrap;">(mínimo {{ minSearchChars }} caracteres)...</small>
+          </div>
+
+          <div class="search-mostrar">
+            <label style="margin:0;">Mostrar</label>
+            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+            </select>
+            <span>por página</span>
+          </div>
+        </div>
+
         <table class="ui-table">
           <thead>
             <tr>
@@ -208,8 +66,8 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            <tr *ngFor="let item of noticias">
+          <tbody *ngIf="noticiasPaginadas.length > 0; else noNoticiasTable">
+            <tr *ngFor="let item of noticiasPaginadas">
               <td>{{ item.idNoticia }}</td>
               <td class="cell-title">{{ item.titulo }}</td>
               <td>{{ item.unidad }}</td>
@@ -236,6 +94,208 @@
             </tr>
           </tbody>
         </table>
+
+        <ng-template #noNoticiasTable>
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <i class="fa-solid fa-newspaper"></i>
+                <p>{{
+                  searchNoticias.trim().length >= minSearchChars
+                    ? 'No hay resultados para la búsqueda.'
+                    : 'No hay noticias para mostrar.'
+                }}</p>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <div class="table-pagination" *ngIf="totalNoticias > 0">
+          <div class="pagination-actions pagination-numbers">
+            <button class="ui-icon-btn" type="button" (click)="prevPagina()" [disabled]="!canGoPrev()">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <ng-container *ngFor="let p of pageNumbers">
+              <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === currentPage"
+                (click)="onPageClick(p)">
+                {{ p }}
+              </button>
+              <span *ngIf="p === '...'" class="page-dots">...</span>
+            </ng-container>
+
+            <button class="ui-icon-btn" type="button" (click)="nextPagina()" [disabled]="!canGoNext()">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+</div>
+
+  <!-- Formulario de edición/creación en modal -->
+  <div class="ui-modal ui-modal--news-admin" *ngIf="isEditing" appMoveToBody (click)="cancelar()">
+    <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-pen-to-square"></i>
+          <span>{{ noticiaActual ? 'Editar Noticia' : 'Nueva Noticia' }}</span>
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cancelar()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <form (ngSubmit)="guardar()">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label for="titulo">Título <span class="required">*</span></label>
+              <input
+                type="text"
+                id="titulo"
+                class="ui-input"
+                [(ngModel)]="form.titulo"
+                name="titulo"
+                placeholder="Título de la noticia"
+                required />
+            </div>
+
+           <div class="form-group span-2">
+              <label for="subtitulo">Subtítulo</label>
+              <input
+                type="text"
+                id="subtitulo"
+                class="ui-input"
+                [(ngModel)]="form.subtitulo"
+                name="subtitulo"
+                placeholder="Breve descripción o subtítulo" />
+            </div>
+
+            <div class="form-group span-1">
+              <label for="seccion">Sección <span class="required">*</span></label>
+              <select
+                id="seccion"
+                class="ui-select"
+                [(ngModel)]="form.seccion"
+                name="seccion"
+                [disabled]="seccionesLoading"
+                required>
+                <option value="">Seleccionar sección</option>
+                <option *ngFor="let s of secciones" [value]="s">{{ s }}</option>
+              </select>
+              <small class="meta" *ngIf="seccionesLoading">Cargando secciones...</small>
+            </div>
+
+            <div class="form-group span-1">
+              <label for="unidad">Unidad <span class="required">*</span></label>
+              <select
+                id="unidad"
+                class="ui-select"
+                [(ngModel)]="form.unidad"
+                name="unidad"
+                [disabled]="unidadesLoading"
+                required>
+                <option value="">Seleccionar unidad</option>
+                <option *ngFor="let u of unidades" [value]="u.text">{{ u.text }}</option>
+              </select>
+              <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
+            </div>
+
+            <div class="form-group span-1">
+              <label for="departamento">Departamento <span class="required">*</span></label>
+              <select
+                id="departamento"
+                class="ui-select"
+                [(ngModel)]="selectedDepartamentoId"
+                name="departamento"
+                (ngModelChange)="onDepartamentoChange()"
+                [disabled]="departamentosLoading"
+                required>
+                <option [ngValue]="null">Seleccionar departamento</option>
+                <option *ngFor="let d of departamentos" [ngValue]="d.idDepartamento">{{ d.nombre }}</option>
+              </select>
+              <small class="meta" *ngIf="departamentosLoading">Cargando departamentos...</small>
+            </div>
+
+            <div class="form-group span-1">
+              <label for="ciudad">Ciudad <span class="required">*</span></label>
+              <select
+                id="ciudad"
+                class="ui-select"
+                [(ngModel)]="form.ciudad"
+                name="ciudad"
+                [disabled]="municipiosLoading"
+                required>
+                <option value="">Seleccionar municipio</option>
+                <option *ngFor="let m of municipios" [value]="m.nombre">{{ m.nombre }}</option>
+              </select>
+              <small class="meta" *ngIf="municipiosLoading">Cargando municipios...</small>
+            </div>
+
+           
+
+            <div class="form-group full-width">
+              <label for="imagenNoticia">Imagen</label>
+              <div class="file-upload-wrapper">
+                <input
+                  type="file"
+                  id="imagenNoticia"
+                  class="ui-control"
+                  accept=".jpg,.jpeg,.png,.webp,image/*"
+                  multiple
+                  (change)="onImageSelected($event)"
+                  [disabled]="uploading" />
+                <div class="file-upload-info" *ngIf="uploadedImages.length > 0 && !uploading">
+                  <i class="fa-solid fa-images"></i>
+                  <span>{{ uploadedImages.length }} de 4 imágenes cargadas</span>
+                </div>
+                <div class="file-upload-hint" *ngIf="uploadedImages.length === 0 && !uploading">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                  <span>Click para seleccionar hasta 4 imágenes</span>
+                </div>
+                <div class="file-upload-loading" *ngIf="uploading">
+                  <i class="fa-solid fa-circle-notch fa-spin"></i>
+                  <span>Cargando imagen...</span>
+                </div>
+              </div>
+              <div class="image-thumbs" *ngIf="uploadedImages.length > 0">
+                <div class="image-thumb" *ngFor="let imageName of uploadedImages; let i = index">
+                  <img [src]="getUploadedImageUrl(imageName)" [alt]="'Imagen ' + (i + 1)" />
+                  <button type="button" class="image-thumb__remove" (click)="removeUploadedImage(i)" title="Quitar imagen">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <small>{{ i + 1 }}</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group full-width">
+              <label for="contenido">Contenido</label>
+              <div class="news-editor">
+                <ngx-editor-menu [editor]="editor" [toolbar]="editorToolbar"></ngx-editor-menu>
+                <ngx-editor
+                  id="contenido"
+                  [editor]="editor"
+                  [(ngModel)]="form.contenido"
+                  name="contenido"
+                  [placeholder]="'Escriba el contenido de la noticia'">
+                </ngx-editor>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="ui-btn outline" (click)="cancelar()">
+              Cancelar
+            </button>
+            <button type="submit" class="ui-btn primary" [disabled]="saving">
+              <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i>
+              {{ saving ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+</form>
       </div>
     </div>
   </div>
