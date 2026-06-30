@@ -70,7 +70,7 @@
           </div>
         </article>
 
-        <article class="tab-card list-card">
+        <article class="tab-card ">
           <h3>Vista previa</h3>
           <div class="list-loading" *ngIf="loading">Consultando video actual...</div>
 
@@ -187,7 +187,7 @@
           </div>
         </article>
 
-        <article class="tab-card list-card">
+        <article class="tab-card">
           <div class="list-header">
             <h3 class="sub-title">Imágenes login configuradas</h3>
           </div>
@@ -255,7 +255,7 @@
           <div class="list-loading" *ngIf="brandingLoading">Cargando configuracion de marca...</div>
 
           <div class="ui-field">
-            <label class="ui-label">Unidad Institucional (Organigrama)</label>
+            <label class="sub-title">Unidad Institucional (Organigrama)</label>
             <small class="meta">Seleccione una unidad para auto-completar los datos del dueño.</small>
             <select class="ui-control" [(ngModel)]="selectedUnidadConsecutivo" (change)="onUnidadChange()">
               <option [ngValue]="null">-- Seleccione una unidad --</option>
@@ -361,7 +361,7 @@
           </div>
         </article>
 
-        <article class="tab-card list-card">
+        <article class="tab-card ">
           <h3 class="sub-title">Vista previa</h3>
           <div class="news-state" *ngIf="brandingIdBranding === 0">No hay marca configurada.</div>
 

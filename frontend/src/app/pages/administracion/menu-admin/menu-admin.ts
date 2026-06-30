@@ -24,6 +24,7 @@ export class MenuAdminComponent implements OnInit {
   saving = false;
 
   menuItems: DbMenuItem[] = [];
+  menuTree: { item: DbMenuItem; children: any[]; expanded: boolean }[] = [];
   parentOptions: DbMenuItem[] = [];
   expandedParents = new Set<number>();
   selectedMenuForRoles: DbMenuItem | null = null;
@@ -33,6 +34,7 @@ export class MenuAdminComponent implements OnInit {
   loadingRoles = false;
   savingRole = false;
   editingId: number | null = null;
+  showRolesModal = false;
 
   form: MenuSaveRequest = this.getDefaultForm();
 
@@ -58,6 +60,7 @@ export class MenuAdminComponent implements OnInit {
     this.menuService.getAdminMenu().subscribe({
       next: (items) => {
         this.menuItems = (items ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion);
+        this.buildMenuTree();
         this.parentOptions = this.menuItems
           .filter((item) => item.idMenu === 1 || !this.isRaiz(item))
           .slice()
@@ -149,7 +152,15 @@ export class MenuAdminComponent implements OnInit {
   gestionarRoles(item: DbMenuItem): void {
     this.selectedMenuForRoles = item;
     this.selectedRolId = null;
+    this.showRolesModal = true;
     this.loadRolesPanel(item.idMenu);
+  }
+
+  closeRolesModal(): void {
+    this.showRolesModal = false;
+    this.selectedMenuForRoles = null;
+    this.rolesAsignados = [];
+    this.selectedRolId = null;
   }
 
   cargarCatalogoRoles(): void {
@@ -232,6 +243,29 @@ export class MenuAdminComponent implements OnInit {
         this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
       }
     });
+  }
+
+  private buildMenuTree(): void {
+    const all = this.menuItems.filter(item => !this.isRaiz(item));
+    const roots = all.filter(item => item.idPadre === 1);
+    this.menuTree = this.getMenuNodes(roots, all);
+  }
+
+  private getMenuNodes(parents: DbMenuItem[], all: DbMenuItem[]): any[] {
+    return parents
+      .map(p => {
+        const children = all.filter(h => h.idPadre === p.idMenu);
+        return {
+          item: p,
+          expanded: false,
+          children: children.length > 0 ? this.getMenuNodes(children, all) : []
+        };
+      })
+      .sort((a, b) => a.item.posicion - b.item.posicion || a.item.idMenu - b.item.idMenu);
+  }
+
+  toggleNode(node: any): void {
+    node.expanded = !node.expanded;
   }
 
   get parentMenuItems(): DbMenuItem[] {

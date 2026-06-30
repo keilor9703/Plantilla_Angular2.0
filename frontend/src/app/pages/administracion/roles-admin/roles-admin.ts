@@ -23,6 +23,7 @@ export class RolesAdminComponent implements OnInit {
   saving = false;
   loadingRoleMenus = false;
   savingRoleMenu = false;
+  showPermissionsModal = false;
 
   roles: RolAdminItem[] = [];
   allMenus: DbMenuItem[] = [];
@@ -203,6 +204,18 @@ export class RolesAdminComponent implements OnInit {
     this.selectedRoleId = item.id;
     this.selectedMenuId = null;
     this.cargarMenusPorRol(item.id);
+  }
+
+  openPermissionsModal(item: RolAdminItem): void {
+    this.seleccionarRolPermisos(item);
+    this.showPermissionsModal = true;
+  }
+
+  closePermissionsModal(): void {
+    this.showPermissionsModal = false;
+    this.selectedRoleId = null;
+    this.roleMenus = [];
+    this.selectedMenuId = null;
   }
 
   cargarMenusPorRol(idRol: number): void {

@@ -17,7 +17,7 @@ import { AlertService } from '../../../core/services/alert.service';
   standalone: true,
   imports: [CommonModule, FormsModule, NgxEditorModule],
   templateUrl: './noticias.html',
-  styleUrls: ['./noticias.scss']
+  styleUrl: './noticias.scss'
 })
 export class NoticiasAdminComponent implements OnInit, OnDestroy {
   private readonly maxImages = 4;
@@ -33,6 +33,13 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
   noticias: DtoNoticia[] = [];
   noticiaActual: DtoNoticia | null = null;
   isEditing = false;
+
+  searchNoticias = '';
+  private searchNoticiasTimeout: ReturnType<typeof setTimeout> | null = null;
+  readonly minSearchChars = 3;
+  pageSize = 10;
+  pageSizeOptions: number[] = [5, 10, 20, 30, 50, 100];
+  currentPage = 1;
   unidades: DtoUnidad[] = [];
   secciones: string[] = [];
   departamentos: DtoDepartamento[] = [];
@@ -77,6 +84,9 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.editor?.destroy();
+    if (this.searchNoticiasTimeout) {
+      clearTimeout(this.searchNoticiasTimeout);
+    }
   }
 
   private cargarCatalogos(): void {
@@ -154,11 +164,89 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  get noticiasFiltradas(): DtoNoticia[] {
+    const term = (this.searchNoticias ?? '').trim().toLowerCase();
+    if (!term || term.length < this.minSearchChars) return this.noticias;
+    return this.noticias.filter(n =>
+      (n.titulo ?? '').toLowerCase().includes(term) ||
+      (n.unidad ?? '').toLowerCase().includes(term) ||
+      (n.seccion ?? '').toLowerCase().includes(term) ||
+      (n.ciudad ?? '').toLowerCase().includes(term)
+    );
+  }
+
+  get totalNoticias(): number {
+    return this.noticiasFiltradas.length;
+  }
+
+  get totalPaginas(): number {
+    return Math.max(1, Math.ceil(this.totalNoticias / this.pageSize));
+  }
+
+  get pageNumbers(): Array<number | string> {
+    const total = this.totalPaginas;
+    const current = this.currentPage;
+    const windowSize = 5;
+    if (total <= windowSize * 2 + 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages: Array<number | string> = [];
+    pages.push(1);
+    let start = Math.max(2, current - windowSize);
+    let end = Math.min(total - 1, current + windowSize);
+    if (start <= 2) start = 2;
+    if (end >= total - 1) end = total - 1;
+    if (start > 2) pages.push('...');
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < total - 1) pages.push('...');
+    pages.push(total);
+    return pages;
+  }
+
+  get noticiasPaginadas(): DtoNoticia[] {
+    const start = (this.currentPage - 1) * this.pageSize;
+    return this.noticiasFiltradas.slice(start, start + this.pageSize);
+  }
+
+  onSearchNoticiasChange(): void {
+    if (this.searchNoticiasTimeout) clearTimeout(this.searchNoticiasTimeout);
+    this.searchNoticiasTimeout = setTimeout(() => {
+      this.currentPage = 1;
+    }, 350);
+  }
+
+  onPageSizeChange(size: number | string): void {
+    const n = Number(size) || 10;
+    const lastPage = Math.max(1, Math.ceil(this.totalNoticias / n));
+    this.pageSize = n;
+    this.currentPage = Math.min(this.currentPage, lastPage);
+    if (this.noticiasPaginadas.length === 0 && this.totalNoticias > 0) {
+      this.currentPage = lastPage;
+    }
+  }
+
+  goToPage(page: number): void {
+    if (!Number.isFinite(page) || page < 1 || page > this.totalPaginas) return;
+    this.currentPage = page;
+  }
+
+  onPageClick(p: number | string): void {
+    if (p === '...') return;
+    const n = Number(p);
+    if (Number.isFinite(n)) this.goToPage(n);
+  }
+
+  canGoPrev(): boolean { return this.currentPage > 1; }
+  canGoNext(): boolean { return this.currentPage < this.totalPaginas; }
+  prevPagina(): void { if (this.canGoPrev()) this.currentPage -= 1; }
+  nextPagina(): void { if (this.canGoNext()) this.currentPage += 1; }
+
   cargar(): void {
     this.loading = true;
     this.service.getAll().subscribe({
       next: (data) => {
         this.noticias = data;
+        this.currentPage = 1;
         this.loading = false;
       },
       error: (err) => {

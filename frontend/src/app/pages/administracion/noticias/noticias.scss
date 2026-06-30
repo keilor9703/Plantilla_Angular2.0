@@ -228,8 +228,7 @@
     border-top: 1px solid var(--ui-border);
 }
 
-.loading-state,
-.empty-state {
+.loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -238,16 +237,40 @@
     color: var(--policia-neutral-medio);
 }
 
-.loading-state i,
-.empty-state i {
+.loading-state i {
     font-size: calc(48px * var(--font-size-scale));
     margin-bottom: 16px;
     opacity: 0.5;
 }
 
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 16px;
+    border: 1px dashed rgba(var(--policia-oscuro-rgb), .2);
+    border-radius: 14px;
+    background: rgba(var(--policia-oscuro-rgb), .02);
+}
+
+.empty-state i {
+    font-size: calc(34px * var(--font-size-scale));
+    color: var(--policia-medio);
+    margin-bottom: 12px;
+}
+
+.empty-state h3 {
+    margin-top: 10px;
+    color: var(--policia-oscuro);
+}
+
 .empty-state p {
-    margin: 0 0 20px;
-    font-size: calc(16px * var(--font-size-scale));
+    margin-top: 6px;
+    margin-bottom: 16px;
+    color: rgba(var(--policia-neutral-oscuro-rgb), .95);
+    font-size: calc(15px * var(--font-size-scale));
 }
 
 .cell-title {
@@ -323,6 +346,92 @@
     }
 }
 
+// ── Danger button override ─────────────────────────────────────────────────
+
+.ui-btn.danger {
+  border-color: rgba(185, 28, 28, .4);
+  color: var(--color-danger-text);
+}
+
+.ui-btn.danger:hover {
+  background: rgba(185, 28, 28, .12);
+}
+
+// ── Controles de búsqueda y paginación ─────────────────────────────────────
+
+.table-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  padding: 10px;
+}
+
+.search-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-mostrar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.search-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: calc(11px * var(--font-size-scale));
+  color: rgba(var(--policia-neutral-oscuro-rgb), .92);
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+// ── Paginación ──────────────────────────────────────────────────────────────
+
+.table-pagination {
+  margin: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.pagination-actions.pagination-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-btn.page-active {
+  background: var(--policia-acento);
+  border-color: var(--policia-acento);
+  color: var(--policia-oscuro);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
+}
+
+.page-dots {
+  padding: 0 6px;
+  color: rgba(var(--policia-neutral-oscuro-rgb), .6);
+  font-weight: 800;
+}
+
 /* --- MODO OSCURO --- */
 :host-context(html.dark-mode) {
   .section-header h2 {
@@ -339,5 +448,99 @@
 
   .cell-title {
     color: var(--ui-text);
+  }
+
+  .empty-state h3 {
+    color: var(--ui-text);
+  }
+
+  .empty-state {
+    border-color: rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .03);
+  }
+
+  .ui-table td,
+  .ui-table th {
+    color: var(--ui-text);
+  }
+
+  .search-group .ui-label,
+  .search-mostrar label,
+  .search-mostrar span {
+    color: var(--ui-text);
+  }
+}
+
+/* ============================================
+   ESTILOS DEL MODAL DE NOTICIAS (ADMIN)
+   ============================================ */
+
+/* Contenedor del modal específico para noticias */
+.ui-modal--news-admin {
+  align-items: center;
+  padding: 20px;
+}
+
+.ui-modal--news-admin .ui-modal__dialog {
+  width: min(1100px, 98vw);
+  max-height: 95vh;
+}
+
+.ui-modal--news-admin .ui-modal__body {
+  padding: 18px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.ui-modal--news-admin .form-grid {
+  max-height: none;
+}
+
+/* Diálogo específico para noticias - más ancho para el formulario */
+.ui-modal__dialog--news {
+  width: min(1100px, 98vw);
+  max-height: 95vh;
+  margin-top: 1vh;
+  margin-bottom: 1vh;
+  overflow-y: auto;
+  animation: uiModalInTop .2s ease-out;
+}
+
+/* Ajustes del header para noticias */
+.ui-modal__head {
+  padding: 12px 16px;
+}
+
+.ui-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  i {
+    color: var(--policia-acento);
+  }
+}
+
+/* Body del modal con scroll interno */
+.ui-modal__body {
+  padding: 16px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Footer del modal */
+.ui-modal__foot {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(var(--policia-oscuro-rgb), 0.1);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Ajustes responsivos para el modal de noticias */
+@media (max-width: 900px) {
+  .ui-modal--news-admin .ui-modal__dialog {
+    width: 96vw;
   }
 }
