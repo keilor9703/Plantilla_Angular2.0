@@ -124,6 +124,28 @@ namespace ofic.Controllers.Administracion
             return PhysicalFile(fullPath, contentType);
         }
 
+        [HttpDelete("Imagen/{fileName}")]
+        [EnableCors("PublicCors")]
+        public IActionResult DeleteImagen(string fileName)
+        {
+            var safeFileName = Path.GetFileName(fileName);
+            var fullPath = FindImagePath(safeFileName);
+
+            if (string.IsNullOrWhiteSpace(fullPath) || !System.IO.File.Exists(fullPath))
+                return NotFound(new { success = false, message = "Imagen no encontrada." });
+
+            try
+            {
+                System.IO.File.Delete(fullPath);
+                return Ok(new { success = true, message = "Imagen eliminada correctamente." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error eliminando imagen {FileName}", safeFileName);
+                return StatusCode(500, new { success = false, message = "Error eliminando imagen." });
+            }
+        }
+
         private string? FindImagePath(string safeFileName)
         {
             // Evitar DirectoryNotFoundException cuando la ruta de uploads no existe

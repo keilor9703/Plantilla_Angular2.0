@@ -57,7 +57,9 @@ export class NoticiaService {
   }
 
   getActivas(): Observable<DtoNoticia[]> {
-    return this.http.get<DtoNoticia[]>(`${this.baseUrl}/activas`);
+    // Append a timestamp to avoid cached responses from browser/proxy
+    const url = `${this.baseUrl}/activas`;
+    return this.http.get<DtoNoticia[]>(`${url}?_=${Date.now()}`);
   }
 
   getById(id: number): Observable<DtoNoticia> {
@@ -80,6 +82,10 @@ export class NoticiaService {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<DtoUploadResponse>(`${this.uploadUrl}/imagen`, formData);
+  }
+
+  deleteImage(fileName: string): Observable<DtoNoticiaApiResponse> {
+    return this.http.delete<DtoNoticiaApiResponse>(`${this.uploadUrl}/imagen/${encodeURIComponent(fileName)}`);
   }
 
   darLike(id: number): Observable<DtoNoticiaApiResponse> {

@@ -12,15 +12,21 @@ import { DominioService, DtoDominio, DtoUnidad } from '../../../core/services/ad
 import { DtoDepartamento, DtoMunicipio, UbicacionService } from '../../../core/services/administracion/ubicacion.service';
 import { AlertService } from '../../../core/services/alert.service';
 
+interface ImageItem {
+  file?: File;
+  name?: string;
+}
+
 @Component({
   selector: 'app-noticias',
   standalone: true,
   imports: [CommonModule, FormsModule, NgxEditorModule],
   templateUrl: './noticias.html',
-  styleUrl: './noticias.scss'
+  styleUrls: ['./noticias.scss']
 })
 export class NoticiasAdminComponent implements OnInit, OnDestroy {
   private readonly maxImages = 4;
+  private nombresOriginales: string[] = [];
   loading = false;
   saving = false;
   deleting = false;
@@ -45,7 +51,8 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
   departamentos: DtoDepartamento[] = [];
   municipios: DtoMunicipio[] = [];
   selectedDepartamentoId: number | null = null;
-  uploadedImages: string[] = [];
+  uploadedImages: ImageItem[] = [];
+  imageDragOver = false;
 
   form: DtoNoticiaRequest = {
     unidad: '',
@@ -87,6 +94,7 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     if (this.searchNoticiasTimeout) {
       clearTimeout(this.searchNoticiasTimeout);
     }
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) {}
   }
 
   private cargarCatalogos(): void {
@@ -134,7 +142,7 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
       next: (items) => {
         this.unidades = (items ?? [])
           .filter((x) => Number(x?.value ?? 0) > 0)
-          .sort((a, b) => (a?.text ?? '').localeCompare(b?.text ?? '', 'es', { sensitivity: 'base' }));
+          .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? '', 'es', { sensitivity: 'base' }));
         this.unidadesLoading = false;
       },
       error: () => {
@@ -243,7 +251,7 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
 
   cargar(): void {
     this.loading = true;
-    this.service.getAll().subscribe({
+    this.service.getActivas().subscribe({
       next: (data) => {
         this.noticias = data;
         this.currentPage = 1;
@@ -269,8 +277,10 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     };
     this.selectedDepartamentoId = null;
     this.uploadedImages = [];
+    this.nombresOriginales = [];
     this.cargarMunicipios(null);
     this.isEditing = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) {}
   }
 
   editarNoticia(noticia: DtoNoticia): void {
@@ -285,9 +295,11 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
       contenido: noticia.contenido ?? ''
     };
     this.selectedDepartamentoId = null;
-    this.uploadedImages = this.parseImageList(noticia.imagenNoticia);
+    this.nombresOriginales = this.parseImageList(noticia.imagenNoticia);
+    this.uploadedImages = this.nombresOriginales.map(n => ({ name: n }));
     this.cargarMunicipiosParaEdicion((noticia.ciudad ?? '').trim());
     this.isEditing = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) {}
   }
 
   private cargarMunicipiosParaEdicion(ciudadActual: string): void {
@@ -324,6 +336,8 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     this.isEditing = false;
     this.noticiaActual = null;
     this.uploadedImages = [];
+    this.nombresOriginales = [];
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) {}
   }
 
   guardar(): void {
@@ -364,27 +378,41 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     };
 
     this.saving = true;
+    this.subirImagenesPendientes(() => {
+      const nombres = this.uploadedImages.map(i => i.name).filter(Boolean) as string[];
+      const payload: DtoNoticiaRequest = {
+        titulo,
+        seccion,
+        ciudad,
+        unidad,
+        imagenNoticia: nombres.length > 0 ? nombres.join('|') : null,
+        subtitulo: (this.form.subtitulo ?? '').trim() || null,
+        contenido: (this.form.contenido ?? '').trim() || null
+      };
 
-    const request$ = this.noticiaActual
-      ? this.service.update(this.noticiaActual.idNoticia, payload)
-      : this.service.create(payload);
+      const request$ = this.noticiaActual
+        ? this.service.update(this.noticiaActual.idNoticia, payload)
+        : this.service.create(payload);
 
-    request$.subscribe({
-      next: (resp) => {
-        this.saving = false;
-        if (!resp.success) {
-          this.toast.warning('Noticias', resp.message ?? 'No fue posible guardar.');
-          return;
+      request$.subscribe({
+        next: (resp) => {
+          this.saving = false;
+          if (!resp.success) {
+            this.toast.warning('Noticias', resp.message ?? 'No fue posible guardar.');
+            return;
+          }
+          this.toast.success('Noticias', resp.message ?? 'Guardado correctamente.');
+          this.isEditing = false;
+          try { document.body.classList.remove('ui-modal-open'); } catch (e) {}
+          this.noticiaActual = null;
+          this.eliminarImagenesRemovidas();
+          this.cargar();
+        },
+        error: (err) => {
+          this.saving = false;
+          this.toast.error('Noticias', err?.error?.message ?? 'Error guardando noticia.');
         }
-        this.toast.success('Noticias', resp.message ?? 'Guardado correctamente.');
-        this.isEditing = false;
-        this.noticiaActual = null;
-        this.cargar();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.toast.error('Noticias', err?.error?.message ?? 'Error guardando noticia.');
-      }
+      });
     });
   }
 
@@ -399,6 +427,7 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
       if (!confirmed) return;
 
       this.deleting = true;
+      const imagenes = this.parseImageList(noticia.imagenNoticia);
       this.service.delete(noticia.idNoticia).subscribe({
         next: (resp) => {
           this.deleting = false;
@@ -406,7 +435,8 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
             this.toast.warning('Noticias', resp.message ?? 'No fue posible eliminar.');
             return;
           }
-          this.toast.success('Noticias', resp.message ?? 'Noticia eliminada correctamente.');
+          this.toast.success('Noticias', 'Noticia eliminada correctamente.');
+          this.eliminarImagenes(imagenes);
           this.cargar();
         },
         error: (err) => {
@@ -442,62 +472,98 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const filesToUpload = files.slice(0, availableSlots);
+    const filesToAdd = files.slice(0, availableSlots);
     if (files.length > availableSlots) {
       this.toast.warning('Imagen', `Se cargarán solo ${availableSlots} imágenes para completar el máximo de ${this.maxImages}.`);
     }
 
-    this.uploading = true;
-    this.uploadFilesSequential(filesToUpload, 0, () => {
-      this.uploading = false;
-      this.form.imagenNoticia = this.uploadedImages.join('|');
-      input.value = '';
-    });
+    for (const f of filesToAdd) {
+      this.uploadedImages.push({ file: f });
+    }
+    input.value = '';
+  }
+
+  onImageDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.add('drag-over');
+    this.imageDragOver = true;
+  }
+
+  onImageDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.imageDragOver = false;
+  }
+
+  onImageDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    this.imageDragOver = false;
+    const files = event.dataTransfer ? Array.from(event.dataTransfer.files) : [];
+    if (files.length > 0) {
+      const mockEvent = { target: { files } } as unknown as Event;
+      this.onImageSelected(mockEvent);
+    }
   }
 
   removeUploadedImage(index: number): void {
     if (index < 0 || index >= this.uploadedImages.length) {
       return;
     }
-
     this.uploadedImages.splice(index, 1);
-    this.form.imagenNoticia = this.uploadedImages.join('|');
   }
 
-  getUploadedImageUrl(fileName: string): string {
-    const raw = (fileName ?? '').trim();
+  getUploadedImageUrl(item: ImageItem): string {
+    if (item.file) {
+      return URL.createObjectURL(item.file);
+    }
+    const raw = (item.name ?? '').trim();
     if (!raw) {
       return '';
     }
-
     if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/')) {
       return raw;
     }
-
     const justName = raw.split('/').filter(Boolean).pop() ?? '';
     return justName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(justName)}` : '';
   }
 
-  private uploadFilesSequential(files: File[], index: number, onDone: () => void): void {
-    if (index >= files.length) {
-      onDone();
+  private subirImagenesPendientes(onComplete: () => void): void {
+    const pendientes = this.uploadedImages.filter(i => i.file);
+    if (pendientes.length === 0) {
+      onComplete();
       return;
     }
-
-    this.service.uploadImage(files[index]).subscribe({
-      next: (resp) => {
-        if (resp.success) {
-          this.uploadedImages.push(resp.fileName);
-        } else {
-          this.toast.warning('Imagen', resp.message || 'Error al cargar imagen.');
+    this.uploading = true;
+    let completadas = 0;
+    for (const item of pendientes) {
+      this.service.uploadImage(item.file!).subscribe({
+        next: (resp) => {
+          if (resp.success) {
+            item.name = resp.fileName;
+            item.file = undefined;
+          } else {
+            this.toast.warning('Imagen', resp.message || 'Error al cargar imagen.');
+          }
+          completadas++;
+          if (completadas >= pendientes.length) {
+            this.uploading = false;
+            onComplete();
+          }
+        },
+        error: (err) => {
+          this.toast.error('Imagen', err?.error?.message || 'Error al cargar imagen.');
+          completadas++;
+          if (completadas >= pendientes.length) {
+            this.uploading = false;
+            onComplete();
+          }
         }
-        this.uploadFilesSequential(files, index + 1, onDone);
-      },
-      error: (err) => {
-        this.toast.error('Imagen', err?.error?.message || 'Error al cargar imagen.');
-        this.uploadFilesSequential(files, index + 1, onDone);
-      }
-    });
+      });
+    }
   }
 
   private parseImageList(rawValue?: string | null): string[] {
@@ -505,11 +571,27 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     if (!raw) {
       return [];
     }
-
     return raw
       .split('|')
       .map((x) => x.trim())
       .filter((x) => !!x)
       .slice(0, this.maxImages);
+  }
+
+  private eliminarImagenes(nombres: string[]): void {
+    for (const n of nombres) {
+      const soloNombre = n.split('/').filter(Boolean).pop() ?? n;
+      this.service.deleteImage(soloNombre).subscribe({
+        error: (err) => console.error('Error eliminando imagen:', soloNombre, err)
+      });
+    }
+  }
+
+  private eliminarImagenesRemovidas(): void {
+    if (this.nombresOriginales.length === 0) return;
+    const nombresActuales = this.uploadedImages.map(i => i.name).filter(Boolean) as string[];
+    const removidas = this.nombresOriginales.filter(n => !nombresActuales.includes(n));
+    this.eliminarImagenes(removidas);
+    this.nombresOriginales = [];
   }
 }
