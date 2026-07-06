@@ -64,8 +64,7 @@
 
         <table class="ui-table" *ngIf="!loading">
           <thead>
-            <tr>
-              
+            <tr>              
               <th>Título</th>
               <th>Unidad</th>
               <th>Sección</th>
@@ -245,29 +244,36 @@
                 <input #imageInput type="file" id="imagenNoticia" accept=".jpg,.jpeg,.png,.webp,image/*" multiple
                   (change)="onImageSelected($event)" [disabled]="uploading" hidden />
 
-                <div class="file-input-wrapper" (click)="imageInput.click()"
+                <div class="file-input-wrapper"
                   (dragover)="onImageDragOver($event)" (dragleave)="onImageDragLeave($event)" (drop)="onImageDrop($event)">
 
-                  <div class="file-preview-area" *ngIf="uploadedImages.length > 0; else imagePlaceholder">
-                    <div class="image-thumbs">
-                      <div class="image-thumb" *ngFor="let img of uploadedImages; let i = index">
-                        <img [src]="getUploadedImageUrl(img)" [alt]="'Imagen ' + (i + 1)" />
-                        <button type="button" class="image-thumb__remove btn-remove-file" (click)="removeUploadedImage(i); $event.stopPropagation()" title="Quitar imagen">
+                  <div class="image-slots">
+                    <div class="image-slot"
+                      *ngFor="let slot of slotIndices; let i = index"
+                      [class.has-image]="uploadedImages[i]"
+                      [class.drag-over-slot]="dragSlotIndex === i"
+                      (dragover)="onSlotDragOver($event, i)"
+                      (dragleave)="onSlotDragLeave($event, i)"
+                      (drop)="onSlotDrop($event, i)"
+                      (dragstart)="onSlotDragStart($event, i)"
+                      [draggable]="!!uploadedImages[i]"
+                      (click)="onSlotClick($event, i)">
+                      <ng-container *ngIf="uploadedImages[i]; else emptySlot">
+                        <img [src]="getUploadedImageUrl(uploadedImages[i])" [alt]="'Imagen ' + (i + 1)" draggable="false" />
+                        <button type="button" class="image-slot__remove" (click)="removeUploadedImage(i); $event.stopPropagation()" title="Quitar imagen">
                           <i class="fa-solid fa-xmark"></i>
                         </button>
-                        <small>{{ i + 1 }}</small>
-                      </div>
+                      </ng-container>
+                      <ng-template #emptySlot>
+                        <div class="image-slot__empty">
+                          <i class="fa-solid fa-plus"></i>
+                        </div>
+                      </ng-template>
+                      <small class="image-slot__label">{{ i + 1 }}</small>
                     </div>
                   </div>
 
-                  <ng-template #imagePlaceholder>
-                    <div>
-                      <i class="fa-solid fa-upload"></i>
-                      <span *ngIf="!imageDragOver">Haz clic o arrastra para seleccionar hasta 4 imágenes</span>
-                      <span *ngIf="imageDragOver" class="drag-active-text">¡Suelta las imágenes para cargarlas!</span>
-                    </div>
-                  </ng-template>
-
+                  
                 </div>
 
                 <div class="file-upload-loading" *ngIf="uploading">

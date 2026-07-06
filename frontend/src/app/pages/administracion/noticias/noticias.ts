@@ -53,6 +53,12 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
   selectedDepartamentoId: number | null = null;
   uploadedImages: ImageItem[] = [];
   imageDragOver = false;
+  dragSlotIndex: number | null = null;
+  draggedIndex: number | null = null;
+
+  get slotIndices(): number[] {
+    return [0, 1, 2, 3];
+  }
 
   form: DtoNoticiaRequest = {
     unidad: '',
@@ -461,26 +467,11 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
   onImageSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const files = input.files ? Array.from(input.files) : [];
+    input.value = '';
     if (files.length === 0) {
       return;
     }
-
-    const availableSlots = this.maxImages - this.uploadedImages.length;
-    if (availableSlots <= 0) {
-      this.toast.warning('Imagen', `Solo se permiten ${this.maxImages} imágenes por noticia.`);
-      input.value = '';
-      return;
-    }
-
-    const filesToAdd = files.slice(0, availableSlots);
-    if (files.length > availableSlots) {
-      this.toast.warning('Imagen', `Se cargarán solo ${availableSlots} imágenes para completar el máximo de ${this.maxImages}.`);
-    }
-
-    for (const f of filesToAdd) {
-      this.uploadedImages.push({ file: f });
-    }
-    input.value = '';
+    this.agregarArchivos(files);
   }
 
   onImageDragOver(event: DragEvent): void {
@@ -504,8 +495,51 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
     this.imageDragOver = false;
     const files = event.dataTransfer ? Array.from(event.dataTransfer.files) : [];
     if (files.length > 0) {
-      const mockEvent = { target: { files } } as unknown as Event;
-      this.onImageSelected(mockEvent);
+      this.agregarArchivos(files);
+    }
+  }
+
+  onSlotDragStart(event: DragEvent, index: number): void {
+    this.draggedIndex = index;
+    event.dataTransfer?.setData('text/plain', String(index));
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  onSlotDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.draggedIndex !== null && this.draggedIndex !== index) {
+      this.dragSlotIndex = index;
+    }
+  }
+
+  onSlotDragLeave(event: DragEvent, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.dragSlotIndex === index) {
+      this.dragSlotIndex = null;
+    }
+  }
+
+  onSlotDrop(event: DragEvent, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragSlotIndex = null;
+    const files = event.dataTransfer ? Array.from(event.dataTransfer.files) : [];
+    if (files.length > 0) {
+      this.agregarArchivos(files);
+    } else if (this.draggedIndex !== null && this.draggedIndex !== index) {
+      this.reordenar(this.draggedIndex, index);
+    }
+    this.draggedIndex = null;
+  }
+
+  onSlotClick(event: MouseEvent, index: number): void {
+    if (!this.uploadedImages[index]) {
+      const input = document.getElementById('imagenNoticia') as HTMLInputElement;
+      input?.click();
     }
   }
 
@@ -514,6 +548,26 @@ export class NoticiasAdminComponent implements OnInit, OnDestroy {
       return;
     }
     this.uploadedImages.splice(index, 1);
+  }
+
+  private reordenar(from: number, to: number): void {
+    const item = this.uploadedImages.splice(from, 1)[0];
+    this.uploadedImages.splice(to, 0, item);
+  }
+
+  private agregarArchivos(files: File[]): void {
+    const availableSlots = this.maxImages - this.uploadedImages.length;
+    if (availableSlots <= 0) {
+      this.toast.warning('Imagen', `Solo se permiten ${this.maxImages} imágenes por noticia.`);
+      return;
+    }
+    const filesToAdd = files.slice(0, availableSlots);
+    if (files.length > availableSlots) {
+      this.toast.warning('Imagen', `Se cargarán solo ${availableSlots} imágenes para completar el máximo de ${this.maxImages}.`);
+    }
+    for (const f of filesToAdd) {
+      this.uploadedImages.push({ file: f });
+    }
   }
 
   getUploadedImageUrl(item: ImageItem): string {

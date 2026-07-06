@@ -209,6 +209,7 @@ export class RolesAdminComponent implements OnInit {
   openPermissionsModal(item: RolAdminItem): void {
     this.seleccionarRolPermisos(item);
     this.showPermissionsModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   closePermissionsModal(): void {
@@ -216,6 +217,7 @@ export class RolesAdminComponent implements OnInit {
     this.selectedRoleId = null;
     this.roleMenus = [];
     this.selectedMenuId = null;
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   cargarMenusPorRol(idRol: number): void {
