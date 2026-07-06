@@ -219,12 +219,14 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.newRole.fechaFin = this.normalizeDateString(fecha.toISOString());
     
     this.showAddRoleForm = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   cancelarNuevoRol(): void {
     this.showAddRoleForm = false;
     this.editingRole = null;
     this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
+      try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   prepararEdicionRol(rol: UserRole): void {
@@ -235,6 +237,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       fechaFin: rol.fechaExpiracion
     };
     this.showAddRoleForm = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
     
     // Hacer scroll al formulario
     setTimeout(() => {

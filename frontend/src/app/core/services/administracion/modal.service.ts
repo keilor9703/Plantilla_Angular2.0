@@ -131,4 +131,9 @@ export class ModalService {
     formData.append('File', file);
     return this.http.post<ModalUploadResponse>(`${this.baseUrl}/upload`, formData);
   }
+
+  deleteRecurso(fileName: string): Observable<{ success: boolean; message: string }> {
+    // fileName should be the safe file name (e.g. guid.ext)
+    return this.http.delete<{ success: boolean; message: string }>(`${this.baseUrl}/recurso/${encodeURIComponent(fileName)}`);
+  }
 }

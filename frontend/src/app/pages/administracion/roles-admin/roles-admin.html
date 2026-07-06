@@ -77,8 +77,7 @@
         </article>
 
         <!-- Permisos moved to modal -->
-
-        <div class="ui-modal" *ngIf="showPermissionsModal" (click)="closePermissionsModal()">
+        <div class="ui-modal" *ngIf="showPermissionsModal">
           <div class="ui-modal__dialog" (click)="$event.stopPropagation()">
             <div class="ui-modal__head">
               <div class="ui-modal__title">

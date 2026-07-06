@@ -153,6 +153,7 @@ export class MenuAdminComponent implements OnInit {
     this.selectedMenuForRoles = item;
     this.selectedRolId = null;
     this.showRolesModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
     this.loadRolesPanel(item.idMenu);
   }
 
@@ -161,6 +162,7 @@ export class MenuAdminComponent implements OnInit {
     this.selectedMenuForRoles = null;
     this.rolesAsignados = [];
     this.selectedRolId = null;
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   cargarCatalogoRoles(): void {

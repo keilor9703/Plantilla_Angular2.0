@@ -113,7 +113,7 @@
 
 <!-- Modal de noticia -->
 <div class="ui-modal" *ngIf="modalOpen" (click)="closeNoticia()">
-  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__dialog ui-modal__dialog--news news-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
     <div class="ui-modal__head">
       <div class="ui-modal__title">
         <i class="fa-solid fa-newspaper"></i>

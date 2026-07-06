@@ -133,29 +133,57 @@
 
       </div>
 
-      <article class="tab-card videos-table-card" *ngIf="!loading">
-        <div class="roles-head">
-          <h3>Listado de Videos</h3>
-          <button class="ui-btn secondary" type="button" (click)="cargarListado()" [disabled]="loadingListado">
-            <i class="fa-solid fa-rotate"></i>
-            {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
-          </button>
+      <!-- Video list moved to its own panel below -->
+    </div>
+
+  </div>
+      <!-- Nuevo panel para listado de videos (panel separado) -->
+      <div class="ui-panel users-table-card">
+        <div class="ui-panel__head">
+          <div class="ui-panel__title">
+            <i class="fa-brands fa-youtube"></i>
+            Listado de Videos
+          </div>
+          <div class="ui-panel__actions">
+            <button class="ui-btn secondary" type="button" (click)="cargarListado()" [disabled]="loadingListado">
+              <i class="fa-solid fa-rotate"></i>
+              {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
+            </button>
+          </div>
         </div>
 
-        <div class="list-loading" *ngIf="loadingListado">Consultando videos...</div>
+        <div class="ui-panel__body">
+          <div class="list-loading" *ngIf="loadingListado">Consultando videos...</div>
+        <div class="table-controls" *ngIf="!loadingListado" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+          <div class="search-group">
+            <label class="ui-label" style="margin:0;">Buscar</label>
+            <input class="ui-control" type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Título, URL o usuario" style="min-width:260px;" />
+            <small class="search-hint" style="margin-left:6px;color:#666;white-space: nowrap;">(mínimo {{ minSearchChars }} caracteres)</small>
+          </div>
 
-        <div class="table-wrap" *ngIf="!loadingListado && videosListado.length > 0; else noVideosTable">
-          <table class="videos-table">
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>URL</th>
-                <th>Quién lo cargó</th>
-                <th>Cuándo se cargó</th>
-              </tr>
-            </thead>
+          <div class="search-mostrar" style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+            <label style="margin:0;">Mostrar</label>
+            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s === 0 ? 'Todos' : s }}</option>
+            </select>
+            <label style="margin:0;">por página</label>
+          </div>
+
+          <!-- agrupado removido -->
+        </div>
+
+        <div class="ui-table-wrap" *ngIf="!loadingListado && totalFiltered > 0; else noVideosTable">
+            <table class="ui-table">
+              <thead class="thead-usuario">
+                <tr>
+                  <th>Título</th>
+                  <th>URL</th>
+                  <th>Quién lo cargó</th>
+                  <th>Cuándo se cargó</th>
+                </tr>
+              </thead>
             <tbody>
-              <tr *ngFor="let item of videosListado">
+              <tr *ngFor="let item of pagedVideos">
                 <td>{{ item.titulo || 'N/A' }}</td>
                 <td class="url-cell">
                   <a [href]="item.urlYoutube" target="_blank" rel="noopener noreferrer">{{ item.urlYoutube }}</a>
@@ -164,16 +192,37 @@
                 <td>{{ item.fechaCreacion | date:'dd/MM/yyyy HH:mm' }}</td>
               </tr>
             </tbody>
-          </table>
-        </div>
-
-        <ng-template #noVideosTable>
-          <div class="news-state">
-            No hay videos institucionales registrados.
+            </table>
           </div>
-        </ng-template>
-      </article>
-    </div>
 
-  </div>
-</section>
+          <ng-template #noVideosTable>
+            <div class="empty-state">
+              <i class="fa-brands fa-youtube"></i>
+              <p>{{ (searchQuery || '').trim().length >= minSearchChars ? 'No hay resultados para la búsqueda.' : 'No hay videos institucionales registrados.' }}</p>
+            </div>
+          </ng-template>
+
+          <div class="table-pagination" *ngIf="totalFiltered > 0 && pageSize !== 0">
+            <div class="pagination-actions pagination-numbers">
+              <button class="ui-icon-btn" type="button" (click)="prevPage()" [disabled]="!canGoPrev">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+
+              <ng-container *ngFor="let p of pageNumbers">
+                <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === currentPage"
+                  (click)="goToPage(p)">
+                  {{ p }}
+                </button>
+                <span *ngIf="p === '...'" class="page-dots">...</span>
+              </ng-container>
+
+              <button class="ui-icon-btn" type="button" (click)="nextPage()" [disabled]="!canGoNext">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>

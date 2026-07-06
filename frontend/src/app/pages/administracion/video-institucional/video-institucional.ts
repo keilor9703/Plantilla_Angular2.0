@@ -27,6 +27,12 @@ export class VideoInstitucionalComponent implements OnInit {
 
   current: DtoVideoInstitucional | null = null;
   videosListado: DtoVideoInstitucional[] = [];
+  // Pagination / search / grouping
+  searchQuery = '';
+  minSearchChars = 2;
+  pageSizeOptions = [5, 10, 20, 30, 50, 100, 0]; // 0 === Todos
+  pageSize = 10;
+  currentPage = 1;
 
   form: DtoVideoInstitucionalRequest = {
     titulo: '',
@@ -78,6 +84,7 @@ export class VideoInstitucionalComponent implements OnInit {
     this.service.getListado().subscribe({
       next: (items) => {
         this.videosListado = items ?? [];
+        this.currentPage = 1;
         this.loadingListado = false;
       },
       error: (err) => {
@@ -86,6 +93,55 @@ export class VideoInstitucionalComponent implements OnInit {
         this.toast.error('Video institucional', err?.error?.message ?? 'Error consultando listado de videos.');
       }
     });
+  }
+
+  // Search / Pagination helpers
+  get filteredVideos(): DtoVideoInstitucional[] {
+    const q = (this.searchQuery || '').trim().toLowerCase();
+    if (!q || q.length < this.minSearchChars) return this.videosListado.slice();
+    return this.videosListado.filter(v =>
+      (v.titulo ?? '').toLowerCase().includes(q)
+      || (v.urlYoutube ?? '').toLowerCase().includes(q)
+      || (v.usuarioCreacion ?? '').toLowerCase().includes(q)
+    );
+  }
+
+  get totalFiltered(): number {
+    return this.filteredVideos.length;
+  }
+
+  get pageNumbers(): Array<number|string> {
+    if (this.pageSize === 0) return [1];
+    const total = Math.max(1, Math.ceil(this.totalFiltered / this.pageSize));
+    const pages: Array<number|string> = [];
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+
+  get canGoPrev(): boolean { return this.pageSize !== 0 && this.currentPage > 1; }
+  get canGoNext(): boolean { return this.pageSize !== 0 && this.currentPage < Math.ceil(this.totalFiltered / this.pageSize); }
+
+  onSearchChange(): void {
+    this.currentPage = 1;
+  }
+
+  onPageSizeChange(size: number): void {
+    this.pageSize = Number(size);
+    this.currentPage = 1;
+  }
+
+  prevPage(): void { if (this.canGoPrev) this.currentPage--; }
+  nextPage(): void { if (this.canGoNext) this.currentPage++; }
+  goToPage(p: any): void {
+    const n = Number(p);
+    if (!Number.isInteger(n) || n < 1) return;
+    this.currentPage = n;
+  }
+
+  get pagedVideos(): DtoVideoInstitucional[] {
+    if (this.pageSize === 0) return this.filteredVideos.slice();
+    const start = (this.currentPage - 1) * this.pageSize;
+    return this.filteredVideos.slice(start, start + this.pageSize);
   }
 
   nuevoVideo(): void {

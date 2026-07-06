@@ -71,6 +71,35 @@ namespace Api.Controllers.Administracion
 
                 if (!result.Success)
                     return BadRequest(new { success = false, message = result.Message });
+                // Cleanup: keep only the newly provided recurso file in uploads/modales
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(request.RutaRecurso) && request.RutaRecurso.StartsWith("/api/Modal/recurso/"))
+                    {
+                        var newFile = Path.GetFileName(request.RutaRecurso);
+                        if (!string.IsNullOrWhiteSpace(newFile) && Directory.Exists(_uploadsPath))
+                        {
+                            var files = Directory.GetFiles(_uploadsPath);
+                            foreach (var f in files)
+                            {
+                                try
+                                {
+                                    if (!string.Equals(Path.GetFileName(f), newFile, StringComparison.OrdinalIgnoreCase))
+                                        System.IO.File.Delete(f);
+                                }
+                                catch (Exception exDel)
+                                {
+                                    _logger.LogWarning(exDel, "No se pudo eliminar archivo antiguo de modal: {File}", f);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception exCleanup)
+                {
+                    _logger.LogWarning(exCleanup, "Error durante limpieza de recursos de modales despues de crear");
+                }
+
 
                 return Ok(new { success = true, id = result.Id, message = result.Message });
             }
@@ -88,10 +117,33 @@ namespace Api.Controllers.Administracion
             try
             {
                 var (usuario, maquina) = ObtenerAuditoria();
+                // load existing modal to detect previous recurso
+                var existing = await _service.GetByIdAsync(id, CancellationToken.None);
+                var prevRuta = existing?.RutaRecurso ?? string.Empty;
+
                 var result = await _service.UpdateAsync(id, request, usuario, maquina, CancellationToken.None);
 
                 if (!result.Success)
                     return BadRequest(new { success = false, message = result.Message });
+
+                // If update succeeded and resource changed, delete previous resource file
+                try
+                {
+                    var newRuta = request?.RutaRecurso ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(prevRuta) && prevRuta != newRuta && prevRuta.StartsWith("/api/Modal/recurso/"))
+                    {
+                        var prevFile = Path.GetFileName(prevRuta);
+                        var prevPath = Path.Combine(_uploadsPath, prevFile ?? string.Empty);
+                        if (System.IO.File.Exists(prevPath))
+                        {
+                            System.IO.File.Delete(prevPath);
+                        }
+                    }
+                }
+                catch (Exception exDel)
+                {
+                    _logger.LogWarning(exDel, "Error al eliminar recurso previo despues de actualizar modal ID={Id}", id);
+                }
 
                 return Ok(new { success = true, message = result.Message });
             }
@@ -265,6 +317,30 @@ namespace Api.Controllers.Administracion
                 contentType = "application/octet-stream";
 
             return PhysicalFile(fullPath, contentType);
+        }
+
+        [HttpDelete("recurso/{fileName}")]
+        [Authorize]
+        public ActionResult DeleteRecurso([FromRoute] string fileName)
+        {
+            try
+            {
+                var normalized = Path.GetFileName(fileName ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(normalized))
+                    return BadRequest(new { success = false, message = "Nombre de archivo inválido." });
+
+                var fullPath = Path.Combine(_uploadsPath, normalized);
+                if (!System.IO.File.Exists(fullPath))
+                    return NotFound(new { success = false, message = "Archivo no encontrado." });
+
+                System.IO.File.Delete(fullPath);
+                return Ok(new { success = true, message = "Archivo eliminado." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar recurso {FileName}", fileName);
+                return StatusCode(500, new { success = false, message = "Error al eliminar el archivo." });
+            }
         }
 
         // -------------------------------------------------------
