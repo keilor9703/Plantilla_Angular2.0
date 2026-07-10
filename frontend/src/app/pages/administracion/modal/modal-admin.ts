@@ -22,6 +22,7 @@ export class ModalAdminComponent implements OnInit {
   minimized = false;
   loading = false;
   saving = false;
+  showFormModal = false;
 
   lista: DtoModal[] = [];
   editingId: number | null = null;
@@ -203,17 +204,15 @@ export class ModalAdminComponent implements OnInit {
 
   nuevo(): void {
     this.editingId = null;
+    this.limpiarPreviewLocal();
     this.form = this.formVacio();
-    // clear preview and selected file
-    if (this.recursoPreviewUrl && this.recursoPreviewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(this.recursoPreviewUrl);
-    }
-    this.recursoPreviewUrl = '';
-    this.recursoFile = null;
+    this.showFormModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   editar(item: DtoModal): void {
     this.editingId = item.idModal;
+    this.limpiarPreviewLocal();
     this.form = {
       Titulo: item.titulo,
       Descripcion: item.descripcion,
@@ -228,14 +227,27 @@ export class ModalAdminComponent implements OnInit {
     };
     this.recursoPreviewUrl = item.rutaRecurso ?? '';
     this.recursoFile = null;
+    this.showFormModal = true;
     // close actions menu if open
     this.openActionId = null;
     this.openActionAbove = false;
-    // scroll to form
-    setTimeout(() => {
-      const el = document.querySelector('.form-card');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  cerrarFormulario(): void {
+    this.showFormModal = false;
+    this.editingId = null;
+    this.limpiarPreviewLocal();
+    this.form = this.formVacio();
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  private limpiarPreviewLocal(): void {
+    if (this.recursoPreviewUrl && this.recursoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.recursoPreviewUrl);
+    }
+    this.recursoPreviewUrl = '';
+    this.recursoFile = null;
   }
 
   toggleFormVigente(): void {
@@ -289,7 +301,7 @@ export class ModalAdminComponent implements OnInit {
               // ignore
             }
 
-            this.nuevo();
+            this.cerrarFormulario();
             this.cargar();
           } else {
             this.toast.warning('Guardar', resp.message);
@@ -377,7 +389,7 @@ export class ModalAdminComponent implements OnInit {
 
           // clear editing form/preview if we deleted the currently edited item
           if (this.editingId === item.idModal) {
-            this.nuevo();
+            this.cerrarFormulario();
           }
           this.cargar();
         } else {
@@ -403,6 +415,14 @@ export class ModalAdminComponent implements OnInit {
 
     if (this.fileInputRef && this.fileInputRef.nativeElement) {
       try { this.fileInputRef.nativeElement.value = ''; } catch (e) { /* ignore */ }
+    }
+  }
+
+  abrirSelectorArchivo(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (this.fileInputRef?.nativeElement) {
+      this.fileInputRef.nativeElement.click();
     }
   }
 

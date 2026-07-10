@@ -9,82 +9,85 @@
         Administración de Modales
       </div>
       <div class="ui-panel__actions ui-window-controls">
-        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
-          <i class="fa-solid fa-minus"></i>
+        <button class="ui-btn primary" type="button" (click)="nuevo()" *ngIf="!showFormModal">
+          <i class="fa-solid fa-plus"></i> Nueva Modal
         </button>
       </div>
     </div>
 
-    <div class="ui-panel__body" *ngIf="!minimized">
-      
+  </div>
 
-        <!-- Formulario -->
-        <article class="tab-card form-card">
-          <h3>{{ editingId ? 'Editar modal' : 'Nuevo modal' }}</h3>
+  <div class="ui-modal" *ngIf="showFormModal" >
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-pen-to-square"></i>
+          {{ editingId ? 'Editar Modal' : 'Nuevo Modal' }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cerrarFormulario()" aria-label="Cerrar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
 
-          <div class="ui-grid">
-
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Título *</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.Titulo" maxlength="300"
-                placeholder="Título del modal">
+      <form (ngSubmit)="guardar()">
+        <div class="ui-modal__body">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label for="modalTitulo">Título <span class="required">*</span></label>
+              <input id="modalTitulo" class="ui-input" type="text" [(ngModel)]="form.Titulo" name="titulo" maxlength="300" placeholder="Título del modal" required>
             </div>
 
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Descripción</label>
-              <textarea class="ui-control" rows="3" [(ngModel)]="form.Descripcion" maxlength="1000"
-                placeholder="Mensaje o contenido del modal"></textarea>
+            <div class="form-group span-2">
+              <label for="modalDescripcion">Descripción</label>
+              <textarea id="modalDescripcion" class="ui-input" rows="3" [(ngModel)]="form.Descripcion" name="descripcion" maxlength="1000" placeholder="Mensaje o contenido del modal"></textarea>
             </div>
 
-            <div class="ui-field ui-col-2">
-              <label class="ui-label">Tipo de recurso</label>
-              <select class="ui-control" [(ngModel)]="form.TipoRecurso" (change)="onTipoRecursoChange()">
+            <div class="form-group span-1">
+              <label for="modalTipoRecurso">Tipo de recurso</label>
+              <select id="modalTipoRecurso" class="ui-select" [(ngModel)]="form.TipoRecurso" name="tipoRecurso" (change)="onTipoRecursoChange()">
                 <option *ngFor="let t of tiposRecurso" [value]="t">{{ t }}</option>
               </select>
             </div>
 
-            <div class="ui-field ui-col-2">
-              <label class="ui-label">Tipo de acción</label>
-              <select class="ui-control" [(ngModel)]="form.TipoAccion">
+            <div class="form-group span-1">
+              <label for="modalTipoAccion">Tipo de acción</label>
+              <select id="modalTipoAccion" class="ui-select" [(ngModel)]="form.TipoAccion" name="tipoAccion">
                 <option *ngFor="let a of tiposAccion" [value]="a">{{ a }}</option>
               </select>
-            </div>     
-
-            <div class="ui-field ui-col-3">
-              <label class="ui-label">Fecha y hora inicio *</label>
-              <input class="ui-control" type="datetime-local" [(ngModel)]="form.FechaInicio">
             </div>
 
-            <div class="ui-field ui-col-3">
-              <label class="ui-label">Fecha y hora fin *</label>
-              <input class="ui-control" type="datetime-local" [(ngModel)]="form.FechaFin">
+            <div class="form-group span-1">
+              <label for="modalInicio">Fecha y hora inicio <span class="required">*</span></label>
+              <input id="modalInicio" class="ui-input" type="datetime-local" [(ngModel)]="form.FechaInicio" name="fechaInicio">
             </div>
 
-            <div class="ui-field ui-col-6" *ngIf="editingId">
-              <label class="ui-label">Vigente</label>
-              <div style="display:flex;align-items:center;gap:8px;">
+            <div class="form-group span-1">
+              <label for="modalFin">Fecha y hora fin <span class="required">*</span></label>
+              <input id="modalFin" class="ui-input" type="datetime-local" [(ngModel)]="form.FechaFin" name="fechaFin">
+            </div>
+
+            <div class="form-group span-2" *ngIf="editingId">
+              <label>Vigente</label>
+              <div class="toggle-row">
                 <button class="switch" type="button" [class.active]="form.Vigente === 1" (click)="toggleFormVigente()"><span></span></button>
                 <span>{{ form.Vigente === 1 ? 'Sí' : 'No' }}</span>
               </div>
             </div>
 
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Unidad solicitante</label>
-              <select class="ui-control" [(ngModel)]="form.Unidad" [disabled]="unidadesLoading">
+            <div class="form-group span-2">
+              <label for="modalUnidad">Unidad solicitante</label>
+              <select id="modalUnidad" class="ui-select" [(ngModel)]="form.Unidad" name="unidad" [disabled]="unidadesLoading">
                 <option value="">Seleccione</option>
                 <option *ngFor="let u of unidades" [value]="u.descripcion">{{ u.descripcion }} - ({{ u.text }})</option>
               </select>
               <small class="meta" *ngIf="unidadesLoading">Cargando unidades...</small>
             </div>
 
-            
-
-            <!-- Preview video-imagen -->
-            <div class="ui-field ui-col-12" *ngIf="form.TipoRecurso === 'IMAGEN' || form.TipoRecurso === 'VIDEO'">
-              <label class="ui-label">Cargar recurso</label>
+            <div class="form-group span-2" *ngIf="form.TipoRecurso === 'IMAGEN' || form.TipoRecurso === 'VIDEO'">
+              <label>Cargar recurso</label>
               <div class="custom-file-input" [class.has-file]="recursoPreviewUrl">
                 <input #fileInput type="file" hidden [accept]="form.TipoRecurso === 'IMAGEN' ? '.jpg,.jpeg,.png,.webp,image/*' : '.mp4,.webm,.mov,video/*'" (change)="onRecursoSelected($event)" [disabled]="uploadingRecurso">
-                <div class="file-input-wrapper" (click)="fileInput.click()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onRecursoDropped($event)">
+                <div class="file-input-wrapper" (click)="abrirSelectorArchivo($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onRecursoDropped($event)">
                   <div class="file-preview-area" *ngIf="recursoPreviewUrl; else recursoPlaceholder">
                     <ng-container *ngIf="form.TipoRecurso === 'IMAGEN'">
                       <img [src]="recursoPreviewUrl" alt="Vista previa" class="branding-preview-img-inline">
@@ -92,13 +95,16 @@
                     <ng-container *ngIf="form.TipoRecurso === 'VIDEO'">
                       <video [src]="recursoPreviewUrl" controls preload="metadata" class="branding-preview-img-inline"></video>
                     </ng-container>
+                    <button class="ui-btn secondary" type="button" (click)="abrirSelectorArchivo($event)">
+                      <i class="fa-solid fa-arrows-rotate"></i> Cambiar
+                    </button>
                     <button class="btn-remove-file" type="button" (click)="removeSelectedRecurso(); $event.stopPropagation()" [disabled]="uploadingRecurso">
                       <i class="fa-solid fa-xmark"></i>
                     </button>
                   </div>
-                  <div class="current-file-actions" *ngIf="recursoPreviewUrl">
-                    <button class="ui-btn secondary" type="button" (click)="fileInput.click()">Cambiar foto o video</button>
-                  </div>
+
+                  
+                  
                   <ng-template #recursoPlaceholder>
                     <div>
                       <i class="fa-solid fa-upload"></i>
@@ -112,19 +118,17 @@
               </div>
               <div class="list-loading" *ngIf="uploadingRecurso">Subiendo archivo...</div>
             </div>
-            
-            
-
           </div>
+        </div>
 
-          <div class="tab-actions">
-            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ saving ? 'Guardando...' : 'Guardar' }}
-            </button>
-          </div>
-        </article>
+        <div class="ui-modal__foot">
+          <button class="ui-btn outline" type="button" (click)="cerrarFormulario()">Cancelar</button>
+          <button class="ui-btn primary" type="submit" [disabled]="saving">
+            <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i>
+            {{ saving ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -189,9 +193,18 @@
                       </button>
 
                         <div class="actions-popover" *ngIf="isActionsOpen(item.idModal)" [class.up]="openActionAbove">
-                          <button class="ui-btn" type="button" (click)="editar(item)"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-                          <button class="ui-btn" [class.danger]="item.vigente === 1" [class.success]="item.vigente !== 1" type="button" (click)="cambiarEstado(item)"><i class="fa-solid" [class]="item.vigente === 1 ? 'fa-toggle-on' : 'fa-toggle-off'"></i> {{ item.vigente === 1 ? 'Inactivar' : 'Activar' }}</button>
-                          <button class="ui-btn info" type="button" (click)="verAuditoria(item)"><i class="fa-solid fa-chart-bar"></i> Interacciones</button>
+                          <div class="action-item">
+                            <button class="ui-btn ui-icon-btn" type="button" (click)="editar(item)" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <span>Editar</span>
+                          </div>
+                          <div class="action-item">
+                            <button class="ui-btn ui-icon-btn" [class.danger]="item.vigente === 1" [class.success]="item.vigente !== 1" type="button" (click)="cambiarEstado(item)" [title]="item.vigente === 1 ? 'Inactivar' : 'Activar'"><i class="fa-solid" [class]="item.vigente === 1 ? 'fa-toggle-on' : 'fa-toggle-off'"></i></button>
+                            <span>{{ item.vigente === 1 ? 'Inactivar' : 'Activar' }}</span>
+                          </div>
+                          <div class="action-item">
+                            <button class="ui-btn ui-icon-btn info" type="button" (click)="verAuditoria(item)" title="Interacciones"><i class="fa-solid fa-chart-bar"></i></button>
+                            <span>Interacciones</span>
+                          </div>
                         </div>
                     </div>
                   </div>
@@ -233,9 +246,6 @@
     </div>
   </div>
 </section>
-
-
-
 
 <!-- Panel de auditoría de interacciones (modal admin) -->
 <div class="ui-modal" *ngIf="mostrarAuditoria">

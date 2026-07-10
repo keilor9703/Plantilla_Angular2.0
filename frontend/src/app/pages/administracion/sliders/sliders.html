@@ -5,123 +5,251 @@
         <i class="fa-regular fa-images"></i>
         Administración de Sliders
       </div>
-
-      <div class="ui-panel__actions ui-window-controls">
-        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
-          <i class="fa-solid fa-minus"></i>
-        </button>
-        <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closePanel()">
-          <i class="fa-solid fa-xmark"></i>
+      <div class="ui-panel__actions">
+        <button class="ui-btn primary" type="button" (click)="nuevo()">
+          <i class="fa-solid fa-plus"></i>
+          Nuevo Slider
         </button>
       </div>
     </div>
 
     <div class="ui-panel__body" *ngIf="!minimized">
-      <div class="sliders-grid">
-        <article class="tab-card form-card">
-          <h3>{{ editingId ? 'Editar slider' : 'Nuevo slider' }}</h3>
+      <div class="sliders-panel">
+        <div class="tab-card form-card">
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Sliders Activos</label>
+            <small class="meta">Arrastra para reordenar. Máximo 7 sliders activos.</small>
+          </div>
 
-          <div class="ui-grid">
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Título</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.titulo" maxlength="200">
-            </div>
+          <div class="ui-panel__body">
+            <div class="list-loading" *ngIf="loading">Cargando sliders...</div>
 
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Subtítulo</label>
-              <textarea class="ui-control" rows="2" [(ngModel)]="form.subtitulo" maxlength="500"></textarea>
-            </div>
+            <div class="slider-list" *ngIf="!loading && activeSliders.length > 0" cdkDropList (cdkDropListDropped)="onDropActive($event)">
+              <div class="slider-item" *ngFor="let item of activeSliders" cdkDrag (click)="openActionsId = null">
+                <div class="drag-handle" cdkDragHandle>
+                  <i class="fa-solid fa-grip-vertical"></i>
+                </div>
 
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Cargar imagen</label>
-              <input class="ui-control" type="file" accept=".jpg,.jpeg,.png,.webp,image/*" (change)="onImageSelected($event)">
-              <small class="meta">Formatos: JPG, PNG, WEBP. Máximo 5MB.</small>
-            </div>
+                <div class="slider-item__preview">
+                  <img [src]="item.urlImagen || ''" alt="Preview slider">
+                </div>
 
-            <div class="ui-field ui-col-12" *ngIf="uploadingImage || imagePreviewUrl || form.urlImagen">
-              <label class="ui-label">Vista previa</label>
-              <div class="image-preview">
-                <div class="list-loading" *ngIf="uploadingImage">Subiendo imagen...</div>
-                <img *ngIf="!uploadingImage" [src]="imagePreviewUrl || form.urlImagen || ''" alt="Vista previa del banner">
+                <div class="slider-item__content">
+                  <strong>{{ item.titulo }}</strong>
+                  <span class="meta">Inicio: {{ item.fechaInicio ? (item.fechaInicio | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</span>
+                  <span class="meta">Fin: {{ item.fechaFin ? (item.fechaFin | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</span>
+                  <span class="meta">Tiempo restante para vencer: {{ getTiempoRestante(item) }}</span>
+                </div>
+
+                <div class="slider-item__actions">
+                  <div class="actions-menu" (click)="$event.stopPropagation()">
+                    <button class="ui-btn outline actions-toggle" type="button" (click)="toggleActions(item.idSlider, $event)" title="Acciones">
+                      <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+
+                    <div class="actions-popover" *ngIf="isActionsOpen(item.idSlider)">
+                      <div class="action-item">
+                        <button class="ui-btn ui-icon-btn" type="button" (click)="editar(item)"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <span>Editar</span>
+                      </div>
+                      <div class="action-item">
+                        <button class="ui-btn ui-icon-btn warning" type="button" (click)="reemplazar(item)"><i class="fa-solid fa-repeat"></i></button>
+                        <span>Cambiar</span>
+                      </div>
+                      <div class="action-item">
+                        <button class="ui-btn ui-icon-btn danger" type="button" (click)="cambiarEstado(item)"><i class="fa-solid fa-toggle-on"></i></button>
+                        <span>Desactivar</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">URL destino</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.urlDestino">
+            <div class="tab-actions" *ngIf="!loading && activeSliders.length > 0">
+              <button class="ui-btn primary" type="button" (click)="saveActiveOrder()" [disabled]="reorderSaving || !hasActiveOrderChanged()">
+                <i class="fa-solid fa-floppy-disk"></i>
+                {{ reorderSaving ? 'Guardando orden...' : 'Guardar orden' }}
+              </button>
+              <button class="ui-btn secondary" type="button" (click)="resetActiveOrder()" [disabled]="reorderSaving || !hasActiveOrderChanged()">
+                <i class="fa-solid fa-rotate-left"></i>
+                Restablecer orden
+              </button>
             </div>
 
-            <div class="ui-field ui-col-4">
-              <label class="ui-label">Orden</label>
-              <input class="ui-control" type="number" min="1" [(ngModel)]="form.orden">
+            <div class="empty-state" *ngIf="!loading && activeSliders.length === 0">
+              <i class="fa-solid fa-ban"></i>
+              <p>No hay sliders activos.</p>
             </div>
+          </div>
+        </div>
 
-            <div class="ui-field ui-col-4">
-              <label class="ui-label">Vigencia inicio</label>
-              <input class="ui-control" type="datetime-local" [(ngModel)]="form.fechaInicio">
+        
+      </div>
+    </div>
+  </div>
+
+  <div class="ui-panel list-card history-card">
+          <div class="ui-panel__head">
+            <div class="ui-panel__title">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              Historial de sliders
             </div>
-
-            <div class="ui-field ui-col-4">
-              <label class="ui-label">Vigencia fin</label>
-              <input class="ui-control" type="datetime-local" [(ngModel)]="form.fechaFin">
-            </div>
-
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Vigente</label>
-              <select class="ui-control" [(ngModel)]="form.vigente">
-                <option [ngValue]="1">Sí</option>
-                <option [ngValue]="0">No</option>
-              </select>
+            <div class="ui-panel__actions">
+              <span class="ui-badge info" *ngIf="totalSliders > 0">Registros: {{ totalSliders }}</span>
             </div>
           </div>
 
-          <div class="tab-actions">
-            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ saving ? 'Guardando...' : 'Guardar' }}
-            </button>
-          </div>
-        </article>
+          <div class="ui-panel__body">
+            <div class="empty-state" *ngIf="loading">
+              <i class="fa-solid fa-circle-notch fa-spin"></i>
+              <p>Cargando historial...</p>
+            </div>
 
-        <article class="tab-card ">
-          <h3>Sliders registrados</h3>
-
-          <div class="list-loading" *ngIf="loading">Cargando sliders...</div>
-
-          <div class="slider-list" *ngIf="!loading && sliders.length > 0">
-            <div class="slider-item" *ngFor="let item of sliders">
-              <div class="slider-item__preview">
-                <img [src]="item.urlImagen || ''" alt="Preview slider">
+            <div class="table-controls" *ngIf="!loading">
+              <div class="search-group">
+                <label class="ui-label">Buscar</label>
+                <input class="ui-control" type="text" [(ngModel)]="searchSliders" (ngModelChange)="onSearchSlidersChange()" placeholder="Título, subtítulo, URL, fechas" />
+                <small class="search-hint">(mínimo {{ minSearchChars }} caracteres)...</small>
               </div>
-
-              <div class="slider-item__content">
-                <strong>{{ item.titulo }}</strong>
-                <span class="meta">Orden: {{ item.orden }}</span>
-                <span class="meta">Vigente: {{ item.vigente === 1 ? 'Sí' : 'No' }}</span>
-                <span class="meta">Inicio: {{ item.fechaInicio ? (item.fechaInicio | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</span>
-                <span class="meta">Fin: {{ item.fechaFin ? (item.fechaFin | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</span>
+              <div class="search-mostrar">
+                <label>Mostrar</label>
+                <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)">
+                  <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+                </select>
+                <span>por página</span>
               </div>
+            </div>
 
-              <div class="slider-item__actions">
-                <button class="ui-btn secondary" type="button" (click)="editar(item)">Editar</button>
-                <button
-                  class="ui-btn"
-                  [class.primary]="item.vigente === 0"
-                  [class.secondary]="item.vigente === 1"
-                  type="button"
-                  (click)="cambiarEstado(item)"
-                >
-                  {{ item.vigente === 1 ? 'Desactivar' : 'Activar' }}
+            <div class="table-wrap" *ngIf="!loading && totalSliders > 0">
+              <table class="ui-table">
+                <thead>
+                  <tr>
+                    <th>Título</th>
+                    <th>Vigente</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                  </tr>
+                </thead>
+                <tbody *ngIf="slidersPaged.length > 0; else noSlidersTable">
+                  <tr *ngFor="let item of slidersPaged">
+                    <td>{{ item.titulo }}</td>
+                    <td>
+                      <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
+                        {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                      </span>
+                    </td>
+                    <td>{{ item.fechaInicio ? (item.fechaInicio | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</td>
+                    <td>{{ item.fechaFin ? (item.fechaFin | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <ng-template #noSlidersTable>
+              <tr>
+                <td colspan="5">
+                  <div class="empty-state">
+                    <i class="fa-solid fa-list"></i>
+                    <p>{{ searchSliders.trim().length >= minSearchChars ? 'No hay resultados para la búsqueda.' : 'No hay sliders para mostrar.' }}</p>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+
+            <div class="empty-state" *ngIf="!loading && totalSliders === 0">
+              <i class="fa-solid fa-list"></i>
+              <p>{{ searchSliders.trim().length >= minSearchChars ? 'No hay resultados para la búsqueda.' : 'No hay sliders registrados en el historial.' }}</p>
+            </div>
+
+            <div class="table-pagination" *ngIf="totalSliders > 0">
+              <div class="pagination-actions pagination-numbers">
+                <button class="ui-icon-btn" type="button" (click)="prevPage()" [disabled]="!canGoPrev()">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
+                <ng-container *ngFor="let p of pageNumbers">
+                  <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === currentPage" (click)="onPageClick(p)">
+                    {{ p }}
+                  </button>
+                  <span *ngIf="p === '...'" class="page-dots">...</span>
+                </ng-container>
+
+                <button class="ui-icon-btn" type="button" (click)="nextPage()" [disabled]="!canGoNext()">
+                  <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="news-state" *ngIf="!loading && sliders.length === 0">
-            No hay sliders registrados.
+  <div class="ui-modal" *ngIf="isEditing" >
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-image"></i>
+          {{ modalTitle }}
+        </div>
+        <button class="ui-icon-btn" type="button" aria-label="Cerrar" (click)="cancelar()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <div class="ui-grid">
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Título</label>
+            <input class="ui-control" type="text" [(ngModel)]="form.titulo" maxlength="200">
           </div>
-        </article>
+
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Subtítulo</label>
+            <textarea class="ui-control" rows="2" [(ngModel)]="form.subtitulo" maxlength="500"></textarea>
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Cargar imagen</label>
+            <input class="ui-control" type="file" accept=".jpg,.jpeg,.png,.webp,image/*" (change)="onImageSelected($event)">
+            <small class="meta">Formatos: JPG, PNG, WEBP. Máximo 5MB.</small>
+          </div>
+
+          <div class="ui-field ui-col-12" *ngIf="uploadingImage || imagePreviewUrl || form.urlImagen">
+            <label class="ui-label">Vista previa</label>
+            <div class="image-preview">
+              <div class="list-loading" *ngIf="uploadingImage">Subiendo imagen...</div>
+              <img *ngIf="!uploadingImage" [src]="imagePreviewUrl || form.urlImagen || ''" alt="Vista previa del banner">
+            </div>
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">URL destino</label>
+            <div class="ui-input-group">
+              <input class="ui-control" type="text" [(ngModel)]="form.urlDestino" placeholder="https://...">
+              <button class="ui-btn secondary ui-input-group__button" type="button" (click)="probarUrlDestino()" [disabled]="!form.urlDestino?.trim()">
+                Probar URL
+              </button>
+            </div>
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Vigencia inicio</label>
+            <input class="ui-control" type="datetime-local" [(ngModel)]="form.fechaInicio">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Vigencia fin</label>
+            <input class="ui-control" type="datetime-local" [(ngModel)]="form.fechaFin">
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn secondary" type="button" (click)="cancelar()">Cancelar</button>
+        <button class="ui-btn outline" type="button" (click)="limpiarForm()">Limpiar</button>
+        <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
       </div>
     </div>
   </div>
