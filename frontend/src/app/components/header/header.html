@@ -103,7 +103,7 @@
         </div>
 
         <!-- Dropdown Menu (opcional) -->
-        <div class="user-dropdown">
+        <div class="user-dropdown" [class.show-dropdown]="isUserDropdownOpen">
             <a href="#" class="dropdown-item" (click)="$event.preventDefault(); openProfileModal()">
                 <i class="fa-solid fa-user-circle"></i>
                 Mi Perfil

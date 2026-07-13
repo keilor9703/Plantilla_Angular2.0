@@ -204,6 +204,19 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IDbBrandingService, DbBrandingService>();
 builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
 
+// Módulo Recolección de Información (Hechos Noticiosos — USR_COEST)
+builder.Services.AddScoped<IDbHechoNoticiosoService, DbHechoNoticiosoService>();
+builder.Services.AddScoped<IDbHechoNoticiosoRepository, DbHechoNoticiosoRepository>();
+
+builder.Services.AddScoped<IDbMedioCoestService, DbMedioCoestService>();
+builder.Services.AddScoped<IDbMedioCoestRepository, DbMedioCoestRepository>();
+
+builder.Services.AddScoped<IDbIntervinienteCoestService, DbIntervinienteCoestService>();
+builder.Services.AddScoped<IDbIntervinienteCoestRepository, DbIntervinienteCoestRepository>();
+
+builder.Services.AddScoped<IDbDominioCoestService, DbDominioCoestService>();
+builder.Services.AddScoped<IDbDominioCoestRepository, DbDominioCoestRepository>();
+
 var app = builder.Build();
 
 var configuredUploadsBase = app.Configuration["AppSettings:UploadsPath"];

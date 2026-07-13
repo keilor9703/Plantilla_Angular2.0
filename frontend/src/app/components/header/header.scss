@@ -1,4 +1,4 @@
-﻿@keyframes fadeInDown {
+@keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
@@ -511,7 +511,7 @@
   overflow: hidden;
 }
 
-.header-user:hover .user-dropdown {
+.user-dropdown.show-dropdown {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);

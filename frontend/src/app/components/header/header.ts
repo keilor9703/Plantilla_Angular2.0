@@ -358,8 +358,8 @@ export class HeaderComponent implements OnInit {
     return fi === ff ? fi : `${fi} - ${ff}`;
   }
 
-  onProfileClick(): void {
-    this.openProfileModal();
+  onProfileClick(event?: Event): void {
+    this.toggleUserDropdown(event);
   }
 
   onLogout(): void {

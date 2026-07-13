@@ -40,8 +40,10 @@ export const routes: Routes = [
       {
         path: 'centro-analisis',
         children: [
-          { path: '', redirectTo: 'recoleccion-analisis', pathMatch: 'full' },
-          { path: 'recoleccion-analisis', loadComponent: () => import('./pages/centro-analisis/recoleccion-analisis/recoleccion-analisis').then(m => m.RecoleccionAnalisisComponent) },
+          { path: '', loadComponent: () => import('./pages/centro-analisis/centro-analisis-inicio/centro-analisis-inicio').then(m => m.CentroAnalisisInicioComponent) },
+          { path: 'inicio', loadComponent: () => import('./pages/centro-analisis/centro-analisis-inicio/centro-analisis-inicio').then(m => m.CentroAnalisisInicioComponent) },
+          { path: 'recoleccion', loadComponent: () => import('./pages/centro-analisis/recoleccion/recoleccion').then(m => m.RecoleccionComponent) },
+          { path: 'reportes', loadComponent: () => import('./pages/centro-analisis/reportes/reportes').then(m => m.ReportesComponent) },
         ],
       },
       {
@@ -89,8 +91,8 @@ export const routes: Routes = [
       { path: 'eventos', redirectTo: 'eventos-institucionales', pathMatch: 'full' },
       { path: 'emprendimientos', redirectTo: 'creativios/emprendimientos', pathMatch: 'full' },
       { path: 'correos-electronicos', redirectTo: 'gestion-documental/gestion-correos-electronicos', pathMatch: 'full' },
-      { path: 'analisis', redirectTo: 'centro-analisis/recoleccion-analisis', pathMatch: 'full' },
-      { path: 'recoleccion-analisis', redirectTo: 'centro-analisis/recoleccion-analisis', pathMatch: 'full' },
+      { path: 'analisis', redirectTo: 'centro-analisis/recoleccion', pathMatch: 'full' },
+      { path: 'recoleccion-analisis', redirectTo: 'centro-analisis/recoleccion', pathMatch: 'full' },
     ],
   },
   { path: '**', redirectTo: 'login' },
