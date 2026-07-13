@@ -52,6 +52,116 @@ public class DbDominioCoestRepository : IDbDominioCoestRepository
         return resultados;
     }
 
+    public async Task<List<DtoDominioCoest>> GetByPadreIdAllAsync(decimal padreId, CancellationToken ct)
+    {
+        var resultados = new List<DtoDominioCoest>();
+        try
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            const string sql = @"
+                SELECT DOMINIO_ID, DESCRIPCION, VIGENTE
+                FROM USR_COEST.COEST_CTRL_DOMINIO 
+                WHERE PADRE_ID = :padreId 
+                ORDER BY DESCRIPCION";
+
+            await using var cmd = new OracleCommand(sql, conn);
+            cmd.Parameters.Add(new OracleParameter("padreId", padreId));
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                resultados.Add(new DtoDominioCoest
+                {
+                    DominioId = Convert.ToDecimal(reader["DOMINIO_ID"]),
+                    Descripcion = reader.GetString(reader.GetOrdinal("DESCRIPCION")),
+                    Vigente = Convert.ToInt32(reader["VIGENTE"])
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error en GetByPadreIdAllAsync para padreId {PadreId}", padreId);
+        }
+        return resultados;
+    }
+
+    public async Task<bool> SaveDominioAsync(DtoDominioCoest dto, decimal padreId, CancellationToken ct)
+    {
+        try
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            if (dto.DominioId > 0)
+            {
+                const string sql = @"
+                    UPDATE USR_COEST.COEST_CTRL_DOMINIO 
+                    SET DESCRIPCION = :descripcion, VIGENTE = :vigente
+                    WHERE DOMINIO_ID = :dominioId";
+
+                await using var cmd = new OracleCommand(sql, conn);
+                cmd.BindByName = true;
+                cmd.Parameters.Add(new OracleParameter("descripcion", dto.Descripcion?.ToUpper() ?? string.Empty));
+                cmd.Parameters.Add(new OracleParameter("vigente", dto.Vigente ?? 1));
+                cmd.Parameters.Add(new OracleParameter("dominioId", dto.DominioId));
+
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                return rows > 0;
+            }
+            else
+            {
+                const string sql = @"
+                    INSERT INTO USR_COEST.COEST_CTRL_DOMINIO 
+                        (DOMINIO_ID, DESCRIPCION, PADRE_ID, VIGENTE)
+                    VALUES (
+                        (SELECT NVL(MAX(DOMINIO_ID), 0) + 1 FROM USR_COEST.COEST_CTRL_DOMINIO),
+                        :descripcion, :padreId, :vigente)";
+
+                await using var cmd = new OracleCommand(sql, conn);
+                cmd.BindByName = true;
+                cmd.Parameters.Add(new OracleParameter("descripcion", dto.Descripcion?.ToUpper() ?? string.Empty));
+                cmd.Parameters.Add(new OracleParameter("padreId", padreId));
+                cmd.Parameters.Add(new OracleParameter("vigente", dto.Vigente ?? 1));
+
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                return rows > 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error en SaveDominioAsync para dominioId {DominioId}", dto.DominioId);
+        }
+        return false;
+    }
+
+    public async Task<bool> DeleteDominioAsync(decimal id, CancellationToken ct)
+    {
+        try
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            const string sql = @"
+                UPDATE USR_COEST.COEST_CTRL_DOMINIO 
+                SET VIGENTE = 0
+                WHERE DOMINIO_ID = :id";
+
+            await using var cmd = new OracleCommand(sql, conn);
+            cmd.BindByName = true;
+            cmd.Parameters.Add(new OracleParameter("id", id));
+
+            var rows = await cmd.ExecuteNonQueryAsync(ct);
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error en DeleteDominioAsync para id {Id}", id);
+        }
+        return false;
+    }
+
     public async Task<List<DtoCatalogoMedio>> GetMediosAsync(CancellationToken ct)
     {
         var resultados = new List<DtoCatalogoMedio>();

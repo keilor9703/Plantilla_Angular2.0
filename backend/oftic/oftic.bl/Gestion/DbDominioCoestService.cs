@@ -16,6 +16,15 @@ public class DbDominioCoestService : IDbDominioCoestService
     public Task<List<DtoDominioCoest>> GetByPadreIdAsync(decimal padreId, CancellationToken ct)
         => _repository.GetByPadreIdAsync(padreId, ct);
 
+    public Task<List<DtoDominioCoest>> GetByPadreIdAllAsync(decimal padreId, CancellationToken ct)
+        => _repository.GetByPadreIdAllAsync(padreId, ct);
+
+    public Task<bool> SaveDominioAsync(DtoDominioCoest dto, decimal padreId, CancellationToken ct)
+        => _repository.SaveDominioAsync(dto, padreId, ct);
+
+    public Task<bool> DeleteDominioAsync(decimal id, CancellationToken ct)
+        => _repository.DeleteDominioAsync(id, ct);
+
     public Task<List<DtoCatalogoMedio>> GetMediosAsync(CancellationToken ct)
         => _repository.GetMediosAsync(ct);
 
