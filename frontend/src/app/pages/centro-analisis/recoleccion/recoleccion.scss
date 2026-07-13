@@ -1,0 +1,626 @@
+@charset "UTF-8";
+
+// --- Sistema de Grilla de Métricas (Premium Cards) ---
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  
+  .metric-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    font-size: 24px;
+  }
+
+  .metric-content {
+    display: flex;
+    flex-direction: column;
+
+    .metric-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .metric-lbl {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+  }
+
+  // Tarjetas específicas
+  &.info-card {
+    border-left: 5px solid #2563eb;
+    .metric-icon {
+      background: rgba(37, 99, 235, 0.1);
+      color: #2563eb;
+    }
+  }
+
+  &.success-card {
+    border-left: 5px solid #16a34a;
+    .metric-icon {
+      background: rgba(22, 163, 74, 0.1);
+      color: #16a34a;
+    }
+  }
+
+  &.action-card {
+    border-left: 5px solid #0d9488;
+    cursor: pointer;
+    .metric-icon {
+      background: rgba(13, 148, 136, 0.1);
+      color: #0d9488;
+    }
+    
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(13, 148, 136, 0.15);
+      background: #f0fdfa;
+    }
+  }
+}
+
+// --- Filtros compactos y controles ---
+.filter-select-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .ui-label {
+    margin: 0;
+    font-weight: 700;
+    color: #475569;
+  }
+
+  .select-compact {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    font-weight: 700;
+    min-width: 100px;
+    cursor: pointer;
+  }
+}
+
+.flex-row {
+  display: flex;
+  align-items: center;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+// --- Badges & Cuentas de Medios ---
+.medios-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 13px;
+  transition: all 0.3s ease;
+
+  &.has-medios {
+    background: #0f172a;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+  }
+}
+
+.info-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 700;
+  border: 1px solid #bae6fd;
+}
+
+// --- Layout del Detalle (Grid de dos columnas) ---
+.detail-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info-ficha-tecnica {
+  .info-row {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+    border-bottom: 1px dashed #e2e8f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      font-size: 15px;
+      color: #1e293b;
+      margin-top: 4px;
+    }
+  }
+}
+
+// --- Fichas de Medios vinculados ---
+.medios-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.medio-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+
+  .medio-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    padding: 14px 20px;
+    border-bottom: 1px solid #e2e8f0;
+
+    .medio-info {
+      display: flex;
+      flex-direction: column;
+
+      .medio-name {
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 15px;
+      }
+
+      .medio-titular {
+        font-style: italic;
+        color: #475569;
+        font-size: 13px;
+        margin-top: 2px;
+      }
+    }
+  }
+
+  .medio-card-body {
+    padding: 18px 20px;
+
+    .details-row {
+      display: flex;
+      gap: 20px;
+      color: #64748b;
+      font-size: 13px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+
+      i {
+        margin-right: 4px;
+      }
+
+      a {
+        color: #2563eb;
+        text-decoration: underline;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+// --- Sección de Voceros / Intervinientes ---
+.voceros-section {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 14px;
+
+  .voceros-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .no-voceros {
+    font-size: 13px;
+    color: #94a3b8;
+    font-style: italic;
+  }
+
+  .vocero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 6px 14px;
+    margin: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+
+    .vocero-info {
+      font-size: 13px;
+      
+      .grado-vocero {
+        font-weight: 700;
+        color: #0f172a;
+        margin-right: 4px;
+      }
+
+      .nombre-vocero {
+        color: #334155;
+        font-weight: 600;
+      }
+
+      .cargo-vocero {
+        color: #64748b;
+        font-size: 12px;
+        margin-left: 4px;
+      }
+    }
+
+    .remove-vocero-btn {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      padding: 0;
+      font-size: 14px;
+
+      &:hover {
+        color: #ef4444;
+      }
+    }
+  }
+}
+
+// --- Formulario en Grilla ---
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+
+  .full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+.modal-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// --- Botones compactos y extras ---
+.compact-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.spinner-large {
+  font-size: 32px;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+// --- Modales con Fondo de Vidrio (Glassmorphic) ---
+.glassmorphic-modal {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+// --- Nuevos estilos de Filtros Avanzados Limpios ---
+.advanced-filters-card {
+  margin-bottom: 20px;
+  border-left: 4px solid var(--policia-acento, #0f172a);
+}
+
+.filters-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  align-items: end;
+
+  .search-text-field {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 768px) {
+    .search-text-field {
+      grid-column: span 1;
+    }
+  }
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .ui-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    margin: 0;
+  }
+
+  .ui-control {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    background-color: #ffffff;
+    font-size: 14px;
+    color: #1e293b;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus {
+      border-color: var(--policia-acento, #0f172a);
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+      outline: none;
+    }
+
+    &:disabled {
+      background-color: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+
+  .ui-control {
+    padding-right: 36px !important;
+  }
+
+  .search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+    font-size: 14px;
+  }
+}
+
+.margin-top-12 {
+  margin-top: 12px;
+}
+
+.margin-left-8 {
+  margin-left: 8px;
+}
+
+.clear-filters-btn {
+  border-color: rgba(220, 38, 38, 0.4) !important;
+  color: #dc2626 !important;
+  font-weight: 700;
+
+  &:hover {
+    background-color: rgba(220, 38, 38, 0.08) !important;
+  }
+}
+
+// --- Ajustes de tabla y popovers de acciones ---
+.ui-table {
+  width: 100%;
+
+  th:last-child, td:last-child {
+    width: 90px;
+    min-width: 90px;
+    position: relative; // Fundamental para que el popover absolute se posicione con respecto a esta celda
+    text-align: right;
+  }
+}
+
+.cell-title {
+  max-width: 500px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+// Estilo explícito para el menú de acciones flotante
+.actions-menu {
+  position: relative;
+  display: inline-block;
+
+  .actions-toggle {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    cursor: pointer;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+  }
+}
+
+.actions-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 99;
+  min-width: 150px;
+
+  &.up {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+
+  .action-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+
+    .ui-btn {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      border-radius: 4px;
+    }
+
+    span {
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+    }
+  }
+}
+
+// Estilos del Paginador Estándar de Noticias
+.table-pagination {
+  margin: 16px 12px 12px 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.pagination-actions.pagination-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  .ui-icon-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: transparent;
+    cursor: pointer;
+    color: #64748b;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.page-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all 0.15s ease;
+
+  &:hover:not(.page-active) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+}
+
+.page-btn.page-active {
+  background: var(--policia-acento, #ffd700) !important;
+  border-color: var(--policia-acento, #ffd700) !important;
+  color: #000000 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
+}
+
+.page-dots {
+  padding: 0 6px;
+  color: #94a3b8;
+  font-weight: 800;
+}

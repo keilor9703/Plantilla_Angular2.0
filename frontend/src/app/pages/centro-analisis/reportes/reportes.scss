@@ -1,0 +1,240 @@
+@charset "UTF-8";
+
+// --- Sistema de Grilla de Métricas (Premium Cards) ---
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  
+  .metric-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    font-size: 24px;
+  }
+
+  .metric-content {
+    display: flex;
+    flex-direction: column;
+
+    .metric-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .metric-lbl {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+  }
+
+  // Tarjetas específicas
+  &.info-card {
+    border-left: 5px solid #2563eb;
+    .metric-icon {
+      background: rgba(37, 99, 235, 0.1);
+      color: #2563eb;
+    }
+  }
+
+  &.success-card {
+    border-left: 5px solid #16a34a;
+    .metric-icon {
+      background: rgba(22, 163, 74, 0.1);
+      color: #16a34a;
+    }
+  }
+
+  &.action-card {
+    border-left: 5px solid #0d9488;
+    cursor: pointer;
+    .metric-icon {
+      background: rgba(13, 148, 136, 0.1);
+      color: #0d9488;
+    }
+    
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(13, 148, 136, 0.15);
+      background: #f0fdfa;
+    }
+  }
+}
+
+// --- Filtros compactos y controles ---
+.filter-select-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .ui-label {
+    margin: 0;
+    font-weight: 700;
+    color: #475569;
+  }
+
+  .select-compact {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    font-weight: 700;
+    min-width: 100px;
+    cursor: pointer;
+  }
+}
+
+.flex-row {
+  display: flex;
+  align-items: center;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.info-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 700;
+  border: 1px solid #bae6fd;
+}
+
+.spinner-large {
+  font-size: 32px;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+// --- Nuevos estilos de Filtros Avanzados Limpios ---
+.advanced-filters-card {
+  margin-bottom: 20px;
+  border-left: 4px solid var(--policia-acento, #0f172a);
+}
+
+.filters-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  align-items: end;
+
+  .search-text-field {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 768px) {
+    .search-text-field {
+      grid-column: span 1;
+    }
+  }
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .ui-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    margin: 0;
+  }
+
+  .ui-control {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    background-color: #ffffff;
+    font-size: 14px;
+    color: #1e293b;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus {
+      border-color: var(--policia-acento, #0f172a);
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+      outline: none;
+    }
+
+    &:disabled {
+      background-color: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+
+  .ui-control {
+    padding-right: 36px !important;
+  }
+
+  .search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+    font-size: 14px;
+  }
+}
+
+.margin-top-12 {
+  margin-top: 12px;
+}
+
+.margin-left-8 {
+  margin-left: 8px;
+}
+
+.clear-filters-btn {
+  border-color: rgba(220, 38, 38, 0.4) !important;
+  color: #dc2626 !important;
+  font-weight: 700;
+
+  &:hover {
+    background-color: rgba(220, 38, 38, 0.08) !important;
+  }
+}
+
+.ui-table {
+  width: 100%;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 20px;
+}
