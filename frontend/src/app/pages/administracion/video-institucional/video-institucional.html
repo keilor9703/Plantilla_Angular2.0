@@ -83,6 +83,7 @@
                   [(ngModel)]="form.urlYoutube"
                   placeholder="https://www.youtube.com/watch?v=...">
                 <small class="meta">Formatos soportados: youtube.com/watch, youtu.be, /shorts/</small>
+                <small class="meta" *ngIf="form.urlYoutube && !isValidYouTubeUrl(form.urlYoutube)" style="color:#c00;">URL inválida. Formatos soportados: youtube.com/watch, youtu.be, /shorts/</small>
               </div>
 
               <div class="ui-col-12 ui-field">
@@ -97,7 +98,7 @@
             </div>
 
             <div class="tab-actions mt-3">
-              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving || (form.urlYoutube && !isValidYouTubeUrl(form.urlYoutube))">
                 <i class="fa-solid fa-floppy-disk"></i>
                 {{ saving ? 'Guardando...' : 'Guardar' }}
               </button>
@@ -113,9 +114,9 @@
         <article class="tab-card list-card">
           <h3 class="sub-title">Vista previa</h3>
 
-          <div *ngIf="current?.embedUrl; else sinPreview" class="embed-container">
+          <div *ngIf="previewEmbedUrl; else sinPreview" class="embed-container">
             <iframe
-              [src]="current!.embedUrl | safeUrl"
+              [src]="previewEmbedUrl | safeUrl"
               frameborder="0"
               sandbox="allow-scripts allow-same-origin allow-presentation"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

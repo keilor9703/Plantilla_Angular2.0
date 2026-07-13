@@ -156,6 +156,31 @@ export class VideoInstitucionalComponent implements OnInit {
     this.form = { titulo: '', descripcion: '', urlYoutube: '' };
   }
 
+  private YT_REGEX = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[&?][\S]*)?$/;
+
+  private extractYouTubeVideoId(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const trimmed = url.trim();
+    const m = trimmed.match(this.YT_REGEX);
+    return m && m[1] ? m[1] : null;
+  }
+
+  private buildEmbedUrl(videoId: string): string {
+    return `https://www.youtube.com/embed/${videoId}?rel=0`;
+  }
+
+  isValidYouTubeUrl(url: string | null | undefined): boolean {
+    return !!this.extractYouTubeVideoId(url);
+  }
+
+  get previewEmbedUrl(): string | null {
+    if (this.isEditing) {
+      const id = this.extractYouTubeVideoId(this.form.urlYoutube);
+      return id ? this.buildEmbedUrl(id) : null;
+    }
+    return this.current?.embedUrl ?? null;
+  }
+
   guardar(): void {
     const titulo = (this.form.titulo ?? '').trim();
     const urlYoutube = (this.form.urlYoutube ?? '').trim();
@@ -166,6 +191,11 @@ export class VideoInstitucionalComponent implements OnInit {
     }
     if (!urlYoutube) {
       this.toast.warning('Video institucional', 'La URL de YouTube es obligatoria.');
+      return;
+    }
+
+    if (!this.isValidYouTubeUrl(urlYoutube)) {
+      this.toast.warning('Video institucional', 'La URL no es un enlace válido de YouTube. Use youtube.com/watch, youtu.be o /shorts/.');
       return;
     }
 

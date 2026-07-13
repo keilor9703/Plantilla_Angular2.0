@@ -47,6 +47,12 @@ export interface SliderUploadResponse {
   detail?: string;
 }
 
+export interface SliderDeleteResponse {
+  success: boolean;
+  message: string;
+  detail?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SliderService {
   private readonly baseUrl = `${environment.apiBaseUrl}/Slider`;
@@ -54,11 +60,12 @@ export class SliderService {
   constructor(private http: HttpClient) {}
 
   getPublicos(): Observable<DtoSliders[]> {
-    return this.http.get<DtoSliders[]>(`${this.baseUrl}/Publicos`);
+    const url = `${this.baseUrl}/Publicos`;
+    return this.http.get<DtoSliders[]>(`${url}?_=${Date.now()}`);
   }
 
   getAdmin(): Observable<DtoSliders[]> {
-    return this.http.get<DtoSliders[]>(this.baseUrl);
+    return this.http.get<DtoSliders[]>(`${this.baseUrl}?_=${Date.now()}`);
   }
 
   save(payload: DtoSaveSliderRequest): Observable<SliderApiResponse> {
@@ -73,6 +80,10 @@ export class SliderService {
     const formData = new FormData();
     formData.append('File', file);
     return this.http.post<SliderUploadResponse>(`${this.baseUrl}/Upload`, formData);
+  }
+
+  deleteImage(fileName: string): Observable<SliderDeleteResponse> {
+    return this.http.delete<SliderDeleteResponse>(`${this.baseUrl}/Image/Delete/${encodeURIComponent(fileName)}`);
   }
 }
 
