@@ -227,7 +227,7 @@ namespace ofic.Controllers.Administracion
                 var normalized = Path.GetFileName(fileName ?? string.Empty);
                 if (string.IsNullOrWhiteSpace(normalized))
                 {
-                    return BadRequest(new { message = "Nombre de archivo invÃ¡lido." });
+                    return BadRequest(new { message = "Nombre de archivo inválido." });
                 }
 
                 var fullPath = Path.Combine(_bannerRootPath, normalized);
@@ -248,6 +248,44 @@ namespace ofic.Controllers.Administracion
             {
                 _logger.LogError(ex, "Error devolviendo imagen de slider: {FileName}", fileName);
                 return StatusCode(500, new { message = "Error cargando imagen." });
+            }
+        }
+
+        [HttpDelete("Image/Delete/{*fileName}")]
+        public IActionResult DeleteImage([FromRoute] string fileName)
+        {
+            return DeleteImageByName(fileName);
+        }
+
+        [HttpDelete("Image")]
+        public IActionResult DeleteImageQuery([FromQuery] string fileName)
+        {
+            return DeleteImageByName(fileName);
+        }
+
+        private IActionResult DeleteImageByName(string fileName)
+        {
+            try
+            {
+                var normalized = Path.GetFileName(fileName ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    return BadRequest(new { success = false, message = "Nombre de archivo inválido." });
+                }
+
+                var fullPath = Path.Combine(_bannerRootPath, normalized);
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    return NotFound(new { success = false, message = "Archivo no encontrado." });
+                }
+
+                System.IO.File.Delete(fullPath);
+                return Ok(new { success = true, message = "Archivo eliminado correctamente." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error eliminando imagen de slider: {FileName}", fileName);
+                return StatusCode(500, new { success = false, message = "Error eliminando imagen." });
             }
         }
 

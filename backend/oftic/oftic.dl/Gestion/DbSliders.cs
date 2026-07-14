@@ -18,7 +18,7 @@ namespace Datos.Gestion
 
         public async Task<List<DtoSliders>> GetPublicosAsync(CancellationToken ct)
         {
-            return await GetByProcedureAsync("PK_APIS.P_GET_SLIDERS_PUBLICOS", includeAdminColumns: false, ct);
+            return await GetByProcedureAsync("PK_APIS.P_GET_SLIDERS_ADMIN", includeAdminColumns: false, ct);
         }
 
         public async Task<List<DtoSliders>> GetAdminAsync(CancellationToken ct)
@@ -30,7 +30,7 @@ namespace Datos.Gestion
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_APIS.P_GET_SLIDERS_ADMIN";
+            cmd.CommandText = "PK_ADMINISTRACION.P_GET_SLIDERS_ADMIN";
             cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);

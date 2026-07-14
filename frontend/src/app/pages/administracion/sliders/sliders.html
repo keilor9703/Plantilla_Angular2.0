@@ -87,6 +87,14 @@
         
       </div>
     </div>
+
+    <div class="ui-panel__body" *ngIf="minimized">
+      <div class="empty-state">
+        <i class="fa-solid fa-eye-slash"></i>
+        <p>Panel minimizado. Haz clic en el ícono de la esquina superior derecha para expandirlo.</p>
+      </div>
+
+    </div>
   </div>
 
   <div class="ui-panel list-card history-card">
