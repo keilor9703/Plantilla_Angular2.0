@@ -17,6 +17,8 @@
 --     VIGENTE            NUMBER(1)       DEFAULT 1,
 --     FECHA_INICIO       DATE,
 --     FECHA_FIN          DATE,
+--     UNIDAD             VARCHAR2(100),
+--     OBSERVACIONES      VARCHAR2(500),
 --     FECHA_CREACION     DATE            DEFAULT SYSDATE,
 --     USUARIO_CREACION   VARCHAR2(100)   NOT NULL,
 --     MAQUINA_CREACION   VARCHAR2(100),
@@ -31,19 +33,21 @@
 -- P_INS_UPD_SLIDER  (INSERT o UPDATE)
 -- =========================================
 CREATE OR REPLACE PROCEDURE PK_ADMINISTRACION.P_INS_UPD_SLIDER(
-    P_IdSlider    IN  NUMBER,
-    P_Titulo      IN  VARCHAR2,
-    P_Subtitulo   IN  VARCHAR2,
-    P_UrlImagen   IN  VARCHAR2,
-    P_UrlDestino  IN  VARCHAR2,
-    P_Orden       IN  NUMBER,
-    P_Vigente     IN  NUMBER,
-    P_FechaInicio IN  DATE,
-    P_FechaFin    IN  DATE,
-    P_Usuario     IN  VARCHAR2,
-    P_Maquina     IN  VARCHAR2,
-    SRV_Message   OUT VARCHAR2,
-    P_Resultado   OUT NUMBER
+    P_IdSlider      IN  NUMBER,
+    P_Titulo        IN  VARCHAR2,
+    P_Subtitulo     IN  VARCHAR2,
+    P_UrlImagen     IN  VARCHAR2,
+    P_UrlDestino    IN  VARCHAR2,
+    P_Orden         IN  NUMBER,
+    P_Vigente       IN  NUMBER,
+    P_FechaInicio   IN  DATE,
+    P_FechaFin      IN  DATE,
+    P_Unidad        IN  VARCHAR2,
+    P_Observaciones IN  VARCHAR2,
+    P_Usuario       IN  VARCHAR2,
+    P_Maquina       IN  VARCHAR2,
+    SRV_Message     OUT VARCHAR2,
+    P_Resultado     OUT NUMBER
 )
 IS
 BEGIN
@@ -52,10 +56,12 @@ BEGIN
         INSERT INTO CTR_SLIDERS (
             TITULO, SUBTITULO, URL_IMAGEN, URL_DESTINO,
             ORDEN, VIGENTE, FECHA_INICIO, FECHA_FIN,
+            UNIDAD, OBSERVACIONES,
             FECHA_CREACION, USUARIO_CREACION, MAQUINA_CREACION
         ) VALUES (
             P_Titulo, P_Subtitulo, P_UrlImagen, P_UrlDestino,
             NVL(P_Orden, 1), NVL(P_Vigente, 1), P_FechaInicio, P_FechaFin,
+            P_Unidad, P_Observaciones,
             SYSDATE, P_Usuario, P_Maquina
         )
         RETURNING ID_SLIDER INTO P_Resultado;
@@ -72,6 +78,8 @@ BEGIN
                VIGENTE           = NVL(P_Vigente, VIGENTE),
                FECHA_INICIO      = P_FechaInicio,
                FECHA_FIN         = P_FechaFin,
+               UNIDAD            = P_Unidad,
+               OBSERVACIONES     = P_Observaciones,
                FECHA_MODIFICA    = SYSDATE,
                USUARIO_MODIFICA  = P_Usuario,
                MAQUINA_MODIFICA  = P_Maquina
@@ -149,3 +157,29 @@ END P_SET_ESTADO_SLIDER;
 -- =========================================
 -- GRANT EXECUTE ON PK_ADMINISTRACION.P_INS_UPD_SLIDER    TO USR_DEV_TEST;
 -- GRANT EXECUTE ON PK_ADMINISTRACION.P_SET_ESTADO_SLIDER  TO USR_DEV_TEST;
+
+-- =========================================
+-- P_GET_SLIDERS_ADMIN  (Listado administración)
+-- =========================================
+CREATE OR REPLACE PROCEDURE PK_ADMINISTRACION.P_GET_SLIDERS_ADMIN(
+    P_CURSOR OUT SYS_REFCURSOR
+)
+IS
+BEGIN
+    OPEN P_CURSOR FOR
+    SELECT 
+        ID_SLIDER,
+        TITULO,
+        SUBTITULO,
+        URL_IMAGEN,
+        URL_DESTINO,
+        ORDEN,
+        VIGENTE,
+        FECHA_INICIO,
+        FECHA_FIN,
+        UNIDAD,
+        OBSERVACIONES
+    FROM CTR_SLIDERS
+    ORDER BY ORDEN, FECHA_INICIO;
+END P_GET_SLIDERS_ADMIN;
+/

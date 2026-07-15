@@ -13,6 +13,8 @@ namespace Comun.Dtos.Sliders
         public int vigente { get; set; }
         public DateTime? fechaInicio { get; set; }
         public DateTime? fechaFin { get; set; }
+        public string? unidad { get; set; }
+        public string? observaciones { get; set; }
     }
 
     public class DtoSaveSliderRequest
@@ -26,6 +28,8 @@ namespace Comun.Dtos.Sliders
         public int vigente { get; set; } = 1;
         public DateTime? fechaInicio { get; set; }
         public DateTime? fechaFin { get; set; }
+        public string? unidad { get; set; }
+        public string? observaciones { get; set; }
     }
 
     public class DtoSetEstadoSliderRequest

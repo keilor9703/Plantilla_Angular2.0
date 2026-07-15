@@ -21,7 +21,7 @@ namespace Datos.Gestion
             return await GetByProcedureAsync("PK_APIS.P_GET_SLIDERS_ADMIN", includeAdminColumns: false, ct);
         }
 
-        public async Task<List<DtoSliders>> GetAdminAsync(CancellationToken ct)
+public async Task<List<DtoSliders>> GetAdminAsync(CancellationToken ct)
         {
             var result = new List<DtoSliders>();
 
@@ -46,14 +46,16 @@ namespace Datos.Gestion
                     orden = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
                     vigente = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
                     fechaInicio = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
-                    fechaFin = reader.IsDBNull(8) ? null : reader.GetDateTime(8)
+                    fechaFin = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    unidad = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    observaciones = reader.IsDBNull(16) ? null : reader.GetString(16)
                 });
             }
 
             return result;
         }
 
-        public async Task<DtoSliderResult> SaveAsync(
+public async Task<DtoSliderResult> SaveAsync(
             DtoSaveSliderRequest request,
             string usuarioAuditoria,
             string maquinaAuditoria,
@@ -82,6 +84,8 @@ namespace Datos.Gestion
             cmd.Parameters.Add("P_FechaFin", OracleDbType.Date).Value = request.fechaFin.HasValue
                 ? request.fechaFin.Value
                 : DBNull.Value;
+            cmd.Parameters.Add("P_Unidad", OracleDbType.Varchar2).Value = AsDbValue(request.unidad);
+            cmd.Parameters.Add("P_Observaciones", OracleDbType.Varchar2).Value = AsDbValue(request.observaciones);
             cmd.Parameters.Add("P_Usuario", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
             cmd.Parameters.Add("P_Maquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
@@ -183,7 +187,7 @@ namespace Datos.Gestion
             return 0L;
         }
 
-        private async Task<List<DtoSliders>> GetByProcedureAsync(string procedureName, bool includeAdminColumns, CancellationToken ct)
+private async Task<List<DtoSliders>> GetByProcedureAsync(string procedureName, bool includeAdminColumns, CancellationToken ct)
         {
             var result = new List<DtoSliders>();
 
@@ -208,6 +212,8 @@ namespace Datos.Gestion
                 var idxVigente = GetOrdinal(reader, fieldCount, 6, "vigente", "estado");
                 var idxFechaInicio = GetOrdinal(reader, fieldCount, 7, "fecha_inicio", "fechainicio", "inicio");
                 var idxFechaFin = GetOrdinal(reader, fieldCount, 8, "fecha_fin", "fechafin", "fin");
+                var idxUnidad = GetOrdinal(reader, fieldCount, -1, "unidad");
+                var idxObservaciones = GetOrdinal(reader, fieldCount, -1, "observaciones");
 
                 result.Add(new DtoSliders
                 {
@@ -225,7 +231,9 @@ namespace Datos.Gestion
                         : null,
                     fechaFin = includeAdminColumns
                         ? GetDateOrNull(reader, fieldCount, idxFechaFin)
-                        : null
+                        : null,
+                    unidad = GetStringOrNull(reader, fieldCount, idxUnidad),
+                    observaciones = GetStringOrNull(reader, fieldCount, idxObservaciones)
                 });
             }
 

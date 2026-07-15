@@ -13,6 +13,8 @@ export interface DtoSliders {
   vigente: number;
   fechaInicio?: string | null;
   fechaFin?: string | null;
+  unidad?: string | null;
+  observaciones?: string | null;
 }
 
 export interface DtoSaveSliderRequest {
@@ -25,6 +27,22 @@ export interface DtoSaveSliderRequest {
   vigente: number;
   fechaInicio?: string | null;
   fechaFin?: string | null;
+  unidad?: string | null;
+  observaciones?: string | null;
+}
+
+export interface DtoSaveSliderRequest {
+  idSlider?: number | null;
+  titulo: string;
+  subtitulo?: string | null;
+  urlImagen: string;
+  urlDestino?: string | null;
+  orden: number;
+  vigente: number;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  unidad?: string | null;
+  observaciones?: string | null;
 }
 
 export interface DtoSetEstadoSliderRequest {

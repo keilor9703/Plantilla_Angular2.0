@@ -1,4 +1,4 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -9,6 +9,7 @@ import {
   SliderService
 } from '../../../core/services/administracion/slider.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { DominioService, DtoUnidad } from '../../../core/services/administracion/dominio.service';
 
 type SliderForm = DtoSaveSliderRequest;
 
@@ -19,7 +20,7 @@ type SliderForm = DtoSaveSliderRequest;
   templateUrl: './sliders.html',
   styleUrls: ['./sliders.scss']
 })
-export class SlidersComponent implements OnInit {
+export class SlidersComponent implements OnInit, OnDestroy {
   minimized = false;
   visible = true;
   isEditing = false;
@@ -46,10 +47,25 @@ export class SlidersComponent implements OnInit {
 
   form: SliderForm = this.getDefaultForm();
   openActionsId: number | null = null;
+  showActiveLimitModal = false;
+  nextAvailableStart: Date | null = null;
+  nextAvailableEnd: Date | null = null;
+  minStartDateTime = '';
+
+  // Unidades para el select
+  unidades: DtoUnidad[] = [];
+  unidadesLoading = false;
+
+  @ViewChild('activePanel') activePanel!: ElementRef<HTMLDivElement>;
+  @ViewChild('scheduledPanel') scheduledPanel!: ElementRef<HTMLDivElement>;
+  @ViewChild('fileInput') fileInputRef?: ElementRef<HTMLInputElement>;
+
+  private resizeObserver?: ResizeObserver;
 
   constructor(
     private sliderService: SliderService,
-    private toast: ToastService
+    private toast: ToastService,
+    private dominioService: DominioService
   ) {}
 
   probarUrlDestino(): void {
@@ -66,8 +82,44 @@ export class SlidersComponent implements OnInit {
     window.open(targetUrl, '_blank');
   }
 
-  ngOnInit(): void {
+ngOnInit(): void {
     this.loadSliders();
+    this.loadUnidades();
+  }
+
+  private loadUnidades(): void {
+    this.unidadesLoading = true;
+    this.dominioService.getUnidades().subscribe({
+      next: (data) => {
+        this.unidades = data ?? [];
+        this.unidadesLoading = false;
+      },
+      error: () => {
+        this.unidades = [];
+        this.unidadesLoading = false;
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    this.setupHeightSync();
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  private setupHeightSync(): void {
+    if (!this.activePanel || !this.scheduledPanel) return;
+
+    this.resizeObserver = new ResizeObserver(() => {
+      const activeHeight = this.activePanel?.nativeElement?.offsetHeight;
+      if (activeHeight && this.scheduledPanel?.nativeElement) {
+        this.scheduledPanel.nativeElement.style.height = `${activeHeight}px`;
+      }
+    });
+
+    this.resizeObserver.observe(this.activePanel.nativeElement);
   }
 
   toggleMinimize(): void {
@@ -103,35 +155,82 @@ export class SlidersComponent implements OnInit {
   nuevo(): void {
     this.replacementSourceId = null;
     this.replacementSourceUrl = '';
-    const activeCount = this.allSliders.filter((item) => item.vigente === 1).length;
-    if (activeCount >= 7) {
-      this.toast.warning('Sliders', 'Ya hay 7 sliders activos. Primero desactive un slider para crear uno nuevo.');
+    const nextAvailable = this.getEarliestAvailableStart();
+    this.nextAvailableStart = nextAvailable;
+    this.nextAvailableEnd = this.getLatestAllowedEnd(nextAvailable.getTime(), null)
+      ? new Date(this.getLatestAllowedEnd(nextAvailable.getTime(), null)!)
+      : null;
+    const now = new Date();
+    if (nextAvailable.getTime() > now.getTime()) {
+      this.showActiveLimitModal = true;
       return;
     }
 
+    this.openNewSliderForm(nextAvailable);
+  }
+
+  private openNewSliderForm(startDate?: Date): void {
     this.editingId = null;
     this.originalImageUrl = '';
     this.form = this.getDefaultForm();
+    this.minStartDateTime = this.toInputDateTime(startDate ?? new Date());
+    this.form.fechaInicio = this.minStartDateTime;
+
+    const defaultEnd = new Date(startDate ?? new Date());
+    defaultEnd.setDate(defaultEnd.getDate() + 7);
+    this.form.fechaFin = this.toInputDateTime(defaultEnd);
+
     this.cleanupSelectedImage();
     this.imagePreviewUrl = '';
     this.isEditing = true;
     try { document.body.classList.add('ui-modal-open'); } catch (e) {}
   }
 
-  reemplazar(item: DtoSliders): void {
+  openScheduledSliderForm(): void {
+    this.showActiveLimitModal = false;
+    this.editingId = null;
+    this.originalImageUrl = '';
+    this.form = this.getDefaultForm();
+    const earliest = this.nextAvailableStart ?? this.getEarliestAvailableStart();
+    this.minStartDateTime = this.toInputDateTime(earliest);
+    const inicioFuturo = earliest;
+    const finFuturo = new Date(inicioFuturo);
+    finFuturo.setDate(finFuturo.getDate() + 7);
+
+    this.form.fechaInicio = this.toInputDateTime(inicioFuturo);
+    this.form.fechaFin = this.toInputDateTime(finFuturo);
+    this.cleanupSelectedImage();
+    this.imagePreviewUrl = '';
+    this.isEditing = true;
+    this.nextAvailableStart = null;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) {}
+  }
+
+reemplazar(item: DtoSliders): void {
     this.replacementSourceId = item.idSlider;
     this.replacementSourceUrl = (item.urlImagen ?? '').trim();
     this.editingId = null;
     this.originalImageUrl = (item.urlImagen ?? '').trim();
-    this.form = this.getDefaultForm();
-    this.form.orden = item.orden || 1;
+    this.form = {
+      idSlider: null,
+      titulo: (item.titulo ?? '').trim(),
+      subtitulo: (item.subtitulo ?? '').trim(),
+      urlImagen: this.originalImageUrl,
+      urlDestino: (item.urlDestino ?? '').trim(),
+      orden: item.orden || 1,
+      vigente: 1,
+      fechaInicio: this.normalizeDateTime(item.fechaInicio),
+      fechaFin: this.normalizeDateTime(item.fechaFin),
+      unidad: item.unidad ?? '',
+      observaciones: item.observaciones ?? ''
+    };
     this.cleanupSelectedImage();
     this.imagePreviewUrl = '';
     this.isEditing = true;
     try { document.body.classList.add('ui-modal-open'); } catch (e) {}
   }
 
-  editar(item: DtoSliders): void {
+editar(item: DtoSliders): void {
     this.openActionsId = null;
     this.replacementSourceId = null;
     this.replacementSourceUrl = '';
@@ -144,9 +243,11 @@ export class SlidersComponent implements OnInit {
       urlImagen: this.originalImageUrl,
       urlDestino: (item.urlDestino ?? '').trim(),
       orden: item.orden || 1,
-      vigente: item.vigente || 0,
+      vigente: item.vigente === 1 ? 1 : 0,
       fechaInicio: this.normalizeDateTime(item.fechaInicio),
-      fechaFin: this.normalizeDateTime(item.fechaFin)
+      fechaFin: this.normalizeDateTime(item.fechaFin),
+      unidad: item.unidad ?? '',
+      observaciones: item.observaciones ?? ''
     };
     this.cleanupSelectedImage();
     this.imagePreviewUrl = this.form.urlImagen || '';
@@ -180,15 +281,39 @@ export class SlidersComponent implements OnInit {
       return;
     }
 
-    const activeCountExcludingCurrent = this.allSliders.filter((item) => item.vigente === 1 && item.idSlider !== this.form.idSlider).length;
-    if (this.form.vigente === 1 && !this.replacementSourceId && activeCountExcludingCurrent >= 7) {
-      this.toast.warning('Sliders', 'Solo se permiten 7 sliders activos. Desactive uno antes de activar otro o edite un slider existente.');
-      return;
+    const newStart = new Date(this.form.fechaInicio).getTime();
+    const newEnd = new Date(this.form.fechaFin).getTime();
+    if (this.form.vigente === 1) {
+      const earliestAvailable = this.getEarliestAvailableStart(this.form.idSlider ?? null).getTime();
+      if (newStart > Date.now() && newStart < earliestAvailable) {
+        this.toast.warning(
+          'Sliders',
+          'La fecha de inicio es anterior al primer espacio disponible. Ajuste la fecha para que comience cuando haya un slot disponible.'
+        );
+        return;
+      }
+
+      const latestAllowedEnd = this.getLatestAllowedEnd(newStart, this.form.idSlider ?? null);
+      if (latestAllowedEnd !== null && newEnd > latestAllowedEnd) {
+        this.toast.warning(
+          'Sliders',
+          'La fecha fin excede el siguiente slider programado. Ajuste la vigencia para terminar antes de que empiece el siguiente slider.'
+        );
+        return;
+      }
+
+      if (!this.canScheduleInterval(newStart, newEnd, this.form.idSlider ?? null)) {
+        this.toast.warning(
+          'Sliders',
+          'No se puede programar este slider porque excede el máximo de 7 sliders simultáneos. Ajuste la fecha de inicio o desactive un slider existente.'
+        );
+        return;
+      }
     }
 
     const oldImageUrl = this.selectedImageFile ? this.originalImageUrl : '';
 
-    const createPayload = (imageUrl: string): DtoSaveSliderRequest => ({
+const createPayload = (imageUrl: string): DtoSaveSliderRequest => ({
       idSlider: this.form.idSlider ?? undefined,
       titulo: this.form.titulo.trim(),
       subtitulo: (this.form.subtitulo ?? '').trim() || null,
@@ -197,7 +322,9 @@ export class SlidersComponent implements OnInit {
       orden: this.form.orden,
       vigente: this.form.vigente,
       fechaInicio: (this.form.fechaInicio ?? '').trim() || null,
-      fechaFin: (this.form.fechaFin ?? '').trim() || null
+      fechaFin: (this.form.fechaFin ?? '').trim() || null,
+      unidad: (this.form.unidad ?? '').trim() || null,
+      observaciones: (this.form.observaciones ?? '').trim() || null
     });
 
     const finishSave = () => {
@@ -314,13 +441,21 @@ export class SlidersComponent implements OnInit {
     });
   }
 
-  toggleActions(id: number, event: Event): void {
+toggleActions(id: number, event: Event): void {
     event.stopPropagation();
     this.openActionsId = this.openActionsId === id ? null : id;
   }
 
   isActionsOpen(id: number): boolean {
     return this.openActionsId === id;
+  }
+
+  get scheduledSliders(): DtoSliders[] {
+    const now = new Date().getTime();
+    return this.allSliders
+      .filter((item) => item.vigente === 1 && item.fechaInicio && item.fechaFin)
+      .filter((item) => new Date(item.fechaInicio!).getTime() > now)
+      .sort((a, b) => new Date(a.fechaInicio!).getTime() - new Date(b.fechaInicio!).getTime());
   }
 
   onDropActive(event: CdkDragDrop<DtoSliders[]>): void {
@@ -488,7 +623,7 @@ export class SlidersComponent implements OnInit {
     const fin = new Date(item.fechaFin).getTime();
     const now = new Date().getTime();
     return inicio <= now && fin >= now;
-  }
+}
 
   getTiempoRestante(item: DtoSliders): string {
     if (!item.fechaFin) {
@@ -512,6 +647,21 @@ export class SlidersComponent implements OnInit {
     const minutos = Math.floor(diff / msPorMinuto);
 
     return `${dias}d ${horas}h ${minutos}m`;
+  }
+
+  getDiasParaInicio(item: DtoSliders): string {
+    if (!item.fechaInicio) {
+      return 'N/A';
+    }
+    const inicio = new Date(item.fechaInicio).getTime();
+    const now = new Date().getTime();
+    const diff = inicio - now;
+    if (diff <= 0) {
+      return 'Iniciado';
+    }
+    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return `${dias}d ${horas}h`;
   }
 
   cancelar(): void {
@@ -550,6 +700,58 @@ export class SlidersComponent implements OnInit {
     this.selectedImageFile = file;
     this.imagePreviewUrl = URL.createObjectURL(file);
     input.value = '';
+  }
+
+  abrirSelectorArchivo(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (this.fileInputRef?.nativeElement) {
+      this.fileInputRef.nativeElement.click();
+    }
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  onImageDropped(event: DragEvent): void {
+    event.preventDefault();
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      this.toast.warning('Sliders', 'Formato inválido. Use JPG, PNG o WEBP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.toast.warning('Sliders', 'La imagen excede 5MB.');
+      return;
+    }
+
+    if (this.selectedImageFile && this.imagePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(this.imagePreviewUrl);
+    }
+    this.selectedImageFile = file;
+    this.imagePreviewUrl = URL.createObjectURL(file);
+  }
+
+  removeSelectedImage(): void {
+    if (this.imagePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(this.imagePreviewUrl);
+    }
+    this.imagePreviewUrl = '';
+    this.selectedImageFile = null;
+    this.form.urlImagen = '';
+    if (this.fileInputRef?.nativeElement) {
+      try { this.fileInputRef.nativeElement.value = ''; } catch (e) { /* ignore */ }
+    }
   }
 
   private cleanupSelectedImage(): void {
@@ -592,7 +794,7 @@ export class SlidersComponent implements OnInit {
     });
   }
 
-  private getDefaultForm(): SliderForm {
+private getDefaultForm(): SliderForm {
     const today = new Date();
     const plusSeven = new Date(today);
     plusSeven.setDate(today.getDate() + 7);
@@ -606,7 +808,9 @@ export class SlidersComponent implements OnInit {
       orden: 1,
       vigente: 1,
       fechaInicio: this.toInputDateTime(today),
-      fechaFin: this.toInputDateTime(plusSeven)
+      fechaFin: this.toInputDateTime(plusSeven),
+      unidad: '',
+      observaciones: ''
     };
   }
 
@@ -638,6 +842,123 @@ export class SlidersComponent implements OnInit {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  private getScheduledIntervals(excludeId: number | null = null): { start: number; end: number }[] {
+    const nowMs = Date.now();
+    return this.allSliders
+      .filter((item) => item.vigente === 1 && item.fechaInicio && item.fechaFin && item.idSlider !== excludeId)
+      .map((item) => ({
+        start: new Date(item.fechaInicio!).getTime(),
+        end: new Date(item.fechaFin!).getTime()
+      }))
+      .filter((interval) => interval.start < interval.end && interval.end > nowMs);
+  }
+
+  private getEarliestAvailableStart(excludeId: number | null = null): Date {
+    const now = new Date();
+    const nowMs = now.getTime();
+    const intervals = this.getScheduledIntervals(excludeId);
+    const events = intervals.flatMap((interval) => [
+      { time: interval.start, delta: 1 },
+      { time: interval.end, delta: -1 }
+    ]);
+    events.sort((a, b) => a.time - b.time || a.delta - b.delta);
+
+    let count = 0;
+    let index = 0;
+    while (index < events.length && events[index].time <= nowMs) {
+      count += events[index].delta;
+      index += 1;
+    }
+
+    if (count < 7) {
+      return now;
+    }
+
+    while (index < events.length) {
+      const currentTime = events[index].time;
+      while (index < events.length && events[index].time === currentTime) {
+        count += events[index].delta;
+        index += 1;
+      }
+      if (count < 7) {
+        return new Date(currentTime);
+      }
+    }
+
+    const lastEnd = intervals.reduce((max, interval) => Math.max(max, interval.end), nowMs);
+    return new Date(Math.max(nowMs, lastEnd));
+  }
+
+  private getEarliestAvailableStartInputValue(): string {
+    const nextAvailable = this.getEarliestAvailableStart();
+    return this.toInputDateTime(nextAvailable);
+  }
+
+  private canScheduleInterval(start: number, end: number, excludeId: number | null): boolean {
+    if (start >= end) {
+      return false;
+    }
+    const intervals = this.getScheduledIntervals(excludeId);
+    const events = intervals.flatMap((interval) => [
+      { time: interval.start, delta: 1 },
+      { time: interval.end, delta: -1 }
+    ]);
+    events.push({ time: start, delta: 1 }, { time: end, delta: -1 });
+    events.sort((a, b) => a.time - b.time || a.delta - b.delta);
+
+    let count = 0;
+    for (const event of events) {
+      count += event.delta;
+      if (count > 7) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private getLatestAllowedEnd(start: number, excludeId: number | null): number | null {
+    const intervals = this.getScheduledIntervals(excludeId);
+    const events = intervals.flatMap((interval) => [
+      { time: interval.start, delta: 1 },
+      { time: interval.end, delta: -1 }
+    ]);
+    events.sort((a, b) => a.time - b.time || a.delta - b.delta);
+
+    let count = 0;
+    let index = 0;
+    while (index < events.length && events[index].time <= start) {
+      count += events[index].delta;
+      index += 1;
+    }
+
+    if (count >= 7) {
+      return null;
+    }
+
+    while (index < events.length) {
+      const currentTime = events[index].time;
+      if (currentTime <= start) {
+        while (index < events.length && events[index].time === currentTime) {
+          count += events[index].delta;
+          index += 1;
+        }
+        continue;
+      }
+
+      while (index < events.length && events[index].time === currentTime) {
+        count += events[index].delta;
+        index += 1;
+      }
+
+      if (count >= 7) {
+        return currentTime;
+      }
+    }
+
+    return null;
   }
 }
 
