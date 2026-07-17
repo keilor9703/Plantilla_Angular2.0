@@ -5,16 +5,7 @@
         <i class="fa-solid fa-user-tie"></i>
         {{ modoEdicion ? 'Editar' : 'Agregar' }} Personaje del Mes
       </div>
-      <div class="ui-panel__actions">
-        <button class="ui-btn outline" type="button" (click)="limpiarForm()" [disabled]="saving || uploading">
-          <i class="fa-solid fa-eraser"></i>
-          {{ modoEdicion ? 'Nuevo registro' : 'Limpiar' }}
-        </button>
-      </div>
-    </div>
-
-    <div class="ui-panel__body">
-      <div class="botones-personaje-equipo">
+      <div class="ui-panel__actions" style="display: flex; gap: 12px;">
         <button class="ui-btn primary" type="button" (click)="abrirmodalpersonajemes()" [disabled]="loading"
           style=" white-space: nowrap;">
           <i class="fa-solid fa-plus"></i>
@@ -26,7 +17,10 @@
           {{ loading ? 'Cargando...' : ' Equipo Alto Rendimiento' }}
         </button>
       </div>
+      
     </div>
+
+    
 
   </div>
 
@@ -90,12 +84,15 @@
                 </span>
               </td>
               <td>
-                <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
+                <div class="table-actions">
+                  <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
                   <i class="fa-solid fa-pen"></i>
                 </button>
                 <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
+
+                </div>                
               </td>
             </tr>
           </tbody>

@@ -1,10 +1,12 @@
 <section class="sliders-page" *ngIf="visible">
+  <!-- Panel de Administración de Sliders -->
   <div class="ui-panel">
     <div class="ui-panel__head">
       <div class="ui-panel__title">
         <i class="fa-regular fa-images"></i>
         Administración de Sliders
       </div>
+      <!-- Boton para ejecutar "Formulario de Sliders agregar/editar mediante modal" -->
       <div class="ui-panel__actions">
         <button class="ui-btn primary" type="button" (click)="nuevo()">
           <i class="fa-solid fa-plus"></i>
@@ -13,6 +15,7 @@
       </div>
     </div>
 
+    
     <div class="sliders-main-panels">
       <!-- Sliders Activos para mostrar-->
       <div class="ui-panel__body" *ngIf="!minimized" #activePanel>
@@ -89,6 +92,7 @@
           </div>
         </div>
       </div>
+      <!-- Fin Sliders Activos para mostrar-->
 
       <!-- Sliders Programados-->
       <div class="ui-panel__body" #scheduledPanel>
@@ -144,8 +148,10 @@
           </div>
         </div>
       </div>
+      <!-- Fin Sliders Programados-->
     </div>
   </div>
+  <!-- Fin Panel de Administración de Sliders -->
 
   <!-- Sliders Historial-->
   <div class="ui-panel list-card history-card">
@@ -191,6 +197,7 @@
               <th>Vigente</th>
               <th>Inicio</th>
               <th>Fin</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody *ngIf="slidersPaged.length > 0; else noSlidersTable">
@@ -204,6 +211,11 @@
               </td>
               <td>{{ item.fechaInicio ? (item.fechaInicio | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</td>
               <td>{{ item.fechaFin ? (item.fechaFin | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</td>
+              <td>
+                <button class="ui-icon-btn" type="button" (click)="editar(item)">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -246,7 +258,9 @@
       </div>
     </div>
   </div>
+  <!-- Fin Sliders Historial-->
 
+  <!-- Modal de advertencia cuando hay 7 sliders activos pasando el limite  -->
   <div class="ui-modal" *ngIf="showActiveLimitModal">
     <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="ui-modal__head">
@@ -272,6 +286,7 @@
     </div>
   </div>
 
+  <!-- Formulario de Sliders agregar/editar mediante modal -->
   <div class="ui-modal" *ngIf="isEditing" >
     <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="ui-modal__head">
@@ -303,7 +318,7 @@
               <div class="file-input-wrapper" (click)="abrirSelectorArchivo($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onImageDropped($event)">
                 <div class="file-preview-area" *ngIf="imagePreviewUrl || form.urlImagen; else imagePlaceholder">
                   <ng-container>
-                    <img [src]="imagePreviewUrl || form.urlImagen || ''" alt="Vista previa" class="branding-preview-img-inline">
+                    <img [src]="imagePreviewUrl || form.urlImagen || ''" alt="Vista previa" class="branding-preview-img-inline" (error)="onImageError()">
                   </ng-container>
                   <button class="ui-btn secondary" type="button" (click)="abrirSelectorArchivo($event)">
                     <i class="fa-solid fa-arrows-rotate"></i> Cambiar
@@ -358,9 +373,25 @@
             <label class="ui-label">Observaciones</label>
             <textarea class="ui-control" rows="2" [(ngModel)]="form.observaciones" maxlength="500" placeholder="Observaciones adicionales"></textarea>
           </div>
+
+          <div class="state-box ui-col-12">
+                <div>
+                  <span class="state-box__label">Estado de Sliders</span>
+                  <span class="state-box__value" [class.inactive]="!form.vigente">
+                    {{ form.vigente ? 'ACTIVO' : 'INACTIVO' }}
+                  </span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="switch" type="button" [class.active]="form.vigente" (click)="form.vigente = form.vigente ? 0 : 1">
+                    <span></span>
+                  </button>
+                </div>
+          </div>
+          
+        
+          
         </div>
-      </div>
-      
+      </div>      
 
       <div class="ui-modal__foot">
         <button class="ui-btn secondary" type="button" (click)="cancelar()">Cancelar</button>

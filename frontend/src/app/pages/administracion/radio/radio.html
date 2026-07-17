@@ -6,92 +6,47 @@
         Administración de Emisoras
       </div>
 
-      <div class="ui-panel__actions ui-window-controls">
-        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
-          <i class="fa-solid fa-minus"></i>
-        </button>
-        <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closePanel()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-    </div>
+      <div class="ui-panel__actions">
 
-    <div class="ui-panel__body" *ngIf="!minimized">
-      <div class="form-toggle-bar">
-        <button class="ui-btn primary" type="button" *ngIf="!showForm" (click)="abrirFormularioCreacion()">
+        <button class="ui-btn primary" type="button" (click)="abrirFormularioCreacion()" *ngIf="!showFormRadio">
           <i class="fa-solid fa-plus"></i>
           Agregar emisora
         </button>
       </div>
+    </div>
+  </div>
 
-      <article class="tab-card form-card" *ngIf="showForm" [class.is-editing]="editingId !== null">
-        <div class="edit-mode-badge" *ngIf="editingId !== null">
-          <i class="fa-solid fa-pen-to-square"></i>
-          Modo edición
-        </div>
-        <h3>{{ editingId ? 'Editar emisora' : 'Nueva emisora' }}</h3>
-
-        <div class="ui-grid">
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Nombre</label>
-            <input class="ui-control" type="text" maxlength="150" [(ngModel)]="form.nombre">
-          </div>
-
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">URL stream</label>
-            <input class="ui-control" type="text" maxlength="500" [(ngModel)]="form.streamUrl" (ngModelChange)="onFormStreamChange($event)">
-          </div>
-
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Logo (PNG o SVG)</label>
-            <input
-              class="ui-control"
-              type="file"
-              accept=".png,.svg,image/png,image/svg+xml"
-              (change)="onLogoSelected($event)"
-            >
-            <small class="meta">Máximo 200KB.</small>
-            <div class="list-loading" *ngIf="uploadingLogo">Cargando logo...</div>
-          </div>
-
-          <div class="ui-field ui-col-3">
-            <label class="ui-label">Orden</label>
-            <input class="ui-control" type="number" min="0" [(ngModel)]="form.orden">
-          </div>
-
-          <div class="ui-field ui-col-3">
-            <label class="ui-label">Activo</label>
-            <select class="ui-control" [(ngModel)]="form.activo">
-              <option [ngValue]="1">Sí</option>
-              <option [ngValue]="0">No</option>
-            </select>
-          </div>
-
-          <div class="ui-field ui-col-12">
-            <div class="tab-actions">
-              <span class="test-badge" [class.testing]="formTestStatus === 'testing'" [class.ok]="formTestStatus === 'ok'" [class.error]="formTestStatus === 'error'">
-                {{ getStatusLabel(formTestStatus) }}
-              </span>
-              <button class="ui-btn outline" type="button" (click)="togglePlayForm()">
-                <i class="fa-solid" [class.fa-play]="!isFormPlaying()" [class.fa-pause]="isFormPlaying()"></i>
-                {{ isFormPlaying() ? 'Pausar' : 'Play' }}
-              </button>
-              <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
-                <i class="fa-solid fa-floppy-disk"></i>
-                {{ saving ? 'Guardando...' : 'Guardar' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article class="tab-card list-card">
-        <h3>Emisoras registradas</h3>
+  <!-- Historial de emisoras -->
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-window-restore"></i>
+        Historial de Emisoras
+      </div>
+    </div>
+    <div class="ui-panel__body">
+      <article class="tab-card list-card ">
 
         <div class="list-loading" *ngIf="loading">Cargando emisoras...</div>
 
-        <div class="ui-table-wrap" *ngIf="!loading && emisoras.length > 0">
+        <div class="table-controls" *ngIf="!loading">
+          <div class="search-group">
+            <label class="ui-label">Buscar</label>
+            <input class="ui-control" type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
+              placeholder="Nombre de la emisora" />
+            <small class="search-hint">(mínimo {{ minSearchChars }} caracteres)...</small>
+          </div>
+
+          <div class="search-mostrar">
+            <label>Mostrar</label>
+            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s === 0 ? 'Todos' : s }}</option>
+            </select>
+            <span>por página</span>
+          </div>
+        </div>
+
+        <div class="table-controls" *ngIf="!loading && emisoras.length > 0">
           <table class="ui-table">
             <thead>
               <tr>
@@ -104,7 +59,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of emisoras">
+              <tr *ngFor="let item of pagedRadioEmisora">
                 <td>
                   <div class="logo-mini" *ngIf="item.logoUrl; else noLogo">
                     <img [src]="item.logoUrl || ''" alt="Logo emisora">
@@ -124,28 +79,28 @@
                       [class.error]="(rowTestStatus[item.idEmisora] ?? 'idle') === 'error'">
                       {{ getStatusLabel(rowTestStatus[item.idEmisora] ?? 'idle') }}
                     </span>
-                    <button class="row-icon-btn test has-tooltip" type="button" title="Play/Pause" data-tooltip="Play/Pause" (click)="togglePlayFila(item)">
-                      <i class="fa-solid" [class.fa-play]="!isRowPlaying(item.idEmisora)" [class.fa-pause]="isRowPlaying(item.idEmisora)"></i>
+                    <button class="row-icon-btn test has-tooltip" type="button" title="Play/Pause"
+                      data-tooltip="Play/Pause" (click)="togglePlayFila(item)">
+                      <i class="fa-solid" [class.fa-play]="!isRowPlaying(item.idEmisora)"
+                        [class.fa-pause]="isRowPlaying(item.idEmisora)"></i>
                     </button>
                   </div>
                 </td>
                 <td>
                   <div class="row-actions">
-                    <button class="row-icon-btn edit has-tooltip" type="button" title="Editar" data-tooltip="Editar" (click)="editar(item)">
+                    <button class="row-icon-btn edit has-tooltip" type="button" title="Editar" data-tooltip="Editar"
+                      (click)="editar(item)">
                       <i class="fa-solid fa-pen-to-square"></i>
                     </button>
-                    <button
-                      class="row-icon-btn toggle has-tooltip"
-                      [class.activate]="item.activo === 0"
-                      [class.deactivate]="item.activo === 1"
-                      type="button"
+                    <button class="row-icon-btn toggle has-tooltip" [class.activate]="item.activo === 0"
+                      [class.deactivate]="item.activo === 1" type="button"
                       [title]="item.activo === 1 ? 'Desactivar' : 'Activar'"
-                      [attr.data-tooltip]="item.activo === 1 ? 'Desactivar' : 'Activar'"
-                      (click)="cambiarEstado(item)"
-                    >
-                      <i class="fa-solid" [class.fa-toggle-off]="item.activo === 1" [class.fa-toggle-on]="item.activo === 0"></i>
+                      [attr.data-tooltip]="item.activo === 1 ? 'Desactivar' : 'Activar'" (click)="cambiarEstado(item)">
+                      <i class="fa-solid" [class.fa-toggle-off]="item.activo === 1"
+                        [class.fa-toggle-on]="item.activo === 0"></i>
                     </button>
-                    <button class="row-icon-btn delete has-tooltip" type="button" title="Eliminar" data-tooltip="Eliminar" (click)="eliminar(item)">
+                    <button class="row-icon-btn delete has-tooltip" type="button" title="Eliminar"
+                      data-tooltip="Eliminar" (click)="eliminar(item)">
                       <i class="fa-solid fa-trash-can"></i>
                     </button>
                   </div>
@@ -155,10 +110,103 @@
           </table>
         </div>
 
+        <div class="table-pagination" *ngIf="!loading && emisoras.length > 0 && pageCount > 1">
+          <div class="pagination-actions pagination-numbers">
+            <button class="ui-icon-btn" type="button" (click)="prevPage()" [disabled]="!canGoPrev()">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <ng-container *ngFor="let p of pageNumbers">
+              <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button"
+                [class.page-active]="p === currentPage" (click)="goToPage(p)">
+                {{ p }}
+              </button>
+              <span *ngIf="p === '...'" class="page-dots">...</span>
+            </ng-container>
+            <button class="ui-icon-btn" type="button" (click)="nextPage()" [disabled]="!canGoNext()">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
         <div class="news-state" *ngIf="!loading && emisoras.length === 0">
           No hay emisoras registradas.
         </div>
+
       </article>
+    </div>
+  </div>
+
+  <!--Modal agregar/editar emisora -->
+
+  <div class="ui-modal" *ngIf="showFormRadio">
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-pen-to-square"></i>
+          {{ editingId ? 'Editar Emisora' : 'Nueva Emisora' }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cerrarFormulario()" aria-label="Cerrar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form (ngSubmit)="guardar()">
+        <div class="ui-modal__body">
+          <div class="ui-grid">
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Nombre</label>
+              <input class="ui-control" type="text" maxlength="150" [(ngModel)]="form.nombre" name="nombre">
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">URL stream</label>
+              <input class="ui-control" type="text" maxlength="500" [(ngModel)]="form.streamUrl" name="streamUrl"
+                (ngModelChange)="onFormStreamChange($event)">
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Logo (PNG o SVG)</label>
+              <input class="ui-control" type="file" accept=".png,.svg,image/png,image/svg+xml"
+                (change)="onLogoSelected($event)">
+              <small class="meta">Máximo 200KB.</small>
+              <div class="list-loading" *ngIf="uploadingLogo">Cargando logo...</div>
+            </div>
+
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Orden</label>
+              <input class="ui-control" type="number" min="0" [(ngModel)]="form.orden" name="orden">
+            </div>
+
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Activo</label>
+              <select class="ui-control" [(ngModel)]="form.activo" name="activo">
+                <option [ngValue]="1">Sí</option>
+                <option [ngValue]="0">No</option>
+              </select>
+            </div>
+
+            
+          </div>
+        </div>
+
+        <div class="ui-modal__foot">
+          <span class="test-badge" [class.testing]="formTestStatus === 'testing'" [class.ok]="formTestStatus === 'ok'"
+            [class.error]="formTestStatus === 'error'">
+            {{ getStatusLabel(formTestStatus) }}
+          </span>
+          <button class="ui-btn outline" type="button" (click)="togglePlayForm()">
+            <i class="fa-solid" [class.fa-play]="!isFormPlaying()" [class.fa-pause]="isFormPlaying()"></i>
+            {{ isFormPlaying() ? 'Pausar' : 'Play' }}
+          </button>
+          <button class="ui-btn secondary" type="button" (click)="limpiarForm()">Limpiar</button>
+          <button type="button" class="ui-btn outline" (click)="cerrarFormulario()">Cancelar</button>
+          <button type="submit" class="ui-btn primary" [disabled]="saving">
+            <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i>
+            {{ saving ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+
     </div>
   </div>
 </section>

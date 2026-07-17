@@ -21,10 +21,10 @@ type TestStatus = 'idle' | 'testing' | 'ok' | 'error';
 export class RadioAdminComponent implements OnInit, OnDestroy {
   loading = false;
   saving = false;
+  showFormRadio = false;
   uploadingLogo = false;
   visible = true;
-  minimized = false;
-  showForm = false;
+  minimized = false;  
   editingId: number | null = null;
   emisoras: DtoRadioEmisora[] = [];
   formTestStatus: TestStatus = 'idle';
@@ -36,6 +36,95 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
   private previewAudio = new Audio();
   private playingForm = false;
   private playingRowId: number | null = null;
+
+   // Table / pagination / search
+    searchQuery = '';
+    minSearchChars = 2;
+    pageSizeOptions = [5, 10, 20, 30, 50, 100, 0]; // 0 => Todos
+    pageSize = 10;
+    currentPage = 1;
+    // Actions menu
+    openActionId: number | null = null;
+    openActionAbove = false;
+    private _docClickHandler?: (ev: MouseEvent) => void;
+  
+    get filteredRadioEmisora(): DtoRadioEmisora[] {
+      const q = (this.searchQuery ?? '').trim().toLowerCase();
+      if (q.length >= this.minSearchChars) {
+        return (this.emisoras ?? []).filter((item) =>
+          ((item.nombre ?? ''))
+            .toLowerCase()
+            .includes(q)
+        );
+      }
+      return (this.emisoras ?? []).slice();
+    }
+  
+    get totalFiltered(): number {
+      return this.filteredRadioEmisora.length;
+    }
+  
+    get pageCount(): number {
+      if (!this.pageSize || this.pageSize === 0) return 1;
+      return Math.max(1, Math.ceil(this.totalFiltered / this.pageSize));
+    }
+  
+    get pageNumbers(): Array<number | string> {
+      const total = this.pageCount;
+      const current = this.currentPage;
+      const windowSize = 5;
+      if (total <= windowSize * 2 + 5) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+      }
+      const pages: Array<number | string> = [];
+      pages.push(1);
+      let start = Math.max(2, current - windowSize);
+      let end = Math.min(total - 1, current + windowSize);
+      if (start <= 2) start = 2;
+      if (end >= total - 1) end = total - 1;
+      if (start > 2) pages.push('...');
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < total - 1) pages.push('...');
+      pages.push(total);
+      return pages;
+    }
+  
+    get pagedRadioEmisora(): DtoRadioEmisora[] {
+      const arr = this.filteredRadioEmisora;
+      if (!this.pageSize || this.pageSize === 0) return arr;
+      const start = (this.currentPage - 1) * this.pageSize;
+      return arr.slice(start, start + this.pageSize);
+    }
+  
+    onSearchChange(): void {
+      this.currentPage = 1;
+    }
+  
+    onPageSizeChange(v: number): void {
+      this.pageSize = v;
+      this.currentPage = 1;
+    }
+  
+    canGoPrev(): boolean {
+      return this.currentPage > 1;
+    }
+  
+    canGoNext(): boolean {
+      return this.currentPage < this.pageCount;
+    }
+  
+    prevPage(): void {
+      if (this.canGoPrev()) this.currentPage--;
+    }
+  
+    nextPage(): void {
+      if (this.canGoNext()) this.currentPage++;
+    }
+  
+    goToPage(p: number | string): void {
+      const n = Number(p);
+      if (!Number.isNaN(n) && n >= 1 && n <= this.pageCount) this.currentPage = n;
+    }
 
   constructor(
     private radioService: RadioService,
@@ -63,22 +152,24 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
   nuevo(): void {
     this.editingId = null;
     this.form = this.defaultForm();
-    this.showForm = false;
+    this.showFormRadio = true;
     this.formTestStatus = 'idle';
     this.clearFormValidationTimer();
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   abrirFormularioCreacion(): void {
     this.editingId = null;
     this.form = this.defaultForm();
-    this.showForm = true;
+    this.showFormRadio = true;
     this.formTestStatus = 'idle';
     this.triggerFormValidation(this.form.streamUrl ?? '');
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   editar(item: DtoRadioEmisora): void {
     this.editingId = item.idEmisora;
-    this.showForm = true;
+    this.showFormRadio = true;
     this.form = {
       nombre: item.nombre ?? '',
       streamUrl: item.streamUrl ?? '',
@@ -88,6 +179,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
     };
     this.formTestStatus = this.rowTestStatus[item.idEmisora] ?? 'idle';
     this.triggerFormValidation(this.form.streamUrl ?? '');
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   guardar(): void {
@@ -133,7 +225,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
           return;
         }
         this.toast.success('Radio', resp.message || 'Emisora guardada correctamente.');
-        this.nuevo();
+        this.cerrarFormulario();
         this.cargarEmisoras();
       },
       error: (err) => {
@@ -141,6 +233,20 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
         this.toast.error('Radio', err?.error?.message ?? 'Error guardando la emisora.');
       }
     });
+  }
+
+  cerrarFormulario(): void {
+    this.showFormRadio = false;
+    this.editingId = null;
+    this.form = this.defaultForm();
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  limpiarForm(): void {
+    this.editingId = null;
+    this.form = this.defaultForm();
+    this.formTestStatus = 'idle';
+    this.clearFormValidationTimer();
   }
 
   async eliminar(item: DtoRadioEmisora): Promise<void> {

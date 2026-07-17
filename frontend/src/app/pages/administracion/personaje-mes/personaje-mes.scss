@@ -60,6 +60,13 @@
   justify-content: center;
 }
 
+.table-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    flex-direction: row;
+}
+
 .readonly-field .ui-control {
   background: rgba(var(--policia-oscuro-rgb), 0.05);
 }

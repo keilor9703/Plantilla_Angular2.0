@@ -426,9 +426,12 @@ const createPayload = (imageUrl: string): DtoSaveSliderRequest => ({
           this.toast.warning('Sliders', resp?.message || 'No fue posible actualizar estado.');
           return;
         }
+
+        /* borrar imagen en localStorage si se desactiva el slider
         if (nuevoEstado === 0 && item.urlImagen) {
           this.deleteLocalImageByUrl(item.urlImagen);
-        }
+        }*/
+
         this.toast.success('Sliders', resp.message || 'Estado actualizado.');
         this.loadSliders();
       },
@@ -748,6 +751,14 @@ toggleActions(id: number, event: Event): void {
     }
     this.imagePreviewUrl = '';
     this.selectedImageFile = null;
+    this.form.urlImagen = '';
+    if (this.fileInputRef?.nativeElement) {
+      try { this.fileInputRef.nativeElement.value = ''; } catch (e) { /* ignore */ }
+    }
+  }
+
+  onImageError(): void {
+    this.imagePreviewUrl = '';
     this.form.urlImagen = '';
     if (this.fileInputRef?.nativeElement) {
       try { this.fileInputRef.nativeElement.value = ''; } catch (e) { /* ignore */ }
