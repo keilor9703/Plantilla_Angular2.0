@@ -78,10 +78,14 @@ export class RadioService {
     return this.http.put<RadioApiResponse>(`${this.baseUrl}/${id}/activo`, payload);
   }
 
-  uploadLogo(file: File): Observable<RadioLogoUploadResponse> {
+uploadLogo(file: File): Observable<RadioLogoUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<RadioLogoUploadResponse>(`${this.baseUrl}/upload-logo`, formData);
+  }
+
+  deleteLogo(fileName: string): Observable<{ success: boolean; message: string }> {
+    return this.http.delete<{ success: boolean; message: string }>(`${this.baseUrl}/logo/${fileName}`);
   }
 
   validarStream(url: string): Observable<RadioStreamValidationResponse> {

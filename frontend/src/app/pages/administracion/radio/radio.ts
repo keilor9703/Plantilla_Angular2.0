@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -32,104 +32,133 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
 
   form: DtoRadioEmisoraRequest = this.defaultForm();
 
+  logoPreviewUrl = '';
+  logoFile: File | null = null;
+  logoDragOver = false;
+
+  @ViewChild('logoFileInput') logoFileInputRef?: ElementRef<HTMLInputElement>;
+
   private formValidationTimer: ReturnType<typeof setTimeout> | null = null;
   private previewAudio = new Audio();
   private playingForm = false;
   private playingRowId: number | null = null;
 
-   // Table / pagination / search
-    searchQuery = '';
-    minSearchChars = 2;
-    pageSizeOptions = [5, 10, 20, 30, 50, 100, 0]; // 0 => Todos
-    pageSize = 10;
-    currentPage = 1;
-    // Actions menu
-    openActionId: number | null = null;
-    openActionAbove = false;
-    private _docClickHandler?: (ev: MouseEvent) => void;
-  
-    get filteredRadioEmisora(): DtoRadioEmisora[] {
-      const q = (this.searchQuery ?? '').trim().toLowerCase();
-      if (q.length >= this.minSearchChars) {
-        return (this.emisoras ?? []).filter((item) =>
-          ((item.nombre ?? ''))
-            .toLowerCase()
-            .includes(q)
-        );
+  // Table / pagination / search
+  searchQuery = '';
+  minSearchChars = 2;
+  pageSizeOptions = [5, 10, 20, 30, 50, 100, 0]; // 0 => Todos
+  pageSize = 10;
+  currentPage = 1;
+  // Actions menu
+  openActionId: number | null = null;
+  openActionAbove = false;
+  private _docClickHandler?: (ev: MouseEvent) => void;
+
+  get filteredRadioEmisora(): DtoRadioEmisora[] {
+    const q = (this.searchQuery ?? '').trim().toLowerCase();
+    if (q.length >= this.minSearchChars) {
+      return (this.emisoras ?? []).filter((item) =>
+        ((item.nombre ?? '')).toLowerCase().includes(q)
+      );
+    }
+    return (this.emisoras ?? []).slice();
+  }
+
+  get totalFiltered(): number {
+    return this.filteredRadioEmisora.length;
+  }
+
+  get pageCount(): number {
+    if (!this.pageSize || this.pageSize === 0) return 1;
+    return Math.max(1, Math.ceil(this.totalFiltered / this.pageSize));
+  }
+
+  get pageNumbers(): Array<number | string> {
+    const total = this.pageCount;
+    const current = this.currentPage;
+    const windowSize = 5;
+    if (total <= windowSize * 2 + 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages: Array<number | string> = [];
+    pages.push(1);
+    let start = Math.max(2, current - windowSize);
+    let end = Math.min(total - 1, current + windowSize);
+    if (start <= 2) start = 2;
+    if (end >= total - 1) end = total - 1;
+    if (start > 2) pages.push('...');
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < total - 1) pages.push('...');
+    pages.push(total);
+    return pages;
+  }
+
+  get pagedRadioEmisora(): DtoRadioEmisora[] {
+    const arr = this.filteredRadioEmisora;
+    if (!this.pageSize || this.pageSize === 0) return arr;
+    const start = (this.currentPage - 1) * this.pageSize;
+    return arr.slice(start, start + this.pageSize);
+  }
+
+  onSearchChange(): void {
+    this.currentPage = 1;
+  }
+
+  onPageSizeChange(v: number): void {
+    this.pageSize = v;
+    this.currentPage = 1;
+  }
+
+  canGoPrev(): boolean {
+    return this.currentPage > 1;
+  }
+
+  canGoNext(): boolean {
+    return this.currentPage < this.pageCount;
+  }
+
+  prevPage(): void {
+    if (this.canGoPrev()) this.currentPage--;
+  }
+
+  nextPage(): void {
+    if (this.canGoNext()) this.currentPage++;
+  }
+
+  goToPage(p: number | string): void {
+    const n = Number(p);
+    if (!Number.isNaN(n) && n >= 1 && n <= this.pageCount) this.currentPage = n;
+  }
+
+  // Actions menu
+  toggleActions(itemId: number, event?: Event): void {
+    if (event) event.stopPropagation();
+    const willOpen = this.openActionId !== itemId;
+    this.openActionId = willOpen ? itemId : null;
+    try {
+      const el = (event && (event.currentTarget as HTMLElement)) || (event && (event.target as HTMLElement));
+      if (willOpen && el) {
+        const rect = el.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const approxPopover = 220;
+        this.openActionAbove = spaceBelow < approxPopover && spaceAbove > spaceBelow;
+      } else {
+        this.openActionAbove = false;
       }
-      return (this.emisoras ?? []).slice();
+    } catch (e) {
+      this.openActionAbove = false;
     }
-  
-    get totalFiltered(): number {
-      return this.filteredRadioEmisora.length;
-    }
-  
-    get pageCount(): number {
-      if (!this.pageSize || this.pageSize === 0) return 1;
-      return Math.max(1, Math.ceil(this.totalFiltered / this.pageSize));
-    }
-  
-    get pageNumbers(): Array<number | string> {
-      const total = this.pageCount;
-      const current = this.currentPage;
-      const windowSize = 5;
-      if (total <= windowSize * 2 + 5) {
-        return Array.from({ length: total }, (_, i) => i + 1);
-      }
-      const pages: Array<number | string> = [];
-      pages.push(1);
-      let start = Math.max(2, current - windowSize);
-      let end = Math.min(total - 1, current + windowSize);
-      if (start <= 2) start = 2;
-      if (end >= total - 1) end = total - 1;
-      if (start > 2) pages.push('...');
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (end < total - 1) pages.push('...');
-      pages.push(total);
-      return pages;
-    }
-  
-    get pagedRadioEmisora(): DtoRadioEmisora[] {
-      const arr = this.filteredRadioEmisora;
-      if (!this.pageSize || this.pageSize === 0) return arr;
-      const start = (this.currentPage - 1) * this.pageSize;
-      return arr.slice(start, start + this.pageSize);
-    }
-  
-    onSearchChange(): void {
-      this.currentPage = 1;
-    }
-  
-    onPageSizeChange(v: number): void {
-      this.pageSize = v;
-      this.currentPage = 1;
-    }
-  
-    canGoPrev(): boolean {
-      return this.currentPage > 1;
-    }
-  
-    canGoNext(): boolean {
-      return this.currentPage < this.pageCount;
-    }
-  
-    prevPage(): void {
-      if (this.canGoPrev()) this.currentPage--;
-    }
-  
-    nextPage(): void {
-      if (this.canGoNext()) this.currentPage++;
-    }
-  
-    goToPage(p: number | string): void {
-      const n = Number(p);
-      if (!Number.isNaN(n) && n >= 1 && n <= this.pageCount) this.currentPage = n;
-    }
+  }
+
+  isActionsOpen(itemId: number): boolean {
+    return this.openActionId === itemId;
+  }
 
   constructor(
     private radioService: RadioService,
-    private toast: ToastService
-    ,private alert: AlertService
+    private toast: ToastService,
+    private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -139,6 +168,9 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.clearFormValidationTimer();
     this.stopAudio();
+    if (this.logoPreviewUrl && this.logoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.logoPreviewUrl);
+    }
   }
 
   toggleMinimize(): void {
@@ -155,6 +187,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
     this.showFormRadio = true;
     this.formTestStatus = 'idle';
     this.clearFormValidationTimer();
+    this.clearLogoPreview();
     try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
@@ -163,6 +196,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
     this.form = this.defaultForm();
     this.showFormRadio = true;
     this.formTestStatus = 'idle';
+    this.clearLogoPreview();
     this.triggerFormValidation(this.form.streamUrl ?? '');
     try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
@@ -177,15 +211,21 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
       orden: item.orden ?? 1,
       activo: item.activo ?? 1
     };
+    this.logoPreviewUrl = item.logoUrl ?? '';
+    this.logoFile = null;
     this.formTestStatus = this.rowTestStatus[item.idEmisora] ?? 'idle';
     this.triggerFormValidation(this.form.streamUrl ?? '');
     try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
+  reemplazar(item: DtoRadioEmisora): void {
+    this.editar(item);
+    setTimeout(() => this.abrirSelectorLogo(), 100);
+  }
+
   guardar(): void {
     const nombre = (this.form.nombre ?? '').trim();
     const streamUrl = (this.form.streamUrl ?? '').trim();
-    const logoUrl = (this.form.logoUrl ?? '').trim();
     const orden = Number(this.form.orden ?? 0);
     const activo = this.form.activo === 0 ? 0 : 1;
 
@@ -204,15 +244,45 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Capturar el logo ANTES de subir el nuevo (para poder borrarlo después)
+    const oldLogoUrl = this.editingId ? (this.form.logoUrl ?? '') : '';
+
+    this.saving = true;
+
+    // Si hay un archivo nuevo seleccionado, primero subimos el logo
+    if (this.logoFile) {
+      this.uploadingLogo = true;
+      this.radioService.uploadLogo(this.logoFile).subscribe({
+        next: (resp) => {
+          this.uploadingLogo = false;
+          if (!resp?.success) {
+            this.toast.warning('Radio', resp?.message || 'Error subiendo el logo.');
+            this.saving = false;
+            return;
+          }
+          this.form.logoUrl = resp.url;
+          this.guardarEmisora(nombre, streamUrl, orden, activo, oldLogoUrl);
+        },
+        error: (err) => {
+          this.uploadingLogo = false;
+          this.saving = false;
+          this.toast.error('Radio', err?.error?.message ?? 'Error subiendo el logo.');
+        }
+      });
+    } else {
+      this.guardarEmisora(nombre, streamUrl, orden, activo, oldLogoUrl);
+    }
+  }
+
+  private guardarEmisora(nombre: string, streamUrl: string, orden: number, activo: number, oldLogoUrl: string): void {
     const payload: DtoRadioEmisoraRequest = {
       nombre,
       streamUrl,
-      logoUrl: logoUrl || null,
+      logoUrl: this.form.logoUrl || null,
       orden,
       activo
     };
 
-    this.saving = true;
     const request$ = this.editingId
       ? this.radioService.update(this.editingId, payload)
       : this.radioService.create(payload);
@@ -223,6 +293,22 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
         if (!resp?.success) {
           this.toast.warning('Radio', resp?.message || 'No fue posible guardar la emisora.');
           return;
+        }
+        // Si editamos y subimos logo nuevo, borramos el logo anterior del servidor
+        if (this.editingId && this.logoFile && oldLogoUrl) {
+          try {
+            if (oldLogoUrl.startsWith('/api/Radio/logo/')) {
+              const prevFile = oldLogoUrl.split('/').pop() ?? '';
+              if (prevFile) {
+                this.radioService.deleteLogo(prevFile).subscribe({
+                  next: (delResp) => { /* ignore failure */ },
+                  error: () => { /* ignore failure */ }
+                });
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
         }
         this.toast.success('Radio', resp.message || 'Emisora guardada correctamente.');
         this.cerrarFormulario();
@@ -239,6 +325,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
     this.showFormRadio = false;
     this.editingId = null;
     this.form = this.defaultForm();
+    this.clearLogoPreview();
     try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
@@ -246,7 +333,16 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
     this.editingId = null;
     this.form = this.defaultForm();
     this.formTestStatus = 'idle';
+    this.clearLogoPreview();
     this.clearFormValidationTimer();
+  }
+
+  private clearLogoPreview(): void {
+    if (this.logoPreviewUrl && this.logoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.logoPreviewUrl);
+    }
+    this.logoPreviewUrl = '';
+    this.logoFile = null;
   }
 
   async eliminar(item: DtoRadioEmisora): Promise<void> {
@@ -263,6 +359,14 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
         if (!resp?.success) {
           this.toast.warning('Radio', resp?.message || 'No fue posible eliminar.');
           return;
+        }
+        // Borrar logo del servidor si existe
+        const ruta = item.logoUrl ?? '';
+        if (ruta && ruta.startsWith('/api/Radio/logo/')) {
+          const file = ruta.split('/').pop() ?? '';
+          if (file) {
+            this.radioService.deleteLogo(file).subscribe({ next: () => {}, error: () => {} });
+          }
         }
         this.toast.success('Radio', resp.message || 'Emisora eliminada.');
         this.cargarEmisoras();
@@ -314,22 +418,68 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.uploadingLogo = true;
-    this.radioService.uploadLogo(file).subscribe({
-      next: (resp) => {
-        this.uploadingLogo = false;
-        if (!resp?.success || !resp?.url) {
-          this.toast.warning('Radio', resp?.message || 'No fue posible cargar el logo.');
-          return;
-        }
-        this.form.logoUrl = resp.url;
-        this.toast.success('Radio', resp.message || 'Logo cargado correctamente.');
-      },
-      error: (err) => {
-        this.uploadingLogo = false;
-        this.toast.error('Radio', err?.error?.message ?? 'Error cargando el logo.');
+    this.processSelectedLogo(file);
+    input.value = '';
+  }
+
+  private processSelectedLogo(file: File): void {
+    const allowedImages = ['image/png', 'image/svg+xml'];
+    const esImagen = allowedImages.includes(file.type);
+
+    if (!esImagen) {
+      this.toast.warning('Radio', 'Formato no permitido. Use PNG o SVG.');
+      return;
+    }
+    if (file.size > 200 * 1024) {
+      this.toast.warning('Radio', 'El logo no puede exceder 200KB.');
+      return;
+    }
+
+    try {
+      if (this.logoPreviewUrl && this.logoPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(this.logoPreviewUrl);
       }
-    });
+      this.logoFile = file;
+      this.logoPreviewUrl = URL.createObjectURL(file);
+    } catch (e) {
+      this.toast.error('Radio', 'Error preparando vista previa del logo.');
+      this.logoFile = null;
+      this.logoPreviewUrl = '';
+    }
+  }
+
+  abrirSelectorLogo(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.logoFileInputRef?.nativeElement.click();
+  }
+
+  onLogoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    this.logoDragOver = true;
+  }
+
+  onLogoDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.logoDragOver = false;
+  }
+
+  onLogoDropped(event: DragEvent): void {
+    event.preventDefault();
+    this.logoDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    this.processSelectedLogo(file);
+  }
+
+  removeSelectedLogo(): void {
+    if (this.logoPreviewUrl && this.logoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.logoPreviewUrl);
+    }
+    this.logoPreviewUrl = '';
+    this.logoFile = null;
+    this.form.logoUrl = '';
   }
 
   onFormStreamChange(url: string): void {
