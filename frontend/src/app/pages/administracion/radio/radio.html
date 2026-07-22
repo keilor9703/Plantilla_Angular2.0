@@ -30,8 +30,10 @@
     </div>
     <div class="ui-panel__body">
       <article class="tab-card list-card ">
-
-        <div class="list-loading" *ngIf="loading">Cargando emisoras...</div>
+      <div class="empty-state" *ngIf="loading">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+        <p>Cargando historial...</p>
+      </div>
 
         <div class="table-controls" *ngIf="!loading">
           <div class="search-group">
@@ -63,7 +65,7 @@
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody *ngIf="pagedRadioEmisora.length > 0; else noRadioTable">
               <tr *ngFor="let item of pagedRadioEmisora">
                 <td>
                   <div class="logo-mini" *ngIf="item.logoUrl; else noLogo">
@@ -125,6 +127,18 @@
           </table>
         </div>
 
+        <!--Sin resultados en la busquedad-->
+      <ng-template #noRadioTable>
+        <tr>
+          <td colspan="12">
+            <div class="empty-state">
+              <i class="fa-solid fa-list"></i>
+              <p>{{ searchQuery.trim().length >= minSearchChars ? 'No hay resultados para la búsqueda.' : 'No hay sliders para mostrar.' }}</p>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
         <div class="table-pagination" *ngIf="!loading && emisoras.length > 0">
           <div class="pagination-actions pagination-numbers">
             <button class="ui-icon-btn" type="button" (click)="prevPage()" [disabled]="!canGoPrev()">
@@ -151,6 +165,8 @@
     </div>
   </div>
 
+  <!-- Fin Historial de emisoras -->
+
   <!--Modal agregar/editar emisora -->
 
   <div class="ui-modal" *ngIf="showFormRadio">
@@ -168,15 +184,20 @@
       <form (ngSubmit)="guardar()">
         <div class="ui-modal__body">
           <div class="ui-grid">
-            <div class="ui-field ui-col-6">
+            <div class="ui-field ui-col-4">
               <label class="ui-label">Nombre</label>
               <input class="ui-control" type="text" maxlength="150" [(ngModel)]="form.nombre" name="nombre">
             </div>
 
-            <div class="ui-field ui-col-6">
+            <div class="ui-field ui-col-4">
               <label class="ui-label">URL stream</label>
               <input class="ui-control" type="text" maxlength="500" [(ngModel)]="form.streamUrl" name="streamUrl"
                 (ngModelChange)="onFormStreamChange($event)">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Orden</label>
+              <input class="ui-control" type="number" min="0" [(ngModel)]="form.orden" name="orden">
             </div>
 
             <div class="ui-field ui-col-12">
@@ -208,21 +229,21 @@
                 </div>
               </div>
               <div class="list-loading" *ngIf="uploadingLogo">Subiendo logo...</div>
-            </div>
+            </div>                        
 
-            <div class="ui-field ui-col-3">
-              <label class="ui-label">Orden</label>
-              <input class="ui-control" type="number" min="0" [(ngModel)]="form.orden" name="orden">
+            <div class="state-box ui-col-12">
+                <div>
+                  <span class="state-box__label">Estado de Sliders</span>
+                  <span class="state-box__value" [class.inactive]="!form.activo">
+                    {{ form.activo ? 'ACTIVO' : 'INACTIVO' }}
+                  </span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="switch" type="button" [class.active]="form.activo" (click)="form.activo = form.activo ? 0 : 1">
+                    <span></span>
+                  </button>
+                </div>
             </div>
-
-            <div class="ui-field ui-col-3">
-              <label class="ui-label">Activo</label>
-              <select class="ui-control" [(ngModel)]="form.activo" name="activo">
-                <option [ngValue]="1">Sí</option>
-                <option [ngValue]="0">No</option>
-              </select>
-            </div>
-
 
           </div>
         </div>
@@ -247,4 +268,5 @@
 
     </div>
   </div>
+    <!-- Fin Modal agregar/editar emisora -->
 </section>

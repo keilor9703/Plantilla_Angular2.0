@@ -365,127 +365,6 @@
   overflow: auto;
 }
 
-.table-wrap {
-  overflow-x: auto;
-}
-
-.table-controls {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.search-group {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-width: 280px;
-  margin: 10px;
-}
-
-.search-group .ui-label {
-  margin: 0;
-  white-space: nowrap;
-}
-
-.search-group .ui-control {
-  min-width: 260px;
-}
-
-.search-mostrar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 10px;
-  margin-left: auto;  
-}
-
-.search-mostrar .ui-control {
-  width: 100px;
-}
-
-.search-hint {
-  display: block;
-  margin-left: 6px;
-  color: rgba(102, 102, 102, .85);
-  font-size: calc(11px * var(--font-size-scale));
-  white-space: nowrap;
-}
-
-.table-pagination {
-  margin: 12px;
-  display: flex;
-  justify-content: center;
-}
-
-.pagination-actions.pagination-numbers {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.page-btn {
-  min-width: 26px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--policia-oscuro-rgb), .12);
-  background: transparent;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.page-btn.page-active {
-  background: var(--policia-acento);
-  border-color: var(--policia-acento);
-  color: var(--policia-oscuro);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
-}
-
-.page-dots {
-  padding: 0 6px;
-  color: rgba(var(--policia-neutral-oscuro-rgb), .6);
-  font-weight: 800;
-}
-
-.ui-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.ui-table th,
-.ui-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(var(--policia-oscuro-rgb), .12);
-  text-align: center;
-  vertical-align: middle;
-}
-
-.ui-table th {
-  font-weight: 700;
-  color: var(--policia-oscuro);
-  background: rgba(var(--policia-primario-rgb), .04);
-}
-
-.ui-table td button {
-  margin-right: 8px;
-}
-
-.empty-state {
-  display: grid;
-  place-items: center;
-  padding: 28px 16px;
-  text-align: center;
-  gap: 10px;
-  color: rgba(var(--policia-oscuro-rgb), .8);
-}
-
-.empty-state i {
-  font-size: 32px;
-}
-
 .tab-card {
   border-radius: 12px;
     
@@ -498,8 +377,6 @@
   padding: 16px;
   height:min-content;
 }
-
-
 
 .tab-card.form-card h3 {
   margin: 0 0 16px;

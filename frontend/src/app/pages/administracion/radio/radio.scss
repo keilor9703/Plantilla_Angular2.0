@@ -104,16 +104,16 @@
 }
 
 .empty-state {
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
   text-align: center;
-  padding: 40px 16px;
-  border: 1px dashed rgba(var(--policia-oscuro-rgb), .2);
-  border-radius: 14px;
-  background: rgba(var(--policia-oscuro-rgb), .02);
+  gap: 10px;
+  color: rgba(var(--policia-oscuro-rgb), .8);
 }
 
 .empty-state i {
-  font-size: calc(34px * var(--font-size-scale));
-  color: var(--policia-medio);
+  font-size: 32px;
 }
 
 .empty-state h3 {
@@ -451,9 +451,7 @@
     background: linear-gradient(135deg, #6c7a89, #4f5b67);
   }
 
-  .ui-table td {
-    vertical-align: middle;
-  }
+
 
   .ui-table th, .ui-table td, .ui-table {
     padding: 10px 12px;
@@ -464,10 +462,7 @@
 }
 
   /* Overflow siempre activo para scroll horizontal en tablas */
-  .ui-table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+  
 
   .table-pagination {
     margin: 12px;
@@ -653,6 +648,7 @@
     padding: 6px 8px;
     border-radius: 4px;
     transition: background 0.15s ease;
+    text-align: left;
   }
 
   .action-item .ui-btn {

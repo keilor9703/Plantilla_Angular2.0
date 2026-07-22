@@ -47,7 +47,7 @@ export class RadioAdminComponent implements OnInit, OnDestroy {
   searchQuery = '';
   minSearchChars = 2;
   pageSizeOptions = [5, 10, 20, 30, 50, 100, 0]; // 0 => Todos
-  pageSize = 10;
+  pageSize = 5;
   currentPage = 1;
   // Actions menu
   openActionId: number | null = null;
