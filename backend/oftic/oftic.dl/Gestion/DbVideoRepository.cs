@@ -14,7 +14,7 @@ namespace Datos.Gestion
 
         public DbVideoRepository(IConfiguration configuration, ILogger<DbVideoRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest") ?? string.Empty;
+            _cs = configuration.GetConnectionString("DbConnection") ?? string.Empty;
             _logger = logger;
         }
 
@@ -24,7 +24,7 @@ namespace Datos.Gestion
 
             if (string.IsNullOrWhiteSpace(_cs))
             {
-                _logger.LogWarning("ConnectionString de video no configurada (DbCoest).");
+                _logger.LogWarning("ConnectionString de video no configurada (DbConnection).");
                 return result;
             }
 

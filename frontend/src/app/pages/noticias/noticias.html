@@ -113,7 +113,7 @@
 
 <!-- Modal de noticia -->
 <div class="ui-modal" *ngIf="modalOpen" (click)="closeNoticia()">
-  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__dialog ui-modal__dialog--news news-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
     <div class="ui-modal__head">
       <div class="ui-modal__title">
         <i class="fa-solid fa-newspaper"></i>
@@ -176,7 +176,7 @@
           </span>
         </div>
         <h3 class="news-modal__title">{{ selectedNoticia.titulo }}</h3>
-        <p class="news-modal__text">{{ selectedNoticia.contenido }}</p>
+        <div class="news-modal__text" [innerHTML]="selectedNoticia.contenido | safeHtml"></div>
       </div>
     </div>
     <div class="ui-modal__foot">

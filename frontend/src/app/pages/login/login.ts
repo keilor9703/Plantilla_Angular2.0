@@ -1,10 +1,11 @@
-﻿import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../core/services/administracion/branding.service';
+import { SetupService } from '../../core/services/setup.service';
 
 @Component({
   selector: 'app-login',
@@ -30,12 +31,25 @@ export class LoginComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private router: Router,
     private loginVisualService: LoginVisualService,
-    private brandingService: BrandingService
+    private brandingService: BrandingService,
+    private setupService: SetupService
   ) {}
 
   ngOnInit(): void {
+    this.checkSetup();
     this.loadBranding();
     this.loadLoginBackgrounds();
+  }
+
+  private checkSetup(): void {
+    this.setupService.getStatus().subscribe({
+      next: (res) => {
+        if (!res.configured) {
+          this.router.navigate(['/setup']);
+        }
+      },
+      error: () => {}
+    });
   }
 
   ngOnDestroy(): void {

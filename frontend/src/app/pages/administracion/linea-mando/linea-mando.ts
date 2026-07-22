@@ -1,4 +1,4 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -6,6 +6,7 @@ import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
 import { ToastService } from '../../../core/services/toast.service';
 import { LineaMandoService, DtoLineaMando, DtoLineaMandoRequest } from '../../../core/services/administracion/linea-mando.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 interface CargoOpcion {
   id: string;
@@ -33,6 +34,10 @@ export class LineaMandoAdminComponent implements OnInit {
   fotoCambiada = false;
   hayFuncionario = false;
 
+  showConfirmModal = false;
+  confirmText = '';
+  modalFuncionarioAnterior = '';
+
   pesoOpciones: CargoOpcion[] = [
     { id: 'Director Policía', nombre: 'Director Policía' },
     { id: 'Subdirector Policía', nombre: 'Subdirector Policía' },
@@ -57,6 +62,7 @@ export class LineaMandoAdminComponent implements OnInit {
     private lineaMandoService: LineaMandoService,
     private usuarioAdminService: UsuarioAdminService,
     private sanitizer: DomSanitizer
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -135,25 +141,7 @@ export class LineaMandoAdminComponent implements OnInit {
     });
   }
 
-  validarPesoUnico(): boolean {
-    if (!this.formData.peso) {
-      return true;
-    }
-
-    const pesoActual = this.formData.peso;
-    const existentes = this.listaLineaMando.filter(item => 
-      item.peso === pesoActual && 
-      item.vigente === 1 && 
-      item.idLineaMando !== (this.idEditando ?? 0)
-    );
-
-    if (existentes.length > 0) {
-      this.toast.warning('Peso', `Ya existe un ${pesoActual} activo en la línea de mando`);
-      return false;
-    }
-
-    return true;
-  }
+  // validarPesoUnico eliminado porque el backend ahora lo gestiona automáticamente
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -185,6 +173,19 @@ export class LineaMandoAdminComponent implements OnInit {
         this.fotoCambiada = true;
       };
       reader.readAsDataURL(file);
+    }
+  }
+
+  onPesoChange(): void {
+    const peso = this.formData.peso;
+    if (peso === 'Director Policía') {
+      this.formData.orden = 1;
+    } else if (peso === 'Subdirector Policía') {
+      this.formData.orden = 2;
+    } else if (peso === 'Jefe Unidad') {
+      this.formData.orden = 3;
+    } else if (peso === 'Mando Ejecutivo') {
+      this.formData.orden = 4;
     }
   }
 
@@ -261,28 +262,19 @@ export class LineaMandoAdminComponent implements OnInit {
       return;
     }
 
-    const existenteMismoPeso = this.listaLineaMando.find(item => 
-      item.peso === this.formData.peso && 
-      item.vigente === 1 && 
-      item.idLineaMando !== (this.idEditando ?? 0)
-    );
+    const existenteMismoPeso = this.listaLineaMando.find(item => {
+      const dbPeso = item.peso?.trim().toLowerCase() || '';
+      const formPeso = this.formData.peso?.trim().toLowerCase() || '';
+      return formPeso.startsWith(dbPeso) && 
+             item.vigente === 1 && 
+             item.idLineaMando !== (this.idEditando ?? 0);
+    });
 
-    if (existenteMismoPeso && !this.modoEdicion) {
-      const confirmado = confirm(
-        `Ya existe un registro activo con el cargo "${this.formData.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
-        `¿Está seguro que desea reemplazarlo?\n\n` +
-        `El registro anterior pasará a estado Inactivo.`
-      );
-      
-      if (!confirmado) {
-        return;
-      }
-      
-      this.sustituirRegistro(existenteMismoPeso.idLineaMando);
-      return;
-    }
-
-    if (!this.validarPesoUnico()) {
+    if (existenteMismoPeso) {
+      this.modalFuncionarioAnterior = `${existenteMismoPeso.grado} ${existenteMismoPeso.nombre} ${existenteMismoPeso.apellidos}`;
+      this.confirmText = '';
+      this.showConfirmModal = true;
+      document.body.classList.add('ui-modal-open');
       return;
     }
 
@@ -292,10 +284,8 @@ export class LineaMandoAdminComponent implements OnInit {
   ejecutarGuardado(): void {
     this.saving = true;
 
+    // Enviamos siempre la foto que esté en formData, ya sea de SIATH, de la BD (en edición) o una nueva cargada
     let fotoBase64: string | null = this.formData.fotoBase64;
-    if (!this.fotoCambiada) {
-      fotoBase64 = this.modoEdicion ? this.formData.fotoBase64 : null;
-    }
 
     const request: DtoLineaMandoRequest = {
       identificacion: this.formData.identificacion || '',
@@ -348,10 +338,14 @@ export class LineaMandoAdminComponent implements OnInit {
     }
   }
 
-  eliminar(item: DtoLineaMando): void {
-    if (!confirm(`¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`)) {
-      return;
-    }
+  async eliminar(item: DtoLineaMando): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar',
+      `¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
 
     this.lineaMandoService.setVigente(item.idLineaMando, 0).subscribe({
       next: (resp) => {
@@ -368,23 +362,20 @@ export class LineaMandoAdminComponent implements OnInit {
     });
   }
 
-  sustituirRegistro(idAnterior: number): void {
-    this.saving = true;
+  cancelarSustitucion(): void {
+    this.showConfirmModal = false;
+    this.confirmText = '';
+    document.body.classList.remove('ui-modal-open');
+  }
 
-    this.lineaMandoService.setVigente(idAnterior, 0).subscribe({
-      next: (resp) => {
-        if (resp.success) {
-          this.ejecutarGuardado();
-        } else {
-          this.saving = false;
-          this.toast.error('Sustituir', 'Error al inactivar registro anterior');
-        }
-      },
-      error: () => {
-        this.saving = false;
-        this.toast.error('Sustituir', 'Error al inactivar registro anterior');
-      }
-    });
+  confirmarSustitucion(): void {
+    if (this.confirmText === 'CONFIRMAR') {
+      this.showConfirmModal = false;
+      document.body.classList.remove('ui-modal-open');
+      this.ejecutarGuardado();
+    } else {
+      this.toast.warning('Confirmación', 'Debe escribir exactamente CONFIRMAR');
+    }
   }
 
   getNombreCompleto(): string {

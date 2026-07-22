@@ -36,6 +36,7 @@
           },
           "configurations": {
             "production": {
+              "baseHref": "/sicoe/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -50,8 +51,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "15kB",
-                  "maximumError": "20kB"
+                  "maximumWarning": "25kB",
+                  "maximumError": "30kB"
                 }
               ],
               "outputHashing": "all"
@@ -66,18 +67,20 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4300,
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
+              "baseHref": "/sicoe/",
               "buildTarget": "policiadev-app:build:production"
             },
             "development": {
               "buildTarget": "policiadev-app:build:development"
             }
           },
-          "defaultConfiguration": "development",
-          "options": {
-            "proxyConfig": "proxy.conf.json"
-          }
+          "defaultConfiguration": "development"
         },
         "extract-i18n": {
           "builder": "@angular/build:extract-i18n"

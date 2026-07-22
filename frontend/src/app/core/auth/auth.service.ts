@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap, timeout } from 'rxjs';
+import { Observable, tap, timeout, map, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 interface LoginRequest {
@@ -34,6 +34,7 @@ export class AuthService {
   private readonly impersonationActorUserKey = 'sisge_impersonation_actor_user';
   private readonly loginUrl = `${environment.apiBaseUrl}/Cuenta/Token`;
   private readonly impersonateUrl = `${environment.apiBaseUrl}/Cuenta/Impersonate`;
+  private readonly refreshUrl = `${environment.apiBaseUrl}/Cuenta/Refresh`;
   private readonly maxJwtLength = 8192;
   private readonly maxJwtPayloadB64Length = 4096;
   private readonly maxJwtPayloadJsonLength = 6144;
@@ -145,6 +146,24 @@ export class AuthService {
 
   getUsuario(): string {
     return localStorage.getItem(this.userKey) ?? 'Usuario';
+  }
+
+  refreshToken(): Observable<string> {
+    const token = this.getToken();
+    if (!token) {
+      return throwError(() => new Error('No hay token para refrescar'));
+    }
+    return this.http.post<LoginResponse>(this.refreshUrl, { token }, { withCredentials: true }).pipe(
+      tap((resp) => {
+        if (resp.token) {
+          this.applySession(resp.token, this.getUsuario());
+        }
+      }),
+      map((resp) => {
+        if (!resp.token) throw new Error('No se pudo renovar el token');
+        return resp.token;
+      })
+    );
   }
 
   getUserId(): number | null {

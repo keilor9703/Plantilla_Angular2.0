@@ -5,37 +5,23 @@
         <i class="fa-solid fa-user-tie"></i>
         {{ modoEdicion ? 'Editar' : 'Agregar' }} Personaje del Mes
       </div>
-      <div class="ui-panel__actions">
-        <button class="ui-btn outline" type="button" (click)="limpiarForm()" [disabled]="saving || uploading">
-          <i class="fa-solid fa-eraser"></i>
-          {{ modoEdicion ? 'Nuevo registro' : 'Limpiar' }}
-        </button>
-      </div>
-    </div>
-
-<div class="ui-panel__body">  
-            <div class="botones-personaje-equipo">
-        <button
-          class="ui-btn primary"
-          type="button"
-          (click)="abrirmodalpersonajemes()"
-          [disabled]="loading"
+      <div class="ui-panel__actions" style="display: flex; gap: 12px;">
+        <button class="ui-btn primary" type="button" (click)="abrirmodalpersonajemes()" [disabled]="loading"
           style=" white-space: nowrap;">
           <i class="fa-solid fa-plus"></i>
           {{ loading ? 'Cargando...' : ' personaje del mes' }}
         </button>
-        <button
-          class="ui-btn primary"
-          type="button"
-          (click)="abrirmodalequipoaltorendi()"
-          [disabled]="loading"
+        <button class="ui-btn primary" type="button" (click)="abrirmodalequipoaltorendi()" [disabled]="loading"
           style=" white-space: nowrap;">
           <i class="fa-solid fa-users"></i>
           {{ loading ? 'Cargando...' : ' Equipo Alto Rendimiento' }}
         </button>
-            </div>
-</div>
+      </div>
+      
+    </div>
+
     
+
   </div>
 
   <div class="ui-panel">
@@ -97,11 +83,75 @@
                   {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
-              <td >
-                <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
+              <td>
+                <div class="table-actions">
+                  <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
                   <i class="fa-solid fa-pen"></i>
-                </button>                
+                </button>
                 <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+
+                </div>                
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- Panel Equipos/Grupos de Alto Rendimiento -->
+  <div class="ui-panel" style="margin-top: 40px;">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-users"></i>
+        Equipos o Grupos de Alto Rendimiento configurados
+      </div>
+    </div>
+    <div class="ui-panel__body">
+      <div class="ui-table-wrap" *ngIf="!loading && equipos.length > 0">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Nombre de Grupo</th>
+              <th>Foto</th>
+              <th>Acta</th>
+              <th>Mes</th>
+              <th>Año</th>
+              <th>Integrantes</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let grupo of equipos">
+              <td>{{ grupo.nombreGrupo }}</td>
+              <td>
+                <img *ngIf="grupo.fotoGrupo" [src]="getImageUrl(grupo.fotoGrupo)" alt="Foto grupo"
+                  class="personaje-thumb" />
+              </td>
+              <td>{{ grupo.numeroActa }}</td>
+              <td>{{ getMesDescripcion(grupo.mes) }}</td>
+              <td>{{ grupo.anio }}</td>
+              <td>
+                <ul style="margin:0; padding-left: 18px;">
+                  <li *ngFor="let integrante of grupo.integrantes"> <strong>{{ integrante.grado }}</strong> {{
+                    integrante.nombres }} {{ integrante.apellidos }} </li>
+                </ul>
+              </td>
+              <td>
+                <span class="ui-badge" [class.success]="grupo.vigente === 1" [class.warning]="grupo.vigente !== 1">
+                  {{ grupo.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td>
+                <button class="ui-mini-btn" type="button" title="Editar" (click)="editarEquipo(grupo)">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminarEquipo(grupo)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </td>
@@ -109,79 +159,21 @@
           </tbody>
         </table>
       </div>
-
-      
+      <div *ngIf="!loading && equipos.length === 0" class="empty-state">
+        <i class="fa-solid fa-users"></i>
+        <p>No hay equipos o grupos configurados.</p>
+      </div>
     </div>
   </div>
-
-  <!-- Panel Equipos/Grupos de Alto Rendimiento -->
-      <div class="ui-panel" style="margin-top: 40px;">
-        <div class="ui-panel__head">
-          <div class="ui-panel__title">
-            <i class="fa-solid fa-users"></i>
-            Equipos o Grupos de Alto Rendimiento configurados
-          </div>
-        </div>
-        <div class="ui-panel__body">
-          <div class="ui-table-wrap" *ngIf="!loading && equipos.length > 0">
-            <table class="ui-table">
-              <thead>
-                <tr>
-                  <th>Nombre de Grupo</th>
-                  <th>Foto</th>
-                  <th>Acta</th>
-                  <th>Mes</th>
-                  <th>Año</th>
-                  <th>Integrantes</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let grupo of equipos">
-                  <td>{{ grupo.nombreGrupo }}</td>
-                  <td>
-                    <img *ngIf="grupo.fotoGrupo" [src]="getImageUrl(grupo.fotoGrupo)" alt="Foto grupo" class="personaje-thumb" />
-                  </td>
-                  <td>{{ grupo.numeroActa }}</td>
-                  <td>{{ getMesDescripcion(grupo.mes) }}</td>
-                  <td>{{ grupo.anio }}</td>
-                  <td>
-                    <ul style="margin:0; padding-left: 18px;">
-                      <li *ngFor="let integrante of grupo.integrantes"> <strong>{{ integrante.grado }}</strong>  {{ integrante.nombres }} {{ integrante.apellidos }} </li>
-                    </ul>
-                  </td>
-                  <td>
-                    <span class="ui-badge" [class.success]="grupo.vigente === 1" [class.warning]="grupo.vigente !== 1">
-                      {{ grupo.vigente === 1 ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
-                  <td>
-                    <button class="ui-mini-btn" type="button" title="Editar" (click)="editarEquipo(grupo)">
-                      <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminarEquipo(grupo)">
-                      <i class="fa-solid fa-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div *ngIf="!loading && equipos.length === 0" class="empty-state">
-            <i class="fa-solid fa-users"></i>
-            <p>No hay equipos o grupos configurados.</p>
-          </div>
-        </div>
-      </div>
 
 </section>
 
 <!-- <-- Modal Personaje del Mes-->
 <div class="ui-modal" *ngIf="mostrarModalPersonajeMes" (click)="$event.stopPropagation()">
-  <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+  <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog"
+    aria-modal="true">
     <div class="ui-modal__head">
-<div class="ui-modal__title">
+      <div class="ui-modal__title">
         <i class="fa-solid fa-user-tie"></i>
         {{ modoEdicion ? 'Editar' : 'Agregar' }} Personaje del Mes
       </div>
@@ -194,20 +186,11 @@
         <div class="ui-field ui-col-6">
           <label class="ui-label">Buscar Funcionario por Cédula</label>
           <div style="display: flex; gap: 0;">
-            <input
-              class="ui-control"
-              type="text"
-              [(ngModel)]="searchIdentificacion"
-              name="searchIdentificacion"
-              placeholder="Ingrese número de identificación y presione Enter"
-              [disabled]="searchingFuncionario"
+            <input class="ui-control" type="text" [(ngModel)]="searchIdentificacion" name="searchIdentificacion"
+              placeholder="Ingrese número de identificación y presione Enter" [disabled]="searchingFuncionario"
               (keyup.enter)="onSearchEnter($event)"
               style="border-radius: var(--ui-radius-sm) 0 0 var(--ui-radius-sm); flex: 1;" />
-            <button
-              class="ui-btn primary"
-              type="button"
-              (click)="buscarFuncionario()"
-              [disabled]="searchingFuncionario"
+            <button class="ui-btn primary" type="button" (click)="buscarFuncionario()" [disabled]="searchingFuncionario"
               style="border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0; white-space: nowrap;">
               <i class="fa-solid fa-magnifying-glass"></i>
               {{ searchingFuncionario ? 'Buscando...' : 'Buscar' }}
@@ -223,13 +206,8 @@
           </div>
 
           <div class="foto-actions">
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/*"
-              (change)="onImageSelected($event)"
-              [disabled]="uploading"
-              style="display: none;"
-              #fileInput />
+            <input type="file" accept=".jpg,.jpeg,.png,.webp,image/*" (change)="onImageSelected($event)"
+              [disabled]="uploading" style="display: none;" #fileInput />
 
             <button class="ui-btn outline sm" type="button" (click)="fileInput.click()" [disabled]="uploading">
               <i class="fa-solid" [ngClass]="uploading ? 'fa-circle-notch fa-spin' : 'fa-upload'"></i>
@@ -240,20 +218,23 @@
 
         <div class="funcionario-datos">
           <div class="ui-grid">
-            
+
             <div class="ui-field ui-col-4">
               <label class="ui-label">Nombres *</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.nombres" name="nombres" placeholder="Nombres del funcionario" readonly />
+              <input class="ui-control" type="text" [(ngModel)]="formData.nombres" name="nombres"
+                placeholder="Nombres del funcionario" readonly />
             </div>
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Apellidos</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" name="apellidos" placeholder="Apellidos del funcionario" readonly />
+              <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" name="apellidos"
+                placeholder="Apellidos del funcionario" readonly />
             </div>
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Grado</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.grado" name="grado" placeholder="Grado" readonly />
+              <input class="ui-control" type="text" [(ngModel)]="formData.grado" name="grado" placeholder="Grado"
+                readonly />
             </div>
 
             <div class="ui-field ui-col-4">
@@ -263,7 +244,8 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Unidad *</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.unidad" name="unidad" placeholder="Unidad" readonly />
+              <input class="ui-control" type="text" [(ngModel)]="formData.unidad" name="unidad" placeholder="Unidad"
+                readonly />
             </div>
 
             <div class="ui-field ui-col-4">
@@ -273,21 +255,11 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Número de acta *</label>
-              <input
-                class="ui-control"
-                type="text"
-                [value]="getNumeroActaMask()"
-                name="numeroActa"
-                required
-                maxlength="22"
-                (input)="onNumeroActaInput($event)"
-                (keydown)="onNumeroActaKeydown($event)"
-                (focus)="onNumeroActaFocus($event)"
-                (blur)="onNumeroActaBlur($event)"
-                [ngClass]="{'is-invalid': numeroActaInvalido()}"
-                autocomplete="off"
-                placeholder="AA-YYYY-123456-ABCDE"
-              />
+              <input class="ui-control" type="text" [value]="getNumeroActaMask()" name="numeroActa" required
+                maxlength="22" (input)="onNumeroActaInput($event)" (keydown)="onNumeroActaKeydown($event)"
+                (focus)="onNumeroActaFocus($event)" (blur)="onNumeroActaBlur($event)"
+                [ngClass]="{'is-invalid': numeroActaInvalido()}" autocomplete="off"
+                placeholder="AA-YYYY-123456-ABCDE" />
               <div *ngIf="numeroActaInvalido()" class="ui-error-msg">
                 Formato: XX-2024-123456-UNIDAD
               </div>
@@ -321,7 +293,7 @@
         <p>Busque un funcionario por número de identificación para agregarlo como personaje del mes</p>
       </div>
 
-<div class="ui-toolbar" *ngIf="hayFuncionario">
+      <div class="ui-toolbar" *ngIf="hayFuncionario">
         <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving || uploading">
           <i class="fa-solid fa-floppy-disk"></i>
           {{ saving ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Guardar') }}
@@ -337,7 +309,8 @@
 
 <!-- <-- Modal Equipo Alto Rendimiento-->
 <div class="ui-modal" *ngIf="mostrarModalEquipoAltoRendimiento" (click)="$event.stopPropagation()">
-  <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+  <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog"
+    aria-modal="true">
     <div class="ui-modal__head">
       <div class="ui-modal__title">
         <i class="fa-solid fa-users"></i>
@@ -347,36 +320,34 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
-<div class="ui-modal__body">
+    <div class="ui-modal__body">
       <div class="equipo-foto-seccion">
         <div class="equipo-foto-col-izq">
           <div class="equipo-foto-preview">
             <img [src]="fotoPreviewEquipo || 'imagenes/policia.jpg'" alt="Foto equipo" />
           </div>
           <div class="equipo-foto-actions">
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/*"
-              (change)="onImageSelectedEquipo($event)"
-              [disabled]="uploadingEquipo"
-              style="display: none;"
-              #fileInputEquipo />
-            <button class="ui-btn outline sm" type="button" (click)="fileInputEquipo.click()" [disabled]="uploadingEquipo">
+            <input type="file" accept=".jpg,.jpeg,.png,.webp,image/*" (change)="onImageSelectedEquipo($event)"
+              [disabled]="uploadingEquipo" style="display: none;" #fileInputEquipo />
+            <button class="ui-btn outline sm" type="button" (click)="fileInputEquipo.click()"
+              [disabled]="uploadingEquipo">
               <i class="fa-solid" [ngClass]="uploadingEquipo ? 'fa-circle-notch fa-spin' : 'fa-upload'"></i>
               {{ uploadingEquipo ? 'Cargando...' : (fotoModificadaEquipo ? 'Cambiar' : 'Subir foto') }}
             </button>
           </div>
-          
+
         </div>
-<div class="equipo-foto-form">
+        <div class="equipo-foto-form">
           <div class="ui-grid">
-             <div class="ui-field ui-col-3">
-               <label class="ui-label">Nombre de grupo o equipo *</label>
-               <input class="ui-control" type="text" [(ngModel)]="nombreGrupoEquipo" name="nombreGrupoEquipo" placeholder="Nombre de grupo o equipo" />
-             </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Nombre de grupo o equipo *</label>
+              <input class="ui-control" type="text" [(ngModel)]="nombreGrupoEquipo" name="nombreGrupoEquipo"
+                placeholder="Nombre de grupo o equipo" />
+            </div>
             <div class="ui-field ui-col-3">
               <label class="ui-label">Número de acta *</label>
-              <input class="ui-control" type="text" [(ngModel)]="datosFijosEquipo.NumeroActa" name="numeroActaEquipo" placeholder="Número de acta" />
+              <input class="ui-control" type="text" [(ngModel)]="datosFijosEquipo.NumeroActa" name="numeroActaEquipo"
+                placeholder="Número de acta" />
             </div>
 
             <div class="ui-field ui-col-3">
@@ -401,19 +372,11 @@
           </div>
           <div class="equipo-buscar">
             <div style="display: flex; gap: 0;">
-              <input
-                class="ui-control"
-                type="text"
-                [(ngModel)]="searchIdentificacionEquipo"
-                name="searchIdentificacionEquipo"
-                placeholder="Identificación"
-                [disabled]="searchingFuncionarioEquipo"
+              <input class="ui-control" type="text" [(ngModel)]="searchIdentificacionEquipo"
+                name="searchIdentificacionEquipo" placeholder="Identificación" [disabled]="searchingFuncionarioEquipo"
                 (keyup.enter)="buscarFuncionarioEquipo()"
                 style="border-radius: var(--ui-radius-sm) 0 0 var(--ui-radius-sm); flex: 1;" />
-              <button
-                class="ui-btn primary sm"
-                type="button"
-                (click)="buscarFuncionarioEquipo()"
+              <button class="ui-btn primary sm" type="button" (click)="buscarFuncionarioEquipo()"
                 [disabled]="searchingFuncionarioEquipo"
                 style="border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0; white-space: nowrap;">
                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -422,7 +385,7 @@
             </div>
           </div>
         </div>
-</div>
+      </div>
 
       <div class="integrantes-lista" *ngIf="integrantesEquipo.length > 0">
         <h4 class="integrantes-titulo">Integrantes ({{ integrantesEquipo.length }})</h4>

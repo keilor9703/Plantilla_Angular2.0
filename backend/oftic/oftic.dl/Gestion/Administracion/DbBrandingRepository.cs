@@ -15,7 +15,7 @@ namespace Datos.Gestion
 
         public DbBrandingRepository(IConfiguration configuration, ILogger<DbBrandingRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 
@@ -27,7 +27,7 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     await connection.OpenAsync(ct);
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_GET_ALL_BRANDING", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_GET_ALL_BRANDING", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
@@ -81,29 +81,22 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     await connection.OpenAsync(ct);
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_DELETE_LOGICAL_BRANDING", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_DELETE_LOGICAL_BRANDING", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.Add("p_id_branding", OracleDbType.Int32).Value = id;
-                        command.Parameters.Add("p_usuario_modificacion", OracleDbType.Varchar2).Value = usuario;
-                        command.Parameters.Add("p_maquina_modificacion", OracleDbType.Varchar2).Value = maquina;
-                        command.Parameters.Add("p_success", OracleDbType.Int32).Direction = ParameterDirection.Output;
-                        command.Parameters.Add("p_message", OracleDbType.Varchar2, 4000).Direction = ParameterDirection.Output;
+                        command.Parameters.Add("P_ID_BRANDING", OracleDbType.Int32).Value = id;
+                        command.Parameters.Add("P_USUARIO_MODIFICA", OracleDbType.Varchar2).Value = usuario;
+                        command.Parameters.Add("P_MAQUINA_MODIFICA", OracleDbType.Varchar2).Value = maquina;
 
                         await command.ExecuteNonQueryAsync(ct);
-
-                        return new DtoBrandingResult
-                        {
-                            Success = GetOutputInt(command.Parameters["p_success"]) == 1,
-                            Message = command.Parameters["p_message"].Value?.ToString() ?? string.Empty
-                        };
+                        return new DtoBrandingResult { Success = true, Message = "Branding eliminado lógicamente." };
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar branding id {Id}", id);
-                return new DtoBrandingResult { Success = false, Message = ex.Message };
+                _logger.LogError(ex, "Error al eliminar lógicamente branding con ID {Id}", id);
+                return new DtoBrandingResult { Success = false, Message = $"Error: {ex.Message}" };
             }
         }
 
@@ -114,7 +107,7 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     await connection.OpenAsync(ct);
-                    string proc = isUpdate ? "USR_COEST.PK_ADMINISTRACION.P_UPDATE_BRANDING" : "USR_COEST.PK_ADMINISTRACION.P_CREATE_BRANDING";
+                    string proc = isUpdate ? "PK_ADMINISTRACION.P_UPDATE_BRANDING" : "PK_ADMINISTRACION.P_CREATE_BRANDING";
                     using (var command = new OracleCommand(proc, connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;

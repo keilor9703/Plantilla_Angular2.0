@@ -10,9 +10,6 @@
         <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
           <i class="fa-solid fa-minus"></i>
         </button>
-        <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closePanel()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
       </div>
     </div>
 
@@ -22,11 +19,9 @@
           <article class="profile-card">
             <div class="profile-card__cover" [class.inactive]="!user.activo"></div>
             <div class="profile-card__body">
-              <img
-                class="profile-avatar"
+              <img class="profile-avatar"
                 [src]="user.fotoUrl || 'https://ui-avatars.com/api/?name=' + user.nombreCompleto + '&background=002a66&color=fff&size=160'"
-                alt="Foto de usuario"
-              >
+                alt="Foto de usuario">
 
               <h3 class="profile-name">{{ user.nombreCompleto }}</h3>
               <p class="profile-role">{{ user.cargo }}</p>
@@ -38,9 +33,15 @@
                     {{ user.activo ? 'ACTIVO' : 'INACTIVO' }}
                   </span>
                 </div>
-                <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
-                  <span></span>
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="ui-icon-btn" type="button" title="Ver como este usuario" (click)="impersonarUsuarioActual()"
+                    *ngIf="rolesVigentes.length > 0">
+                    <i class="fa-solid fa-user-secret"></i>
+                  </button>
+                  <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
+                    <span></span>
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -58,24 +59,14 @@
           </article>
         </aside>
 
-        <section class="right-column">
+        <aside class="right-column">
           <div class="tabs-shell">
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab === 'datos'"
-              (click)="setTab('datos')"
-            >
+            <button type="button" class="tab-btn" [class.active]="activeTab === 'datos'" (click)="setTab('datos')">
               <i class="fa-solid fa-user"></i>
               Datos personales
             </button>
 
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab === 'roles'"
-              (click)="setTab('roles')"
-            >
+            <button type="button" class="tab-btn" [class.active]="activeTab === 'roles'" (click)="setTab('roles')">
               <i class="fa-solid fa-shield-halved"></i>
               Roles y permisos
             </button>
@@ -86,8 +77,10 @@
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Identificación</label>
                 <div class="ui-input-group">
-                  <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040" (keyup.enter)="consultarUsuario()">
-                  <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                  <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040"
+                    (keyup.enter)="consultarUsuario()">
+                  <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()"
+                    [disabled]="loading">
                     <i class="fa-solid fa-magnifying-glass"></i>
                   </button>
                 </div>
@@ -123,7 +116,7 @@
                 <input class="ui-control" type="text" [(ngModel)]="user.situacionLaboral" readonly>
               </div>
 
-             <div class="ui-field ui-col-6">
+              <div class="ui-field ui-col-6">
                 <label class="ui-label">Unidad</label>
                 <input class="ui-control" type="text" [(ngModel)]="user.unidadFisica" readonly>
               </div>
@@ -133,112 +126,73 @@
                 <input class="ui-control" type="text" [(ngModel)]="user.unidad" readonly>
               </div>
 
-             
+
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Cargo</label>
                 <input class="ui-control" type="text" [(ngModel)]="user.cargo" readonly>
               </div>
-            </div>
-          </article>
 
-          <div class="tab-actions" *ngIf="activeTab === 'datos'">
-            <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ loading ? 'Guardando...' : 'Guardar' }}
-            </button>
-          </div>
-
-          <article class="tab-card" *ngIf="activeTab === 'roles'">
-            <div class="roles-head">
-              <h3>Control de acceso</h3>
-              <button class="ui-btn secondary" type="button" (click)="agregarRol()">
-                <i class="fa-solid fa-plus"></i>
-                Agregar rol
-              </button>
             </div>
 
-            <div class="role-add-form" *ngIf="showAddRoleForm">
-              <div class="ui-grid">
-                <div class="ui-field ui-col-6">
-                  <label class="ui-label">Rol</label>
-                  <select class="ui-control" [(ngModel)]="newRole.rolId" [disabled]="editingRole !== null">
-                    <option [ngValue]="null">Seleccione un rol</option>
-                    <option *ngFor="let role of rolesCatalogo" [ngValue]="role.id">
-                      {{ role.nombre || ('Rol ' + role.id) }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="ui-field ui-col-6">
-                  <label class="ui-label">Fecha fin</label>
-                  <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
-                </div>
-
-                <div class="ui-field ui-col-12">
-                  <label class="ui-label">Justificación</label>
-                  <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion" placeholder="Motivo de la asignación"></textarea>
-                </div>
-              </div>
-
-              <div class="tab-actions">
-                <button class="ui-btn secondary" type="button" (click)="cancelarNuevoRol()">
-                  <i class="fa-solid fa-ban"></i>
-                  Cancelar
-                </button>
-                <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
+            <div class="tab-actions" *ngIf="activeTab === 'datos'">
+              <div class="tab-actions tab-actions--separated" *ngIf="activeTab === 'datos'">
+                <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
                   <i class="fa-solid fa-floppy-disk"></i>
-                  {{ savingRole ? 'Guardando...' : (editingRole ? 'Actualizar cambios' : 'Guardar rol') }}
+                  {{ loading ? 'Guardando...' : 'Guardar' }}
+                </button>
+
+                <button class="ui-btn secondary" type="button" (click)="prepararNuevoUsuario()" *ngIf="user">
+                  <i class="fa-solid fa-user-plus"></i>
+                  Nuevo usuario
                 </button>
               </div>
             </div>
 
-            <div class="roles-list" *ngIf="rolesVigentes.length > 0; else noRoles">
-              <div class="role-item" *ngFor="let rol of rolesVigentes">
-                <div class="role-grid role-grid--labels">
-                  <div class="role-label">
-                    <span class="role-label__title">Rol</span>
-                    <strong>{{ rol.nombre }}</strong>
-                  </div>
+          </article>
+          <article class="tab-card" *ngIf="activeTab === 'roles'">
+            <div class="ui-table-wrap" *ngIf="rolesVigentes.length > 0; else noRoles">
+              <table class="ui-table">
+                <thead class="thead-usuario">
+                  <tr>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Expira en</th>
+                    <th>Justificación</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let rol of rolesVigentes">
+                    <td>{{ rol.nombre }}</td>
+                    <td>
+                      <span class="ui-badge" [class.success]="rol.estado === 'Vigente'" [class.warning]="rol.estado === 'Vencido'">
+                        {{ rol.estado }}
+                      </span>
+                    </td>
+                    <td>{{ tiempoRestante(rol.fechaExpiracion) }}</td>
+                    <td>{{ rol.justificacion || 'Sin justificación' }}</td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="ui-btn secondary" type="button" title="Editar" (click)="prepararEdicionRol(rol)">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                        </button>                        
+                        <button class=" ui-btn danger" type="button" title="Retirar rol"
+                          (click)="eliminarRol(rol)"                          
+                          [disabled]="deletingRoleId === rol.id">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
 
-                  <div class="role-label">
-                    <span class="role-label__title">Estado</span>
-                    <span class="ui-badge" [class.success]="rol.estado === 'Vigente'" [class.warning]="rol.estado === 'Vencido'">
-                      {{ rol.estado }}
-                    </span>
-                  </div>
-
-                  <div class="role-label">
-                    <span class="role-label__title">Fecha expiración</span>
-                    <strong>{{ rol.fechaExpiracion || 'Sin fecha' }}</strong>
-                  </div>
-
-                  <div class="role-label role-label--full">
-                    <span class="role-label__title">Justificación</span>
-                    <strong>{{ rol.justificacion || 'Sin justificación' }}</strong>
-                  </div>
-                </div>
-
-                <div class="tab-actions">
-                  <button
-                    class="ui-btn secondary"
-                    type="button"
-                    (click)="prepararEdicionRol(rol)"
-                  >
-                    <i class="fa-solid fa-pen-to-square"></i>
-                    Editar
-                  </button>
-                  <button
-                    class="ui-btn secondary"
-                    type="button"
-                    (click)="eliminarRol(rol)"
-                    *ngIf="rol.id === superAdministradorRolId"
-                    [disabled]="deletingRoleId === rol.id"
-                  >
-                    <i class="fa-solid fa-trash"></i>
-                    {{ deletingRoleId === rol.id ? 'Retirando...' : 'Retirar rol' }}
-                  </button>
-                </div>
-              </div>
+                        <!-- <button class=" ui-btn danger" type="button" title="Retirar rol"
+                          (click)="eliminarRol(rol)"
+                          *ngIf="rol.id === superAdministradorRolId"
+                          [disabled]="deletingRoleId === rol.id">
+                          <i class="fa-solid fa-trash"></i>
+                        </button> -->
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <ng-template #noRoles>
@@ -246,8 +200,21 @@
                 El usuario no tiene roles asignados actualmente.
               </div>
             </ng-template>
+
+           
+
+            <div class="tab-actions" >
+              <div class="tab-actions tab-actions--separated" >
+                <button class="ui-btn secondary" type="button" (click)="agregarRol()">
+                <i class="fa-solid fa-plus"></i>
+                Agregar rol
+              </button>
+              </div>
+            </div>
+
           </article>
-        </section>
+        </aside>
+
       </div>
 
       <ng-template #emptyState>
@@ -257,7 +224,8 @@
           <p>Ingresa la identificación y consulta para administrar datos y permisos.</p>
 
           <div class="empty-search">
-            <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Identificación" (keyup.enter)="consultarUsuario()">
+            <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Identificación"
+              (keyup.enter)="consultarUsuario()">
             <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
               <i class="fa-solid fa-magnifying-glass"></i>
               {{ loading ? 'Consultando...' : 'Consultar' }}
@@ -266,103 +234,170 @@
         </div>
       </ng-template>
 
-      <article class="tab-card users-table-card">
-        <div class="roles-head">
-          <h3>Usuarios existentes</h3>
-          <div class="table-head-actions">
-            <button class="ui-btn primary" type="button" (click)="prepararNuevoUsuario()" *ngIf="user">
-              <i class="fa-solid fa-user-plus"></i>
-              Nuevo usuario
-            </button>
-            <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
-              <i class="fa-solid fa-rotate"></i>
-              {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
-            </button>
+
+    </div>
+  </div>
+
+
+  <!-- tabla de Usuarios existentes -->
+  <div class="ui-panel users-table-card">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-users"></i>
+        Usuarios existentes
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge info" *ngIf="totalUsuariosListado > 0">
+          Registros: {{ totalUsuariosListado }}
+        </span>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      
+      <div class="ui-table-wrap">
+        <div class="empty-state" *ngIf="loadingListado">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <p>Consultando usuarios...</p>
+        </div>
+
+        <div class="table-controls" *ngIf="!loadingListado" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+          <div class="search-group">
+            <label class="ui-label" style="margin:0;">Buscar</label>
+            <input class="ui-control" type="text" [(ngModel)]="searchNombreListado"
+              (ngModelChange)="onSearchNombreListadoChange()" placeholder="Escribe un nombre"
+              style="min-width:260px;" />
+            <small class="search-hint" style="margin-left:6px;color:#666;white-space: nowrap;">(mínimo {{ minSearchChars }} caracteres)...</small>
+          </div>
+
+          <div class="search-mostrar ">
+            <label style="margin:0;">Mostrar</label>
+            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+            </select>
+            <span>por página</span>
           </div>
         </div>
 
+        <table class="ui-table" *ngIf="!loadingListado">
+          <thead>
+            <tr>
+              <th>Usuario empresarial</th>
+              <th>Grado y nombre</th>
+              <th>Rol</th>
+              <th>Fecha vencimiento rol</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody *ngIf="usuariosListado.length > 0; else noUsersTable">
+            <tr *ngFor="let item of usuariosListadoPaginado">
+              <td>{{ item.username || 'N/A' }}</td>
+              <td>{{ item.nombreCompleto || 'N/A' }}</td>
+              <td>{{ item.rol || 'Sin rol' }}</td>
+              <td>{{ item.fechaFinRol || 'Sin fecha' }}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="ui-btn secondary" type="button" (click)="editarDesdeListado(item)">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button class="ui-btn secondary" type="button" title="Ver como este usuario"
+                    (click)="impersonarDesdeListado(item)">
+                    <i class="fa-solid fa-user-secret"></i>
+                  </button>
+                  <button class="ui-btn secondary danger" type="button" (click)="abrirModalEliminarUsuario(item)">
+                    <i class="fa-solid fa-user-xmark"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="table-pagination" *ngIf="totalUsuariosListado > 0">
+          <div class="pagination-actions pagination-numbers">
+            <button class="ui-icon-btn" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <ng-container *ngFor="let p of pageNumbers">
+              <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === currentPage"
+                (click)="onPageClick(p)">
+                {{ p }}
+              </button>
+              <span *ngIf="p === '...'" class="page-dots">...</span>
+            </ng-container>
+
+            <button class="ui-icon-btn" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noUsersTable>
+        <tr>
+          <td colspan="5">
+            <div class="empty-state">
+              <i class="fa-solid fa-users"></i>
+              <p>{{
+                isSearchMode
+                ? ((searchNombreListado || '').trim().length < minSearchChars ? ('Escribe mínimo ' + minSearchChars + '
+                  caracteres para activar la búsqueda.') : 'No hay resultados para la búsqueda.' )
+                  : 'No hay usuarios para mostrar.' }}</p>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Modal Asignar / Editar Rol -->
+  <div class="ui-modal" *ngIf="showAddRoleForm" (click)="$event.stopPropagation()">
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-shield-halved"></i>
+          {{ editingRole ? 'Editar rol' : 'Asignar rol' }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cancelarNuevoRol()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="ui-modal__body">
         <div class="ui-grid">
           <div class="ui-field ui-col-6">
-            <label class="ui-label">Buscar por nombre</label>
-            <input
-              class="ui-control"
-              type="text"
-              [(ngModel)]="searchNombreListado"
-              (ngModelChange)="onSearchNombreListadoChange()"
-              placeholder="Escribe un nombre (mínimo 6 caracteres)..."
-            >
-            <small class="search-hint">Al buscar, la tabla mostrará solo coincidencias desde el carácter {{ minSearchChars }}.</small>
+            <label class="ui-label">Rol</label>
+            <select class="ui-control" [(ngModel)]="newRole.rolId" [disabled]="editingRole !== null">
+              <option [ngValue]="null">Seleccione un rol</option>
+              <option *ngFor="let role of rolesCatalogo" [ngValue]="role.id">
+                {{ role.nombre || ('Rol ' + role.id) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Fecha fin</label>
+            <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Justificación</label>
+            <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion"
+              placeholder="Motivo de la asignación"></textarea>
           </div>
         </div>
 
-        <div class="list-loading" *ngIf="loadingListado">Consultando usuarios...</div>
-
-        <div class="table-wrap" *ngIf="!loadingListado && usuariosListado.length > 0; else noUsersTable">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>Usuario empresarial</th>
-                <th>Grado y nombre</th>
-                <th>Rol</th>
-                <th>Fecha vencimiento rol</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of usuariosListadoPaginado">
-                <td>{{ item.username || 'N/A' }}</td>
-                <td>{{ item.nombreCompleto || 'N/A' }}</td>
-                <td>{{ item.rol || 'Sin rol' }}</td>
-                <td>{{ item.fechaFinRol || 'Sin fecha' }}</td>
-                <td>
-                  <div class="table-actions">
-                    <button class="ui-btn secondary" type="button" (click)="editarDesdeListado(item)">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                      
-                    </button>
-                    <button class="ui-btn secondary" type="button" title="Ver como este usuario" (click)="impersonarDesdeListado(item)">
-                      <i class="fa-solid fa-user-secret"></i>
-                    </button>
-                    <button class="ui-btn secondary danger" type="button" (click)="abrirModalEliminarUsuario(item)">
-                      <i class="fa-solid fa-user-xmark"></i>
-                      
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="table-pagination" *ngIf="totalUsuariosListado > 0">
-            <span class="pagination-summary">
-              Página {{ currentPage }} de {{ totalPaginasListado }} | Registros: {{ totalUsuariosListado }}
-            </span>
-
-            <div class="pagination-actions">
-              <button class="ui-btn secondary" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
-                <i class="fa-solid fa-chevron-left"></i>
-                Anterior
-              </button>
-              <button class="ui-btn secondary" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
-                Siguiente
-                <i class="fa-solid fa-chevron-right"></i>
-              </button>
-            </div>
-          </div>
+        <div class="ui-toolbar">
+          <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
+            <i class="fa-solid fa-floppy-disk"></i>
+            {{ savingRole ? 'Guardando...' : (editingRole ? 'Actualizar cambios' : 'Guardar rol') }}
+          </button>
+          <button class="ui-btn outline" type="button" (click)="cancelarNuevoRol()" [disabled]="savingRole">
+            <i class="fa-solid fa-xmark"></i>
+            Cancelar
+          </button>
         </div>
-
-        <ng-template #noUsersTable>
-          <div class="news-state">
-            {{
-              isSearchMode
-                ? ((searchNombreListado || '').trim().length < minSearchChars
-                    ? ('Escribe mínimo ' + minSearchChars + ' caracteres para activar la búsqueda.')
-                    : 'No hay resultados para la búsqueda.')
-                : 'No hay usuarios para mostrar.'
-            }}
-          </div>
-        </ng-template>
-      </article>
+      </div>
     </div>
   </div>
 
@@ -374,12 +409,7 @@
         <strong>ELIMINAR</strong>.
       </p>
 
-      <input
-        class="ui-control"
-        type="text"
-        [(ngModel)]="deleteConfirmText"
-        placeholder="Escribe ELIMINAR"
-      >
+      <input class="ui-control" type="text" [(ngModel)]="deleteConfirmText" placeholder="Escribe ELIMINAR">
 
       <div class="tab-actions">
         <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">

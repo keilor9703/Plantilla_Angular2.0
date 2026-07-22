@@ -6,6 +6,7 @@ using Comun.Dtos.GestionDocumental;
 using Datos.Interfaz;
 using Datos.Interfaz.GestionDocumental;
 using Comun.Security;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 
@@ -23,15 +24,30 @@ namespace Negocio.Gestion.GestionDocumental
         private readonly IDbCuentaEmailRepository _cuentaRepo;
         private readonly IDbGestionCorreosRepository _gestionRepo;
         private readonly ILogger<EmailService> _logger;
+        private readonly string _uploadsBase;
+        private readonly byte[] _cryptoKey;
 
         public EmailService(
-            IDbCuentaEmailRepository cuentaRepo, 
+            IDbCuentaEmailRepository cuentaRepo,
             IDbGestionCorreosRepository gestionRepo,
-            ILogger<EmailService> logger)
+            ILogger<EmailService> logger,
+            IConfiguration configuration)
         {
             _cuentaRepo = cuentaRepo;
             _gestionRepo = gestionRepo;
             _logger = logger;
+
+            var keyStr = configuration["Crypto:Key"] ?? string.Empty;
+            if (keyStr.Length < 32)
+                throw new InvalidOperationException("Crypto:Key debe tener al menos 32 caracteres.");
+            _cryptoKey = System.Text.Encoding.UTF8.GetBytes(keyStr[..32]);
+
+            var configured = configuration["AppSettings:UploadsPath"];
+            _uploadsBase = string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.BaseDirectory, "uploads")
+                : (Path.IsPathRooted(configured)
+                    ? configured
+                    : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configured)));
         }
 
         public async Task<DtoEnvioCorreoResult> EnviarCorreoAsync(DtoEnvioCorreoRequest request, string usuario, string maquina, int? idUsuario)
@@ -59,6 +75,24 @@ namespace Negocio.Gestion.GestionDocumental
                     };
                 }
 
+                // Parsear y validar que al menos un destinatario (Para o CCO) esté presente
+                var paraAddresses = string.IsNullOrWhiteSpace(request.Para)
+                    ? Array.Empty<string>()
+                    : request.Para.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+                var bccAddresses = string.IsNullOrWhiteSpace(request.Cc)
+                    ? Array.Empty<string>()
+                    : request.Cc.Split(';', ',').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+
+                if (paraAddresses.Length == 0 && bccAddresses.Length == 0)
+                {
+                    return new DtoEnvioCorreoResult { Success = false, Message = "Debe indicar al menos un destinatario en 'Para' o 'CCO'." };
+                }
+
+                _logger.LogInformation("[CORREO] Para={Para} | CCO={Cco} | Asunto={Asunto}",
+                    request.Para,
+                    string.IsNullOrWhiteSpace(request.Cc) ? "(sin CCO)" : request.Cc,
+                    request.Asunto);
+
                 // 1. Obtener la configuración de la cuenta
                 var cuenta = _cuentaRepo.ConsultarCuentas(request.IdCuentaEmail).FirstOrDefault();
                 if (cuenta == null || cuenta.Vigente == 0)
@@ -67,7 +101,7 @@ namespace Negocio.Gestion.GestionDocumental
                 }
 
                 // 2. Descifrar la contraseña
-                string claveDescifrada = CryptoUtility.Decrypt(cuenta.ClaveSmtp);
+                string claveDescifrada = CryptoUtility.Decrypt(cuenta.ClaveSmtp, _cryptoKey);
 
                 // 3. Generar Radicado Oficial
                 string radicadoReal = _cuentaRepo.GetNextRadicado(request.IdCuentaEmail);
@@ -86,9 +120,34 @@ namespace Negocio.Gestion.GestionDocumental
                         IsBodyHtml = true
                     };
 
-                    string cuerpoFinal = $@"<p style='font-family: Arial, sans-serif; font-size: 14px; margin-bottom: 20px;margin-top: 20px;'>
-                                           Correo Electrónico  <b>No. {radicadoReal} </b> de fecha  <b>{DateTime.Now:dd/MM/yyyy}</b>
-                                          </p>" + request.Cuerpo;
+                    // Importancia Alta
+                    if (request.PrioridadAlta)
+                    {
+                        mailMessage.Priority = MailPriority.High;
+                        mailMessage.Headers.Add("X-Priority", "1");
+                        mailMessage.Headers.Add("X-MSMail-Priority", "High");
+                        mailMessage.Headers.Add("Importance", "High");
+                    }
+
+                    // Acuse de Recibido
+                    if (request.AcuseRecibido)
+                    {
+                        mailMessage.Headers.Add("Disposition-Notification-To", cuenta.Email);
+                        mailMessage.Headers.Add("Return-Receipt-To", cuenta.Email);
+                    }
+
+                    string encabezadoImg = string.Empty;
+                    if (!string.IsNullOrWhiteSpace(cuenta.ImagenEncabezado))
+                    {
+                        encabezadoImg = $@"<div style='text-align:center;margin-bottom:16px;'>
+                            <img src='cid:encabezado_cuenta' style='max-width:100%;height:auto;' alt='{cuenta.NombreCuenta}' />
+                        </div>";
+                    }
+
+                    string cuerpoFinal = encabezadoImg +
+                        $@"<p style='font-family: Arial, sans-serif; font-size: 14px; margin-bottom: 20px;margin-top: 20px;'>
+                           Correo Electrónico  <b>No. {radicadoReal} </b> de fecha  <b>{DateTime.Now:dd/MM/yyyy}</b>
+                          </p>" + request.Cuerpo;
 
                     // Añadir Firma de la Cuenta (si existe)
                     if (!string.IsNullOrEmpty(cuenta.FirmaHtml))
@@ -117,15 +176,58 @@ namespace Negocio.Gestion.GestionDocumental
                             </tr>
                         </table>";
 
-                  
+                    // Guardar versión del cuerpo para las copias ocultas (antes de que el procesamiento
+                    // de imágenes reemplace los data-URLs por referencias CID).
+                    // Las copias CCO se envían como transacciones SMTP completamente independientes
+                    // para que el servidor SMTP nunca incluya el header Bcc: en el mensaje que
+                    // reciben los destinatarios en "Para".
+                    string cuerpoFinalParaBcc = encabezadoImg.Length > 0
+                        ? cuerpoFinal.Substring(encabezadoImg.Length)
+                        : cuerpoFinal;
+
                     // --- PROCESAMIENTO DE IMÁGENES EMBEBIDAS (BASE64 TO CID) ---
                     var regex = new Regex(@"<img[^>]+src=""data:(image\/[^;]+);base64,([^""]+)""[^>]*>", RegexOptions.IgnoreCase);
                     var matches = regex.Matches(cuerpoFinal);
-                    
-                    if (matches.Count > 0)
+                    bool tieneEncabezado = !string.IsNullOrWhiteSpace(cuenta.ImagenEncabezado);
+
+                    if (matches.Count > 0 || tieneEncabezado)
                     {
                         int imgCount = 0;
                         var resView = AlternateView.CreateAlternateViewFromString(cuerpoFinal, null, MediaTypeNames.Text.Html);
+
+                        // Adjuntar imagen de encabezado como recurso CID
+                        if (tieneEncabezado)
+                        {
+                            try
+                            {
+                                // cuenta.ImagenEncabezado es la URL pública: /uploads/email-headers/xxx.png
+                                // Convertimos a ruta del sistema de archivos usando _uploadsBase
+                                var urlPath = cuenta.ImagenEncabezado!.TrimStart('/');
+                                // urlPath: "uploads/email-headers/xxx.png"
+                                // Quitamos el prefijo "uploads/" para obtener la sub-ruta dentro de _uploadsBase
+                                var subPath = urlPath.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase)
+                                    ? urlPath.Substring("uploads/".Length)
+                                    : urlPath;
+                                var encabezadoFsPath = Path.Combine(_uploadsBase, subPath);
+
+                                if (File.Exists(encabezadoFsPath))
+                                {
+                                    var ext = Path.GetExtension(encabezadoFsPath).ToLowerInvariant();
+                                    var mime = ext switch { ".png" => "image/png", ".webp" => "image/webp", _ => "image/jpeg" };
+                                    var imgBytes = await File.ReadAllBytesAsync(encabezadoFsPath);
+                                    var lr = new LinkedResource(new MemoryStream(imgBytes), mime) { ContentId = "encabezado_cuenta" };
+                                    resView.LinkedResources.Add(lr);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Imagen de encabezado no encontrada en disco: {Path}", encabezadoFsPath);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "No se pudo adjuntar imagen de encabezado.");
+                            }
+                        }
 
                         foreach (Match match in matches)
                         {
@@ -134,17 +236,15 @@ namespace Negocio.Gestion.GestionDocumental
                                 string contentType = match.Groups[1].Value;
                                 string base64Data = match.Groups[2].Value;
                                 byte[] imageBytes = Convert.FromBase64String(base64Data);
-                                
+
                                 string contentId = $"img_{imgCount++}";
-                                
-                                // Crear recurso vinculado
-                                var lr = new LinkedResource(new MemoryStream(imageBytes), contentType) 
-                                { 
-                                    ContentId = contentId 
+
+                                var lr = new LinkedResource(new MemoryStream(imageBytes), contentType)
+                                {
+                                    ContentId = contentId
                                 };
                                 resView.LinkedResources.Add(lr);
-                                
-                                // Reemplazar en el HTML para que apunte al CID
+
                                 cuerpoFinal = cuerpoFinal.Replace(match.Value, $@"<img src=""cid:{contentId}"" style=""max-width: 100%;"" />");
                             }
                             catch (Exception ex)
@@ -153,7 +253,6 @@ namespace Negocio.Gestion.GestionDocumental
                             }
                         }
 
-                        // Re-creamos la vista con el HTML que ya tiene los CIDs y le pasamos los recursos
                         var finalView = AlternateView.CreateAlternateViewFromString(cuerpoFinal, null, MediaTypeNames.Text.Html);
                         foreach (var res in resView.LinkedResources)
                         {
@@ -167,10 +266,10 @@ namespace Negocio.Gestion.GestionDocumental
                         mailMessage.IsBodyHtml = true;
                     }
 
-                    foreach (var dest in request.Para.Split(';', ','))
+                    // Destinatarios principales (Para)
+                    foreach (var dest in paraAddresses)
                     {
-                        if (!string.IsNullOrWhiteSpace(dest))
-                            mailMessage.To.Add(dest.Trim());
+                        mailMessage.To.Add(dest);
                     }
 
                     // 5. Gestionar Adjuntos
@@ -192,10 +291,59 @@ namespace Negocio.Gestion.GestionDocumental
                     // Forzar TLS 1.2 (Requerido por Office 365)
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 
-                    // Timeout asíncrono real (60 segundos)
-                    await client.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(60));
-                    
-                    _logger.LogInformation("Conexión SMTP exitosa. Correo enviado.");
+                    // Timeout asíncrono real (60 segundos) — solo si hay destinatarios en "Para"
+                    if (mailMessage.To.Count > 0)
+                    {
+                        await client.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(60));
+                        _logger.LogInformation("Conexión SMTP exitosa. Correo principal enviado.");
+                    }
+                    _logger.LogInformation("Conexión SMTP exitosa. Correo principal enviado.");
+
+                    // Enviar cada copia oculta como una transacción SMTP separada.
+                    // Así el servidor nunca incluye el header Bcc: en el correo que reciben
+                    // los destinatarios de "Para" — la copia es completamente invisible para ellos.
+                    _logger.LogInformation("[CORREO] CCO: {Count} destinatario(s) a enviar. Valores: {Addrs}",
+                        bccAddresses.Length, string.Join(", ", bccAddresses));
+                    foreach (var bccAddr in bccAddresses)
+                    {
+                        try
+                        {
+                            using var bccMsg = new MailMessage
+                            {
+                                From = mailMessage.From,
+                                Subject = mailMessage.Subject,
+                                IsBodyHtml = true,
+                                Body = cuerpoFinalParaBcc
+                            };
+                            bccMsg.To.Add(bccAddr);
+                            if (request.PrioridadAlta)
+                            {
+                                bccMsg.Priority = MailPriority.High;
+                                bccMsg.Headers.Add("X-Priority", "1");
+                                bccMsg.Headers.Add("X-MSMail-Priority", "High");
+                                bccMsg.Headers.Add("Importance", "High");
+                            }
+                            if (request.AcuseRecibido)
+                            {
+                                bccMsg.Headers.Add("Disposition-Notification-To", cuenta.Email);
+                                bccMsg.Headers.Add("Return-Receipt-To", cuenta.Email);
+                            }
+                            if (request.Adjuntos != null)
+                            {
+                                foreach (var file in request.Adjuntos)
+                                {
+                                    if (file.Length > 0)
+                                        bccMsg.Attachments.Add(new Attachment(file.OpenReadStream(), file.FileName));
+                                }
+                            }
+                            await client.SendMailAsync(bccMsg).WaitAsync(TimeSpan.FromSeconds(30));
+                            _logger.LogInformation("[CORREO] Copia oculta (CCO) enviada a: {BccAddress}", bccAddr);
+                        }
+                        catch (Exception bccEx)
+                        {
+                            _logger.LogError(bccEx, "[CORREO] Error al enviar copia oculta a {BccAddress}", bccAddr);
+                        }
+                    }
                 }
 
                 _logger.LogInformation("Correo enviado exitosamente desde {Email} para {Para}. Radicado: {Radicado}", cuenta.Email, request.Para, radicadoReal);
@@ -205,17 +353,14 @@ namespace Negocio.Gestion.GestionDocumental
                 if (!ok)
                 {
                     _logger.LogError("El correo se envió por SMTP pero falló el registro en la base de datos para el radicado {Radicado}", radicadoReal);
-                    return new DtoEnvioCorreoResult 
-                    { 
-                        Success = false, 
-                        Message = "El correo se envió, pero hubo un problema al guardarlo en el historial." 
-                    };
                 }
 
                 return new DtoEnvioCorreoResult 
                 { 
                     Success = true, 
-                    Message = "Correo enviado y registrado correctamente.",
+                    Message = ok 
+                        ? "Correo enviado y registrado correctamente."
+                        : "Correo enviado correctamente. Advertencia: no se pudo guardar en el historial.",
                     Radicado = radicadoReal 
                 };
             }

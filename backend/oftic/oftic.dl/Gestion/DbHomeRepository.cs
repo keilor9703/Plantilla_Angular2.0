@@ -12,7 +12,7 @@ namespace Datos.Gestion
 
         public DbHomeRepository(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
         }
 
         public async Task<DtoHomeStats> GetStatsAsync(CancellationToken ct)

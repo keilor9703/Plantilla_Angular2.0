@@ -23,6 +23,7 @@ export class RolesAdminComponent implements OnInit {
   saving = false;
   loadingRoleMenus = false;
   savingRoleMenu = false;
+  showPermissionsModal = false;
 
   roles: RolAdminItem[] = [];
   allMenus: DbMenuItem[] = [];
@@ -113,6 +114,48 @@ export class RolesAdminComponent implements OnInit {
       return;
     }
 
+    // Sólo validar duplicados si el rol que estamos guardando quedará vigente/activo
+    const formActive = Number(this.form.vigente) === 1;
+
+    
+
+    if (formActive) {
+      this.saving = true;
+      const nombreNorm = this.normalizeForCompare(nombre);
+
+      // Recargar roles del servidor para validar contra el estado más reciente
+      this.rolesService.getAll().subscribe({
+        next: (data) => {
+          const latest = (data ?? []);
+          const duplicado = latest.some(r => {
+            const rActive = Number(r.vigente) === 1;
+            if (!rActive) return false;
+            if (this.editingId != null && r.id === this.editingId) return false;
+            const rNombreNorm = this.normalizeForCompare(r.nombre ?? '');
+            return rNombreNorm === nombreNorm;
+          });
+
+          
+
+          if (duplicado) {
+            this.saving = false;
+            this.toast.warning('Roles', 'Ya existe un rol activo con ese nombre.');
+            return;
+          }
+
+          this.performSave(nombre);
+        },
+        error: () => {
+          this.saving = false;
+          this.toast.error('Roles', 'No fue posible validar duplicados. Intenta de nuevo.');
+        }
+      });
+    } else {
+      this.performSave(nombre);
+    }
+  }
+
+  private performSave(nombre: string): void {
     this.saving = true;
     this.rolesService
       .save({
@@ -161,6 +204,20 @@ export class RolesAdminComponent implements OnInit {
     this.selectedRoleId = item.id;
     this.selectedMenuId = null;
     this.cargarMenusPorRol(item.id);
+  }
+
+  openPermissionsModal(item: RolAdminItem): void {
+    this.seleccionarRolPermisos(item);
+    this.showPermissionsModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  closePermissionsModal(): void {
+    this.showPermissionsModal = false;
+    this.selectedRoleId = null;
+    this.roleMenus = [];
+    this.selectedMenuId = null;
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   cargarMenusPorRol(idRol: number): void {
@@ -256,6 +313,17 @@ export class RolesAdminComponent implements OnInit {
       nombre: '',
       vigente: 1
     };
+  }
+
+  private normalizeForCompare(value: string): string {
+    return (value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+      .replace(/\u00A0/g, ' ') // no-break spaces to normal spaces
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // remove control chars
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
   }
 }
 

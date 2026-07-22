@@ -66,6 +66,11 @@ namespace Comun.Dtos
         public string? Usuario { get; set; }
     }
 
+    public class DtoRefreshTokenRequest
+    {
+        public string? Token { get; set; }
+    }
+
     public class DtoTokenResponse
     {
         public string? token { get; set; }
@@ -105,6 +110,14 @@ namespace Comun.Dtos
         public string? justificacion { get; set; }
         public string? fechaFin { get; set; }
         public int vigente { get; set; } = 1;
+    }
+
+    public class DtoEditarRolRequest
+    {
+        public string? usuario { get; set; }
+        public string? identificacion { get; set; }
+        public string? justificacion { get; set; }
+        public string? fechaFin { get; set; }
     }
 
     public class DtoRolAdmin

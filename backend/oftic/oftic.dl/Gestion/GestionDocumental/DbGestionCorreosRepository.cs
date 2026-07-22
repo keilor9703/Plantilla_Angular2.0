@@ -14,7 +14,7 @@ namespace Datos.Gestion.GestionDocumental
 
         public DbGestionCorreosRepository(IConfiguration config, ILogger<DbGestionCorreosRepository> logger)
         {
-            _cs = config.GetConnectionString("DbCoest") ?? "";
+            _cs = config.GetConnectionString("DbConnection") ?? "";
             _logger = logger;
         }
 
@@ -25,12 +25,20 @@ namespace Datos.Gestion.GestionDocumental
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_REGISTRAR_ENVIO_CORREO", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_REGISTRAR_ENVIO_CORREO", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("p_id_cuenta_email", OracleDbType.Int32).Value = request.IdCuentaEmail;
                         command.Parameters.Add("p_radicado", OracleDbType.Varchar2).Value = radicado;
-                        command.Parameters.Add("p_para", OracleDbType.Varchar2).Value = request.Para;
+
+                        // Combinar Para + CCO en un solo campo de destinatarios para el historial
+                        var partes = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(request.Para)) partes.Add(request.Para.Trim());
+                        if (!string.IsNullOrWhiteSpace(request.Cc))
+                            partes.Add(request.Cc.Trim());
+                        var destinatario = partes.Count > 0 ? string.Join("; ", partes) : "(sin destinatario)";
+
+                        command.Parameters.Add("p_para", OracleDbType.Varchar2).Value = destinatario;
                         command.Parameters.Add("p_asunto", OracleDbType.Varchar2).Value = request.Asunto;
                         command.Parameters.Add("p_cuerpo", OracleDbType.Clob).Value = request.Cuerpo;
                         command.Parameters.Add("p_id_clasificacion", OracleDbType.Int32).Value = request.IdClasificacion;
@@ -41,7 +49,8 @@ namespace Datos.Gestion.GestionDocumental
                         command.ExecuteNonQuery();
                         
                         var res = GetOutputInt(command.Parameters["p_resultado"]);
-                        return res > 0;
+                        // Convención de las SPs: 0 = éxito, -1 = error (WHEN OTHERS)
+                        return res >= 0;
                     }
                 }
             }
@@ -60,7 +69,7 @@ namespace Datos.Gestion.GestionDocumental
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_CONSULTAR_CORREOS_ENVIADOS", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_CONSULTAR_CORREOS_ENVIADOS", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;

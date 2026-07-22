@@ -15,7 +15,7 @@ namespace Datos.Gestion
 
         public DbAuditoriaRepository(IConfiguration configuration, ILogger<DbAuditoriaRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 

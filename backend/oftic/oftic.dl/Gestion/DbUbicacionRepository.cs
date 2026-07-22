@@ -14,7 +14,7 @@ namespace Datos.Gestion
 
         public DbUbicacionRepository(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
         }
 
         public async Task<List<DtoUnidadOrg>> GetUnidadesOrganigramaAsync(CancellationToken ct)

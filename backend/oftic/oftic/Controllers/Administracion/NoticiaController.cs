@@ -30,6 +30,7 @@ namespace ofic.Controllers.Administracion
             try
             {
                 var noticias = await _service.GetAllAsync(CancellationToken.None);
+                Response.Headers["Cache-Control"] = "public, max-age=60";
                 return Ok(noticias);
             }
             catch (Exception ex)
@@ -46,6 +47,7 @@ namespace ofic.Controllers.Administracion
             try
             {
                 var noticias = await _service.GetActivasAsync(CancellationToken.None);
+                Response.Headers["Cache-Control"] = "public, max-age=60";
                 return Ok(noticias);
             }
             catch (Exception ex)

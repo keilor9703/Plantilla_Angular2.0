@@ -1,4 +1,4 @@
-# =====================
+nul# =====================
 # FRONTEND (Angular)
 # =====================
 frontend/dist/
@@ -30,6 +30,8 @@ backend/oftic/oftic.dl/bin/
 backend/oftic/oftic.dl/obj/
 backend/oftic/oftic.sl/bin/
 backend/oftic/oftic.sl/obj/
+backend/DbFix/bin/
+backend/DbFix/obj/
 backend/**/publish/
 backend/**/uploads/
 backend/**/*.user
@@ -77,7 +79,14 @@ Thumbs.db
 **/*.key
 **/appsettings.Development.json
 
+# Archivos de asistencia / IA (No requeridos en repositorio)
+AGENTS.md
+CLAUDE.md
+.gemini/
+.agents/
+.antigravity/
 
 .vs/
 node_modules/
 *.bak
+docker-compose.override.yml

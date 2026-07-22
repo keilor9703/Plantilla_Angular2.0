@@ -1,23 +1,5 @@
 <footer class="modern-footer">
-  <div class="footer-left">
-    <div class="radio-bar">
-      <img class="radio-logo" [src]="currentStationLogo" [alt]="'Logo ' + currentStationLabel">
-      <span class="radio-label">{{ currentStationLabel }}</span>
-
-      <button class="radio-play" [class.is-playing]="isPlaying" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
-        <i class="fa-solid" [class.fa-play]="!isPlaying" [class.fa-pause]="isPlaying"></i>
-      </button>
-
-      <select class="radio-select" [(ngModel)]="selectedStation" (ngModelChange)="onStationChange()">
-        <option *ngIf="stations.length === 0" value="" disabled>Sin emisoras activas</option>
-        <option *ngFor="let station of stations" [value]="station.id">{{ station.name }}</option>
-      </select>
-    </div>
-
-    <div class="radio-error" *ngIf="errorMessage">
-      {{ errorMessage }}
-    </div>
-  </div>
+  <div class="footer-left"></div>
 
   <div class="footer-center">
     <span class="footer-dot" aria-hidden="true"></span>

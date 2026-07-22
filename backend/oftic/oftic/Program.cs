@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Threading.RateLimiting;
 using Datos.Gestion;
 using Datos.Interfaz;
 using Negocio.Gestion;
 using Negocio.Interfaz;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
-using Datos.Gestion;
-using Datos.Interfaz;
 using Negocio.Gestion.GestionDocumental;
 using Negocio.Gestion.Administracion;
 using Datos.Interfaz.GestionDocumental;
@@ -24,7 +24,14 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 150 * 1024 * 1024; // 150MB
 });
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // En .NET 8 con <Nullable>enable>, los string no-nullables reciben
+        // implícitamente [Required(AllowEmptyStrings=false)], lo que rechaza
+        // campos vacíos en form-data antes de llegar al controlador.
+        // Lo suprimimos porque cada servicio valida sus propias reglas de negocio.
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
@@ -35,7 +42,7 @@ builder.Services.AddCors(options =>
 {
     // Política Dev: solo localhost
     options.AddPolicy("DevCors", p =>
-        p.WithOrigins("http://localhost:4200", "https://localhost:4200", "http://localhost:4300", "https://localhost:4300")
+        p.WithOrigins("http://localhost:4200")
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials());
@@ -55,8 +62,8 @@ var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
 
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 {
-    throw new InvalidOperationException(
-        "Configuracion insegura: Jwt:Key no configurada o demasiado corta. Defina una clave de al menos 32 caracteres en appsettings o variables de entorno.");
+    // Clave provisional de fallback para permitir inicialización y acceso al Setup Wizard
+    jwtKey = "CAMBIAR_EN_PRODUCCION_ClaveSeguraMinimo32Caracteres_2026";
 }
 
 builder.Services.AddAuthentication("Bearer")
@@ -75,6 +82,30 @@ builder.Services.AddAuthentication("Bearer")
     });
 
 builder.Services.AddAuthorization();
+
+// Rate limiting — protege endpoints anónimos de fuerza bruta
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Login y Refresh: máx 10 intentos por minuto por IP
+    options.AddPolicy("auth", httpContext =>
+    {
+        var ip = httpContext.Request.Headers["X-Forwarded-For"]
+                     .FirstOrDefault()?.Split(',')[0].Trim()
+                 ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                 ?? "unknown";
+
+        return RateLimitPartition.GetSlidingWindowLimiter(ip, _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit      = 10,
+            Window           = TimeSpan.FromMinutes(1),
+            SegmentsPerWindow = 2,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit       = 0
+        });
+    });
+});
 
 builder.Services.AddMemoryCache();
 
@@ -95,7 +126,6 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
 builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
-builder.Services.AddScoped<IDbSliders, DbSliders>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -138,32 +168,17 @@ builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
 builder.Services.AddScoped<IDbPersonajeMesService, DbPersonajeMesService>();
 builder.Services.AddScoped<IDbPersonajeMesRepository, DbPersonajeMesRepository>();
 
-builder.Services.AddScoped<IDbRadioService, DbRadioService>();
-builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
-
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 
-builder.Services.AddScoped<IDbVideoInstitucionalService, DbVideoInstitucionalService>();
-builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucionalRepository>();
-
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
 
-builder.Services.AddScoped<IDbEventoService, DbEventoService>();
-builder.Services.AddScoped<IDbEventoRepository, DbEventoRepository>();
-
 builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
 builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();
-
-builder.Services.AddScoped<IDbModalService, DbModalService>();
-builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
-
-builder.Services.AddScoped<IDbRedesSocialesService, DbRedesSocialesService>();
-builder.Services.AddScoped<IDbRedesSocialesRepository, DbRedesSocialesRepository>();
 
 builder.Services.AddScoped<IDbUbicacionService, DbUbicacionService>();
 builder.Services.AddScoped<IDbUbicacionRepository, DbUbicacionRepository>();
@@ -175,20 +190,18 @@ builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
 
 var app = builder.Build();
 
-var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
-Directory.CreateDirectory(uploadsRoot);
+var configuredUploadsBase = app.Configuration["AppSettings:UploadsPath"];
+var uploadsBase = string.IsNullOrWhiteSpace(configuredUploadsBase)
+    ? Path.Combine(app.Environment.ContentRootPath, "uploads")
+    : (Path.IsPathRooted(configuredUploadsBase)
+        ? configuredUploadsBase
+        : Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, configuredUploadsBase)));
 
-var radioLogosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "radio");
-Directory.CreateDirectory(radioLogosRoot);
-
-var noticiasRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "noticias");
+var noticiasRoot = Path.Combine(uploadsBase, "noticias");
 Directory.CreateDirectory(noticiasRoot);
 
-var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
-Directory.CreateDirectory(modalesRoot);
-
-var eventosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "eventos");
-Directory.CreateDirectory(eventosRoot);
+var emailHeadersRoot = Path.Combine(uploadsBase, "email-headers");
+Directory.CreateDirectory(emailHeadersRoot);
 
 app.UseCors("DevCors");
 
@@ -200,30 +213,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = "/uploads/sliders"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(radioLogosRoot),
-    RequestPath = "/uploads/radio"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
     FileProvider = new PhysicalFileProvider(noticiasRoot),
     RequestPath = "/uploads/noticias"
 });
 
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(eventosRoot),
-    RequestPath = "/uploads/eventos"
+    FileProvider = new PhysicalFileProvider(emailHeadersRoot),
+    RequestPath = "/uploads/email-headers"
 });
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));

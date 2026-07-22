@@ -1,3 +1,8 @@
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .impersonation-banner {
   position: fixed;
   top: 0;
@@ -9,9 +14,9 @@
   gap: 10px;
   padding: 8px 14px;
   background: #fff3cd;
-  color: #5c4500;
+  color: var(--color-warning-text);
   border-bottom: 1px solid #ffe69c;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-size-scale));
   font-weight: 600;
 }
 
@@ -19,10 +24,10 @@
   margin-left: auto;
   border: 1px solid #b88a00;
   background: #ffd24d;
-  color: #3a2b00;
+  color: var(--ui-text);
   border-radius: 8px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
   font-weight: 700;
   cursor: pointer;
 }
@@ -54,14 +59,14 @@
     content: '';
     position: absolute;
     inset: 0;
-    background-image:
-      repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 10px,
-        rgba(255, 255, 255, 0.02) 10px,
-        rgba(255, 255, 255, 0.02) 20px
-      );
+    // background-image:
+    //   repeating-linear-gradient(
+    //     45deg,
+    //     transparent,
+    //     transparent 10px,
+    //     rgba(255, 255, 255, 0.02) 10px,
+    //     rgba(255, 255, 255, 0.02) 20px
+    //   );
     pointer-events: none;
   }
 
@@ -118,7 +123,7 @@
 
 .brand-title {
   color: white;
-  font-size: calc(1.1rem * var(--font-size-scale));
+  font-size: 1.1rem;
   font-weight: 700;
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -126,7 +131,7 @@
 
 .brand-subtitle {
   color: var(--policia-cielo);
-  font-size: calc(0.75rem * var(--font-size-scale));
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -195,6 +200,66 @@
       transform: scale(1.1);
       box-shadow: 0 4px 12px rgba(205, 255, 0, 0.4);
     }
+  }
+
+  .search-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    z-index: 9999;
+    animation: fadeInDown 0.15s ease;
+
+    &--empty {
+      padding: 12px 16px;
+      color: #888;
+      font-size: calc(13px * var(--font-size-scale));
+    }
+  }
+
+  .search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #1a1a2e;
+    font-size: calc(13px * var(--font-size-scale));
+    transition: background 0.15s ease;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    &:hover,
+    &--active {
+      background: #f4f6ff;
+    }
+  }
+
+  .search-result-icon {
+    color: var(--policia-primario, #003366);
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+  }
+
+  .search-result-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .search-result-external {
+    color: #888;
+    font-size: 11px;
+    flex-shrink: 0;
   }
 }
 
@@ -334,7 +399,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(21, 27, 59, 0.12);
+  border-bottom: 1px solid rgba(var(--policia-oscuro-rgb), 0.12);
 }
 
 .profile-modal__head h3 {
@@ -362,7 +427,7 @@
   width: 200px;
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(21, 27, 59, 0.08);
+  background: rgba(var(--policia-oscuro-rgb), 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -378,8 +443,8 @@
 }
 
 .profile-photo i {
-  font-size: 30px;
-  color: rgba(21, 27, 59, 0.55);
+  font-size: calc(30px * var(--font-size-scale));
+  color: rgba(var(--policia-oscuro-rgb), 0.55);
 }
 
 .profile-fields {
@@ -446,7 +511,7 @@
   overflow: hidden;
 }
 
-.header-user:hover .user-dropdown {
+.user-dropdown.show-dropdown {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -488,8 +553,14 @@
 
 /* --- RESPONSIVE --- */
 @media (max-width: 1024px) {
-  .brand-title { font-size: calc(1rem * var(--font-size-scale)); }
-  .header-search { flex: 0 1 350px; }
+  .brand-title { font-size: 1rem; }
+  .header-search { flex: 0 1 300px; }
+}
+
+@media (max-width: 900px) {
+  .header-search { flex: 0 1 200px; padding: 0 12px; }
+  .brand-title { font-size: 0.95rem; }
+  .modern-header { padding: 0 20px; }
 }
 
 @media (max-width: 768px) {
@@ -556,7 +627,7 @@
   top: calc(100% + 15px);
   right: -50px;
   width: 320px;
-  background: white;
+  background: var(--ui-surface);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--ui-border);
@@ -574,7 +645,7 @@
     padding: 12px 16px;
     color: white;
     font-weight: 700;
-    font-size: 14px;
+    font-size: calc(14px * var(--font-size-scale));
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -595,7 +666,7 @@
     transition: background 0.2s;
 
     &:last-child { border-bottom: none; }
-    &:hover { background: #f8fafc; }
+    &:hover { background: var(--ui-surface); }
 
     .event-item__info {
       flex: 1;
@@ -605,7 +676,7 @@
     }
 
     .event-item__name {
-      font-size: 13px;
+      font-size: calc(13px * var(--font-size-scale));
       font-weight: 700;
       color: var(--policia-oscuro);
       white-space: normal;
@@ -614,28 +685,28 @@
     }
 
     .event-item__date {
-      font-size: 11px;
-      color: #64748b;
+      font-size: calc(11px * var(--font-size-scale));
+      color: var(--ui-muted);
       text-align: left;
     }
 
     i {
-      font-size: 12px;
-      color: #94a3b8;
+      font-size: calc(12px * var(--font-size-scale));
+      color: var(--ui-muted);
     }
   }
 
   .dropdown-empty {
     padding: 30px 20px;
     text-align: center;
-    color: #94a3b8;
-    font-size: 13px;
+    color: var(--ui-muted);
+    font-size: calc(13px * var(--font-size-scale));
   }
 }
 
 /* Modal Detalle Evento */
 .event-detail-modal {
-  background: white !important;
+  background: var(--ui-surface)!important;
   color: var(--policia-oscuro) !important;
 
   .profile-modal__head {
@@ -650,7 +721,7 @@
 
   .event-detail-title {
     margin: 0;
-    font-size: 18px;
+    font-size: calc(18px * var(--font-size-scale));
     font-weight: 800;
     color: var(--policia-oscuro);
     text-align: center;
@@ -663,7 +734,7 @@
     overflow: hidden;
     margin: 15px 0;
     border: 1px solid var(--ui-border);
-    background: #f8fafc;
+    background: var(--ui-surface);
   }
 
   .event-detail-img {
@@ -685,9 +756,44 @@
     i { 
       width: 20px; 
       color: var(--policia-claro);
-      font-size: 16px;
+      font-size: calc(16px * var(--font-size-scale));
     }
 
     strong { color: var(--policia-oscuro) !important; }
+  }
+}
+
+/* --- MODO OSCURO --- */
+:host-context(html.dark-mode) {
+  .dropdown-item {
+    color: var(--ui-text);
+  }
+
+  .event-item__name {
+    color: var(--ui-text);
+  }
+
+  .event-detail-modal {
+    color: var(--ui-text) !important;
+
+    .profile-modal__head h3 {
+      color: var(--ui-text) !important;
+    }
+
+    .close-btn {
+      color: var(--ui-text) !important;
+    }
+
+    .event-detail-title {
+      color: var(--ui-text);
+    }
+
+    .profile-fields {
+      color: var(--ui-text) !important;
+
+      strong {
+        color: var(--ui-text) !important;
+      }
+    }
   }
 }

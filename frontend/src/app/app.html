@@ -1,7 +1,6 @@
 <router-outlet></router-outlet>
 
-<!-- Modal Visor (popups configurables, se activa solo en /home) -->
-<app-modal-visor></app-modal-visor>
+
 
 <!-- UI TOAST -->
 <div class="ui-toast-wrap" *ngIf="toast.open">
@@ -47,7 +46,11 @@
     <p class="ui-alert__text">{{ alert.message }}</p>
 
     <div class="ui-alert__foot" [ngClass]="alert.type">
-      <button class="ui-btn primary ui-btn--fx" type="button" (click)="closeAlert()">
+      <button *ngIf="alert.isConfirm" class="ui-btn secondary" type="button" (click)="cancelAlert()">
+        {{ alert.cancelText || 'Cancelar' }}
+      </button>
+
+      <button class="ui-btn primary ui-btn--fx" type="button" (click)="confirmAlert()">
         {{ alert.okText }}
       </button>
     </div>

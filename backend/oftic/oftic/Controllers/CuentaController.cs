@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Comun.Dtos;
 using Negocio.Gestion;
 using Negocio.Interfaz;
@@ -41,6 +42,8 @@ namespace ofic.Controllers
         }
 
         [HttpPost("Token")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> GetToken([FromBody] DtoTokenRequest request)
         {
             try
@@ -63,10 +66,10 @@ namespace ofic.Controllers
 
                 if (idUsuario is null)
                 {
-                    return Unauthorized(new DtoTokenResponse 
-                    { 
-                        success = false, 
-                        message = "Usuario no encontrado o inactivo" 
+                    return Unauthorized(new DtoTokenResponse
+                    {
+                        success = false,
+                        message = "Usuario o contraseña incorrectos"
                     });
                 }
 
@@ -87,7 +90,7 @@ namespace ofic.Controllers
                         return Unauthorized(new DtoTokenResponse
                         {
                             success = false,
-                            message = "Credenciales incorrectas"
+                            message = "Usuario o contraseña incorrectos"
                         });
                     }
 
@@ -210,6 +213,38 @@ namespace ofic.Controllers
                     success = false,
                     message = "Error iniciando impersonación."
                 });
+            }
+        }
+
+        [HttpPost("Refresh")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
+        public IActionResult Refresh([FromBody] DtoRefreshTokenRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.Token))
+                {
+                    return BadRequest(new DtoTokenResponse { success = false, message = "Token requerido" });
+                }
+
+                var newToken = _jwtService.RefreshToken(request.Token);
+                if (newToken == null)
+                {
+                    return Unauthorized(new DtoTokenResponse { success = false, message = "Token inválido o expirado" });
+                }
+
+                return Ok(new DtoTokenResponse
+                {
+                    token = newToken,
+                    success = true,
+                    message = "Token renovado"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing token");
+                return StatusCode(500, new DtoTokenResponse { success = false, message = "Error al renovar token" });
             }
         }
 

@@ -48,6 +48,28 @@
                 <option [ngValue]="0">Inactiva</option>
               </select>
             </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Imagen de Encabezado del Correo</label>
+              <div class="encabezado-upload-area">
+                <ng-container *ngIf="!imagenEncabezadoPreview">
+                  <label class="encabezado-upload-btn" [class.loading]="subiendoImagenEncabezado">
+                    <input type="file" accept=".jpg,.jpeg,.png,.webp" (change)="onChangeImagenEncabezado($event)" style="display:none">
+                    <i class="fa-solid" [class.fa-image]="!subiendoImagenEncabezado" [class.fa-spinner]="subiendoImagenEncabezado" [class.fa-spin]="subiendoImagenEncabezado"></i>
+                    {{ subiendoImagenEncabezado ? 'Subiendo...' : 'Seleccionar imagen' }}
+                  </label>
+                  <span class="encabezado-hint">JPG, PNG o WEBP · máx. 3 MB · Se mostrará en la parte superior de cada correo enviado.</span>
+                </ng-container>
+                <ng-container *ngIf="imagenEncabezadoPreview">
+                  <div class="encabezado-preview">
+                    <img [src]="imagenEncabezadoPreview" alt="Encabezado" />
+                    <button class="ui-btn icon-only danger" type="button" title="Quitar imagen" (click)="quitarImagenEncabezado()">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
           </div>
 
           <div class="tab-actions">

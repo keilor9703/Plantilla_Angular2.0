@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
-import { DtoRolCatalogo, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
+import { AlertService } from '../../../core/services/alert.service';
+import { DtoRolCatalogo, EditarRolRequest, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { AuthService } from '../../../core/auth/auth.service';
 
 type TabKey = 'datos' | 'roles';
@@ -61,7 +62,8 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     private toast: ToastService,
     private usuarioAdminService: UsuarioAdminService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private alert: AlertService
   ) {}
 
   minimized = false;
@@ -77,7 +79,8 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   searchNombreListado = '';
   private searchNombreTimeout: ReturnType<typeof setTimeout> | null = null;
   readonly minSearchChars = 6;
-  readonly pageSize = 10;
+  pageSize = 10;
+  pageSizeOptions: number[] = [5, 10, 20, 30, 50, 100];
   currentPage = 1;
   isSearchMode = false;
   activeTab: TabKey = 'datos';
@@ -191,12 +194,12 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.user.activo = !this.user.activo;
   }
 
-  get activeRolesCount(): number {
-    return this.rolesVigentes.length;
-  }
+ get activeRolesCount(): number {
+    return this.user?.roles.filter(r => r.estado === 'Vigente').length ?? 0;
+}
 
   get rolesVigentes(): UserRole[] {
-    return this.user?.roles.filter((r) => r.estado === 'Vigente') ?? [];
+    return this.user?.roles ?? [];
   }
 
   agregarRol(): void {
@@ -216,12 +219,14 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.newRole.fechaFin = this.normalizeDateString(fecha.toISOString());
     
     this.showAddRoleForm = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   cancelarNuevoRol(): void {
     this.showAddRoleForm = false;
     this.editingRole = null;
     this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
+      try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
   }
 
   prepararEdicionRol(rol: UserRole): void {
@@ -232,6 +237,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       fechaFin: rol.fechaExpiracion
     };
     this.showAddRoleForm = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
     
     // Hacer scroll al formulario
     setTimeout(() => {
@@ -340,7 +346,48 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.editingRole === null) {
+      const rolCatalogo = this.rolesCatalogo.find(r => r.id === this.newRole.rolId);
+      const rolNombre = (rolCatalogo?.nombre ?? '').trim().toUpperCase();
+      const yaAsignado = this.user.roles.some(r =>
+        r.nombre.trim().toUpperCase() === rolNombre
+        && r.estado === 'Vigente'
+      );
+      if (yaAsignado) {
+        this.toast.warning('Roles', 'El usuario ya tiene este rol asignado y vigente.');
+        return;
+      }
+    }
+
     this.savingRole = true;
+
+    if (this.editingRole !== null) {
+      const editPayload: EditarRolRequest = {
+        usuario: this.user.usuarioEmpresarial,
+        identificacion: this.user.identificacion,
+        justificacion: this.newRole.justificacion.trim(),
+        fechaFin: this.newRole.fechaFin
+      };
+      this.usuarioAdminService.editarRol(this.editingRole.id, editPayload).subscribe({
+        next: (resp) => {
+          this.savingRole = false;
+          if (!resp?.success) {
+            this.toast.warning('Roles', resp?.message || 'No fue posible editar el rol.');
+            return;
+          }
+          this.toast.success('Roles', resp.message || 'Rol actualizado correctamente.');
+          this.cancelarNuevoRol();
+          this.consultarUsuario();
+          this.cargarListadoUsuarios();
+        },
+        error: (err) => {
+          this.savingRole = false;
+          this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error editando rol.');
+        }
+      });
+      return;
+    }
+
     this.usuarioAdminService.asignarRol({
       usuarioId: 0,
       usuario: this.user.usuarioEmpresarial,
@@ -369,14 +416,19 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     });
   }
 
-  eliminarRol(rol: UserRole): void {
+  async eliminarRol(rol: UserRole): Promise<void> {
     if (!this.user) {
       this.toast.warning('Roles', 'Consulta un usuario primero.');
       return;
     }
 
-    const confirmar = confirm(`¿Deseas retirar el rol "${rol.nombre}" del usuario?`);
-    if (!confirmar) {
+    const confirmed = await this.alert.confirm(
+      'Retirar rol',
+      `¿Deseas retirar el rol "${rol.nombre}" del usuario?`,
+      'Retirar',
+      'Cancelar'
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -448,6 +500,78 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
   get totalPaginasListado(): number {
     return Math.max(1, Math.ceil(this.totalUsuariosListado / this.pageSize));
+  }
+
+  /**
+   * Page numbers for compact pagination UI.
+   * If total pages <= 11, show all. Otherwise show 1..10, '...', last.
+   */
+  get pageNumbers(): Array<number | string> {
+    const total = this.totalPaginasListado;
+    const current = this.currentPage;
+    const window = 5; // pages before/after
+
+    // If total small, show all
+    if (total <= window * 2 + 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages: Array<number | string> = [];
+    // always show first
+    pages.push(1);
+
+    let start = Math.max(2, current - window);
+    let end = Math.min(total - 1, current + window);
+
+    // adjust when close to boundaries
+    if (start <= 2) start = 2;
+    if (end >= total - 1) end = total - 1;
+
+    if (start > 2) pages.push('...');
+
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    if (end < total - 1) pages.push('...');
+
+    pages.push(total);
+    return pages;
+  }
+
+  goToPage(page: number): void {
+    if (!Number.isFinite(page) || page < 1 || page > this.totalPaginasListado) return;
+    this.currentPage = page;
+  }
+
+  onPageClick(p: number | string): void {
+    if (p === '...') return;
+    const n = Number(p);
+    if (Number.isFinite(n)) this.goToPage(n);
+  }
+
+  onPageSizeChange(size: number | string): void {
+    const n = Number(size) || 10;
+    console.log('[DEBUG] onPageSizeChange start', { requestedSize: n, currentPageBefore: this.currentPage, pageSizeBefore: this.pageSize, totalItems: this.usuariosListado.length });
+
+    // compute last page based on the new page size before applying it
+    const totalItems = this.usuariosListado.length;
+    const lastPage = Math.max(1, Math.ceil(totalItems / n));
+
+    this.pageSize = n;
+    console.log('[DEBUG] onPageSizeChange - applied pageSize', { pageSize: this.pageSize, lastPage });
+
+    // Ensure currentPage is within bounds for the new page size
+    this.currentPage = Math.min(this.currentPage, lastPage);
+    console.log('[DEBUG] onPageSizeChange - clamped currentPage', this.currentPage);
+
+    // If the current page (after resize) has no items, jump to last page that has items
+    const pageItemsNow = this.usuariosListadoPaginado;
+    console.log('[DEBUG] onPageSizeChange - pageItemsNow.length', pageItemsNow.length);
+    if (pageItemsNow.length === 0 && totalItems > 0) {
+      this.currentPage = lastPage;
+      console.log('[DEBUG] onPageSizeChange - jumped to lastPage', lastPage);
+    }
+
+    console.log('[DEBUG] onPageSizeChange end', { currentPageAfter: this.currentPage, pageSizeAfter: this.pageSize });
   }
 
   get usuariosListadoPaginado(): UsuarioListadoItem[] {
@@ -538,6 +662,24 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     });
   }
 
+  impersonarUsuarioActual(): void {
+    if (!this.user) {
+      this.toast.warning('Impersonación', 'No hay usuario seleccionado.');
+      return;
+    }
+
+    const usuarioListadoItem: UsuarioListadoItem = {
+      idUsuario: 0,
+      identificacion: this.user.identificacion,
+      username: this.user.usuarioEmpresarial,
+      nombreCompleto: this.user.nombreCompleto,
+      rol: this.user.roles?.[0]?.nombre || '',
+      fechaFinRol: this.user.roles?.[0]?.fechaExpiracion
+    };
+
+    this.impersonarDesdeListado(usuarioListadoItem);
+  }
+
   impersonarDesdeListado(item: UsuarioListadoItem): void {
     const username = String(item?.username ?? '').trim();
     if (!username) {
@@ -604,6 +746,35 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     const m = String(parsed.getMonth() + 1).padStart(2, '0');
     const d = String(parsed.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+
+  tiempoRestante(fechaExpiracion: string): string {
+    if (!fechaExpiracion) return 'Sin fecha';
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fin = new Date(fechaExpiracion + 'T00:00:00');
+    if (Number.isNaN(fin.getTime())) return 'Sin fecha';
+
+    const diff = fin.getTime() - hoy.getTime();
+    if (diff < 0) return 'Vencido';
+    if (diff === 0) return 'Vence hoy';
+
+    let anios = fin.getFullYear() - hoy.getFullYear();
+    let meses = fin.getMonth() - hoy.getMonth();
+    let dias  = fin.getDate()  - hoy.getDate();
+
+    if (dias < 0) {
+      meses--;
+      const ultimoDiaMesAnterior = new Date(fin.getFullYear(), fin.getMonth(), 0).getDate();
+      dias += ultimoDiaMesAnterior;
+    }
+    if (meses < 0) { anios--; meses += 12; }
+
+    const partes: string[] = [];
+    if (anios > 0)  partes.push(`${anios} ${anios === 1 ? 'año' : 'años'}`);
+    if (meses > 0)  partes.push(`${meses} ${meses === 1 ? 'mes' : 'meses'}`);
+    if (dias > 0)   partes.push(`${dias} ${dias === 1 ? 'día' : 'días'}`);
+    return partes.length ? partes.join(', ') : 'Vence hoy';
   }
 
   private filtrarRolesCatalogo(roles: DtoRolCatalogo[]): DtoRolCatalogo[] {

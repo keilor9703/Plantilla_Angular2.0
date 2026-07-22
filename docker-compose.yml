@@ -11,6 +11,10 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DbCoest=${DB_COEST}
+      - ApiSettings__UsuarioPip=${PIP_USUARIO}
+      - ApiSettings__ClavePip=${PIP_CLAVE}
+      - Jwt__Key=${JWT_KEY}
+      - Crypto__Key=${CRYPTO_KEY}
       - AppSettings__UploadsPath=/app/uploads
     volumes:
       - uploads:/app/uploads
@@ -20,6 +24,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - sicoe_default
 
   frontend:
     build:
@@ -34,6 +40,12 @@ services:
     ports:
       - "8091:80"
     restart: unless-stopped
+    networks:
+      - sicoe_default
+
+networks:
+  sicoe_default:
+    name: sicoe_default
 
 volumes:
   uploads:

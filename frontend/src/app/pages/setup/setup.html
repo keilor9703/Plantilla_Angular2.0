@@ -1,0 +1,271 @@
+<div class="setup-container">
+  <div class="setup-card">
+    <div class="setup-header">
+      <div class="setup-brand">
+        <i class="fa-solid fa-gears"></i>
+        <span>Asistente de Instalación & Configuración</span>
+      </div>
+      <p class="setup-subtitle">Configura la base de datos para inicializar tu plantilla de proyecto</p>
+    </div>
+
+    <!-- Stepper indicator -->
+    <div class="setup-stepper">
+      <div class="step-item" [class.active]="step >= 1" [class.completed]="step > 1">
+        <span class="step-number">1</span>
+        <span class="step-label">Base de Datos</span>
+      </div>
+      <div class="step-line" [class.active]="step > 1"></div>
+      <div class="step-item" [class.active]="step >= 2" [class.completed]="step > 2">
+        <span class="step-number">2</span>
+        <span class="step-label">Conexión</span>
+      </div>
+      <div class="step-line" [class.active]="step > 2"></div>
+      <div class="step-item" [class.active]="step === 3">
+        <span class="step-number">3</span>
+        <span class="step-label">Prueba y Guardado</span>
+      </div>
+    </div>
+
+    <div class="setup-body">
+      <!-- PASO 1: Selección de Motor -->
+      <div *ngIf="step === 1" class="step-content">
+        <h3>Selecciona el motor de base de datos</h3>
+        <p class="section-desc">Elige la base de datos que usará esta aplicación:</p>
+
+        <div class="provider-grid">
+          <div
+            class="provider-card"
+            [class.selected]="formData.provider === 'Oracle'"
+            (click)="selectProvider('Oracle')">
+            <div class="provider-icon oracle">
+              <i class="fa-solid fa-database"></i>
+            </div>
+            <h4>Oracle DB</h4>
+            <p>Soporte por defecto del backend SICOE / OFTIC</p>
+          </div>
+
+          <div
+            class="provider-card"
+            [class.selected]="formData.provider === 'PostgreSQL'"
+            (click)="selectProvider('PostgreSQL')">
+            <div class="provider-icon postgres">
+              <i class="fa-solid fa-server"></i>
+            </div>
+            <h4>PostgreSQL</h4>
+            <p>Base de datos relacional de código abierto</p>
+          </div>
+
+          <div
+            class="provider-card"
+            [class.selected]="formData.provider === 'MySQL'"
+            (click)="selectProvider('MySQL')">
+            <div class="provider-icon mysql">
+              <i class="fa-solid fa-cubes"></i>
+            </div>
+            <h4>MySQL / MariaDB</h4>
+            <p>Motor ligero y de alto rendimiento</p>
+          </div>
+        </div>
+
+        <div class="step-actions right">
+          <button class="ui-btn primary ui-btn--fx" type="button" (click)="nextStep()">
+            Siguiente <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 2: Parámetros -->
+      <div *ngIf="step === 2" class="step-content">
+        <div class="mode-toggle mb-3">
+          <label class="ui-check">
+            <input type="checkbox" [(ngModel)]="useRawConnectionString">
+            <span class="ui-check__box"></span>
+            <span class="ui-check__text">Ingresar cadena de conexión completa manualmente</span>
+          </label>
+        </div>
+
+        <div *ngIf="!useRawConnectionString" class="ui-grid">
+          <div class="ui-field ui-col-8">
+            <label class="ui-label">Servidor / Host</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.host" placeholder="Ej: scan-cludbadm3.policia.gov.co o localhost">
+          </div>
+
+          <div class="ui-field ui-col-4">
+            <label class="ui-label">Puerto</label>
+            <input class="ui-control" type="number" [(ngModel)]="formData.port" placeholder="1538">
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">{{ formData.provider === 'Oracle' ? 'Nombre del Servicio / SID (DATABASE)' : 'Nombre de la Base de Datos' }}</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.databaseOrService" placeholder="Ej: TELEPOL_WLGENERAL o mi_base_datos">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Nombre de Esquema / Usuario (USER ID)</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.user" placeholder="Ej: USR_COEST">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Contraseña (PASSWORD)</label>
+            <input class="ui-control" type="password" [(ngModel)]="formData.password" placeholder="••••••••">
+          </div>
+
+          <!-- Credenciales PIP -->
+          <div class="ui-field ui-col-12 mt-3">
+            <h4 class="sub-section-title"><i class="fa-solid fa-key"></i> Credenciales de Integración PIP / OUD</h4>
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Usuario PIP (PIP_USUARIO)</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.pipUser" placeholder="Ej: usuario_tecnico_pip">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Clave PIP (PIP_CLAVE)</label>
+            <input class="ui-control" type="password" [(ngModel)]="formData.pipPassword" placeholder="••••••••">
+          </div>
+
+          <!-- Seguridades JWT -->
+          <div class="ui-field ui-col-12 mt-3">
+            <h4 class="sub-section-title"><i class="fa-solid fa-shield-halved"></i> Configuración de Seguridad de Tokens JWT</h4>
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <div class="flex-between align-center mb-1">
+              <label class="ui-label m-0">Clave Secreta de Firma JWT (Key — mín. 32 caracteres)</label>
+              <button class="ui-btn small outline border-sky" type="button" (click)="generateRandomJwtKey()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Generar Clave Aleatoria Segura
+              </button>
+            </div>
+            <input class="ui-control font-mono" type="text" [(ngModel)]="formData.jwtKey" placeholder="Ingresa o genera una clave de al menos 32 caracteres">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Emisor del Token (Issuer)</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.jwtIssuer" placeholder="oftic.api">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Audiencia del Token (Audience)</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.jwtAudience" placeholder="oftic.api">
+          </div>
+
+          <!-- Identidad y Branding del Sistema -->
+          <div class="ui-field ui-col-12 mt-3">
+            <h4 class="sub-section-title"><i class="fa-solid fa-palette"></i> Identidad y Personalización del Sistema (Branding)</h4>
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Sigla del Sistema</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.sistema" placeholder="Ej: SISGE o SICOE">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Nombre Completo del Sistema</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.nombreSistema" placeholder="Ej: Sistema de Gestión Estratégica">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Unidad Policial (Organigrama)</label>
+            <select class="ui-control" (change)="onUnidadChange($event)" [value]="formData.unidadSistemaId">
+              <option [value]="0">-- Seleccione una Unidad --</option>
+              <option *ngFor="let u of unidadesList" [value]="u.idOrganigrama || u.id">
+                {{ u.sigla ? u.sigla + ' - ' : '' }}{{ u.nombre || u.nombreUnidad }}
+              </option>
+            </select>
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Sigla / Nombre Corto de la Unidad</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.sigla" placeholder="Ej: OFTIC">
+          </div>
+
+          <!-- Carga de Archivos Visuales -->
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Logo del Sistema (PNG, JPG, WEBP)</label>
+            <input class="ui-control" type="file" accept="image/*" (change)="onLogoSelected($event)">
+            <div *ngIf="logoPreview" class="asset-preview mt-2">
+              <img [src]="logoPreview" alt="Logo preview" style="max-height: 48px; border-radius: 4px;">
+            </div>
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Favicon del Sistema (.ICO, PNG)</label>
+            <input class="ui-control" type="file" accept="image/*,.ico" (change)="onFaviconSelected($event)">
+            <div *ngIf="faviconPreview" class="asset-preview mt-2">
+              <img [src]="faviconPreview" alt="Favicon preview" style="max-height: 32px; border-radius: 4px;">
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="useRawConnectionString" class="ui-field ui-col-12">
+          <label class="ui-label">Cadena de conexión personalizada</label>
+          <textarea class="ui-control" rows="4" [(ngModel)]="formData.connectionStringRaw" placeholder="Data Source=...;User ID=...;Password=..."></textarea>
+        </div>
+
+        <div class="step-actions justify-between mt-4">
+          <button class="ui-btn outline" type="button" (click)="prevStep()">
+            <i class="fa-solid fa-arrow-left"></i> Atrás
+          </button>
+          <button class="ui-btn primary ui-btn--fx" type="button" (click)="nextStep()">
+            Siguiente <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 3: Prueba y Guardado -->
+      <div *ngIf="step === 3" class="step-content">
+        <h3>Prueba y Guardado de Configuración</h3>
+        <p class="section-desc">Verifica la conectividad antes de guardar los datos en `appsettings.json`</p>
+
+        <div class="summary-box">
+          <div><strong>Proveedor BD:</strong> {{ formData.provider }}</div>
+          <div *ngIf="!useRawConnectionString"><strong>Servidor / Host:</strong> {{ formData.host }}</div>
+          <div *ngIf="!useRawConnectionString"><strong>Puerto:</strong> {{ formData.port }}</div>
+          <div *ngIf="!useRawConnectionString"><strong>Nombre de Servicio / SID:</strong> {{ formData.databaseOrService }}</div>
+          <div *ngIf="!useRawConnectionString"><strong>Esquema / Usuario:</strong> {{ formData.user }}</div>
+          <div *ngIf="useRawConnectionString"><strong>Cadena personalizada:</strong> {{ formData.connectionStringRaw }}</div>
+          <div><strong>Usuario PIP:</strong> {{ formData.pipUser || '(No configurado)' }}</div>
+          <div><strong>Sigla del Sistema:</strong> {{ formData.sistema || 'SISGE' }}</div>
+          <div><strong>Nombre del Sistema:</strong> {{ formData.nombreSistema || 'Sistema de Gestión' }}</div>
+          <div *ngIf="formData.nombreUnidad"><strong>Unidad Policial:</strong> {{ formData.nombreUnidad }}</div>
+        </div>
+
+        <div class="test-area mt-4">
+          <button
+            class="ui-btn secondary"
+            type="button"
+            [disabled]="testing"
+            (click)="onTestConnection()">
+            <i class="fa-solid" [class.fa-plug]="!testing" [class.fa-spinner]="testing" [class.fa-spin]="testing"></i>
+            {{ testing ? 'Probando conexión...' : 'Probar Conexión' }}
+          </button>
+
+          <div *ngIf="testResult" class="alert-box mt-3" [class.success]="testResult.success" [class.error]="!testResult.success">
+            <i class="fa-solid" [class.fa-circle-check]="testResult.success" [class.fa-circle-xmark]="!testResult.success"></i>
+            <span>{{ testResult.message }}</span>
+          </div>
+        </div>
+
+        <div *ngIf="saveResult" class="alert-box mt-3" [class.success]="saveResult.success" [class.error]="!saveResult.success">
+          <i class="fa-solid" [class.fa-circle-check]="saveResult.success" [class.fa-circle-xmark]="!saveResult.success"></i>
+          <span>{{ saveResult.message }}</span>
+        </div>
+
+        <div class="step-actions justify-between mt-4">
+          <button class="ui-btn outline" type="button" (click)="prevStep()">
+            <i class="fa-solid fa-arrow-left"></i> Atrás
+          </button>
+          <button
+            class="ui-btn primary ui-btn--fx"
+            type="button"
+            [disabled]="saving"
+            (click)="onSaveConfig()">
+            <i class="fa-solid" [class.fa-floppy-disk]="!saving" [class.fa-spinner]="saving" [class.fa-spin]="saving"></i>
+            {{ saving ? 'Guardando...' : 'Guardar y Finalizar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

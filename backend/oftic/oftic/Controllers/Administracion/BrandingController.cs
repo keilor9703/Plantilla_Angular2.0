@@ -55,10 +55,10 @@ namespace ofic.Controllers.Administracion
 
                 return Ok(new
                 {
-                    sistema = cfg.Sistema,
-                    nombreSistema = cfg.NombreSistema,
-                    systemName = cfg.NombreSistema,
-                    sigla = cfg.Sigla,
+                    sistema = string.IsNullOrWhiteSpace(cfg.Sistema) ? "OFTIC" : cfg.Sistema,
+                    nombreSistema = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "SISGE / OFTIC" : cfg.NombreSistema,
+                    systemName = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "SISGE / OFTIC" : cfg.NombreSistema,
+                    sigla = string.IsNullOrWhiteSpace(cfg.Sigla) ? "OFTIC" : cfg.Sigla,
                     nombreUnidad = cfg.NombreUnidad,
                     logoUrl = BuildLogoUrl(cfg.LogoFileName),
                     faviconUrl = BuildFaviconUrl(cfg.FaviconFileName)
@@ -66,8 +66,17 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando configuracion branding");
-                return StatusCode(500, new { message = "Error consultando configuracion branding." });
+                _logger.LogWarning(ex, "Base de datos o paquete de branding no disponible. Retornando configuración por defecto.");
+                return Ok(new
+                {
+                    sistema = "OFTIC",
+                    nombreSistema = "SISGE / OFTIC",
+                    systemName = "SISGE / OFTIC",
+                    sigla = "OFTIC",
+                    nombreUnidad = "",
+                    logoUrl = "/escudo.png",
+                    faviconUrl = "/favicon.ico"
+                });
             }
         }
 
@@ -104,7 +113,7 @@ namespace ofic.Controllers.Administracion
             }
         }
 
-        [HttpPost("save-config")]
+[HttpPost("save-config")]
         [Authorize]
         public async Task<IActionResult> SaveConfig([FromBody] DtoBrandingRequest request, CancellationToken ct)
         {
@@ -116,6 +125,41 @@ namespace ofic.Controllers.Administracion
                 request.MaquinaAuditoria = Environment.MachineName;
 
                 request.Vigente = 1;
+
+                if (request.IdBranding > 0)
+                {
+                    var currentList = await _brandingService.GetAllAsync(ct);
+                    var current = currentList.FirstOrDefault(c => c.Vigente == 1);
+
+                    if (current != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(request.LogoFileName) && request.LogoFileName != current.LogoFileName && !string.IsNullOrWhiteSpace(current.LogoFileName))
+                        {
+                            DeleteFileIfExists(current.LogoFileName);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(request.FaviconFileName) && request.FaviconFileName != current.FaviconFileName && !string.IsNullOrWhiteSpace(current.FaviconFileName))
+                        {
+                            DeleteFileIfExists(current.FaviconFileName);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(request.Fondo1FileName) && request.Fondo1FileName != current.Fondo1FileName && !string.IsNullOrWhiteSpace(current.Fondo1FileName))
+                        {
+                            DeleteFileIfExists(current.Fondo1FileName);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(request.Fondo2FileName) && request.Fondo2FileName != current.Fondo2FileName && !string.IsNullOrWhiteSpace(current.Fondo2FileName))
+                        {
+                            DeleteFileIfExists(current.Fondo2FileName);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(request.Fondo3FileName) && request.Fondo3FileName != current.Fondo3FileName && !string.IsNullOrWhiteSpace(current.Fondo3FileName))
+                        {
+                            DeleteFileIfExists(current.Fondo3FileName);
+                        }
+                    }
+                }
+
                 DtoBrandingResult result;
                 if (request.IdBranding > 0)
                 {
@@ -132,6 +176,18 @@ namespace ofic.Controllers.Administracion
             {
                 _logger.LogError(ex, "Error guardando configuracion branding");
                 return StatusCode(500, new { success = false, message = "Error guardando configuracion branding." });
+            }
+        }
+
+        private void DeleteFileIfExists(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName)) return;
+            var safe = Path.GetFileName(fileName);
+            var fullPath = Path.Combine(_rootPath, safe);
+            if (System.IO.File.Exists(fullPath))
+            {
+                try { System.IO.File.Delete(fullPath); }
+                catch { /* ignore delete errors */ }
             }
         }
 

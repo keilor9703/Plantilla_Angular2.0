@@ -7,6 +7,7 @@ import { DominioService, DtoDominio } from '../../../core/services/administracio
 import { CuentaEmailService, DtoCuentaEmail, DtoCuentaEmailRequest, DtoCuentaEmailUsuario } from '../../../core/services/administracion/cuenta-email.service';
 import { UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { finalize } from 'rxjs';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-cuentas-email',
@@ -31,6 +32,9 @@ export class CuentasEmailComponent implements OnInit {
   autorizadoPendienteEliminar: DtoCuentaEmailUsuario | null = null;
   
   editingId: number | null = null;
+  imagenEncabezadoPreview = '';
+  subiendoImagenEncabezado = false;
+
   form: DtoCuentaEmailRequest = {
     IdDominioGrupo: 0,
     NombreCuenta: '',
@@ -40,7 +44,8 @@ export class CuentasEmailComponent implements OnInit {
     UsuarioSmtp: '',
     ClaveSmtp: '',
     UsarSsl: 1,
-    Vigente: 1
+    Vigente: 1,
+    ImagenEncabezado: null
   };
 
   constructor(
@@ -48,6 +53,7 @@ export class CuentasEmailComponent implements OnInit {
     private dominioService: DominioService,
     private cuentaEmailService: CuentaEmailService,
     private usuarioAdminService: UsuarioAdminService
+    ,private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -108,6 +114,7 @@ export class CuentasEmailComponent implements OnInit {
 
   nuevo(): void {
     this.editingId = null;
+    this.imagenEncabezadoPreview = '';
     this.form = {
       IdDominioGrupo: 0,
       NombreCuenta: '',
@@ -117,12 +124,41 @@ export class CuentasEmailComponent implements OnInit {
       UsuarioSmtp: '',
       ClaveSmtp: '',
       UsarSsl: 1,
-      Vigente: 1
+      Vigente: 1,
+      ImagenEncabezado: null
     };
+  }
+
+  onChangeImagenEncabezado(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    if (!file) return;
+
+    this.subiendoImagenEncabezado = true;
+    this.cuentaEmailService.uploadImagenEncabezado(file)
+      .pipe(finalize(() => (this.subiendoImagenEncabezado = false)))
+      .subscribe({
+        next: (resp) => {
+          if (!resp?.success) {
+            this.toast.warning('Encabezado', 'No fue posible cargar la imagen.');
+            return;
+          }
+          this.form.ImagenEncabezado = resp.url;
+          this.imagenEncabezadoPreview = resp.url;
+          this.toast.success('Encabezado', 'Imagen cargada correctamente.');
+        },
+        error: () => this.toast.error('Encabezado', 'Error al subir la imagen.')
+      });
+  }
+
+  quitarImagenEncabezado(): void {
+    this.form.ImagenEncabezado = null;
+    this.imagenEncabezadoPreview = '';
   }
 
   editar(item: DtoCuentaEmail): void {
     this.editingId = item.idCuenta;
+    this.imagenEncabezadoPreview = item.imagenEncabezado ?? '';
     this.form = {
       IdDominioGrupo: item.idDominioGrupo,
       NombreCuenta: item.nombreCuenta,
@@ -132,7 +168,8 @@ export class CuentasEmailComponent implements OnInit {
       UsuarioSmtp: item.usuarioSmtp,
       ClaveSmtp: item.claveSmtp,
       UsarSsl: item.usarSsl,
-      Vigente: item.vigente
+      Vigente: item.vigente,
+      ImagenEncabezado: item.imagenEncabezado ?? null
     };
   }
 
@@ -180,9 +217,15 @@ export class CuentasEmailComponent implements OnInit {
     }
   }
 
-  eliminar(item: DtoCuentaEmail): void {
-    if (!confirm(`¿Está seguro de eliminar la cuenta "${item.nombreCuenta}"?`)) return;
-    
+  async eliminar(item: DtoCuentaEmail): Promise<void> {
+    const confirmed = await this.alert.confirm(
+      'Eliminar cuenta',
+      `¿Está seguro de eliminar la cuenta "${item.nombreCuenta}"?`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmed) return;
+
     this.cuentaEmailService.delete(item.idCuenta).subscribe({
       next: () => {
         this.toast.success('Éxito', 'Cuenta eliminada');

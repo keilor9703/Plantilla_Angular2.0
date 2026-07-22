@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using Oracle.ManagedDataAccess.Client;
@@ -17,7 +17,7 @@ namespace Datos.Gestion
         private readonly string _cs;
         public DbMenuRepository(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
         }
 
 

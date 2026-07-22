@@ -7,8 +7,15 @@ import { SidebarService } from '../../services/sidebar.js';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 import { BrandingService } from '../../core/services/administracion/branding.service';
-import { EventoService } from '../../core/services/administracion/evento.service';
+import { MenuService, DbMenuItem } from '../../core/services/administracion/menu.service';
 import { finalize } from 'rxjs/operators';
+
+interface SearchResult {
+  label: string;
+  route: string;
+  icon: string;
+  isExternal?: boolean;
+}
 
 interface Notification {
   id: number;
@@ -40,12 +47,6 @@ export class HeaderComponent implements OnInit {
   profileModalOpen = false;
   profileLoading = false;
   perfil: MiPerfilDto | null = null;
-  
-  // Próximos eventos
-  proximosEventos: any[] = [];
-  isCalendarDropdownOpen = false;
-  selectedEvento: any | null = null;
-  isEventoModalOpen = false;
 
   constructor(
     private SidebarService: SidebarService,
@@ -53,14 +54,19 @@ export class HeaderComponent implements OnInit {
     private http: HttpClient,
     private router: Router,
     private brandingService: BrandingService,
-    private eventoService: EventoService
+    private menuService: MenuService
   ) {}
+
+  private allSearchItems: SearchResult[] = [];
+  searchResults: SearchResult[] = [];
+  showSearchDropdown = false;
+  searchActiveIndex = -1;
 
   ngOnInit(): void {
     this.userName = this.authService.getUsuario();
     this.loadBranding();
     this.loadMyPhoto();
-    this.loadEventosCount();
+    this.loadSearchIndex();
   }
 
   toggleMenu() {
@@ -89,10 +95,10 @@ export class HeaderComponent implements OnInit {
       }
     }
 
-    // Cierre de dropdown de calendario
-    if (this.isCalendarDropdownOpen) {
-      if (!target.closest('.notification-wrapper')) {
-        this.isCalendarDropdownOpen = false;
+    // Cierre de dropdown de búsqueda
+    if (this.showSearchDropdown) {
+      if (!target.closest('.header-search')) {
+        this.showSearchDropdown = false;
       }
     }
   }
@@ -100,16 +106,10 @@ export class HeaderComponent implements OnInit {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeUserDropdown();
-    this.isCalendarDropdownOpen = false;
+    this.showSearchDropdown = false;
   }
 
-  notifications: Notification[] = [
-    { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 0, tooltip: 'Eventos' },
-    { id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
-    { id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },
-    { id: 3, icon: 'fa-tasks', color: 'success', count: 2, tooltip: 'Tareas' },
-    { id: 5, icon: 'fa-chart-line', color: 'accent', count: 0, tooltip: 'Reportes' }
-  ];
+  notifications: Notification[] = [];
 
   searchQuery: string = '';
   userName: string = 'Usuario';
@@ -127,80 +127,149 @@ export class HeaderComponent implements OnInit {
     });
   }
 
-  private loadEventosCount(): void {
-    this.eventoService.getAll().subscribe({
+  private loadSearchIndex(): void {
+    this.menuService.getMyMenu().subscribe({
       next: (items) => {
-        const today = new Date();
-        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const limit = new Date(todayZero);
-        limit.setDate(todayZero.getDate() + 5);
-
-        const filtered = (items ?? []).filter(e => {
-          // Validar vigencia
-          const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
-          if (v == null || String(v) !== '1') return false;
-
-          // Validar fecha de inicio dentro de los próximos 5 días
-          const startStr = (e.fechaInicio || '').toString().split('T')[0];
-          const parts = startStr.split('-');
-          if (parts.length !== 3) return false;
-
-          const startDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-          
-          return startDate.getTime() >= todayZero.getTime() && startDate.getTime() <= limit.getTime();
+        this.allSearchItems = this.flattenMenuItems(items ?? []);
+      },
+      error: () => {
+        const userId = this.authService.getUserId();
+        if (!userId) return;
+        this.menuService.getByUser(userId).subscribe({
+          next: (items) => {
+            this.allSearchItems = this.flattenMenuItems(items ?? []);
+          }
         });
-
-        this.proximosEventos = filtered;
-        const calendarNotif = this.notifications.find(n => n.id === 4);
-        if (calendarNotif) {
-          calendarNotif.count = filtered.length;
-        }
       }
     });
   }
 
-  onSearch(): void {
+  private flattenMenuItems(items: DbMenuItem[]): SearchResult[] {
+    const normalized = items.map((x: any) => ({
+      idMenu: Number(x.idMenu ?? x.IdMenu ?? 0),
+      descripcion: String(x.descripcion ?? x.Descripcion ?? ''),
+      idPadre: Number(x.idPadre ?? x.IdPadre ?? 0),
+      posicion: Number(x.posicion ?? x.Posicion ?? 0),
+      icono: x.icono ?? x.Icono,
+      detalle: x.detalle ?? x.Detalle,
+      vigente: Number(x.vigente ?? x.Vigente ?? 1)
+    }));
+
+    const active = normalized.filter(x => !!x.descripcion && x.vigente === 1);
+    const byId = new Map(active.map(x => [x.idMenu, x]));
+
+    const results: SearchResult[] = [];
+
+    for (const item of active) {
+      const route = this.resolveRoute(item.detalle);
+      if (!route) continue;
+      const isExternal = route.startsWith('http://') || route.startsWith('https://');
+      const parent = byId.get(item.idPadre);
+      const label = parent && parent.idMenu !== 1
+        ? `${parent.descripcion} › ${item.descripcion}`
+        : item.descripcion;
+      const icon = this.resolveIcon(item.icono ?? parent?.icono);
+      results.push({ label, route, icon, isExternal });
+    }
+
+    return results;
   }
 
-  onNotificationClick(notification: Notification): void {
-    if (notification.id === 4) {
-      this.isCalendarDropdownOpen = !this.isCalendarDropdownOpen;
+  private resolveRoute(raw: unknown): string {
+    const value = String(raw ?? '').trim();
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('www.')) {
+      return value.startsWith('www.') ? 'https://' + value : value;
+    }
+    if (value.startsWith('/administracion/')) return value;
+    const configRoutes = ['/video-unidad', '/configuracion-imagen-sitio', '/admin-multimedia', '/configuracion-sistema'];
+    if (configRoutes.includes(value)) return '/administracion/configuracion-sistema';
+    const routeMap: Record<string, string> = {
+      '/formularios': '/administracion/formularios',
+      '/usuarios': '/administracion/usuarios',
+      '/roles': '/administracion/roles',
+      '/linea-mando': '/administracion/linea-mando',
+      '/radio': '/administracion/radio',
+      '/menu': '/administracion/menu',
+      '/auditoria': '/administracion/auditoria',
+      '/sliders': '/administracion/sliders'
+    };
+    return routeMap[value] || (value.startsWith('/') ? value : `/${value}`);
+  }
+
+  private resolveIcon(raw: unknown): string {
+    const value = String(raw ?? '').trim();
+    if (!value) return 'fa-solid fa-circle-dot';
+    return value.includes('fa-') ? value : `fa-solid ${value}`;
+  }
+
+  private normalizeText(text: string): string {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  onSearchInput(): void {
+    const q = this.normalizeText(this.searchQuery ?? '');
+    this.searchActiveIndex = -1;
+    if (!q.trim()) {
+      this.searchResults = [];
+      this.showSearchDropdown = false;
+      return;
+    }
+    this.searchResults = this.allSearchItems
+      .filter(r => this.normalizeText(r.label).includes(q))
+      .slice(0, 8);
+    this.showSearchDropdown = true;
+  }
+
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (!this.showSearchDropdown || this.searchResults.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.searchActiveIndex = Math.min(this.searchActiveIndex + 1, this.searchResults.length - 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.searchActiveIndex = Math.max(this.searchActiveIndex - 1, -1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (this.searchActiveIndex >= 0) {
+        this.navigateSearchResult(this.searchResults[this.searchActiveIndex]);
+      } else if (this.searchResults.length === 1) {
+        this.navigateSearchResult(this.searchResults[0]);
+      }
     }
   }
 
-  openEventoDetail(evento: any, event?: Event): void {
-    if (event) event.stopPropagation();
-    this.selectedEvento = evento;
-    this.isEventoModalOpen = true;
-    this.isCalendarDropdownOpen = false;
+  onSearch(): void {
+    if (this.searchActiveIndex >= 0 && this.searchResults[this.searchActiveIndex]) {
+      this.navigateSearchResult(this.searchResults[this.searchActiveIndex]);
+    } else if (this.searchResults.length === 1) {
+      this.navigateSearchResult(this.searchResults[0]);
+    }
   }
 
-  closeEventoModal(): void {
-    this.isEventoModalOpen = false;
-    this.selectedEvento = null;
+  navigateSearchResult(result: SearchResult): void {
+    this.showSearchDropdown = false;
+    this.searchQuery = '';
+    this.searchResults = [];
+    this.searchActiveIndex = -1;
+    if (result.isExternal) {
+      window.open(result.route, '_blank', 'noopener,noreferrer');
+    } else {
+      this.router.navigate([result.route]);
+    }
   }
 
-  getEventoImageUrl(raw: string | null | undefined): string {
-    const value = (raw ?? '').trim();
-    if (!value) return '';
-    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/')) return value;
-    return `/api/EventoUpload/Imagen/${encodeURIComponent(value)}`;
+  closeSearchDropdown(): void {
+    this.showSearchDropdown = false;
+    this.searchActiveIndex = -1;
   }
 
-  getEventoFechaRango(evento: any): string {
-    const fmt = (dStr: string) => {
-      const d = new Date(dStr);
-      return isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-    const fi = fmt(evento.fechaInicio);
-    const ff = fmt(evento.fechaFin);
-    if (!fi && !ff) return 'Sin fecha';
-    return fi === ff ? fi : `${fi} - ${ff}`;
+  onNotificationClick(notification: Notification): void {
   }
 
-  onProfileClick(): void {
-    this.openProfileModal();
+  onProfileClick(event?: Event): void {
+    this.toggleUserDropdown(event);
   }
 
   onLogout(): void {
@@ -296,4 +365,3 @@ export class HeaderComponent implements OnInit {
     this.profileModalOpen = false;
   }
 }
-

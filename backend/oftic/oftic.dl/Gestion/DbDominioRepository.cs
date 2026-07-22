@@ -1,4 +1,4 @@
-﻿using DtoUnidad = Comun.Dtos.DtoUnidad;
+using DtoUnidad = Comun.Dtos.DtoUnidad;
 using Comun.Dtos.Dominio;
 using Comun.Dtos.LineasMando;
 using Datos.Interfaz;
@@ -21,7 +21,7 @@ namespace Datos.Gestion
 
         public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 

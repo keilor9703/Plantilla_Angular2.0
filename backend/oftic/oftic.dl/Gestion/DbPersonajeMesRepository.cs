@@ -1,4 +1,4 @@
-﻿using Comun.Dtos.PersonajeMes;
+using Comun.Dtos.PersonajeMes;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -19,7 +19,7 @@ namespace Datos.Gestion
 
         public DbPersonajeMesRepository(IConfiguration configuration, ILogger<DbPersonajeMesRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 

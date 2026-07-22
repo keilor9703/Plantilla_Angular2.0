@@ -1,49 +1,11 @@
 <main class="content-area">
   <section class="view-container">
-    <!-- Banner Slider -->
-    <div class="slider-wrapper">
-      <div class="main-slider">
-        <div
-          class="slide-item"
-          *ngFor="let banner of banners; let i = index"
-          [class.active]="i === currentBannerIndex">
-          <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
-          <div class="slide-overlay"></div>
-          <div class="slide-content">
-            <span class="badge">Informacion</span>
-            <h2>{{ getBannerTitle(banner) }}</h2>
-            <p>{{ getBannerSubtitle(banner) }}</p>
-            <button class="btn-slider" type="button" *ngIf="banner.urlDestino" (click)="openBannerLink(banner)">
-              Ver mas
-            </button>
-          </div>
-        </div>
-
-        <div class="slider-controls">
-          <button
-            type="button"
-            *ngFor="let _ of banners; let i = index"
-            [class.active]="i === currentBannerIndex"
-            (click)="goToBanner(i)"
-            [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats Grid -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
         <div class="stat-info">
           <h3>{{ stats.usuariosActivos | number }}</h3>
           <p>Usuarios Activos</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
-        <div class="stat-info">
-          <h3>{{ stats.reportesGenerados | number }}</h3>
-          <p>Reportes del Mes</p>
         </div>
       </div>
       <div class="stat-card">
@@ -62,7 +24,7 @@
         <!-- Video de la Unidad (16:9 aspect ratio) -->
         <div class="card-view rounded-xl shadow-subtle video-inst-card">
           <h3 class="title-cards">
-            <i class="fa-solid fa-play-circle"></i> Video de la Unidad
+            <i class="fa-solid fa-play-circle"></i> Acerca de nosotros
           </h3>
           <hr />
           <div class="video-institutional-wrapper">
@@ -76,82 +38,6 @@
                 <p>No hay video de la unidad configurado</p>
               </div>
             </ng-template>
-          </div>
-        </div>
-
-        <!-- Fila inferior: Video Institucional (6 cols) + Redes Sociales (6 cols) -->
-        <div class="multimedia-row">
-          <!-- Video Institucional -->
-          <div class="card-view rounded-xl shadow-subtle video-unidad-col">
-            <h3 class="title-cards">
-              <i class="fa-solid fa-video"></i> Video Institucional
-            </h3>
-            <hr />
-            <div class="video-box">
-              <iframe
-                *ngIf="videoInstitucionalUrl; else noVideoInstTpl"
-                [src]="videoInstitucionalUrl | safeUrl"
-                class="video-frame"
-                frameborder="0"
-                sandbox="allow-scripts allow-same-origin allow-presentation"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen>
-              </iframe>
-              <ng-template #noVideoInstTpl>
-                <div class="video-placeholder small">
-                  <i class="fa-solid fa-video-slash"></i>
-                  <p>No hay video institucional</p>
-                </div>
-              </ng-template>
-            </div>
-          </div>
-
-          <div class="card-view rounded-xl shadow-subtle social-col">
-            <h3 class="title-cards">
-              <i class="fa-solid fa-share-nodes"></i> Próximos eventos
-            </h3>
-            <hr />
-            <div class="events-calendar">
-              <div class="events-calendar__head">
-                <button type="button" class="calendar-nav" (click)="prevCalendarMonth()" aria-label="Mes anterior">
-                  <i class="fa-solid fa-chevron-left"></i>
-                </button>
-                <strong class="calendar-month">{{ getCalendarMonthLabel() }}</strong>
-                <button type="button" class="calendar-nav" (click)="nextCalendarMonth()" aria-label="Mes siguiente">
-                  <i class="fa-solid fa-chevron-right"></i>
-                </button>
-              </div>
-
-              <div class="events-calendar__weekdays">
-                <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
-              </div>
-
-              <div class="events-calendar__grid">
-                <button
-                  type="button"
-                  class="events-day"
-                  *ngFor="let day of calendarDays"
-                  [class.is-outside]="!day.inCurrentMonth"
-                  [class.is-today]="day.isToday"
-                  [class.is-selected]="day.isSelected"
-                  [class.has-event]="day.eventos.length > 0"
-                  (click)="selectCalendarDay(day)">
-                  <span class="events-day__num">{{ day.date.getDate() }}</span>
-                  <div class="events-day__badges" *ngIf="day.eventos.length > 0">
-                    <span
-                      class="events-day__badge"
-                      *ngFor="let ev of day.eventos | slice:0:4"
-                      [ngClass]="getEventoBadgeClass(ev)"
-                      (click)="openCalendarEventoModal(ev, $event)"
-                      [title]="ev.nombreEvento">
-                      {{ ev.nombreEvento }}
-                    </span>
-                    <span class="events-day__more" *ngIf="day.eventos.length > 4">+{{ day.eventos.length - 4 }}</span>
-                  </div>
-                </button>
-              </div>
-           
-            </div>
           </div>
         </div>
       </div>
@@ -169,7 +55,7 @@
           </div>
           <hr />
           <div class="news-list">
-            <article class="news-card" *ngFor="let item of news" (click)="openNews(item)">
+            <article class="news-card" *ngFor="let item of news; trackBy: trackByNews" (click)="openNews(item)">
               <div class="news-card__img" [style.background-image]="'url(' + item.image + ')'"></div>
               <div class="news-card__content">
                 <div class="news-meta">
@@ -199,13 +85,7 @@
       </div>
     </div>
 
-    <!-- Actividad Reciente -->
-    <div class="card-view mt-4 rounded-xl shadow-subtle">
-      <h3 class="title-cards"><i class="fa-solid fa-clock-rotate-left"></i> Actividad Reciente</h3>
-      <hr />
-      <p style="color: #666; margin: 10px;">No hay movimientos recientes en tu cuenta.</p>
-    </div>
-
+  
       
       <!-- Spotlight: Personajes del Mes y grupo  -->
     <section class="home-spotlight mt-4">
@@ -219,9 +99,9 @@
             </span>
           </div>
         </div>
-        <div class="card-body">
+        <div class="card-body card-body--scroll">
           <div class="spotlight-grid mb-4">
-            <ng-container *ngFor="let grupo of personajesMesPorCategoria">
+            <ng-container *ngFor="let grupo of personajesMesPorCategoria; trackBy: trackByGrupo">
               <ng-container *ngIf="getPersonajeMesActual(grupo.categoria) as personaje">
                 <article class="spotlight-card spotlight-card--slider"
                   (mouseenter)="pauseSliderCategoria(grupo.categoria)"
@@ -245,8 +125,8 @@
                   </div>
                   <div class="slider-controls slider-controls--personaje" *ngIf="grupo.items.length > 1" style="margin-top: 8px;">
                     <button
-                      *ngFor="let item of grupo.items; let i = index"
-                      [class.active]="sliderIndices[grupo.categoria] === i"
+                      *ngFor="let item of grupo.items; let i = index; trackBy: trackByPersonajeMes"
+                      [class.slideractive]="sliderIndices[grupo.categoria] === i"
                       (click)="sliderIndices[grupo.categoria] = i"
                       [attr.aria-label]="'Cambiar a ' + grupo.categoria + ' ' + (i + 1)">
                     </button>
@@ -275,7 +155,7 @@
                     <div class="spotlight-grade">
                       <div class="integrantes-list-outer" style="max-height: 60px; overflow-y: auto;">
                         <ul class="integrantes-list-inner" [ngStyle]="getGrupoIntegrantesTransform(equiposAltoRendimiento[grupoSliderIndex])">
-                          <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
+                          <li *ngFor="let integrante of equiposAltoRendimiento[grupoSliderIndex]?.integrantes; trackBy: trackByIndex" style="font-size: 13px; line-height: 1.2; padding: 0; margin: 0;">
                             <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
                           </li>
                         </ul>
@@ -285,10 +165,24 @@
                 </div>
                 <div class="slider-controls slider-controls--personaje" *ngIf="equiposAltoRendimiento.length > 1" style="margin-top: 6px;">
                   <button
-                    *ngFor="let grupo of equiposAltoRendimiento; let i = index"
-                    [class.active]="grupoSliderIndex === i"
-                    (click)="grupoSliderIndex = i"
+                    type="button"
+                    class="slider-nav-btn slider-nav-btn--prev"
+                    (click)="prevGrupo(); $event.stopPropagation()"
+                    aria-label="Grupo anterior">
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button
+                    *ngFor="let grupo of equiposAltoRendimiento; let i = index; trackBy: trackByIndex"
+                    [class.slideractive]="grupoSliderIndex === i"
+                    (click)="goToGrupo(i)"
                     [attr.aria-label]="'Cambiar a grupo ' + (i + 1)">
+                  </button>
+                  <button
+                    type="button"
+                    class="slider-nav-btn slider-nav-btn--next"
+                    (click)="nextGrupo(); $event.stopPropagation()"
+                    aria-label="Grupo siguiente">
+                    <i class="fa-solid fa-chevron-right"></i>
                   </button>
                 </div>
               </article>
@@ -299,7 +193,7 @@
           </div>
           
           <!-- <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">
-            <article class="cmd-item" *ngFor="let item of personajesMes">
+            <article class="cmd-item" *ngFor="let item of personajesMes; trackBy: trackByPersonajeMes">
               <button
                 class="cmd-photo-btn"
                 type="button"
@@ -331,7 +225,7 @@
          </div>
          <div class="card-body">
           <div class="cmd-row" *ngIf="lineaMando.length > 0; else emptyLineaMandoTpl">
-            <article class="cmd-item" *ngFor="let item of lineaMando">
+            <article class="cmd-item" *ngFor="let item of lineaMando; trackBy: trackByLineaMando">
               <button
                 class="cmd-photo-btn"
                 type="button"
@@ -353,35 +247,7 @@
   </section>
 </main>
 
-<div class="ui-modal" *ngIf="eventoModalOpen" (click)="closeCalendarEventoModal()">
-  <div class="ui-modal__dialog ui-modal__dialog--event" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-    <div class="ui-modal__head">
-      <div class="ui-modal__title">
-        <i class="fa-solid fa-calendar-check"></i>
-        <span>Detalle del evento</span>
-      </div>
-      <button class="ui-modal__close" type="button" (click)="closeCalendarEventoModal()" aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
 
-    <div class="ui-modal__body" *ngIf="selectedCalendarEvento as evento">
-      <div class="event-modal">
-        <h3 class="event-modal__title">{{ evento.nombreEvento }}</h3>
-        <img
-          *ngIf="getEventoImageUrl(evento.imagenEvento) as imgUrl"
-          [src]="imgUrl"
-          [alt]="evento.nombreEvento"
-          class="event-modal__img" />
-        <div class="event-modal__meta">
-          <div><i class="fa-regular fa-calendar"></i> {{ getEventoFechaRango(evento) }}</div>
-          <div><i class="fa-solid fa-location-dot"></i> {{ evento.direccionEvento }}</div>
-          <div><i class="fa-solid fa-building"></i> {{ evento.ciudad }} - {{ evento.departamento }}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 
 
@@ -420,7 +286,7 @@
           <div class="news-modal__dots" *ngIf="(selectedNews.images?.length ?? 0) > 1">
             <button
               type="button"
-              *ngFor="let img of selectedNews.images; let i = index"
+              *ngFor="let img of selectedNews.images; let i = index; trackBy: trackByIndex"
               class="news-modal__dot"
               [class.is-active]="i === newsModalImageIndex"
               (click)="goToNewsModalImage(i)"
@@ -434,7 +300,7 @@
           </span>
         </div>
         <h3 class="news-modal__title">{{ selectedNews.title }}</h3>
-        <p class="news-modal__text">{{ selectedNews.content }}</p>
+        <div class="news-modal__text" [innerHTML]="selectedNews.content | safeHtml"></div>
       </div>
     </div>
     <div class="ui-modal__foot">
@@ -489,7 +355,7 @@
           <div class="cmd-lightbox__name">{{ grupo.nombreGrupo }}</div>
           <div class="cmd-lightbox__role">Integrantes:</div>
           <ul style="margin:0; padding-left: 18px; list-style: none; text-align: left; ">
-            <li *ngFor="let integrante of grupo.integrantes">
+            <li *ngFor="let integrante of grupo.integrantes; trackBy: trackByIndex">
              <strong>{{ integrante.grado }}</strong> {{ integrante.nombres }} {{ integrante.apellidos }}
             </li>
           </ul>

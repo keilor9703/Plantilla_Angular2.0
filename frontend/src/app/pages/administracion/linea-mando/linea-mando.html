@@ -85,7 +85,7 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Peso *</label>
-              <select class="ui-control" [(ngModel)]="formData.peso">
+              <select class="ui-control" [(ngModel)]="formData.peso" (change)="onPesoChange()">
                 <option value="">Seleccione...</option>
                 <option *ngFor="let peso of pesoOpciones" [value]="peso.id">
                   {{ peso.nombre }}
@@ -95,7 +95,7 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Orden</label>
-              <input class="ui-control" type="number" [(ngModel)]="formData.orden" min="1">
+              <input class="ui-control" type="number" [(ngModel)]="formData.orden" readonly>
             </div>
 
             <div class="ui-field ui-col-4">
@@ -162,7 +162,7 @@
           <tbody>
             <tr *ngFor="let item of listaLineaMando">
               <td style="text-align: center;">
-                <span class="ui-badge info">{{ item.orden }}</span>
+                <span class="ui-badge infoMando">{{ item.orden }}</span>
               </td>
               <td>
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -196,4 +196,54 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL DE CONFIRMACIÓN PURA Y DIRECTA -->
+  <ng-container *ngIf="showConfirmModal">
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.85); z-index: 999999; display: flex; align-items: center; justify-content: center;">
+      
+      <div style="background-color: white; padding: 0; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); position: relative; z-index: 1000000; overflow: hidden; display: flex; flex-direction: column;">
+        
+        <!-- Header -->
+        <div style="background-color: #ff9800; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: bold; font-size: 16px;">
+            <i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i>
+            Confirmar Actualización de Cargo
+          </div>
+          <button type="button" (click)="cancelarSustitucion()" style="background: transparent; border: none; color: white; cursor: pointer; font-size: 18px;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 20px; color: #333;">
+          <p style="margin-bottom: 15px; font-size: 15px;">
+            Actualmente el cargo <strong>{{ formData.peso }}</strong> está ocupado por <strong>{{ modalFuncionarioAnterior }}</strong>.
+          </p>
+          <div style="margin-bottom: 15px; background: rgba(255, 152, 0, 0.1); border: 1px solid #ff9800; padding: 12px; border-radius: 8px;">
+            <i class="fa-solid fa-circle-info" style="color: #ff9800; margin-right: 8px;"></i>
+            Si procede, el oficial anterior pasará a estado inactivo y será reemplazado.
+          </div>
+          <p style="margin-bottom: 10px; font-weight: 500;">
+            ¿Desea actualizar? Escriba la palabra <strong style="color: red;">CONFIRMAR</strong> en la caja de texto para proceder:
+          </p>
+          <input 
+            type="text" 
+            [(ngModel)]="confirmText" 
+            placeholder="Escriba CONFIRMAR aquí..." 
+            style="width: 100%; box-sizing: border-box; text-transform: uppercase; font-weight: bold; text-align: center; font-size: 16px; letter-spacing: 2px; border: 2px solid #ccc; border-radius: 6px; padding: 12px; margin-top: 5px; background: white; color: black;"
+          />
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 15px 20px; background-color: #f5f5f5; border-top: 1px solid #ddd; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" (click)="cancelarSustitucion()" style="padding: 10px 15px; border-radius: 6px; border: 1px solid #ccc; background: white; color: #333; cursor: pointer; font-weight: bold;">
+            <i class="fa-solid fa-xmark" style="margin-right: 5px;"></i> Cancelar
+          </button>
+          <button type="button" (click)="confirmarSustitucion()" [disabled]="confirmText !== 'CONFIRMAR'" style="padding: 10px 15px; border-radius: 6px; border: none; background: #ff9800; color: white; cursor: pointer; font-weight: bold;" [style.opacity]="confirmText !== 'CONFIRMAR' ? '0.5' : '1'">
+            <i class="fa-solid fa-check" style="margin-right: 5px;"></i> Aceptar Reemplazo
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
 </section>

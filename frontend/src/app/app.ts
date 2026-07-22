@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnDestroy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -6,13 +6,13 @@ import { Subscription } from 'rxjs';
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
 import { BrandingService } from './core/services/administracion/branding.service';
-import { ModalVisorComponent } from './components/modal-visor/modal-visor';
+
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, ModalVisorComponent]
+  imports: [RouterOutlet, CommonModule]
 })
 export class AppComponent implements OnDestroy {
 
@@ -33,7 +33,9 @@ export class AppComponent implements OnDestroy {
     type: 'info' as AlertType,
     title: '',
     message: '',
-    okText: 'OK'
+    okText: 'OK',
+    cancelText: '',
+    isConfirm: false
   };
 
   private alertSub: Subscription;
@@ -63,7 +65,9 @@ export class AppComponent implements OnDestroy {
         type: a.type,
         title: a.title,
         message: a.message,
-        okText: a.okText ?? 'OK'
+        okText: a.okText ?? 'OK',
+        cancelText: a.cancelText ?? '',
+        isConfirm: a.isConfirm ?? false
       };
 
       // Bloquear scroll del fondo mientras esté la alerta
@@ -105,8 +109,29 @@ export class AppComponent implements OnDestroy {
 
   // ===== ALERT API =====
   closeAlert(): void {
+    // Si era un confirm pendiente, responder false al cerrarlo
+    if (this.alert.isConfirm) {
+      this.alertService.respond(false);
+    }
+
     this.alert.open = false;
     document.body.classList.remove('ui-modal-open');
+  }
+
+  // Confirmación explícita (OK)
+  confirmAlert(): void {
+    if (this.alert.isConfirm) {
+      this.alertService.respond(true);
+    }
+    this.closeAlert();
+  }
+
+  // Cancelar (Cancelar)
+  cancelAlert(): void {
+    if (this.alert.isConfirm) {
+      this.alertService.respond(false);
+    }
+    this.closeAlert();
   }
 
   // Cerrar con ESC (prioridad: alerta)

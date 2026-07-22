@@ -14,8 +14,9 @@ export interface DtoCuentaEmail {
   claveSmtp: string;
   usarSsl: number;
   vigente: number;
-  // Opcional: Nombre del grupo para la tabla
   nombreGrupo?: string;
+  firmaHtml?: string | null;
+  imagenEncabezado?: string | null;
 }
 
 export interface DtoCuentaEmailRequest {
@@ -28,6 +29,8 @@ export interface DtoCuentaEmailRequest {
   ClaveSmtp: string;
   UsarSsl: number;
   Vigente: number;
+  FirmaHtml?: string | null;
+  ImagenEncabezado?: string | null;
 }
 
 export interface DtoCuentaEmailUsuario {
@@ -101,5 +104,13 @@ export class CuentaEmailService {
 
   eliminarAutorizacion(idCuentaUsuario: number): Observable<any> {
     return this.http.delete(`${this.baseUrl}/autorizaciones/${idCuentaUsuario}`);
+  }
+
+  uploadImagenEncabezado(file: File): Observable<{ success: boolean; url: string; fileName: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ success: boolean; url: string; fileName: string }>(
+      `${environment.apiBaseUrl}/CuentaEmailUpload/imagen`, formData
+    );
   }
 }

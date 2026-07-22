@@ -42,7 +42,7 @@
           </div>
         </article>
 
-        <article class="tab-card list-card">
+        <article class="tab-card">
           <h3>Roles registrados</h3>
 
           <div class="list-loading" *ngIf="loading">Cargando roles...</div>
@@ -57,7 +57,7 @@
 
               <div class="role-item__actions">
                 <button class="ui-btn secondary" type="button" (click)="editar(item)">Editar</button>
-                <button class="ui-btn secondary" type="button" (click)="seleccionarRolPermisos(item)">Permisos</button>
+                <button class="ui-btn secondary" type="button" (click)="openPermissionsModal(item)">Permisos</button>
                 <button
                   class="ui-btn"
                   [class.primary]="item.vigente === 0"
@@ -76,48 +76,69 @@
           </div>
         </article>
 
-        <article class="tab-card permissions-card">
-          <h3>Permisos de menú por rol</h3>
-          <p class="meta">Rol seleccionado: <strong>{{ selectedRoleName }}</strong></p>
-
-          <div class="ui-grid">
-            <div class="ui-field ui-col-8">
-              <label class="ui-label">Menú disponible</label>
-              <select class="ui-control" [(ngModel)]="selectedMenuId" [disabled]="!selectedRoleId || availableMenus.length === 0">
-                <option [ngValue]="null">Selecciona un menú...</option>
-                <option *ngFor="let menu of availableMenus" [ngValue]="menu.idMenu">
-                  {{ formatMenuLabel(menu) }}
-                </option>
-              </select>
-            </div>
-
-            <div class="ui-field ui-col-4 role-menu-action">
-              <button class="ui-btn primary" type="button" (click)="asignarMenu()" [disabled]="savingRoleMenu || !selectedRoleId">
-                <i class="fa-solid fa-plus"></i>
-                {{ savingRoleMenu ? 'Asignando...' : 'Asignar menú' }}
+        <!-- Permisos moved to modal -->
+        <div class="ui-modal" *ngIf="showPermissionsModal">
+          <div class="ui-modal__dialog" (click)="$event.stopPropagation()">
+            <div class="ui-modal__head">
+              <div class="ui-modal__title">
+                <i class="fa-solid fa-shield-alt"></i>
+                <span>Permisos de menú por rol</span>
+              </div>
+              <button class="ui-icon-btn" type="button" (click)="closePermissionsModal()">
+                <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
-          </div>
 
-          <div class="list-loading" *ngIf="loadingRoleMenus">Consultando menús del rol...</div>
+            <div class="ui-modal__body">
+              <span class="meta">Rol seleccionado: <strong>{{ selectedRoleName }}</strong></span>
 
-          <div class="role-menu-list" *ngIf="!loadingRoleMenus && roleMenus.length > 0">
-            <div class="role-menu-item" *ngFor="let item of roleMenus">
-              <div class="role-menu-item__content">
-                <strong>{{ item.descripcionMenu }}</strong>
-                <span class="meta">ID menú: {{ item.idMenu }} · Tipo: {{ item.tipo || 'N/A' }}</span>
+              <div class="ui-grid mt-roles">
+                <div class="ui-field ui-col-8">
+                  <label class="ui-label">Menú disponible</label>
+                  <select class="ui-control" [(ngModel)]="selectedMenuId" [disabled]="!selectedRoleId || availableMenus.length === 0">
+                    <option [ngValue]="null">Selecciona un menú...</option>
+                    <option *ngFor="let menu of availableMenus" [ngValue]="menu.idMenu">
+                      {{ formatMenuLabel(menu) }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="ui-field ui-col-4 role-menu-action">
+                  <button class="ui-btn primary" type="button" (click)="asignarMenu()" [disabled]="savingRoleMenu || !selectedRoleId">
+                    <i class="fa-solid fa-plus"></i>
+                    {{ savingRoleMenu ? 'Asignando...' : 'Asignar menú' }}
+                  </button>
+                </div>
               </div>
 
-              <button class="ui-btn secondary" type="button" (click)="quitarMenu(item)">
-                Quitar
+              <div class="list-loading" *ngIf="loadingRoleMenus">Consultando menús del rol...</div>
+
+              <div class="role-menu-list" *ngIf="!loadingRoleMenus && roleMenus.length > 0">
+                <div class="role-menu-item" *ngFor="let item of roleMenus">
+                  <div class="role-menu-item__content">
+                    <strong>{{ item.descripcionMenu }}</strong>
+                    <span class="meta">ID menú: {{ item.idMenu }} · Tipo: {{ item.tipo || 'N/A' }}</span>
+                  </div>
+
+                  <button class="ui-btn secondary" type="button" (click)="quitarMenu(item)">
+                    Quitar
+                  </button>
+                </div>
+              </div>
+
+              <div class="news-state" *ngIf="!loadingRoleMenus && selectedRoleId && roleMenus.length === 0">
+                El rol no tiene menús asignados.
+              </div>
+            </div>
+
+            <div class="ui-modal__foot">
+              <button class="ui-btn secondary" type="button" (click)="closePermissionsModal()">
+                <i class="fa-solid fa-xmark"></i>
+                Cerrar
               </button>
             </div>
           </div>
-
-          <div class="news-state" *ngIf="!loadingRoleMenus && selectedRoleId && roleMenus.length === 0">
-            El rol no tiene menús asignados.
-          </div>
-        </article>
+        </div>
       </div>
     </div>
   </div>
