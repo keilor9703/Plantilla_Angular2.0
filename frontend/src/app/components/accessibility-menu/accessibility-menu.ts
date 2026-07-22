@@ -6,8 +6,6 @@ import { SpeechToTextService } from '../../core/services/speech-to-text.service'
 import { TextToSpeechService } from '../../core/services/text-to-speech.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { SocialDockGroup, SocialDockAccount } from '../social-dock/social-dock';
-
 @Component({
   selector: 'app-accessibility-menu',
   templateUrl: './accessibility-menu.html',
@@ -19,7 +17,7 @@ import { SocialDockGroup, SocialDockAccount } from '../social-dock/social-dock';
   }
 })
 export class AccessibilityMenuComponent implements OnInit, OnDestroy {
-  @Input() socialGroups: SocialDockGroup[] = [];
+  @Input() socialGroups: any[] = [];
 
   accessibility: AccessibilityState = {
     darkMode: false,
@@ -34,7 +32,7 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   textToSpeechAvailable = false;
   socialExpanded = false;
   panelOpen = false;
-  selectedGroup: SocialDockGroup | null = null;
+  selectedGroup: any | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -153,7 +151,7 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
     this.socialExpanded = !this.socialExpanded;
   }
 
-  openSocialGroup(group: SocialDockGroup): void {
+  openSocialGroup(group: any): void {
     this.selectedGroup = group;
     this.panelOpen = true;
     document.body.classList.add('ui-modal-open');
@@ -165,7 +163,7 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
     document.body.classList.remove('ui-modal-open');
   }
 
-  getHandle(account: SocialDockAccount): string {
+  getHandle(account: any): string {
     const raw = (account.handle ?? account.accountName ?? '').trim();
     if (!raw) {
       return '@cuenta';

@@ -13,7 +13,7 @@ namespace Datos.Gestion
 
         public DbAuthRepository(IConfiguration cfg, ILogger<DbAuthRepository> logger)
         {
-            _cs = cfg.GetConnectionString("DbCoest")!;
+            _cs = cfg.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 

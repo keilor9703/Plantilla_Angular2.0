@@ -1,81 +1,11 @@
 <main class="content-area">
   <section class="view-container">
-    <!-- Banner Slider -->
-    <div class="slider-wrapper">
-      <div class="main-slider"
-        #mainSlider
-        [class.is-dragging]="sliderIsDragging"
-        (mousedown)="onSliderDragStart($event)"
-        (mousemove)="onSliderDragMove($event)"
-        (mouseup)="onSliderDragEnd($event)"
-        (mouseleave)="onSliderDragCancel()">
-        <div
-          class="slide-item"
-          *ngFor="let banner of banners; let i = index; trackBy: trackByBanner"
-          [class.active]="i === currentBannerIndex"
-          [class.has-link]="!!banner.urlDestino"
-          [class.is-drag-neighbor]="i === sliderNeighborIndex"
-          [style.transform]="getSlideItemTransform(i)"
-          [style.transition]="sliderIsDragging ? 'none' : null"
-          (click)="openBannerLink(banner)"
-          (mousemove)="onSlideMouseMove($event, banner)"
-          (mouseleave)="onSlideMouseLeave()"
-          (dragstart)="$event.preventDefault()">
-          <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
-          <div class="slide-overlay"></div>
-          <div class="slide-content">
-            <span class="badge">{{ getBannerTitle(banner) }}</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="slider-nav-btn slider-nav-btn--prev"
-          (click)="prevBanner(); $event.stopPropagation()"
-          aria-label="Banner anterior">
-          <i class="fa-solid fa-chevron-left"></i>
-        </button>
-        <button
-          type="button"
-          class="slider-nav-btn slider-nav-btn--next"
-          (click)="nextBanner(); $event.stopPropagation()"
-          aria-label="Banner siguiente">
-          <i class="fa-solid fa-chevron-right"></i>
-        </button>
-
-        <div class="slider-controls">
-          <button
-            type="button"
-            *ngFor="let _ of banners; let i = index; trackBy: trackByIndex"
-            [class.slideractive]="i === currentBannerIndex"
-            (click)="goToBanner(i)"
-            [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Cursor tooltip Ver más -->
-    <div class="cursor-dot-verde" *ngIf="showSliderCursor"
-      [style.left.px]="cursorX"
-      [style.top.px]="cursorY"></div>
-    <!-- <div class="cursor-ver-mas" *ngIf="showCursorVerMas"
-      [style.left.px]="cursorX"
-      [style.top.px]="cursorY - 40">
-      Ver más
-    </div> -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
         <div class="stat-info">
           <h3>{{ stats.usuariosActivos | number }}</h3>
           <p>Usuarios Activos</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green"><i class="fa-solid fa-share-nodes"></i></div>
-        <div class="stat-info">
-          <h3>{{ redesSocialesActivas | number }}</h3>
-          <p>Redes Sociales Activas</p>
         </div>
       </div>
       <div class="stat-card">
@@ -94,7 +24,7 @@
         <!-- Video de la Unidad (16:9 aspect ratio) -->
         <div class="card-view rounded-xl shadow-subtle video-inst-card">
           <h3 class="title-cards">
-            <i class="fa-solid fa-play-circle"></i> Acerda de nosotros
+            <i class="fa-solid fa-play-circle"></i> Acerca de nosotros
           </h3>
           <hr />
           <div class="video-institutional-wrapper">
@@ -108,82 +38,6 @@
                 <p>No hay video de la unidad configurado</p>
               </div>
             </ng-template>
-          </div>
-        </div>
-
-        <!-- Fila inferior: Video Institucional (6 cols) + Redes Sociales (6 cols) -->
-        <div class="multimedia-row">
-          <!-- Video Institucional -->
-          <div class="card-view rounded-xl shadow-subtle video-unidad-col">
-            <h3 class="title-cards">
-              <i class="fa-solid fa-video"></i> Video Institucional
-            </h3>
-            <hr />
-            <div class="video-box">
-              <iframe
-                *ngIf="videoInstitucionalUrl; else noVideoInstTpl"
-                [src]="videoInstitucionalUrl | safeUrl"
-                class="video-frame"
-                frameborder="0"
-                sandbox="allow-scripts allow-same-origin allow-presentation"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen>
-              </iframe>
-              <ng-template #noVideoInstTpl>
-                <div class="video-placeholder small">
-                  <i class="fa-solid fa-video-slash"></i>
-                  <p>No hay video institucional</p>
-                </div>
-              </ng-template>
-            </div>
-          </div>
-
-          <div class="card-view rounded-xl shadow-subtle social-col">
-            <h3 class="title-cards">
-              <i class="fa-solid fa-share-nodes"></i> Próximos eventos
-            </h3>
-            <hr />
-            <div class="events-calendar">
-              <div class="events-calendar__head">
-                <button type="button" class="calendar-nav" (click)="prevCalendarMonth()" aria-label="Mes anterior">
-                  <i class="fa-solid fa-chevron-left"></i>
-                </button>
-                <strong class="calendar-month">{{ getCalendarMonthLabel() }}</strong>
-                <button type="button" class="calendar-nav" (click)="nextCalendarMonth()" aria-label="Mes siguiente">
-                  <i class="fa-solid fa-chevron-right"></i>
-                </button>
-              </div>
-
-              <div class="events-calendar__weekdays">
-                <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
-              </div>
-
-              <div class="events-calendar__grid">
-                <button
-                  type="button"
-                  class="events-day"
-                  *ngFor="let day of calendarDays; trackBy: trackByCalendarDay"
-                  [class.is-outside]="!day.inCurrentMonth"
-                  [class.is-today]="day.isToday"
-                  [class.is-selected]="day.isSelected"
-                  [class.has-event]="day.eventos.length > 0"
-                  (click)="selectCalendarDay(day)">
-                  <span class="events-day__num">{{ day.date.getDate() }}</span>
-                  <div class="events-day__badges" *ngIf="day.eventos.length > 0">
-                    <span
-                      class="events-day__badge"
-                      *ngFor="let ev of day.eventos | slice:0:4; trackBy: trackByEvento"
-                      [ngClass]="getEventoBadgeClass(ev)"
-                      (click)="openCalendarEventoModal(ev, $event)"
-                      [title]="ev.nombreEvento">
-                      {{ ev.nombreEvento }}
-                    </span>
-                    <span class="events-day__more" *ngIf="day.eventos.length > 4">+{{ day.eventos.length - 4 }}</span>
-                  </div>
-                </button>
-              </div>
-           
-            </div>
           </div>
         </div>
       </div>
@@ -393,35 +247,7 @@
   </section>
 </main>
 
-<div class="ui-modal" *ngIf="eventoModalOpen" (click)="closeCalendarEventoModal()">
-  <div class="ui-modal__dialog ui-modal__dialog--event" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-    <div class="ui-modal__head">
-      <div class="ui-modal__title">
-        <i class="fa-solid fa-calendar-check"></i>
-        <span>Detalle del evento</span>
-      </div>
-      <button class="ui-modal__close" type="button" (click)="closeCalendarEventoModal()" aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
 
-    <div class="ui-modal__body" *ngIf="selectedCalendarEvento as evento">
-      <div class="event-modal">
-        <h3 class="event-modal__title">{{ evento.nombreEvento }}</h3>
-        <img
-          *ngIf="getEventoImageUrl(evento.imagenEvento) as imgUrl"
-          [src]="imgUrl"
-          [alt]="evento.nombreEvento"
-          class="event-modal__img" />
-        <div class="event-modal__meta">
-          <div><i class="fa-regular fa-calendar"></i> {{ getEventoFechaRango(evento) }}</div>
-          <div><i class="fa-solid fa-location-dot"></i> {{ evento.direccionEvento }}</div>
-          <div><i class="fa-solid fa-building"></i> {{ evento.ciudad }} - {{ evento.departamento }}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 
 

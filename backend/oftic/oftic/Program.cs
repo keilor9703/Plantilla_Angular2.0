@@ -62,8 +62,8 @@ var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
 
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 {
-    throw new InvalidOperationException(
-        "Configuracion insegura: Jwt:Key no configurada o demasiado corta. Defina una clave de al menos 32 caracteres en appsettings o variables de entorno.");
+    // Clave provisional de fallback para permitir inicialización y acceso al Setup Wizard
+    jwtKey = "CAMBIAR_EN_PRODUCCION_ClaveSeguraMinimo32Caracteres_2026";
 }
 
 builder.Services.AddAuthentication("Bearer")
@@ -126,7 +126,6 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
 builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
-builder.Services.AddScoped<IDbSliders, DbSliders>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -169,32 +168,17 @@ builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
 builder.Services.AddScoped<IDbPersonajeMesService, DbPersonajeMesService>();
 builder.Services.AddScoped<IDbPersonajeMesRepository, DbPersonajeMesRepository>();
 
-builder.Services.AddScoped<IDbRadioService, DbRadioService>();
-builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
-
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 
-builder.Services.AddScoped<IDbVideoInstitucionalService, DbVideoInstitucionalService>();
-builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucionalRepository>();
-
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
 
-builder.Services.AddScoped<IDbEventoService, DbEventoService>();
-builder.Services.AddScoped<IDbEventoRepository, DbEventoRepository>();
-
 builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
 builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();
-
-builder.Services.AddScoped<IDbModalService, DbModalService>();
-builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
-
-builder.Services.AddScoped<IDbRedesSocialesService, DbRedesSocialesService>();
-builder.Services.AddScoped<IDbRedesSocialesRepository, DbRedesSocialesRepository>();
 
 builder.Services.AddScoped<IDbUbicacionService, DbUbicacionService>();
 builder.Services.AddScoped<IDbUbicacionRepository, DbUbicacionRepository>();
@@ -203,19 +187,6 @@ builder.Services.AddScoped<IDbGestionCorreosRepository, DbGestionCorreosReposito
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IDbBrandingService, DbBrandingService>();
 builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
-
-// Módulo Recolección de Información (Hechos Noticiosos — USR_COEST)
-builder.Services.AddScoped<IDbHechoNoticiosoService, DbHechoNoticiosoService>();
-builder.Services.AddScoped<IDbHechoNoticiosoRepository, DbHechoNoticiosoRepository>();
-
-builder.Services.AddScoped<IDbMedioCoestService, DbMedioCoestService>();
-builder.Services.AddScoped<IDbMedioCoestRepository, DbMedioCoestRepository>();
-
-builder.Services.AddScoped<IDbIntervinienteCoestService, DbIntervinienteCoestService>();
-builder.Services.AddScoped<IDbIntervinienteCoestRepository, DbIntervinienteCoestRepository>();
-
-builder.Services.AddScoped<IDbDominioCoestService, DbDominioCoestService>();
-builder.Services.AddScoped<IDbDominioCoestRepository, DbDominioCoestRepository>();
 
 var app = builder.Build();
 
@@ -226,20 +197,8 @@ var uploadsBase = string.IsNullOrWhiteSpace(configuredUploadsBase)
         ? configuredUploadsBase
         : Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, configuredUploadsBase)));
 
-var uploadsRoot = Path.Combine(uploadsBase, "sliders");
-Directory.CreateDirectory(uploadsRoot);
-
-var radioLogosRoot = Path.Combine(uploadsBase, "radio");
-Directory.CreateDirectory(radioLogosRoot);
-
 var noticiasRoot = Path.Combine(uploadsBase, "noticias");
 Directory.CreateDirectory(noticiasRoot);
-
-var modalesRoot = Path.Combine(uploadsBase, "modales");
-Directory.CreateDirectory(modalesRoot);
-
-var eventosRoot = Path.Combine(uploadsBase, "eventos");
-Directory.CreateDirectory(eventosRoot);
 
 var emailHeadersRoot = Path.Combine(uploadsBase, "email-headers");
 Directory.CreateDirectory(emailHeadersRoot);
@@ -254,26 +213,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = "/uploads/sliders"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(radioLogosRoot),
-    RequestPath = "/uploads/radio"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
     FileProvider = new PhysicalFileProvider(noticiasRoot),
     RequestPath = "/uploads/noticias"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(eventosRoot),
-    RequestPath = "/uploads/eventos"
 });
 
 app.UseStaticFiles(new StaticFileOptions

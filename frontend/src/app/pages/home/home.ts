@@ -1,19 +1,14 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
 import { HomeService, HomeStats } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
-import { VideoInstitucionalService } from '../../core/services/administracion/video-institucional.service';
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
-import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 import { SafeHtmlPipe } from '../../shared/pipes/safe-html.pipe';
 import { environment } from '../../../environments/environment';
-import { DtoDominio, RedesSocialesService } from '../../core/services/gestion-digital/redes-sociales.service';
 import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
 import { DominioService } from '../../core/services/administracion/dominio.service';
-import { DtoEvento, EventoService } from '../../core/services/administracion/evento.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -29,18 +24,10 @@ interface NewsItem {
   megusta: number;
 }
 
-interface CalendarDay {
-  date: Date;
-  inCurrentMonth: boolean;
-  isToday: boolean;
-  isSelected: boolean;
-  eventos: DtoEvento[];
-}
-
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, SafeUrlPipe, SafeHtmlPipe, RouterLink],
+  imports: [CommonModule, SafeHtmlPipe, RouterLink],
   templateUrl: './home.html',
   styleUrls: ['./home.scss'],
 })
@@ -129,31 +116,18 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   personajeMesLightboxOpen = false;
   personajeMesLightboxItem: DtoPersonajeMes | null = null;
-  categoriasPersonajeMes: DtoDominio[] = [];
+  categoriasPersonajeMes: any[] = [];
 
-  banners: DtoSliders[] = [];
   stats: HomeStats = {
     usuariosActivos: 0,
     reportesGenerados: 0,
     alertasSistema: 0
   };
-  redesSocialesActivas = 0;
-  currentBannerIndex = 0;
-  private bannerTimer: ReturnType<typeof setInterval> | null = null;
-  // --- Banner drag (mouse) ---
-  sliderIsDragging = false;
-  sliderDragOffset = 0;
-  sliderNeighborIndex = -1;
-  private sliderDragStartX = 0;
-  private sliderDragMoved = false;
-  private readonly DRAG_THRESHOLD = 50;
-  @ViewChild('mainSlider') mainSliderRef!: ElementRef<HTMLDivElement>;
   showCursorVerMas = false;
   showSliderCursor = false;
   cursorX = 0;
   cursorY = 0;
   videoUnidadUrl = '';
-  videoInstitucionalUrl = '';
   lineaMando: DtoLineaMando[] = [];
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
@@ -209,25 +183,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   selectedNews: NewsItem | null = null;
   newsModalImageIndex = 0;
 
-  eventosActivos: DtoEvento[] = [];
-  calendarCurrent = new Date();
-  calendarDays: CalendarDay[] = [];
-  selectedCalendarDate: Date | null = null;
-  selectedCalendarEventos: DtoEvento[] = [];
-  selectedCalendarEvento: DtoEvento | null = null;
-  eventoModalOpen = false;
-
   constructor(
-    private sliderService: SliderService,
     private homeService: HomeService,
     private videoUnidadService: VideoUnidadService,
-    private videoInstitucionalService: VideoInstitucionalService,
     private lineaMandoService: LineaMandoService,
     private noticiaService: NoticiaService,
     private personajeMesService: PersonajeMesService,
-    private dominioService: DominioService,
-    private eventoService: EventoService,
-    private redesSocialesService: RedesSocialesService
+    private dominioService: DominioService
   ) {}
 
   openGrupoLightbox(grupo: any): void {
@@ -253,7 +215,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.personajeMesLightboxItem = null;
     this.syncBodyModalClass();
   }
-
 
   ngAfterViewInit(): void {
     this.startGrupoSlider();
@@ -286,201 +247,16 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.loadBanners();
     this.loadStats();
     this.loadVideoUnidad();
-    this.loadVideoInstitucional();
     this.loadLineaMando();
     this.loadNoticias();
     this.loadPersonajesMes();
     this.loadEquiposAltoRendimiento();
     this.loadCategoriasPersonajeMes();
-    this.loadEventosActivos();
-    this.loadRedesSocialesActivas();
   }
 
-  private loadRedesSocialesActivas(): void {
-    this.redesSocialesService.getAll().subscribe({
-      next: (items) => {
-        this.redesSocialesActivas = (items ?? []).filter(r => String(r.vigente) === '1').length;
-      },
-      error: () => {
-        this.redesSocialesActivas = 0;
-      }
-    });
-  }
 
-  private loadEventosActivos(): void {
-    this.eventoService.getAll().subscribe({
-      next: (items) => {
-        // Blindamos la carga: traemos todos y filtramos por vigencia para no perder eventos lejanos
-        this.eventosActivos = (items ?? []).filter(e => {
-          const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
-          return v != null && String(v) === '1';
-        });
-        this.buildCalendar();
-      },
-      error: () => {
-        this.eventosActivos = [];
-        this.buildCalendar();
-      }
-    });
-  }
-
-  private buildCalendar(): void {
-    const first = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth(), 1);
-    const start = new Date(first);
-    start.setDate(first.getDate() - first.getDay());
-
-    const days: CalendarDay[] = [];
-    const today = new Date();
-
-    for (let i = 0; i < 42; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-
-      const eventos = this.getEventosByDate(date);
-      const isSelected = !!this.selectedCalendarDate && this.isSameDate(date, this.selectedCalendarDate);
-
-      days.push({
-        date,
-        inCurrentMonth: date.getMonth() === this.calendarCurrent.getMonth(),
-        isToday: this.isSameDate(date, today),
-        isSelected,
-        eventos
-      });
-    }
-
-    this.calendarDays = days;
-
-    if (!this.selectedCalendarDate) {
-      const firstWithEvent = days.find((x) => x.inCurrentMonth && x.eventos.length > 0);
-      if (firstWithEvent) {
-        this.selectCalendarDay(firstWithEvent);
-      }
-    }
-  }
-
-  private getEventosByDate(date: Date): DtoEvento[] {
-    const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-
-    return this.eventosActivos.filter((evento) => {
-      const ini = this.parseOnlyDate(evento.fechaInicio);
-      const fin = this.parseOnlyDate(evento.fechaFin);
-      if (!ini || !fin) return false;
-      return target >= ini.getTime() && target <= fin.getTime();
-    });
-  }
-
-  private parseOnlyDate(raw: string | null | undefined): Date | null {
-    if (!raw) return null;
-    
-    // Si viene formato ISO completo o con T, intentamos extraer solo la parte de la fecha
-    const datePart = raw.includes('T') ? raw.split('T')[0] : raw.split(' ')[0];
-    const parts = datePart.split('-');
-    
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1; // Meses en JS son 0-11
-      const day = parseInt(parts[2], 10);
-      
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) {
-        return d;
-      }
-    }
-
-    // Fallback por si el formato es distinto
-    const fallbackDate = new Date(raw);
-    if (isNaN(fallbackDate.getTime())) return null;
-    return new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), fallbackDate.getDate());
-  }
-
-  private isSameDate(a: Date, b: Date): boolean {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  }
-
-  prevCalendarMonth(): void {
-    this.calendarCurrent = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth() - 1, 1);
-    this.buildCalendar();
-  }
-
-  nextCalendarMonth(): void {
-    this.calendarCurrent = new Date(this.calendarCurrent.getFullYear(), this.calendarCurrent.getMonth() + 1, 1);
-    this.buildCalendar();
-  }
-
-  getCalendarMonthLabel(): string {
-    return this.calendarCurrent.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-  }
-
-  selectCalendarDay(day: CalendarDay): void {
-    this.selectedCalendarDate = new Date(day.date);
-    this.selectedCalendarEventos = day.eventos.slice();
-    this.selectedCalendarEvento = this.selectedCalendarEventos.length > 0 ? this.selectedCalendarEventos[0] : null;
-    this.calendarDays = this.calendarDays.map((x) => ({ ...x, isSelected: this.isSameDate(x.date, day.date) }));
-  }
-
-  selectCalendarEvento(evento: DtoEvento): void {
-    this.selectedCalendarEvento = evento;
-  }
-
-  openCalendarEventoModal(evento: DtoEvento, event?: Event): void {
-    event?.stopPropagation();
-    this.selectedCalendarEvento = evento;
-    this.eventoModalOpen = true;
-    this.syncBodyModalClass();
-  }
-
-  closeCalendarEventoModal(): void {
-    this.eventoModalOpen = false;
-    this.syncBodyModalClass();
-  }
-
-  getEventoImageUrl(raw: string | null | undefined): string {
-    const value = (raw ?? '').trim();
-    if (!value) return '';
-    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/api/')) return value;
-    const file = value.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
-    return file ? `/api/EventoUpload/Imagen/${encodeURIComponent(file)}` : '';
-  }
-
-  getEventoFechaRango(evento: DtoEvento): string {
-    const ini = new Date(evento.fechaInicio);
-    const fin = new Date(evento.fechaFin);
-    const fmt = (d: Date) =>
-      Number.isNaN(d.getTime())
-        ? ''
-        : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-    const fi = fmt(ini);
-    const ff = fmt(fin);
-    if (!fi && !ff) return 'Sin fecha';
-    if (fi && ff) return fi === ff ? fi : `${fi} - ${ff}`;
-    return fi || ff;
-  }
-
-  getEventoBadgeClass(evento: DtoEvento): string {
-    const fin = this.parseOnlyDate(evento?.fechaFin);
-    const inicio = this.parseOnlyDate(evento?.fechaInicio);
-    if (!fin || !inicio) return 'is-green';
-
-    const today = new Date();
-    const hoy = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-    // Si el evento ya pasó de su fecha final, se muestra en gris
-    if (fin.getTime() < hoy.getTime()) {
-      return 'is-past';
-    }
-
-    const diffMs = inicio.getTime() - hoy.getTime();
-    const diffDays = Math.ceil(diffMs / 86400000);
-
-    if (diffDays < 3) return 'is-red';
-    if (diffDays <= 10) return 'is-orange';
-    return 'is-green';
-  }
 
 
   loadNoticias(): void {
@@ -548,7 +324,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
    ngOnDestroy(): void {
-     this.stopBannerRotation();
      if (this.grupoSliderTimer) {
       clearInterval(this.grupoSliderTimer);
       this.grupoSliderTimer = null;
@@ -645,59 +420,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     return unidad ? this.toTitleCase(unidad) : 'Sin unidad';
   }
 
-   private loadBanners(): void {
-    this.sliderService.getPublicos().subscribe({
-      next: (items) => {
-        const now = new Date();
-        const ordered = (items ?? [])
-          .filter((x) => this.isBannerVigenteNow(x, now))
-          .slice()
-          .sort((a, b) => a.orden - b.orden);
-        this.banners = ordered;
-        this.currentBannerIndex = 0;
-        this.startBannerRotation();
-      },
-      error: () => {
-        this.banners = this.getFallbackBanners();
-        this.currentBannerIndex = 0;
-        this.startBannerRotation();
-      }
-    });
-  }
-
-  private isBannerVigenteNow(item: DtoSliders, now: Date): boolean {
-    if (Number(item?.vigente ?? 0) !== 1) {
-      return false;
-    }
-
-    const inicio = this.parseSliderDate(item?.fechaInicio);
-    const fin = this.parseSliderDate(item?.fechaFin);
-
-    if (inicio && inicio.getTime() > now.getTime()) {
-      return false;
-    }
-
-    if (fin && fin.getTime() < now.getTime()) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private parseSliderDate(value?: string | null): Date | null {
-    const raw = String(value ?? '').trim();
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
-
-    return parsed;
-  }
-
   private loadStats(): void {
     this.homeService.getStats().subscribe({
       next: (data) => {
@@ -724,17 +446,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.videoUnidadUrl = '';
-      }
-    });
-  }
-
-  private loadVideoInstitucional(): void {
-    this.videoInstitucionalService.getCurrent().subscribe({
-      next: (data) => {
-        this.videoInstitucionalUrl = data?.hasVideo && data.data?.embedUrl ? data.data.embedUrl : '';
-      },
-      error: () => {
-        this.videoInstitucionalUrl = '';
       }
     });
   }
@@ -796,219 +507,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen || this.eventoModalOpen) {
+    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }
 
     document.body.classList.remove('ui-modal-open');
   }
-
-  goToBanner(index: number): void {
-    if (index < 0 || index >= this.banners.length) {
-      return;
-    }
-    this.currentBannerIndex = index;
-  }
-
-  nextBanner(): void {
-    if (this.banners.length <= 1) return;
-    this.currentBannerIndex = (this.currentBannerIndex + 1) % this.banners.length;
-    this.stopBannerRotation();
-    this.startBannerRotation();
-  }
-
-  prevBanner(): void {
-    if (this.banners.length <= 1) return;
-    this.currentBannerIndex = (this.currentBannerIndex - 1 + this.banners.length) % this.banners.length;
-    this.stopBannerRotation();
-    this.startBannerRotation();
-  }
-
-  onSliderDragStart(e: MouseEvent): void {
-    e.preventDefault();
-    this.sliderDragStartX = e.clientX;
-    this.sliderIsDragging = true;
-    this.sliderDragMoved = false;
-    this.sliderDragOffset = 0;
-    this.sliderNeighborIndex = -1;
-    this.stopBannerRotation();
-  }
-
-  onSliderDragMove(e: MouseEvent): void {
-    if (!this.sliderIsDragging) return;
-    const delta = e.clientX - this.sliderDragStartX;
-    if (Math.abs(delta) > 5) {
-      this.sliderDragMoved = true;
-    }
-    this.sliderDragOffset = delta;
-    if (this.banners.length > 1) {
-      if (delta < 0) {
-        this.sliderNeighborIndex = (this.currentBannerIndex + 1) % this.banners.length;
-      } else if (delta > 0) {
-        this.sliderNeighborIndex = (this.currentBannerIndex - 1 + this.banners.length) % this.banners.length;
-      }
-    }
-  }
-
-  onSliderDragEnd(e: MouseEvent): void {
-    if (!this.sliderIsDragging) return;
-    const delta = e.clientX - this.sliderDragStartX;
-    this.sliderIsDragging = false;
-    this.sliderDragOffset = 0;
-    this.sliderNeighborIndex = -1;
-    if (Math.abs(delta) >= this.DRAG_THRESHOLD && this.banners.length > 1) {
-      if (delta < 0) {
-        this.currentBannerIndex = (this.currentBannerIndex + 1) % this.banners.length;
-      } else {
-        this.currentBannerIndex = (this.currentBannerIndex - 1 + this.banners.length) % this.banners.length;
-      }
-    }
-    this.startBannerRotation();
-  }
-
-  onSliderDragCancel(): void {
-    if (this.sliderIsDragging) {
-      this.sliderIsDragging = false;
-      this.sliderDragOffset = 0;
-      this.sliderNeighborIndex = -1;
-      this.startBannerRotation();
-    }
-  }
-
-  getSlideItemTransform(i: number): string | null {
-    if (!this.sliderIsDragging) return null;
-    const w = this.mainSliderRef?.nativeElement?.offsetWidth ?? 800;
-    if (i === this.currentBannerIndex) {
-      return `translateX(${this.sliderDragOffset}px)`;
-    }
-    if (i === this.sliderNeighborIndex) {
-      const base = this.sliderDragOffset < 0 ? w : -w;
-      return `translateX(${base + this.sliderDragOffset}px)`;
-    }
-    return null;
-  }
-
-  onSlideMouseMove(e: MouseEvent, banner: DtoSliders): void {
-    this.cursorX = e.clientX;
-    this.cursorY = e.clientY;
-    this.showSliderCursor = true;
-    this.showCursorVerMas = !!banner.urlDestino;
-  }
-
-  onSlideMouseLeave(): void {
-    this.showCursorVerMas = false;
-    this.showSliderCursor = false;
-  }
-
-  openBannerLink(item: DtoSliders): void {
-    if (this.sliderDragMoved) {
-      this.sliderDragMoved = false;
-      return;
-    }
-    const url = (item.urlDestino ?? '').trim();
-    if (!url) {
-      return;
-    }
-
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    window.location.href = url.startsWith('/') ? url : `/${url}`;
-  }
-
-  getBannerSubtitle(item: DtoSliders): string {
-    const subtitle = (item.subtitulo ?? '').trim();
-    if (!subtitle) {
-      return 'Comunicado institucional';
-    }
-
-    // Si por mapeo del backend llega una URL en subtitulo, no la mostramos en pantalla.
-    const destino = (item.urlDestino ?? '').trim();
-    if (this.looksLikeUrl(subtitle) || (destino && subtitle.toLowerCase() === destino.toLowerCase())) {
-      return 'Comunicado institucional';
-    }
-
-    return subtitle;
-  }
-
-  getBannerTitle(item: DtoSliders): string {
-    const title = (item.titulo ?? '').trim();
-    if (!title || this.looksLikeUrl(title)) {
-      return 'OFTIC';
-    }
-    return title;
-  }
-
-  getBannerImageUrl(item: DtoSliders): string {
-    const raw = (item.urlImagen ?? '').trim();
-    if (!raw) {
-      return '';
-    }
-
-    if (raw.startsWith('data:')) {
-      return raw;
-    }
-
-    // Si viene URL absoluta/local con /uploads/sliders, resolvemos por API para evitar problemas de host/puerto/proxy.
-    const uploadPathIndex = raw.toLowerCase().indexOf('/uploads/sliders/');
-    if (uploadPathIndex >= 0) {
-      const fileName = raw.substring(uploadPathIndex).split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(fileName)}` : '';
-    }
-
-    const normalized = raw.replace(/\\/g, '/');
-    if (normalized.toLowerCase().startsWith('uploads/sliders/')) {
-      const fileName = normalized.split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(fileName)}` : '';
-    }
-    if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      return raw;
-    }
-    if (raw.startsWith('/')) {
-      return `${this.getApiOrigin()}${raw}`;
-    }
-
-    // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
-    if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
-     return `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(normalized)}`;
-    }
-
-    return `/${raw}`;
-  }
-
-  private getApiBaseUrl(): string {
-    const base = (environment.apiBaseUrl ?? '/api').trim().replace(/\/+$/, '');
-    return base || '/api';
-  }
-
-  private getApiOrigin(): string {
-    const base = this.getApiBaseUrl();
-    if (!/^https?:\/\//i.test(base)) {
-      return '';
-    }
-    try {
-      const url = new URL(base);
-      return `${url.protocol}//${url.host}`;
-    } catch {
-      return '';
-    }
-  }
-
-   private looksLikeUrl(value: string): boolean {
-     const v = value.trim().toLowerCase();
-     return v.startsWith('http://')
-       || v.startsWith('https://')
-       || v.startsWith('www.')
-       || v.startsWith('/')
-       || v.startsWith('/api/')
-       || v.startsWith('/uploads/')
-       || v.startsWith('api/')
-       || v.startsWith('uploads/')
-       || /^[^/]+\.(jpg|jpeg|png|webp|gif)$/i.test(value.trim());
-   }
 
    getFotoUrl(item: DtoPersonajeMes): string {
      const raw = (item?.fotoModificada ?? '').trim();
@@ -1053,8 +558,6 @@ export class HomeComponent implements OnInit, OnDestroy {
    }
 
     getGrupoNombre(grupoId: number): string {
-      // This would ideally come from the grupos data, but for now return a placeholder
-      // In a real implementation, you'd look up the grupo by ID from the gruposAltoRendimiento data
       return `Grupo ${grupoId}`;
     }
 
@@ -1065,33 +568,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     getPersonajeMesNombre(item: DtoPersonajeMes): string {
       return this.getNombreCompleto(item);
     }
-
-  private startBannerRotation(): void {
-    this.stopBannerRotation();
-    if (this.banners.length <= 1) {
-      return;
-    }
-
-    this.bannerTimer = setInterval(() => {
-      this.currentBannerIndex = (this.currentBannerIndex + 1) % this.banners.length;
-    }, 7000);
-  }
-
-  private stopBannerRotation(): void {
-    if (this.bannerTimer) {
-      clearInterval(this.bannerTimer);
-      this.bannerTimer = null;
-    }
-  }
-
-  private getFallbackBanners(): DtoSliders[] {
-    return [
-      { idSlider: 1, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner1.jpg', urlDestino: '', orden: 1, vigente: 1 },
-      { idSlider: 2, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner2.jpg', urlDestino: '', orden: 2, vigente: 1 },
-      { idSlider: 3, titulo: 'OFTIC', subtitulo: 'Banner informativo', urlImagen: 'banner/banner3.jpg', urlDestino: '', orden: 3, vigente: 1 }
-    ];
-  }
-
 
   openNews(item: NewsItem): void {
     this.selectedNews = item;
@@ -1180,11 +656,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     if (this.newsModalOpen) {
       this.closeNews();
-      return;
-    }
-
-    if (this.eventoModalOpen) {
-      this.closeCalendarEventoModal();
     }
   }
 
@@ -1216,10 +687,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.startGrupoSlider();
   }
 
-  trackByBanner(_: number, item: DtoSliders): number { return item.idSlider; }
   trackByIndex(index: number): number { return index; }
-  trackByCalendarDay(_: number, day: CalendarDay): number { return day.date.getTime(); }
-  trackByEvento(_: number, ev: DtoEvento): number { return ev.idEvento; }
   trackByNews(_: number, item: NewsItem): number { return item.id; }
   trackByGrupo(_: number, grupo: { categoria: string }): string { return grupo.categoria; }
   trackByPersonajeMes(_: number, item: DtoPersonajeMes): number { return item.idPersonajeMes; }

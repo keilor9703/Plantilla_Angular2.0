@@ -1,5 +1,5 @@
-GEPOL solicitud sistema  COEST 			GS-2026-001525-COEST
-GEPOL acta mesa de trabajo 			    AC-2026-001112-OFTIC
-ACta aprobación CERT				    AC-2026-001408-OFTIC
-Acta nombramiento equipo desarrollo     AC-2026-001372-OFTIC
-Informe pruebas de vulnerabilidad       GS-2026-006604-OFTIC
+GEPOL solicitud sistema   			
+GEPOL acta mesa de trabajo 			 
+ACta aprobación CERT				    
+Acta nombramiento equipo desarrollo     
+Informe pruebas de vulnerabilidad      

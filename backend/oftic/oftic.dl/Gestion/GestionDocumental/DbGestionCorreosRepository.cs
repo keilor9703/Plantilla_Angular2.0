@@ -14,7 +14,7 @@ namespace Datos.Gestion.GestionDocumental
 
         public DbGestionCorreosRepository(IConfiguration config, ILogger<DbGestionCorreosRepository> logger)
         {
-            _cs = config.GetConnectionString("DbCoest") ?? "";
+            _cs = config.GetConnectionString("DbConnection") ?? "";
             _logger = logger;
         }
 
@@ -25,7 +25,7 @@ namespace Datos.Gestion.GestionDocumental
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_REGISTRAR_ENVIO_CORREO", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_REGISTRAR_ENVIO_CORREO", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("p_id_cuenta_email", OracleDbType.Int32).Value = request.IdCuentaEmail;
@@ -69,7 +69,7 @@ namespace Datos.Gestion.GestionDocumental
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_CONSULTAR_CORREOS_ENVIADOS", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_CONSULTAR_CORREOS_ENVIADOS", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;

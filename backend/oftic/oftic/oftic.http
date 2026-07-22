@@ -1,6 +1,7 @@
 @oftic_HostAddress = http://localhost:5224
 
-GET {{oftic_HostAddress}}/weatherforecast/
+GET {{oftic_HostAddress}}/health
 Accept: application/json
 
 ###
+

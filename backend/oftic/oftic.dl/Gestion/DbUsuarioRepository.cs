@@ -16,7 +16,7 @@ namespace Datos.Gestion
 
         public DbUsuarioRepository(IConfiguration cfg, ILogger<DbUsuarioRepository> logger)
         {
-            _cs = cfg.GetConnectionString("DbCoest")!;
+            _cs = cfg.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 

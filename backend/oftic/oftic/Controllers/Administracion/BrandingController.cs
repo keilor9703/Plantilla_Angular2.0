@@ -55,10 +55,10 @@ namespace ofic.Controllers.Administracion
 
                 return Ok(new
                 {
-                    sistema = cfg.Sistema,
-                    nombreSistema = cfg.NombreSistema,
-                    systemName = cfg.NombreSistema,
-                    sigla = cfg.Sigla,
+                    sistema = string.IsNullOrWhiteSpace(cfg.Sistema) ? "OFTIC" : cfg.Sistema,
+                    nombreSistema = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "SISGE / OFTIC" : cfg.NombreSistema,
+                    systemName = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "SISGE / OFTIC" : cfg.NombreSistema,
+                    sigla = string.IsNullOrWhiteSpace(cfg.Sigla) ? "OFTIC" : cfg.Sigla,
                     nombreUnidad = cfg.NombreUnidad,
                     logoUrl = BuildLogoUrl(cfg.LogoFileName),
                     faviconUrl = BuildFaviconUrl(cfg.FaviconFileName)
@@ -66,8 +66,17 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando configuracion branding");
-                return StatusCode(500, new { message = "Error consultando configuracion branding." });
+                _logger.LogWarning(ex, "Base de datos o paquete de branding no disponible. Retornando configuración por defecto.");
+                return Ok(new
+                {
+                    sistema = "OFTIC",
+                    nombreSistema = "SISGE / OFTIC",
+                    systemName = "SISGE / OFTIC",
+                    sigla = "OFTIC",
+                    nombreUnidad = "",
+                    logoUrl = "/escudo.png",
+                    faviconUrl = "/favicon.ico"
+                });
             }
         }
 

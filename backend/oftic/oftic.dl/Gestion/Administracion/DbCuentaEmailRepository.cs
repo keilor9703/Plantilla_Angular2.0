@@ -15,7 +15,7 @@ namespace Datos.Gestion
 
         public DbCuentaEmailRepository(IConfiguration configuration, ILogger<DbCuentaEmailRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _cs = configuration.GetConnectionString("DbConnection")!;
             _logger = logger;
         }
 
@@ -27,7 +27,7 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.PR_CONSULTAR_CUENTAS_EMAIL", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.PR_CONSULTAR_CUENTAS_EMAIL", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = idCuenta;
@@ -73,7 +73,7 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.PR_GESTIONAR_CUENTA_EMAIL", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.PR_GESTIONAR_CUENTA_EMAIL", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.BindByName = true;
@@ -113,7 +113,7 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.PR_ELIMINAR_CUENTA_EMAIL", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.PR_ELIMINAR_CUENTA_EMAIL", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = idCuenta;
@@ -137,7 +137,7 @@ namespace Datos.Gestion
             {
                 using var connection = new OracleConnection(_cs);
                 connection.Open();
-                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_CUENTAS_X_USUARIO", connection);
+                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_CUENTAS_X_USUARIO", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = idUsuario;
                 command.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
@@ -170,7 +170,7 @@ namespace Datos.Gestion
             {
                 using var connection = new OracleConnection(_cs);
                 connection.Open();
-                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_CONSULTAR", connection);
+                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_CONSULTAR", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.BindByName = true;
                 command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = (object?)idCuenta ?? DBNull.Value;
@@ -215,7 +215,7 @@ namespace Datos.Gestion
             {
                 using var connection = new OracleConnection(_cs);
                 connection.Open();
-                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_GUARDAR", connection);
+                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_GUARDAR", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.BindByName = true;
 
@@ -242,7 +242,7 @@ namespace Datos.Gestion
             {
                 using var connection = new OracleConnection(_cs);
                 connection.Open();
-                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ACTUALIZAR", connection);
+                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ACTUALIZAR", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.BindByName = true;
 
@@ -269,7 +269,7 @@ namespace Datos.Gestion
             {
                 using var connection = new OracleConnection(_cs);
                 connection.Open();
-                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ELIMINAR", connection);
+                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ELIMINAR", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.BindByName = true;
 
@@ -295,7 +295,7 @@ namespace Datos.Gestion
             {
                 using var connection = new OracleConnection(_cs);
                 connection.Open();
-                using var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_VALIDAR_ENVIO", connection);
+                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_VALIDAR_ENVIO", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.BindByName = true;
 
@@ -321,7 +321,7 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    using (var command = new OracleCommand("USR_COEST.PK_ADMINISTRACION.P_GENERAR_RADICADO_CORREO", connection))
+                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_GENERAR_RADICADO_CORREO", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("p_id_cuenta_email", OracleDbType.Int32).Value = idCuentaEmail;

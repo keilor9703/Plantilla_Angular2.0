@@ -7,7 +7,6 @@ import { SidebarService } from '../../services/sidebar.js';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 import { BrandingService } from '../../core/services/administracion/branding.service';
-import { EventoService } from '../../core/services/administracion/evento.service';
 import { MenuService, DbMenuItem } from '../../core/services/administracion/menu.service';
 import { finalize } from 'rxjs/operators';
 
@@ -48,12 +47,6 @@ export class HeaderComponent implements OnInit {
   profileModalOpen = false;
   profileLoading = false;
   perfil: MiPerfilDto | null = null;
-  
-  // Próximos eventos
-  proximosEventos: any[] = [];
-  isCalendarDropdownOpen = false;
-  selectedEvento: any | null = null;
-  isEventoModalOpen = false;
 
   constructor(
     private SidebarService: SidebarService,
@@ -61,7 +54,6 @@ export class HeaderComponent implements OnInit {
     private http: HttpClient,
     private router: Router,
     private brandingService: BrandingService,
-    private eventoService: EventoService,
     private menuService: MenuService
   ) {}
 
@@ -74,7 +66,6 @@ export class HeaderComponent implements OnInit {
     this.userName = this.authService.getUsuario();
     this.loadBranding();
     this.loadMyPhoto();
-    this.loadEventosCount();
     this.loadSearchIndex();
   }
 
@@ -104,13 +95,6 @@ export class HeaderComponent implements OnInit {
       }
     }
 
-    // Cierre de dropdown de calendario
-    if (this.isCalendarDropdownOpen) {
-      if (!target.closest('.notification-wrapper')) {
-        this.isCalendarDropdownOpen = false;
-      }
-    }
-
     // Cierre de dropdown de búsqueda
     if (this.showSearchDropdown) {
       if (!target.closest('.header-search')) {
@@ -122,17 +106,10 @@ export class HeaderComponent implements OnInit {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeUserDropdown();
-    this.isCalendarDropdownOpen = false;
     this.showSearchDropdown = false;
   }
 
-  notifications: Notification[] = [
-    { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 0, tooltip: 'Eventos' },
-    //{ id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
-    //{ id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },
-    //{ id: 3, icon: 'fa-tasks', color: 'success', count: 2, tooltip: 'Tareas' },
-    //{ id: 5, icon: 'fa-chart-line', color: 'accent', count: 0, tooltip: 'Reportes' }
-  ];
+  notifications: Notification[] = [];
 
   searchQuery: string = '';
   userName: string = 'Usuario';
@@ -146,38 +123,6 @@ export class HeaderComponent implements OnInit {
       },
       error: () => {
         this.userRole = 'OFTIC';
-      }
-    });
-  }
-
-  private loadEventosCount(): void {
-    this.eventoService.getAll().subscribe({
-      next: (items) => {
-        const today = new Date();
-        const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const limit = new Date(todayZero);
-        limit.setDate(todayZero.getDate() + 5);
-
-        const filtered = (items ?? []).filter(e => {
-          // Validar vigencia
-          const v = e.vigente !== undefined ? e.vigente : (e as any).VIGENTE;
-          if (v == null || String(v) !== '1') return false;
-
-          // Validar fecha de inicio dentro de los próximos 5 días
-          const startStr = (e.fechaInicio || '').toString().split('T')[0];
-          const parts = startStr.split('-');
-          if (parts.length !== 3) return false;
-
-          const startDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-          
-          return startDate.getTime() >= todayZero.getTime() && startDate.getTime() <= limit.getTime();
-        });
-
-        this.proximosEventos = filtered;
-        const calendarNotif = this.notifications.find(n => n.id === 4);
-        if (calendarNotif) {
-          calendarNotif.count = filtered.length;
-        }
       }
     });
   }
@@ -321,41 +266,6 @@ export class HeaderComponent implements OnInit {
   }
 
   onNotificationClick(notification: Notification): void {
-    if (notification.id === 4) {
-      this.isCalendarDropdownOpen = !this.isCalendarDropdownOpen;
-    }
-  }
-
-  openEventoDetail(evento: any, event?: Event): void {
-    if (event) event.stopPropagation();
-    this.selectedEvento = evento;
-    this.isEventoModalOpen = true;
-    this.isCalendarDropdownOpen = false;
-  }
-
-  closeEventoModal(): void {
-    this.isEventoModalOpen = false;
-    this.selectedEvento = null;
-  }
-
-  getEventoImageUrl(raw: string | null | undefined): string {
-    const value = (raw ?? '').trim();
-    if (!value) return '';
-    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
-    if (value.startsWith('/api/')) return value;
-    const file = value.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
-    return file ? `/api/EventoUpload/Imagen/${encodeURIComponent(file)}` : '';
-  }
-
-  getEventoFechaRango(evento: any): string {
-    const fmt = (dStr: string) => {
-      const d = new Date(dStr);
-      return isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-    const fi = fmt(evento.fechaInicio);
-    const ff = fmt(evento.fechaFin);
-    if (!fi && !ff) return 'Sin fecha';
-    return fi === ff ? fi : `${fi} - ${ff}`;
   }
 
   onProfileClick(event?: Event): void {
@@ -455,4 +365,3 @@ export class HeaderComponent implements OnInit {
     this.profileModalOpen = false;
   }
 }
-

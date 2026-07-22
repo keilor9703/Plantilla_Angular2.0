@@ -104,32 +104,7 @@ Oracle DB accessed through repositories in `oftic.dl`. SQL scripts for schema/se
 
 ### Public API
 
-Endpoints under `/api/sliders`, `/api/radio`, `/api/branding` are CORS-enabled for external consumers. Documented in `README-API.md` with examples for multiple languages.
-
-### Modal Visor (Popups de inicio)
-
-Módulo para mostrar modales/popups al usuario al ingresar al home.
-
-**Regla de negocio:** Solo puede existir un modal activo a la vez. Al crear uno nuevo, el anterior se inactiva automáticamente (`P_CREATE_MODAL` hace `UPDATE CTR_MODAL SET VIGENTE=0` antes del INSERT). Lo mismo aplica al activar uno manualmente (`P_TOGGLE_VIGENTE_MODAL`).
-
-**Flujo:**
-1. El componente `ModalVisorComponent` vive en `app.html` (global, activa solo en `/home`).
-2. Al hacer login, `auth.service.ts` limpia `sessionStorage['modales_vistos']` para que se muestre en la próxima visita al home.
-3. Al llegar a `/home`, el visor espera 2 segundos y llama `GET /api/Modal/activos` (`[AllowAnonymous]`).
-4. Muestra los modales en secuencia; al cerrar el último guarda `modales_vistos=1` en sessionStorage para no repetir en esa sesión.
-
-**Archivos clave:**
-- Visor frontend: `src/app/components/modal-visor/modal-visor.ts` y `.html`
-- Admin frontend: `src/app/pages/administracion/modal/modal-admin.ts`
-- Servicio: `src/app/core/services/administracion/modal.service.ts`
-- Backend: `ModalController.cs`, `DbModalService.cs`, `DbModalRepository.cs`
-- Oracle: `docs/sql/PK_ADMINISTRACION_MODAL.sql` — tablas `CTR_MODAL` y `CTR_MODAL_INTERACCION`
-
-**Campos del formulario:** título, descripción, tipo de recurso (TEXTO/IMAGEN/VIDEO), recurso (upload), tipo de acción (INFO/ACEPTAR/CONFIRMAR), fecha/hora inicio (por defecto ahora), fecha/hora fin (por defecto 5 días después a las 00:00), unidad, orden.
-
-**Fechas:** el input `datetime-local` envía `YYYY-MM-DDTHH:mm`; el método `normalizarFecha()` en `modal-admin.ts` agrega `:00` antes de enviar al backend para que .NET deserialice correctamente el `DateTime`.
-
-**Uploads de recursos:** se guardan en `uploads/modales/` y se sirven por `GET /api/Modal/recurso/{fileName}` (`[AllowAnonymous]`).
+Endpoints under `/api/branding` are CORS-enabled for external consumers. Documented in `README-API.md` with examples for multiple languages.
 
 ### Accessibility
 

@@ -79,6 +79,12 @@ Thumbs.db
 **/*.key
 **/appsettings.Development.json
 
+# Archivos de asistencia / IA (No requeridos en repositorio)
+AGENTS.md
+CLAUDE.md
+.gemini/
+.agents/
+.antigravity/
 
 .vs/
 node_modules/
