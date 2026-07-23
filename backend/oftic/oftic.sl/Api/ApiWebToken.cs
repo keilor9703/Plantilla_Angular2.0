@@ -33,8 +33,8 @@ namespace Servicios.Api
             var client = _factory.CreateClient("AuthClient");
 
             var url = _cfg["ApiSettings:OudLogin"]?.Trim();
-            var usuario = _cfg["ApiSettings:UsuarioPip"];
-            var clave = _cfg["ApiSettings:ClavePip"];
+            var usuario = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+            var clave = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
 
             var payload = new DtoUsuarioPip
             {
@@ -77,7 +77,7 @@ namespace Servicios.Api
         public async Task<DtoRespuesta<string>> ObtenerTokenSeviciosAsync(DtoUsuarioPip usuario)
         {
             var client = _factory.CreateClient("AuthClient");  
-            var url = _cfg["ApiSettings:OudLogin"]!;
+            var url = _cfg["ApiSettings:PostPipToken"]?.Trim() ?? "https://internalpip.policia.gov.co:8080/api/Cuenta/Token";
 
             var content = new StringContent(
                 JsonSerializer.Serialize(usuario),
@@ -87,12 +87,12 @@ namespace Servicios.Api
             using var resp = await client.PostAsync(url, content);
             if (!resp.IsSuccessStatusCode)
             {
-                _logger.LogWarning("OUD login failed: {StatusCode}", resp.StatusCode);
+                _logger.LogWarning("PIP Token request failed: {StatusCode}", resp.StatusCode);
                 return new DtoRespuesta<string>
                 {
                     Estado = false,
                     Codigo = (int)resp.StatusCode,
-                    Mensaje = "Credenciales inválidas en OUD",
+                    Mensaje = "Credenciales o conexión inválida en PIP Token",
                     Respuesta = string.Empty
                 };
             }

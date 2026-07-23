@@ -36,15 +36,20 @@ export class SetupComponent implements OnInit {
     nombreSistema: 'Sistema de Gestión Institucional',
     sigla: 'POLICIA',
     nombreUnidad: '',
-    unidadSistemaId: 0,
     logoFileName: '',
-    faviconFileName: ''
+    faviconFileName: '',
+    devUser: '',
+    devPassword: ''
   };
 
   testing = false;
-  testResult: { success: boolean; message: string } | null = null;
+  testResult: { success: boolean; message: string; requiresMigration?: boolean } | null = null;
   saving = false;
   saveResult: { success: boolean; message: string } | null = null;
+
+  showMigrationModal = false;
+  migrating = false;
+  migrationResult: { success: boolean; message: string } | null = null;
 
   constructor(
     private setupService: SetupService,
@@ -150,7 +155,100 @@ export class SetupComponent implements OnInit {
   }
 
   nextStep(): void {
-    if (this.step < 3) {
+    if (this.step === 2) {
+      // Validar conexión a la BD
+      this.testing = true;
+      this.testResult = null;
+
+      const payload = this.preparePayload();
+      this.setupService.testConnection(payload).subscribe({
+        next: (res) => {
+          this.testing = false;
+          this.testResult = res;
+          if (res.success) {
+            if (res.requiresMigration) {
+              this.showMigrationModal = true;
+            } else {
+              this.step++;
+            }
+          }
+        },
+        error: (err) => {
+          this.testing = false;
+          this.testResult = {
+            success: false,
+            message: err?.error?.message || 'Error al conectar con la base de datos.'
+          };
+        }
+      });
+      return;
+    }
+
+    if (this.step === 3) {
+      if (!this.formData.pipUser?.trim() || !this.formData.pipPassword?.trim()) {
+        this.testResult = {
+          success: false,
+          message: 'Debe ingresar el Usuario PIP y la Clave PIP.'
+        };
+        return;
+      }
+
+      this.testing = true;
+      this.testResult = null;
+
+      const payload = this.preparePayload();
+      this.setupService.testPipCredentials(payload).subscribe({
+        next: (res) => {
+          this.testing = false;
+          this.testResult = res;
+          if (res.success) {
+            this.step++;
+          }
+        },
+        error: (err) => {
+          this.testing = false;
+          this.testResult = {
+            success: false,
+            message: err?.error?.message || 'Error al validar las credenciales PIP/OUD.'
+          };
+        }
+      });
+      return;
+    }
+
+    if (this.step === 5) {
+      if (!this.formData.devUser?.trim() || !this.formData.devPassword?.trim()) {
+        this.testResult = {
+          success: false,
+          message: 'Debe ingresar el usuario empresarial y la contraseña del Desarrollador.'
+        };
+        return;
+      }
+
+      this.testing = true;
+      this.testResult = null;
+
+      const payload = this.preparePayload();
+      this.setupService.validateDevUser(payload).subscribe({
+        next: (res) => {
+          this.testing = false;
+          this.testResult = res;
+          if (res.success) {
+            this.step++;
+          }
+        },
+        error: (err) => {
+          this.testing = false;
+          this.testResult = {
+            success: false,
+            message: err?.error?.message || 'Error al validar el usuario en el servicio OUD.'
+          };
+        }
+      });
+      return;
+    }
+
+    if (this.step < 6) {
       this.step++;
     }
   }
@@ -170,12 +268,45 @@ export class SetupComponent implements OnInit {
       next: (res) => {
         this.testing = false;
         this.testResult = res;
+        if (res.success && res.requiresMigration) {
+          this.showMigrationModal = true;
+        }
       },
       error: (err) => {
         this.testing = false;
         this.testResult = {
           success: false,
           message: err?.error?.message || 'No se pudo contactar al servidor para la prueba.'
+        };
+      }
+    });
+  }
+
+  closeMigrationModal(): void {
+    this.showMigrationModal = false;
+  }
+
+  runMigration(): void {
+    this.migrating = true;
+    this.migrationResult = null;
+
+    const payload = this.preparePayload();
+    this.setupService.migrateDatabase(payload).subscribe({
+      next: (res) => {
+        this.migrating = false;
+        this.migrationResult = res;
+        if (res.success) {
+          setTimeout(() => {
+            this.showMigrationModal = false;
+            this.step++;
+          }, 1500);
+        }
+      },
+      error: (err) => {
+        this.migrating = false;
+        this.migrationResult = {
+          success: false,
+          message: err?.error?.message || 'Error al ejecutar la migración del esquema.'
         };
       }
     });
@@ -220,6 +351,8 @@ export class SetupComponent implements OnInit {
       jwtKey: this.formData.jwtKey,
       jwtIssuer: this.formData.jwtIssuer,
       jwtAudience: this.formData.jwtAudience,
+      devUser: this.formData.devUser,
+      devPassword: this.formData.devPassword,
       sistema: this.formData.sistema,
       nombreSistema: this.formData.nombreSistema,
       sigla: this.formData.sigla,

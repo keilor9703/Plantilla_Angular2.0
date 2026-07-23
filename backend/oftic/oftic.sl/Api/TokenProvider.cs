@@ -1,4 +1,4 @@
-﻿using Comun.Dtos;                   
+using Comun.Dtos;                   
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging; 
@@ -56,17 +56,23 @@ namespace Servicios.Api
                 return string.Empty;
             }
 
+            int cacheMinutes = 20;
+            if (int.TryParse(_cfg["ApiSettings:TokenCacheMinutes"], out int configMinutes) && configMinutes > 0)
+            {
+                cacheMinutes = configMinutes;
+            }
+
             var cacheOptions = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromMinutes(25))
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(cacheMinutes))
                 .RegisterPostEvictionCallback((key, value, reason, state) =>
                 {
                     _logger.LogInformation("Token expirado del caché: {Reason}", reason);
                 });
 
             _cache.Set("oud_token", token, cacheOptions);
-            _cache.Set("oud_token_expiry", DateTime.UtcNow.AddMinutes(25));
+            _cache.Set("oud_token_expiry", DateTime.UtcNow.AddMinutes(cacheMinutes));
 
-            _logger.LogInformation("Token guardado en caché por 25 minutos");
+            _logger.LogInformation("Token técnico PIP guardado en caché por {Minutes} minutos", cacheMinutes);
 
             return token;
         }

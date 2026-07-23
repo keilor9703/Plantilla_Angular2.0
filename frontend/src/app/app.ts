@@ -77,7 +77,7 @@ export class AppComponent implements OnDestroy {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
         this.applyFavicon(cfg?.faviconUrl ?? null);
-        this.applyDocumentTitle(cfg?.sistema ?? cfg?.systemName ?? null);
+        this.applyDocumentTitle(cfg?.sigla ?? cfg?.sistema ?? cfg?.systemName ?? null);
       },
       error: () => {}
     });

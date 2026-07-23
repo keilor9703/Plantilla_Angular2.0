@@ -1,4 +1,4 @@
-﻿import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
+import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SidebarService } from '../../services/sidebar';
@@ -162,7 +162,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const name = (cfg?.sistema ?? '').trim();
+        const name = (cfg?.sigla ?? cfg?.sistema ?? '').trim();
         this.systemName = name || 'OFTIC';
         this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/imagenes/oftic-logo-app.png';
       },
@@ -209,24 +209,23 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   private mapDbMenu(items: DbMenuItem[]): MenuItem[] {
     const normalized = (items ?? []).map((x: any) => ({
       idMenu: Number(x.idMenu ?? x.IdMenu ?? 0),
-      descripcion: String(x.descripcion ?? x.Descripcion ?? ''),
-      idPadre: Number(x.idPadre ?? x.IdPadre ?? 0),
-      posicion: Number(x.posicion ?? x.Posicion ?? 0),
+      // Acepta titulo (schema nuevo) o descripcion (schema Oracle legacy)
+      descripcion: String(x.titulo ?? x.descripcion ?? x.Titulo ?? x.Descripcion ?? ''),
+      idPadre: Number(x.idPadre ?? x.IdPadre ?? x.id_padre ?? 0),
+      posicion: Number(x.posicion ?? x.Posicion ?? x.orden ?? x.Orden ?? 1),
       icono: x.icono ?? x.Icono,
-      detalle: x.detalle ?? x.Detalle,
-      vigente: Number(x.vigente ?? x.Vigente ?? 1)
+      // Acepta ruta (schema nuevo) o detalle (schema Oracle legacy)
+      detalle: x.ruta ?? x.detalle ?? x.Ruta ?? x.Detalle,
+      // Acepta estado (schema nuevo) o vigente (schema Oracle legacy); si es null/undefined → activo
+      vigente: Number(x.estado ?? x.vigente ?? x.Estado ?? x.Vigente ?? 1)
     }));
 
     const active = normalized.filter(x => !!x.descripcion && x.vigente === 1);
     const byId = new Map(active.map(x => [x.idMenu, x]));
 
-    // Encontrar items que son raíces (tienen idPadre = 1 o idPadre = 0 o no tienen padre en la lista)
-    // Excluir RAIZ técnico de la lista de padres visibles
+    // Raíces: idPadre === 0, o idPadre apunta a un id que no existe en la lista
     const parents = active
-      .filter(x => {
-        return x.idPadre === 0 || x.idPadre === 1 || !byId.has(x.idPadre);
-      })
-      .filter(x => x.idMenu !== 1)
+      .filter(x => x.idPadre === 0 || !byId.has(x.idPadre))
       .sort((a, b) => a.posicion - b.posicion);
 
     if (parents.length === 0) {
@@ -287,18 +286,22 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       return '';
     }
 
-    // Si es URL externa (http://, https://, o www.)
+    // URLs externas
     if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('www.')) {
-      // Agregar https:// si solo tiene www.
       if (value.startsWith('www.') && !value.startsWith('http')) {
         return 'https://' + value;
       }
       return value;
     }
 
-    // Si ya tiene /administracion/, devolver tal cual
-    if (value.startsWith('/administracion/')) {
+    // Rutas que ya están completas
+    if (value.startsWith('/administracion/') || value === '/administracion') {
       return value;
+    }
+
+    // Ruta home
+    if (value === '/home' || value === 'home') {
+      return '/home';
     }
 
     // Rutas que van a configuracion-sistema
@@ -312,7 +315,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       return '/administracion/configuracion-sistema';
     }
 
-    // Rutas simples que necesitan prefijo
+    // Rutas simples que necesitan prefijo /administracion/
     const routeMap: Record<string, string> = {
       '/formularios': '/administracion/formularios',
       '/usuarios': '/administracion/usuarios',
@@ -321,7 +324,11 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       '/radio': '/administracion/radio',
       '/menu': '/administracion/menu',
       '/auditoria': '/administracion/auditoria',
-      '/sliders': '/administracion/sliders'
+      '/sliders': '/administracion/sliders',
+      '/branding': '/administracion/branding',
+      '/personaje-mes': '/administracion/personaje-mes',
+      '/personajes': '/administracion/personaje-mes',
+      '/dominio': '/administracion/dominio'
     };
 
     return routeMap[value] || (value.startsWith('/') ? value : `/${value}`);

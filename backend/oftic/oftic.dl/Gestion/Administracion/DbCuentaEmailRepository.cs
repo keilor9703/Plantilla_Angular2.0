@@ -1,4 +1,5 @@
 using Comun.Dtos.Administracion;
+using Comun.Extensions;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ namespace Datos.Gestion
 
         public DbCuentaEmailRepository(IConfiguration configuration, ILogger<DbCuentaEmailRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbConnection")!;
+            _cs = configuration.GetDecryptedConnectionString();
             _logger = logger;
         }
 

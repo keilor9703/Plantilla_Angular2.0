@@ -30,11 +30,14 @@ export interface SetupTestRequest {
   logoFileName?: string;
   faviconFileName?: string;
   fondo1FileName?: string;
+  devUser?: string;
+  devPassword?: string;
 }
 
 export interface SetupResponse {
   success: boolean;
   message: string;
+  requiresMigration?: boolean;
 }
 
 @Injectable({
@@ -55,6 +58,18 @@ export class SetupService {
 
   testConnection(request: SetupTestRequest): Observable<SetupResponse> {
     return this.http.post<SetupResponse>(`${this.apiBase}/test-connection`, request);
+  }
+
+  validateDevUser(request: SetupTestRequest): Observable<SetupResponse> {
+    return this.http.post<SetupResponse>(`${this.apiBase}/validate-dev-user`, request);
+  }
+
+  testPipCredentials(request: SetupTestRequest): Observable<SetupResponse> {
+    return this.http.post<SetupResponse>(`${this.apiBase}/test-pip-credentials`, request);
+  }
+
+  migrateDatabase(request: SetupTestRequest): Observable<SetupResponse> {
+    return this.http.post<SetupResponse>(`${this.apiBase}/migrate-database`, request);
   }
 
   saveConfig(request: SetupTestRequest): Observable<SetupResponse> {

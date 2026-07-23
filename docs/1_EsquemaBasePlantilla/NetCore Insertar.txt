@@ -1,0 +1,158 @@
+public async Task<DtoResultado<Int32>> P_InsUdpUsuarios(Int64 V_Identificacion, int V_Bloqueado, Int64 V_Usuario, string V_Maquina)
+{
+    DtoResultado<Int32> resp = new();
+
+    using var Conexion = new OracleConnection(_strConexion);
+    using var objCommand = new OracleCommand();
+
+    try
+    {
+        objCommand.Connection = Conexion;
+        objCommand.CommandType = CommandType.StoredProcedure;
+        objCommand.CommandText = "PKS_ADMINISTRACION.P_InsUdpUsuarios";
+        objCommand.BindByName = true;
+        Conexion.Open();
+
+        objCommand.Parameters.Clear();
+        objCommand.Parameters.Add("P_Identificacion", OracleDbType.Int64, ParameterDirection.Input).Value = V_Identificacion;
+        objCommand.Parameters.Add("P_Bloqueado", OracleDbType.Int32, ParameterDirection.Input).Value = V_Bloqueado;
+
+        objCommand.Parameters.Add("P_Usuario", OracleDbType.Int64, ParameterDirection.Input).Value = V_Usuario;
+        objCommand.Parameters.Add("P_Maquina", OracleDbType.Varchar2, ParameterDirection.Input).Value = V_Maquina;
+
+        objCommand.Parameters.Add("SRV_Message", OracleDbType.Varchar2, 2000).Direction = ParameterDirection.Output;
+        objCommand.Parameters.Add("P_Resultado", OracleDbType.Int32).Direction = ParameterDirection.Output;
+
+        if (Conexion.State == ConnectionState.Open)
+        {
+            await objCommand.ExecuteNonQueryAsync();
+            resp.IdRespuesta = Int32.Parse(objCommand.Parameters["P_Resultado"].Value.ToString());
+            resp.Mensaje = objCommand.Parameters["SRV_Message"].Value.ToString();
+            resp.Operacion = "P_InsUdpUsuarios";
+            resp.Data = Int32.Parse(objCommand.Parameters["P_Resultado"].Value.ToString());
+
+            Conexion.Close();
+            Conexion.Dispose();
+            objCommand.Connection.Close();
+        }
+        else
+        {
+            resp.IdRespuesta = 0;
+            resp.Mensaje = "Error al conectar a la base de datos";
+            resp.Operacion = "0";
+        }
+    }
+    catch (Exception e)
+    {
+        Conexion.Close();
+        Conexion.Dispose();
+        _logger.LogError("Creacion de log");
+        _logger.LogWarning("Error al Insertar : PK_CTR_ADMINISTRACION.P_InsUdpUsuarios " + e);
+
+        resp.IdRespuesta = 0;
+        resp.Mensaje = $"{e.Message} - {e.InnerException}";
+        resp.Operacion = "0";
+
+        objCommand.Dispose();
+        objCommand.Connection.Close();
+
+    }
+    finally
+    {
+        Conexion.Close();
+        Conexion.Dispose();
+    }
+    return resp;
+}
+*************************************Controlador
+  public async Task<IActionResult> P_InsRoles(DtoInsUserRoles obj)
+  {
+      if (obj.IdUsuario == 0)
+          return Json(new { success = false, message = "Debe seleccionar usuario, revise" });
+
+      if (obj.IdRol == 0)
+          return Json(new { success = false, message = "Debe seleccionar rol, revise" });
+
+      if (string.IsNullOrWhiteSpace(obj.Justificacion))
+          return Json(new { success = false, message = "Debe registrar justificación, revise" });
+
+      if (obj.FechaFin == Convert.ToDateTime("1/1/0001 12:00:00 AM"))
+          return Json(new { success = false, message = "Debe registrar fecha de caducidad del rol, revise" });
+
+      try
+      {
+          var Resultado = await _iDbAdministracion.P_InsRolesUser(obj, Convert.ToInt64(User.FindFirstValue("Identificacion")), HttpContext.Session.GetString("IpMaquina"));
+          if (Resultado.IdRespuesta > 0)
+          {
+              return Json(new { success = true, data = Resultado.Data, message = Resultado.Mensaje });
+          }
+          else
+          {
+              return Json(new { success = false, data = Resultado.Data, message = Resultado.Mensaje });
+          }
+      }
+      catch (Exception ex)
+      {
+          return Json(new { success = false, data = 0, message = "Error: no es posible guardar, revise " + ex });
+      }
+  }
+  
+  ***********************************************ajax para insertar*****************************************************
+  function P_InsRoles() {
+
+    if ($("#txtJustificacion").val() == "") {
+        create('error', 'Debe registrar justificación para asignar el rol', '../../img/AlertError.png');
+        return;
+    }
+
+    var DtoInsUserRoles = {
+        IdUsuario: $("#txtIdUsuario").val(),
+        IdRol: $("#ddlRol").val(),
+        IdUnidad: $("#txtIdUnidad").val(),
+        FechaFin: $("#txtFechaFin").val(),
+        Justificacion: $("#txtJustificacion").val()
+    }
+
+    $.ajax({
+        type: 'POST',
+        url: UrlInsRoles,
+        async: true,
+        dataType: 'json',
+        data: { obj: DtoInsUserRoles },
+        success: function (result) {
+            if (result.success) {
+                F_GetUserRoles($("#txtIdentificacion").val());
+                LimpiarRoles();
+                Swal.fire({
+                    type: 'success',
+                    title: 'Señor(a) Funcionario(a:)',
+                    text: result.message
+                });
+
+            } else {
+                Swal.fire({
+                    type: 'error',
+                    title: 'Señor(a) Funcionario(a:)',
+                    text: result.message
+                });
+            }
+        },
+        error: function (ex) {
+            Swal.fire({
+                type: 'error',
+                title: 'Señor(a) Funcionario(a:)',
+                text: "No es posible grabar, revise"
+            });
+        }
+    });
+}
+
+
+**********************************HTML****************
+@section scripts {
+    <script src="~/areas/admin/VwUsuarios.js?v=1"></script>
+    <script type='text/javascript'>
+        var UrlGetFuncionarios = "@Url.Action("F_GetFuncionarios", "Empleados", new { Area = "" })";
+        var UrlGetEmpleadoIntel = "@Url.Action("F_GetEmpleadoIntel", "Empleados", new { Area = "" })";       
+    </script>
+}

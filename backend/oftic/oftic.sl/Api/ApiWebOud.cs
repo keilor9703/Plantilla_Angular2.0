@@ -1,4 +1,4 @@
-﻿using Comun.Dtos;
+using Comun.Dtos;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -95,6 +95,9 @@ namespace Servicios.Api
                 return asBool;
             }
 
+            if (plain.Equals("1") || plain.Equals("\"1\"")) return true;
+            if (plain.Equals("0") || plain.Equals("\"0\"")) return false;
+
             try
             {
                 using var doc = JsonDocument.Parse(body);
@@ -109,6 +112,9 @@ namespace Servicios.Api
 
         private static bool IsSuccessfulAuthResponse(JsonElement root)
         {
+            if (root.ValueKind == JsonValueKind.True) return true;
+            if (root.ValueKind == JsonValueKind.False) return false;
+
             if (TryGetPropertyIgnoreCase(root, "token", out var tokenElement) && HasMeaningfulValue(tokenElement))
             {
                 return true;
@@ -120,39 +126,46 @@ namespace Servicios.Api
             }
 
             if (TryGetPropertyIgnoreCase(root, "success", out var successElement) &&
-                successElement.ValueKind == JsonValueKind.True)
+                (successElement.ValueKind == JsonValueKind.True || successElement.ToString() == "1"))
             {
                 return true;
             }
 
-            if (TryGetPropertyIgnoreCase(root, "estado", out var estadoElement) &&
-                estadoElement.ValueKind == JsonValueKind.True &&
-                TryGetPropertyIgnoreCase(root, "respuesta", out var respuestaElement))
+            if (TryGetPropertyIgnoreCase(root, "estado", out var estadoElement))
             {
-                if (respuestaElement.ValueKind == JsonValueKind.True)
+                if (estadoElement.ValueKind == JsonValueKind.True || estadoElement.ToString() == "1" || estadoElement.ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
 
-                if (respuestaElement.ValueKind == JsonValueKind.Array)
+                if (TryGetPropertyIgnoreCase(root, "respuesta", out var respuestaElement))
                 {
-                    return respuestaElement.GetArrayLength() > 0;
-                }
-
-                if (respuestaElement.ValueKind == JsonValueKind.Object)
-                {
-                    return true;
-                }
-
-                if (respuestaElement.ValueKind == JsonValueKind.String)
-                {
-                    var value = respuestaElement.GetString()?.Trim();
-                    if (bool.TryParse(value, out var parsedBool))
+                    if (respuestaElement.ValueKind == JsonValueKind.True) return true;
+                    if (respuestaElement.ValueKind == JsonValueKind.Array) return respuestaElement.GetArrayLength() > 0;
+                    if (respuestaElement.ValueKind == JsonValueKind.Object) return true;
+                    if (respuestaElement.ValueKind == JsonValueKind.String)
                     {
-                        return parsedBool;
+                        var value = respuestaElement.GetString()?.Trim();
+                        if (bool.TryParse(value, out var parsedBool)) return parsedBool;
+                        return !string.IsNullOrWhiteSpace(value);
                     }
+                }
+            }
 
-                    return !string.IsNullOrWhiteSpace(value);
+            if (TryGetPropertyIgnoreCase(root, "codigo", out var codigoElement))
+            {
+                int code = codigoElement.GetInt32();
+                if (code == 200 || code == 1 || code == 0)
+                {
+                    if (TryGetPropertyIgnoreCase(root, "mensaje", out var msgElement))
+                    {
+                        var msg = msgElement.GetString() ?? "";
+                        if (msg.Contains("invalid", StringComparison.OrdinalIgnoreCase) || msg.Contains("incorrect", StringComparison.OrdinalIgnoreCase) || msg.Contains("fall", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
                 }
             }
 

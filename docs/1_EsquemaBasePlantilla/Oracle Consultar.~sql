@@ -1,0 +1,22 @@
+--Obtener 
+  Function F_GetDominios(P_Id In Number) Return Sys_Refcursor Is
+     V_CONSULTA Sys_Refcursor;
+     Begin
+       Open V_CONSULTA For
+         Select p.Id_Dominio IdDominio, 
+                p.Campo_2    Campo2
+                p.Campo_3    Campo3
+           From NOMBRE_TABLA p
+          Where p.Id_Primaria = P_Id
+            And p.vigente=1;
+       Return(V_CONSULTA);
+       Rollback;
+       Close V_CONSULTA;
+     Exception
+       When Others Then
+         Null;
+         Return(Null);
+  End F_GetDominios;
+--------------
+
+

@@ -18,15 +18,19 @@ namespace Negocio.Gestion
         {
             _cfg = cfg;
 
-            _key = cfg["Jwt:Key"] ?? throw new InvalidOperationException(
-                "Jwt:Key no está configurada. Define la clave en appsettings o variables de entorno.");
+            _key = Environment.GetEnvironmentVariable("Jwt__Key") ?? cfg["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(_key))
+            {
+                // Fallback temporal para permitir inicio en modo desarrollo / setup
+                _key = "CAMBIAR_EN_PRODUCCION_ClaveSeguraMinimo32Caracteres_2026";
+            }
 
             if (_key.Length < 32)
                 throw new InvalidOperationException(
                     "Jwt:Key debe tener al menos 32 caracteres.");
 
-            _issuer   = cfg["Jwt:Issuer"]   ?? "oftic.api";
-            _audience = cfg["Jwt:Audience"] ?? "oftic.api";
+            _issuer   = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? cfg["Jwt:Issuer"] ?? "oftic.api";
+            _audience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? cfg["Jwt:Audience"] ?? _issuer;
         }
 
         public string CreateToken(long idUsuario, string usuario, List<long> roles)

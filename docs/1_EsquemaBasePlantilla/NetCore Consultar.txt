@@ -1,0 +1,248 @@
+public async Task<DtoResultado<List<DtoDominios>>> F_GetUnidadesIntel(string V_Busqueda)
+{
+    DataTable resultado = new();
+    List<DtoDominios> retorno = new();
+    DtoResultado<List<DtoDominios>> resp = new();
+
+    using var Conexion = new OracleConnection(_strConexionTelepol);
+    using var objCommand = new OracleCommand();
+    try
+    {
+        objCommand.Connection = Conexion;
+        objCommand.CommandType = CommandType.StoredProcedure;
+        objCommand.CommandText = "PK_UnidadesDependencia.F_GetUnidadesIntel";
+        objCommand.BindByName = true;
+        Conexion.Open();
+
+        objCommand.Parameters.Clear();
+        objCommand.Parameters.Add(new OracleParameter("RETURN_VALUE", OracleDbType.RefCursor)).Direction = ParameterDirection.ReturnValue;
+        objCommand.Parameters.Add("V_busqueda", OracleDbType.Varchar2, ParameterDirection.Input).Value = V_Busqueda;
+
+
+        if (Conexion.State == ConnectionState.Open)
+        {
+            resultado.Load(await objCommand.ExecuteReaderAsync());
+
+            if (resultado.Rows.Count > 0)
+            {
+                foreach (DataRow fila in resultado.Rows)
+                {
+                    retorno.Add(new DtoDominios
+                    {
+                        IdDominio = Convert.ToInt64(fila["Consecutivo"].ToString()),
+                        Descripcion = fila["Dependencia"].ToString()
+                    });
+                }
+
+                resp.IdRespuesta = 1;
+                resp.Mensaje = "Consulta Exitosa";
+                resp.Operacion = "F_GetUnidadesIntel";
+                resp.Data = retorno;
+            }
+            else
+            {
+                resp.IdRespuesta = 0;
+                resp.Mensaje = "No se encontraron datos";
+                resp.Operacion = "0";
+            }
+
+            Conexion.Close();
+            Conexion.Dispose();
+            objCommand.Connection.Close();
+        }
+        else
+        {
+            resp.IdRespuesta = 0;
+            resp.Mensaje = "No se encontraron datos";
+            resp.Operacion = "0";
+        }
+        
+    }
+    catch (Exception e)
+    {
+        Conexion.Close();
+        Conexion.Dispose();
+        objCommand.Connection.Close();
+        _logger.LogError("Creacion de log");
+        _logger.LogWarning("Error Ejecutando PK_UnidadesDependencia.F_GetUnidadesIntel " + e);
+
+        resp.IdRespuesta = 0;
+        resp.Mensaje = $"{e.Message} - {e.InnerException}";
+        resp.Operacion = "0";
+
+    }
+    finally
+    {
+        Conexion.Close();
+        Conexion.Dispose();
+        objCommand.Dispose();
+        objCommand.Connection.Close();
+        resultado.Dispose();
+    }
+    return resp;
+}
+
+********************************************************Controlador***************************************************
+public async Task<IActionResult> F_GetUnidadesIntel(Int64 V_Identificacion)
+{
+    var Resultado = await _iDbAdministracion.F_GetUnidadesIntel(V_Identificacion);
+    if (Resultado.IdRespuesta > 0)
+    {
+        return Json(new { success = true, data = Resultado.Data, message = Resultado.Mensaje });
+    }
+    else
+    {
+        return Json(new { success = false, data = Resultado.Data, message = Resultado.Mensaje });
+    }
+}
+
+***************************************************************JAVASCRIPT CONSULTA PARA LLENAR GRILLA************************
+function F_GetUserRoles(P_Identificacion) {
+    $.ajax({
+        type: "POST",
+        url: UrlGetUserRoles,
+        async: true,
+        data: { V_Identificacion: P_Identificacion },
+        dataType: 'json',
+        cache: false,
+        success: function (respuesta) {
+            if (respuesta.success) {
+                $("#pn_Grilla").removeClass('hidden');
+                $("#pn_Roles").removeClass('hidden');
+
+                $("#txtIdUsuario").val(respuesta.data[0].IdUsuario);
+
+                GrillaUserRoles(respuesta.data);
+
+                var uno = document.getElementById('btnGrabar');
+                uno.innerHTML = '<span class="fa ico_grabar faa-wrench animated"></span>Actualizar';		
+
+                var _Bloqueado = respuesta.data[0].Bloqueado;
+                var Activo = 0;
+                if (_Bloqueado == 0) {
+                    Activo = 1;
+                }
+                else {
+                    Activo = 0;
+                }
+
+                $('#chkActivo').prop('checked', Activo).trigger('change');
+
+
+            } else {
+                $("#pn_Grilla").addClass('hidden');
+                $("#pn_Roles").addClass('hidden');
+
+                var uno = document.getElementById('btnGrabar');
+                uno.innerHTML = '<span class="fa ico_grabar faa-wrench animated"></span>Guardar';
+
+                Swal.fire({
+                    type: 'info',
+                    title: 'Señor(a) Funcionario(a:)',
+                    text: "El usuario no ha sido creado en el sistema, proceda activarlo"
+                });
+            }
+        },
+        error: function () {
+            Swal.fire({
+                type: 'error',
+                title: 'Señor(a) Funcionario(a:)',
+                text: 'No es posible consultar, revise!!'
+            });
+        }
+    });
+}
+
+function GrillaUserRoles(Datos) {
+    if ($.fn.dataTable.isDataTable("#tbGrilla")) {
+        $("#tbGrilla").DataTable().destroy();
+    }
+    $("#tbGrilla").DataTable({
+        destroy: true,
+        data: Datos,
+        language: glOpcionesIdioma,
+        responsive: true,
+        "columns": [
+            {
+                data: null, className: "celdaCenter celda3", "render": function (data, type, row) {
+                    var inicioBoton = '<div class="dropdown dropend"><button class="btn btn-success" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false"><span class="fas fa-list"></span></button><ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1" style="line-height:23px;">';
+                    var Eliminar = `<li style="padding-left: 17px;"><a style="color: #102717;" href="javascript:Dell_Roles(${row.IdUserRol})"><i class="fa fa-trash red"></i>&nbsp;Eliminar</a></li>`;
+                    var finBoton = '</ul></div>';
+                    return inicioBoton + Eliminar + finBoton;
+                }
+            },
+            { "title": "Roles Asignados", "data": "Descripcion", "name": "Descripcion", className: "celdaCenter celda15" },
+            { "title": "Fecha de Asignación", "data": "FechaCreacion", "name": "FechaCreacion", className: "celdaCenter celda7" },
+            { "title": "Funcionario que Asignó", "data": "FuncionarioCreacion", "name": "FuncionarioCreacion", className: "celdaJust celda17" },
+            { "title": "Fecha Caducidad", "data": "FechaFin", "name": "FechaFin", className: "celdaCenter celda7" },
+            { "title": "Dependencia", "data": "Dependencia", "name": "Dependencia", className: "celdaJust" },
+            { "title": "Observaciones", "data": "Justificacion", "name": "Justificacion", className: "celdaJust" }
+        ],
+        lengthMenu: [
+            [5, 10, 25, 50, -1],
+            ['5 registros', '10 registros', '25 registros', '50 registros', 'Todos']
+        ],
+        ordering: false,
+        pageLength: 10,
+        bLengthChange: true,
+        searching: true,
+        paging: true,
+        info: true
+    });
+}
+
+*******************************JAVASCRIPT CONSULTA PARA POBLAR SOLO VARIABLES***************
+function F_GetFuncionarios(V_Identificacion) {
+
+    let Identificación = Number(V_Identificacion);
+    if (Identificación < 1) {
+        create('error', 'Debe digitar número de Identificación', '../../img/AlertError.png');
+        return;
+    }
+
+    $.ajax({
+        type: "POST",
+        url: UrlGetFuncionarios,
+        async: true,
+        data: { V_Identificacion: $("#txtIdentificacion").val() },
+        dataType: 'json',
+        cache: false,
+        success: function (respuesta) {
+            if (respuesta.success) {
+                $("#imgFoto")[0].src = "https://sinac.policia.gov.co:8443/SinacPicture/picture.aspx?DocID=" + respuesta.idEncry + "&Token=Mxl7995Julabdfjughyts1*_58$$";
+                $("#txtSituacionLab").val(respuesta.data[0].SituacionLaboral);
+                $("#txtFuncionario").val(respuesta.data[0].Funcionario);
+                $("#txtCorreo").val(respuesta.data[0].Correo);
+                $("#txtUserName").val(respuesta.data[0].Usuario);
+                $("#txtCelular").val(respuesta.data[0].Celular);
+                $("#txtDependencia").val(respuesta.data[0].Fisica + " - " + respuesta.data[0].Dependencia);
+                $("#txtCargo").val(respuesta.data[0].CargoActual);
+
+                F_GetUserRoles(V_Identificacion);
+            } else {
+                Limpiar();
+                Swal.fire({
+                    type: 'error',
+                    title: 'Señor(a) Funcionario(a:)',
+                    text: "No se Encontro el Funcionario"
+                });
+            }
+        },
+        error: function () {
+            Swal.fire({
+                type: 'error',
+                title: 'Señor(a) Funcionario(a:)',
+                text: 'No es posible consultar, revise!!'
+            });
+        }
+    });
+}
+
+**********************************HTML****************
+@section scripts {
+    <script src="~/areas/admin/VwUsuarios.js?v=1"></script>
+    <script type='text/javascript'>
+        var UrlGetFuncionarios = "@Url.Action("F_GetFuncionarios", "Empleados", new { Area = "" })";
+        var UrlGetEmpleadoIntel = "@Url.Action("F_GetEmpleadoIntel", "Empleados", new { Area = "" })";       
+    </script>
+}

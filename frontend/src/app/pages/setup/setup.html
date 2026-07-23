@@ -3,39 +3,57 @@
     <div class="setup-header">
       <div class="setup-brand">
         <i class="fa-solid fa-gears"></i>
-        <span>Asistente de Instalación & Configuración</span>
+        <span>Asistente de Instalación.</span>
       </div>
-      <p class="setup-subtitle">Configura la base de datos para inicializar tu plantilla de proyecto</p>
+      <p class="setup-subtitle">Plantilla del proyecto paso a paso de forma segura</p>
     </div>
 
-    <!-- Stepper indicator -->
+    <!-- Stepper indicator (6 pasos) -->
     <div class="setup-stepper">
       <div class="step-item" [class.active]="step >= 1" [class.completed]="step > 1">
         <span class="step-number">1</span>
-        <span class="step-label">Base de Datos</span>
+        <span class="step-label">Motor BD</span>
       </div>
       <div class="step-line" [class.active]="step > 1"></div>
+
       <div class="step-item" [class.active]="step >= 2" [class.completed]="step > 2">
         <span class="step-number">2</span>
-        <span class="step-label">Conexión</span>
+        <span class="step-label">Conexión BD</span>
       </div>
       <div class="step-line" [class.active]="step > 2"></div>
-      <div class="step-item" [class.active]="step === 3">
+
+      <div class="step-item" [class.active]="step >= 3" [class.completed]="step > 3">
         <span class="step-number">3</span>
-        <span class="step-label">Prueba y Guardado</span>
+        <span class="step-label">Servicios PIP</span>
+      </div>
+      <div class="step-line" [class.active]="step > 3"></div>
+
+      <div class="step-item" [class.active]="step >= 4" [class.completed]="step > 4">
+        <span class="step-number">4</span>
+        <span class="step-label">Seguridad JWT</span>
+      </div>
+      <div class="step-line" [class.active]="step > 4"></div>
+
+      <div class="step-item" [class.active]="step >= 5" [class.completed]="step > 5">
+        <span class="step-number">5</span>
+        <span class="step-label">Desarrollador</span>
+      </div>
+      <div class="step-line" [class.active]="step > 5"></div>
+
+      <div class="step-item" [class.active]="step === 6">
+        <span class="step-number">6</span>
+        <span class="step-label">Identidad & Branding</span>
       </div>
     </div>
 
     <div class="setup-body">
-      <!-- PASO 1: Selección de Motor -->
+      <!-- PASO 1: Selección de Motor BD -->
       <div *ngIf="step === 1" class="step-content">
-        <h3>Selecciona el motor de base de datos</h3>
+        <h3>Paso 1: Selecciona el motor de base de datos</h3>
         <p class="section-desc">Elige la base de datos que usará esta aplicación:</p>
 
         <div class="provider-grid">
-          <div
-            class="provider-card"
-            [class.selected]="formData.provider === 'Oracle'"
+          <div class="provider-card" [class.selected]="formData.provider === 'Oracle'"
             (click)="selectProvider('Oracle')">
             <div class="provider-icon oracle">
               <i class="fa-solid fa-database"></i>
@@ -44,9 +62,7 @@
             <p>Soporte por defecto del backend SICOE / OFTIC</p>
           </div>
 
-          <div
-            class="provider-card"
-            [class.selected]="formData.provider === 'PostgreSQL'"
+          <div class="provider-card" [class.selected]="formData.provider === 'PostgreSQL'"
             (click)="selectProvider('PostgreSQL')">
             <div class="provider-icon postgres">
               <i class="fa-solid fa-server"></i>
@@ -55,10 +71,7 @@
             <p>Base de datos relacional de código abierto</p>
           </div>
 
-          <div
-            class="provider-card"
-            [class.selected]="formData.provider === 'MySQL'"
-            (click)="selectProvider('MySQL')">
+          <div class="provider-card" [class.selected]="formData.provider === 'MySQL'" (click)="selectProvider('MySQL')">
             <div class="provider-icon mysql">
               <i class="fa-solid fa-cubes"></i>
             </div>
@@ -67,15 +80,19 @@
           </div>
         </div>
 
-        <div class="step-actions right">
+        <div class="step-actions right mt-4">
           <button class="ui-btn primary ui-btn--fx" type="button" (click)="nextStep()">
             Siguiente <i class="fa-solid fa-arrow-right"></i>
           </button>
         </div>
       </div>
 
-      <!-- PASO 2: Parámetros -->
+      <!-- PASO 2: Parámetros de Conexión a BD -->
       <div *ngIf="step === 2" class="step-content">
+        <h3>Paso 2: Parámetros de Conexión a la BD</h3>
+        <p class="section-desc">Ingresa los datos del servidor de base de datos para probar conectividad y ejecutar la
+          migración base:</p>
+
         <div class="mode-toggle mb-3">
           <label class="ui-check">
             <input type="checkbox" [(ngModel)]="useRawConnectionString">
@@ -87,34 +104,69 @@
         <div *ngIf="!useRawConnectionString" class="ui-grid">
           <div class="ui-field ui-col-8">
             <label class="ui-label">Servidor / Host</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.host" placeholder="Ej: scan-cludbadm3.policia.gov.co o localhost">
+            <input class="ui-control" type="text" [(ngModel)]="formData.host">
           </div>
 
           <div class="ui-field ui-col-4">
             <label class="ui-label">Puerto</label>
-            <input class="ui-control" type="number" [(ngModel)]="formData.port" placeholder="1538">
+            <input class="ui-control" type="number" [(ngModel)]="formData.port">
           </div>
 
           <div class="ui-field ui-col-12">
-            <label class="ui-label">{{ formData.provider === 'Oracle' ? 'Nombre del Servicio / SID (DATABASE)' : 'Nombre de la Base de Datos' }}</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.databaseOrService" placeholder="Ej: TELEPOL_WLGENERAL o mi_base_datos">
+            <label class="ui-label">{{ formData.provider === 'Oracle' ? 'Nombre del Servicio / SID (DATABASE)' : 'Nombre
+              de la BD' }}</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.databaseOrService" placeholder=" ">
           </div>
 
           <div class="ui-field ui-col-6">
             <label class="ui-label">Nombre de Esquema / Usuario (USER ID)</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.user" placeholder="Ej: USR_COEST">
+            <input class="ui-control" type="text" [(ngModel)]="formData.user" placeholder="Ej: USR_BASEDEDATOS">
           </div>
 
           <div class="ui-field ui-col-6">
             <label class="ui-label">Contraseña (PASSWORD)</label>
-            <input class="ui-control" type="password" [(ngModel)]="formData.password" placeholder="••••••••">
+            <input class="ui-control" type="password" [(ngModel)]="formData.password">
           </div>
+        </div>
 
-          <!-- Credenciales PIP -->
-          <div class="ui-field ui-col-12 mt-3">
-            <h4 class="sub-section-title"><i class="fa-solid fa-key"></i> Credenciales de Integración PIP / OUD</h4>
+        <div *ngIf="useRawConnectionString" class="ui-field ui-col-12">
+          <label class="ui-label">Cadena de conexión personalizada</label>
+          <textarea class="ui-control" rows="4" [(ngModel)]="formData.connectionStringRaw"
+            placeholder="Data Source=...;User ID=...;Password=..."></textarea>
+        </div>
+
+        <div class="test-area mt-4">
+          <button class="ui-btn secondary" type="button" [disabled]="testing" (click)="onTestConnection()">
+            <i class="fa-solid" [class.fa-plug]="!testing" [class.fa-spinner]="testing" [class.fa-spin]="testing"></i>
+            {{ testing ? 'Probando conexión y migración...' : 'Probar Conexión & Ejecutar Migración Base' }}
+          </button>
+
+          <div *ngIf="testResult" class="alert-box mt-3" [class.success]="testResult.success"
+            [class.error]="!testResult.success">
+            <i class="fa-solid" [class.fa-circle-check]="testResult.success"
+              [class.fa-circle-xmark]="!testResult.success"></i>
+            <span>{{ testResult.message }}</span>
           </div>
+        </div>
 
+        <div class="step-actions justify-between mt-4">
+          <button class="ui-btn outline" type="button" (click)="prevStep()">
+            <i class="fa-solid fa-arrow-left"></i> Atrás
+          </button>
+          <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="testing" (click)="nextStep()">
+            <i class="fa-solid" [class.fa-arrow-right]="!testing" [class.fa-spinner]="testing"
+              [class.fa-spin]="testing"></i>
+            {{ testing ? 'Verificando BD...' : 'Validar y Siguiente' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 3: Credenciales de Integración PIP / OUD -->
+      <div *ngIf="step === 3" class="step-content">
+        <h3>Paso 3: Credenciales de Integración PIP / OUD</h3>
+        <p class="section-desc">Ingresa la cuenta de servicio de la PIP para autenticación técnica institucional:</p>
+
+        <div class="ui-grid">
           <div class="ui-field ui-col-6">
             <label class="ui-label">Usuario PIP (PIP_USUARIO)</label>
             <input class="ui-control" type="text" [(ngModel)]="formData.pipUser" placeholder="Ej: usuario_tecnico_pip">
@@ -124,12 +176,33 @@
             <label class="ui-label">Clave PIP (PIP_CLAVE)</label>
             <input class="ui-control" type="password" [(ngModel)]="formData.pipPassword" placeholder="••••••••">
           </div>
+        </div>
 
-          <!-- Seguridades JWT -->
-          <div class="ui-field ui-col-12 mt-3">
-            <h4 class="sub-section-title"><i class="fa-solid fa-shield-halved"></i> Configuración de Seguridad de Tokens JWT</h4>
-          </div>
+        <div *ngIf="testResult && step === 3" class="alert-box mt-3" [class.success]="testResult.success"
+          [class.error]="!testResult.success">
+          <i class="fa-solid" [class.fa-circle-check]="testResult.success"
+            [class.fa-circle-xmark]="!testResult.success"></i>
+          <span>{{ testResult.message }}</span>
+        </div>
 
+        <div class="step-actions justify-between mt-4">
+          <button class="ui-btn outline" type="button" (click)="prevStep()">
+            <i class="fa-solid fa-arrow-left"></i> Atrás
+          </button>
+          <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="testing" (click)="nextStep()">
+            <i class="fa-solid" [class.fa-arrow-right]="!testing" [class.fa-spinner]="testing"
+              [class.fa-spin]="testing"></i>
+            {{ testing ? 'Validando PIP...' : 'Validar Credenciales & Siguiente' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 4: Configuración de Seguridad JWT -->
+      <div *ngIf="step === 4" class="step-content">
+        <h3>Paso 4: Configuración de Seguridad de Tokens JWT</h3>
+        <p class="section-desc">Define la clave secreta de firmado y parámetros de emisión de tokens JWT:</p>
+
+        <div class="ui-grid">
           <div class="ui-field ui-col-12">
             <div class="flex-between align-center mb-1">
               <label class="ui-label m-0">Clave Secreta de Firma JWT (Key — mín. 32 caracteres)</label>
@@ -137,7 +210,7 @@
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Generar Clave Aleatoria Segura
               </button>
             </div>
-            <input class="ui-control font-mono" type="text" [(ngModel)]="formData.jwtKey" placeholder="Ingresa o genera una clave de al menos 32 caracteres">
+            <input class="ui-control font-mono" type="text" [(ngModel)]="formData.jwtKey" placeholder="">
           </div>
 
           <div class="ui-field ui-col-6">
@@ -149,12 +222,65 @@
             <label class="ui-label">Audiencia del Token (Audience)</label>
             <input class="ui-control" type="text" [(ngModel)]="formData.jwtAudience" placeholder="oftic.api">
           </div>
+        </div>
 
-          <!-- Identidad y Branding del Sistema -->
-          <div class="ui-field ui-col-12 mt-3">
-            <h4 class="sub-section-title"><i class="fa-solid fa-palette"></i> Identidad y Personalización del Sistema (Branding)</h4>
+        <div class="step-actions justify-between mt-4">
+          <button class="ui-btn outline" type="button" (click)="prevStep()">
+            <i class="fa-solid fa-arrow-left"></i> Atrás
+          </button>
+          <button class="ui-btn primary ui-btn--fx" type="button" (click)="nextStep()">
+            Siguiente <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 5: Usuario Desarrollador Inicial -->
+      <div *ngIf="step === 5" class="step-content">
+        <h3>Paso 5: Usuario Desarrollador Inicial</h3>
+        <p class="section-desc">Ingresa el usuario institucional y contraseña del Desarrollador. El sistema los validará
+          automáticamente contra la API de autenticación <strong>OudLogin</strong> antes de continuar y le asignará el
+          Rol
+          <strong>Desarrollador (Acceso Total)</strong> en la base de datos:
+        </p>
+
+        <div class="ui-grid">
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Usuario Desarrollador</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.devUser" placeholder="Ej: dyck.lopez">
           </div>
 
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Contraseña Institucional (OudLogin)</label>
+            <input class="ui-control" type="password" [(ngModel)]="formData.devPassword" placeholder="Contraseña OUD">
+          </div>
+        </div>
+
+        <div *ngIf="testResult && step === 5" class="alert-box mt-3" [class.success]="testResult.success"
+          [class.error]="!testResult.success">
+          <i class="fa-solid" [class.fa-circle-check]="testResult.success"
+            [class.fa-circle-xmark]="!testResult.success"></i>
+          <span>{{ testResult.message }}</span>
+        </div>
+
+        <div class="step-actions justify-between mt-4">
+          <button class="ui-btn outline" type="button" (click)="prevStep()">
+            <i class="fa-solid fa-arrow-left"></i> Atrás
+          </button>
+          <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="testing" (click)="nextStep()">
+            <i class="fa-solid" [class.fa-arrow-right]="!testing" [class.fa-spinner]="testing"
+              [class.fa-spin]="testing"></i>
+            {{ testing ? 'Validando OUD...' : 'Validar en OUD y Siguiente' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 6: Identidad y Personalización (Branding) & Finalización -->
+      <div *ngIf="step === 6" class="step-content">
+        <h3>Paso 6: Identidad y Personalización del Sistema (Branding)</h3>
+        <p class="section-desc">Personaliza los nombres, sigla y logotipos del sistema. Al guardar, esta información se
+          registrará directamente en la base de datos:</p>
+
+        <div class="ui-grid">
           <div class="ui-field ui-col-6">
             <label class="ui-label">Sigla del Sistema</label>
             <input class="ui-control" type="text" [(ngModel)]="formData.sistema" placeholder="Ej: SISGE o SICOE">
@@ -162,7 +288,8 @@
 
           <div class="ui-field ui-col-6">
             <label class="ui-label">Nombre Completo del Sistema</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.nombreSistema" placeholder="Ej: Sistema de Gestión Estratégica">
+            <input class="ui-control" type="text" [(ngModel)]="formData.nombreSistema"
+              placeholder="Ej: Sistema de Gestión Estratégica">
           </div>
 
           <div class="ui-field ui-col-6">
@@ -180,7 +307,6 @@
             <input class="ui-control" type="text" [(ngModel)]="formData.sigla" placeholder="Ej: OFTIC">
           </div>
 
-          <!-- Carga de Archivos Visuales -->
           <div class="ui-field ui-col-6">
             <label class="ui-label">Logo del Sistema (PNG, JPG, WEBP)</label>
             <input class="ui-control" type="file" accept="image/*" (change)="onLogoSelected($event)">
@@ -198,57 +324,10 @@
           </div>
         </div>
 
-        <div *ngIf="useRawConnectionString" class="ui-field ui-col-12">
-          <label class="ui-label">Cadena de conexión personalizada</label>
-          <textarea class="ui-control" rows="4" [(ngModel)]="formData.connectionStringRaw" placeholder="Data Source=...;User ID=...;Password=..."></textarea>
-        </div>
-
-        <div class="step-actions justify-between mt-4">
-          <button class="ui-btn outline" type="button" (click)="prevStep()">
-            <i class="fa-solid fa-arrow-left"></i> Atrás
-          </button>
-          <button class="ui-btn primary ui-btn--fx" type="button" (click)="nextStep()">
-            Siguiente <i class="fa-solid fa-arrow-right"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- PASO 3: Prueba y Guardado -->
-      <div *ngIf="step === 3" class="step-content">
-        <h3>Prueba y Guardado de Configuración</h3>
-        <p class="section-desc">Verifica la conectividad antes de guardar los datos en `appsettings.json`</p>
-
-        <div class="summary-box">
-          <div><strong>Proveedor BD:</strong> {{ formData.provider }}</div>
-          <div *ngIf="!useRawConnectionString"><strong>Servidor / Host:</strong> {{ formData.host }}</div>
-          <div *ngIf="!useRawConnectionString"><strong>Puerto:</strong> {{ formData.port }}</div>
-          <div *ngIf="!useRawConnectionString"><strong>Nombre de Servicio / SID:</strong> {{ formData.databaseOrService }}</div>
-          <div *ngIf="!useRawConnectionString"><strong>Esquema / Usuario:</strong> {{ formData.user }}</div>
-          <div *ngIf="useRawConnectionString"><strong>Cadena personalizada:</strong> {{ formData.connectionStringRaw }}</div>
-          <div><strong>Usuario PIP:</strong> {{ formData.pipUser || '(No configurado)' }}</div>
-          <div><strong>Sigla del Sistema:</strong> {{ formData.sistema || 'SISGE' }}</div>
-          <div><strong>Nombre del Sistema:</strong> {{ formData.nombreSistema || 'Sistema de Gestión' }}</div>
-          <div *ngIf="formData.nombreUnidad"><strong>Unidad Policial:</strong> {{ formData.nombreUnidad }}</div>
-        </div>
-
-        <div class="test-area mt-4">
-          <button
-            class="ui-btn secondary"
-            type="button"
-            [disabled]="testing"
-            (click)="onTestConnection()">
-            <i class="fa-solid" [class.fa-plug]="!testing" [class.fa-spinner]="testing" [class.fa-spin]="testing"></i>
-            {{ testing ? 'Probando conexión...' : 'Probar Conexión' }}
-          </button>
-
-          <div *ngIf="testResult" class="alert-box mt-3" [class.success]="testResult.success" [class.error]="!testResult.success">
-            <i class="fa-solid" [class.fa-circle-check]="testResult.success" [class.fa-circle-xmark]="!testResult.success"></i>
-            <span>{{ testResult.message }}</span>
-          </div>
-        </div>
-
-        <div *ngIf="saveResult" class="alert-box mt-3" [class.success]="saveResult.success" [class.error]="!saveResult.success">
-          <i class="fa-solid" [class.fa-circle-check]="saveResult.success" [class.fa-circle-xmark]="!saveResult.success"></i>
+        <div *ngIf="saveResult" class="alert-box mt-3" [class.success]="saveResult.success"
+          [class.error]="!saveResult.success">
+          <i class="fa-solid" [class.fa-circle-check]="saveResult.success"
+            [class.fa-circle-xmark]="!saveResult.success"></i>
           <span>{{ saveResult.message }}</span>
         </div>
 
@@ -256,15 +335,59 @@
           <button class="ui-btn outline" type="button" (click)="prevStep()">
             <i class="fa-solid fa-arrow-left"></i> Atrás
           </button>
-          <button
-            class="ui-btn primary ui-btn--fx"
-            type="button"
-            [disabled]="saving"
-            (click)="onSaveConfig()">
-            <i class="fa-solid" [class.fa-floppy-disk]="!saving" [class.fa-spinner]="saving" [class.fa-spin]="saving"></i>
-            {{ saving ? 'Guardando...' : 'Guardar y Finalizar' }}
+          <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="saving" (click)="onSaveConfig()">
+            <i class="fa-solid" [class.fa-floppy-disk]="!saving" [class.fa-spinner]="saving"
+              [class.fa-spin]="saving"></i>
+            {{ saving ? 'Guardando en BD y Finalizando...' : 'Guardar y Finalizar' }}
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Confirmación de Migración -->
+  <div *ngIf="showMigrationModal" class="ui-modal-backdrop"
+    style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="ui-modal-card"
+      style="background: var(--surface-card, #ffffff); border-radius: 12px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);">
+      <div class="modal-header flex-between align-center mb-3">
+        <h4 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-database" style="color: #0284c7;"></i>
+          Migración del Esquema Requerida
+        </h4>
+        <button class="ui-btn icon border-none" (click)="closeMigrationModal()" type="button"
+          style="background: none; border: none; cursor: pointer;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body mb-4">
+        <p style="margin-bottom: 12px; color: #475569;">
+          Se estableció conexión con el servidor de base de datos correctamente, pero <strong>no se encontraron las
+            tablas base del sistema de administración</strong> (como <code>CTR_USUARIOS</code>, <code>CTR_ROLES</code>,
+          <code>CTR_MENU</code>, etc.).
+        </p>
+        <p style="margin: 0; font-weight: 600; color: #1e293b;">
+          ¿Deseas ejecutar ahora la migración para crear automáticamente la estructura básica de tablas y roles?
+        </p>
+
+        <div *ngIf="migrationResult" class="alert-box mt-3" [class.success]="migrationResult.success"
+          [class.error]="!migrationResult.success">
+          <i class="fa-solid" [class.fa-circle-check]="migrationResult.success"
+            [class.fa-circle-xmark]="!migrationResult.success"></i>
+          <span>{{ migrationResult.message }}</span>
+        </div>
+      </div>
+
+      <div class="modal-footer flex-between align-center" style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button class="ui-btn outline" type="button" [disabled]="migrating" (click)="closeMigrationModal()">
+          Cancelar
+        </button>
+        <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="migrating" (click)="runMigration()">
+          <i class="fa-solid" [class.fa-gears]="!migrating" [class.fa-spinner]="migrating"
+            [class.fa-spin]="migrating"></i>
+          {{ migrating ? 'Ejecutando Migración...' : 'Ejecutar Migración' }}
+        </button>
       </div>
     </div>
   </div>

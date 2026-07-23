@@ -1,3 +1,4 @@
+using Comun.Extensions;
 using Comun.Dtos.Auditoria;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +16,7 @@ namespace Datos.Gestion
 
         public DbAuditoriaRepository(IConfiguration configuration, ILogger<DbAuditoriaRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbConnection")!;
+            _cs = configuration.GetDecryptedConnectionString();
             _logger = logger;
         }
 

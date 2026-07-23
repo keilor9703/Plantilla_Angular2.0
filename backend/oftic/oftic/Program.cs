@@ -56,9 +56,9 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"];
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "oftic.api";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
+var jwtKey = Environment.GetEnvironmentVariable("Jwt__Key") ?? builder.Configuration["Jwt:Key"];
+var jwtIssuer = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? builder.Configuration["Jwt:Issuer"] ?? "oftic.api";
+var jwtAudience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
 
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 {
@@ -109,7 +109,11 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddMemoryCache();
 
-builder.Services.AddHttpClient("AuthClient");
+builder.Services.AddHttpClient("AuthClient")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
 
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 
@@ -174,9 +178,6 @@ builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 
-builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
-builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
-
 builder.Services.AddScoped<IDbAuditoriaService, DbAuditoriaService>();
 builder.Services.AddScoped<IDbAuditoriaRepository, DbAuditoriaRepository>();
 
@@ -197,9 +198,6 @@ var uploadsBase = string.IsNullOrWhiteSpace(configuredUploadsBase)
         ? configuredUploadsBase
         : Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, configuredUploadsBase)));
 
-var noticiasRoot = Path.Combine(uploadsBase, "noticias");
-Directory.CreateDirectory(noticiasRoot);
-
 var emailHeadersRoot = Path.Combine(uploadsBase, "email-headers");
 Directory.CreateDirectory(emailHeadersRoot);
 
@@ -210,12 +208,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(noticiasRoot),
-    RequestPath = "/uploads/noticias"
-});
 
 app.UseStaticFiles(new StaticFileOptions
 {

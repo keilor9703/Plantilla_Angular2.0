@@ -1,3 +1,4 @@
+using Comun.Extensions;
 using DtoUnidad = Comun.Dtos.DtoUnidad;
 using Comun.Dtos.Dominio;
 using Comun.Dtos.LineasMando;
@@ -21,7 +22,7 @@ namespace Datos.Gestion
 
         public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbConnection")!;
+            _cs = configuration.GetDecryptedConnectionString();
             _logger = logger;
         }
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -9,7 +10,37 @@ namespace Comun.Security
         private static readonly byte[] LegacyKey = Encoding.UTF8.GetBytes("SICOE_COEST_2024_SECURE_KEY_32CH");
         private static readonly byte[] LegacyIv  = Encoding.UTF8.GetBytes("SICOE_IV_VECTOR_");
 
+        // Clave por defecto de 32 caracteres (256-bit)
+        private const string DefaultSecretKey = "OFTIC_SISGE_DB_SECRET_KEY_2026!";
         private const string V2Prefix = "v2:";
+
+        public static byte[] GetEncryptionKey(IConfiguration? cfg = null)
+        {
+            var keyStr = Environment.GetEnvironmentVariable("Crypto__Key") 
+                ?? cfg?["Crypto:Key"] 
+                ?? DefaultSecretKey;
+
+            if (string.IsNullOrWhiteSpace(keyStr))
+                keyStr = DefaultSecretKey;
+
+            // Asegurar exactamente 32 bytes (256 bits) para AES-256
+            if (keyStr.Length < 32)
+                keyStr = keyStr.PadRight(32, '0');
+            else if (keyStr.Length > 32)
+                keyStr = keyStr[..32];
+
+            return Encoding.UTF8.GetBytes(keyStr);
+        }
+
+        public static string Encrypt(string plainText, IConfiguration? cfg = null)
+        {
+            return Encrypt(plainText, GetEncryptionKey(cfg));
+        }
+
+        public static string Decrypt(string cipherText, IConfiguration? cfg = null)
+        {
+            return Decrypt(cipherText, GetEncryptionKey(cfg));
+        }
 
         /// <summary>
         /// Cifra con IV aleatorio y clave de configuración.

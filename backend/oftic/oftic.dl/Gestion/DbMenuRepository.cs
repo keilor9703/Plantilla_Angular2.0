@@ -15,36 +15,90 @@ namespace Datos.Gestion
     public class DbMenuRepository : IDbMenuRepository
     {
         private readonly string _cs;
+        private readonly IConfiguration _configuration;
+
         public DbMenuRepository(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbConnection")!;
+            _cs = Comun.Extensions.ConfigurationExtensions.GetDecryptedConnectionString(configuration);
+            _configuration = configuration;
         }
 
 
         public async Task<List<DtoMenuItem>> GetMyMenuAsync(long idUsuario, CancellationToken ct)
         {
             var result = new List<DtoMenuItem>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                await using var conn = new MySqlConnector.MySqlConnection(_cs);
+                await conn.OpenAsync(ct);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta
+                    FROM CTR_MENU
+                    WHERE estado = 1
+                    ORDER BY id_padre, orden, id_menu";
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new DtoMenuItem
+                    {
+                        IdMenu = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                        Descripcion = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        IdPadre = reader.IsDBNull(2) ? 0 : Convert.ToInt64(reader.GetValue(2)),
+                        Posicion = reader.IsDBNull(3) ? 1 : Convert.ToInt32(reader.GetValue(3)),
+                        Tipo = reader.IsDBNull(4) ? "Ruta" : reader.GetString(4),
+                        Icono = reader.IsDBNull(5) ? null : reader.GetString(5),
+                        Vigente = reader.IsDBNull(6) ? 1 : Convert.ToInt32(reader.GetValue(6)),
+                        Detalle = reader.IsDBNull(7) ? null : reader.GetString(7)
+                    });
+                }
+                return result;
+            }
 
-            // Nuevo flujo: menú por roles vigentes del usuario.
-            // - ctr_roles_user_admin determina roles activos del usuario.
-            // - ctr_menu_roles relaciona rol con menú.
-            // - CONNECT BY agrega ancestros (padres) para construir el árbol.
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                await using var conn = new Npgsql.NpgsqlConnection(_cs);
+                await conn.OpenAsync(ct);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta
+                    FROM ctr_menu
+                    WHERE estado = 1
+                    ORDER BY id_padre, orden, id_menu";
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new DtoMenuItem
+                    {
+                        IdMenu = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                        Descripcion = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        IdPadre = reader.IsDBNull(2) ? 0 : Convert.ToInt64(reader.GetValue(2)),
+                        Posicion = reader.IsDBNull(3) ? 1 : Convert.ToInt32(reader.GetValue(3)),
+                        Tipo = reader.IsDBNull(4) ? "Ruta" : reader.GetString(4),
+                        Icono = reader.IsDBNull(5) ? null : reader.GetString(5),
+                        Vigente = reader.IsDBNull(6) ? 1 : Convert.ToInt32(reader.GetValue(6)),
+                        Detalle = reader.IsDBNull(7) ? null : reader.GetString(7)
+                    });
+                }
+                return result;
+            }
+
+            await using var oracleConn = new OracleConnection(_cs);
+            await oracleConn.OpenAsync(ct);
+
             const string sqlMenuPorRoles = @"
                 WITH roles_vigentes AS (
                     SELECT DISTINCT rua.id_rol
                       FROM ctr_roles_user_admin rua
                      WHERE rua.id_usuario = :pIdUsuario
-                       AND NVL(rua.vigente, 0) = 1
-                       AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
+                        AND NVL(rua.vigente, 0) = 1
                 ),
                 menus_asignados AS (
-                    -- Si el usuario tiene rol 1 (super administrador), obtiene todo el menú.
                     SELECT DISTINCT m.id_menu
                       FROM ctr_menu m
-                     WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol = 1)
+                     WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol IN (1, 2))
                     UNION
                     SELECT DISTINCT mr.id_menu
                       FROM ctr_menu_roles mr
@@ -52,21 +106,20 @@ namespace Datos.Gestion
                 )
                 SELECT DISTINCT
                        m.id_menu,
-                       m.descripcion,
-                       m.idpadre,
-                       m.posicion,
-                       m.tipo,
+                       COALESCE(m.titulo, m.descripcion) AS descripcion,
+                       COALESCE(m.id_padre, m.idpadre) AS idpadre,
+                       COALESCE(m.orden, m.posicion) AS posicion,
+                       'Ruta' AS tipo,
                        m.icono,
-                       m.vigente,
-                       m.detalle
+                       COALESCE(m.estado, m.vigente) AS vigente,
+                       COALESCE(m.ruta, m.detalle) AS detalle
                   FROM ctr_menu m
-                 START WITH m.id_menu IN (SELECT ma.id_menu FROM menus_asignados ma)
-                CONNECT BY NOCYCLE PRIOR m.idpadre = m.id_menu
-                 ORDER BY m.idpadre, m.posicion, m.id_menu";
+                 WHERE m.id_menu IN (SELECT ma.id_menu FROM menus_asignados ma)
+                 ORDER BY 3, 4, 1";
 
             try
             {
-                await using var cmd = conn.CreateCommand();
+                await using var cmd = oracleConn.CreateCommand();
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = sqlMenuPorRoles;
                 cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario;
@@ -79,23 +132,28 @@ namespace Datos.Gestion
 
                 return result;
             }
-            catch (OracleException)
+            catch (Exception ex)
             {
-                // Fallback temporal: conserva compatibilidad con el SP existente.
+                // Fallback directo a consulta limpia de menú
                 result.Clear();
-
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandText = "PK_ADMINISTRACION.P_GET_MENU_USUARIO";
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("P_IdUsuario", OracleDbType.Int64).Value = idUsuario;
-                cmd.Parameters.Add("P_Result", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                while (await reader.ReadAsync(ct))
+                await using var cmdFallback = oracleConn.CreateCommand();
+                cmdFallback.CommandType = CommandType.Text;
+                cmdFallback.CommandText = "SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta FROM ctr_menu WHERE estado = 1 ORDER BY id_padre, orden, id_menu";
+                await using var readerFallback = await cmdFallback.ExecuteReaderAsync(ct);
+                while (await readerFallback.ReadAsync(ct))
                 {
-                    result.Add(MapMenuItem(reader));
+                    result.Add(new DtoMenuItem
+                    {
+                        IdMenu = readerFallback.IsDBNull(0) ? 0 : Convert.ToInt64(readerFallback.GetValue(0)),
+                        Descripcion = readerFallback.IsDBNull(1) ? "" : readerFallback.GetString(1),
+                        IdPadre = readerFallback.IsDBNull(2) ? 0 : Convert.ToInt64(readerFallback.GetValue(2)),
+                        Posicion = readerFallback.IsDBNull(3) ? 1 : Convert.ToInt32(readerFallback.GetValue(3)),
+                        Tipo = readerFallback.IsDBNull(4) ? "Ruta" : readerFallback.GetString(4),
+                        Icono = readerFallback.IsDBNull(5) ? null : readerFallback.GetString(5),
+                        Vigente = readerFallback.IsDBNull(6) ? 1 : Convert.ToInt32(readerFallback.GetValue(6)),
+                        Detalle = readerFallback.IsDBNull(7) ? null : readerFallback.GetString(7)
+                    });
                 }
-
                 return result;
             }
         }
@@ -103,35 +161,98 @@ namespace Datos.Gestion
         public async Task<List<DtoMenuItem>> GetAdminMenuAsync(CancellationToken ct)
         {
             var result = new List<DtoMenuItem>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            const string mysqlSql = @"
+                SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta
+                FROM CTR_MENU
+                WHERE estado = 1
+                ORDER BY id_padre, orden, id_menu";
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = @"
-                SELECT id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle
+            const string pgSql = @"
+                SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta
                 FROM ctr_menu
-                ORDER BY idpadre, posicion, id_menu";
+                WHERE estado = 1
+                ORDER BY id_padre, orden, id_menu";
 
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
             {
-                result.Add(new DtoMenuItem
-                {
-                    IdMenu = reader.GetInt64(0),
-                    Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
-                    IdPadre = reader.GetInt64(2),
-                    Posicion = reader.GetInt32(3),
-                    Tipo = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
-                    Icono = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    Vigente = reader.GetInt32(6),
-                    Detalle = reader.IsDBNull(7) ? null : reader.GetString(7)
-                });
+                await using var conn = new MySqlConnector.MySqlConnection(_cs);
+                await conn.OpenAsync(ct);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = mysqlSql;
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    result.Add(MapMenuItemGeneric(reader));
+                return result;
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                await using var conn = new Npgsql.NpgsqlConnection(_cs);
+                await conn.OpenAsync(ct);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = pgSql;
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    result.Add(MapMenuItemGeneric(reader));
+                return result;
+            }
+
+            // Oracle — intenta con columnas nuevas, fallback a columnas legacy
+            await using var oracleConn = new OracleConnection(_cs);
+            await oracleConn.OpenAsync(ct);
+            await using var oracleCmd = oracleConn.CreateCommand();
+            oracleCmd.CommandType = CommandType.Text;
+            try
+            {
+                oracleCmd.CommandText = @"
+                    SELECT id_menu,
+                           COALESCE(titulo, descripcion) AS titulo,
+                           COALESCE(id_padre, idpadre) AS id_padre,
+                           COALESCE(orden, posicion) AS orden,
+                           'Ruta' AS tipo,
+                           icono,
+                           COALESCE(estado, vigente) AS estado,
+                           COALESCE(ruta, detalle) AS ruta
+                      FROM ctr_menu
+                     WHERE COALESCE(estado, vigente, 1) = 1
+                     ORDER BY 3, 4, 1";
+                await using var reader = await oracleCmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    result.Add(MapMenuItemGeneric(reader));
+            }
+            catch
+            {
+                result.Clear();
+                oracleCmd.CommandText = @"
+                    SELECT id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle
+                      FROM ctr_menu
+                     ORDER BY idpadre, posicion, id_menu";
+                await using var reader = await oracleCmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    result.Add(MapMenuItem(reader));
             }
 
             return result;
         }
+
+        private static DtoMenuItem MapMenuItemGeneric(System.Data.Common.DbDataReader reader)
+        {
+            return new DtoMenuItem
+            {
+                IdMenu = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                IdPadre = reader.IsDBNull(2) ? 0 : Convert.ToInt64(reader.GetValue(2)),
+                Posicion = reader.IsDBNull(3) ? 1 : Convert.ToInt32(reader.GetValue(3)),
+                Tipo = reader.IsDBNull(4) ? "Ruta" : reader.GetString(4),
+                Icono = reader.IsDBNull(5) ? null : reader.GetString(5),
+                Vigente = reader.IsDBNull(6) ? 1 : Convert.ToInt32(reader.GetValue(6)),
+                Detalle = reader.IsDBNull(7) ? null : reader.GetString(7)
+            };
+        }
+
+
 
         public async Task<DtoMenuResult> SaveMenuAsync(DtoMenuSaveRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
