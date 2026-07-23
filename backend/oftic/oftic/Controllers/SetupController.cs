@@ -962,13 +962,26 @@ namespace ofic.Controllers
                         SELECT 2, 0, 'Administración', '/administracion', 'fa-solid fa-gears', 2, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 2);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 3, 2, 'Branding', '/administracion/branding', 'fa-solid fa-palette', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 3);
+                        SELECT 3, 2, 'Configuración', '/administracion/configuracion-sistema', 'fa-solid fa-palette', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 3);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
                         SELECT 4, 2, 'Línea de Mando', '/administracion/linea-mando', 'fa-solid fa-sitemap', 2, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 4);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 5, 2, 'Personajes del Mes', '/administracion/personajes', 'fa-solid fa-user-check', 3, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 5);
+                        SELECT 5, 2, 'Personajes del Mes', '/administracion/personaje-mes', 'fa-solid fa-user-check', 3, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 5);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 6, 2, 'Menú', '/administracion/menu', 'fa-solid fa-bars', 4, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 6);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 7, 2, 'Usuarios', '/administracion/usuarios', 'fa-solid fa-users', 5, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 7);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 8, 2, 'Roles', '/administracion/roles', 'fa-solid fa-user-shield', 6, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 8);
+
+                        -- Corregir rutas inválidas de instalaciones previas
+                        UPDATE CTR_MENU SET ruta = '/administracion/configuracion-sistema' WHERE id_menu = 3 AND ruta = '/administracion/branding';
+                        UPDATE CTR_MENU SET ruta = '/administracion/personaje-mes' WHERE id_menu = 5 AND ruta = '/administracion/personajes';
                     ";
                     await cmdMenu.ExecuteNonQueryAsync();
                 }
