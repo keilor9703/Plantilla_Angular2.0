@@ -1,4 +1,5 @@
 using Comun.Dtos.PersonajeMes;
+using Comun.Extensions;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -17,9 +18,12 @@ namespace Datos.Gestion
         private readonly string _cs;
         private readonly ILogger<DbPersonajeMesRepository> _logger;
 
+        private readonly IConfiguration _configuration;
+
         public DbPersonajeMesRepository(IConfiguration configuration, ILogger<DbPersonajeMesRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbConnection")!;
+            _cs = configuration.GetDecryptedConnectionString();
+            _configuration = configuration;
             _logger = logger;
         }
 
@@ -32,63 +36,78 @@ namespace Datos.Gestion
         public async Task<List<DtoPersonajeMes>> GetAllAsync(int? idPersonajeGrupo, CancellationToken ct)
         {
             var result = new List<DtoPersonajeMes>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            const string selectSql = @"
+                SELECT id_personaje_mes, identificacion, nombres, apellidos, grado, cargo, unidad, foto_modificada, id_categoria, numero_acta, vigente, mes, anio, id_personaje_grupo
+                FROM ctr_personaje_mes
+                WHERE vigente = 1
+                ORDER BY id_personaje_mes DESC";
 
-            await using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_PERSONAJE_MES.P_GET_ALL";
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-            var columnasDisponibles = Enumerable.Range(0, reader.FieldCount)
-                .Select(reader.GetName)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var columnasEsperadas = new[]
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
             {
-                "ID_PERSONAJE_MES", "IDENTIFICACION", "NOMBRES", "APELLIDOS", "GRADO",
-                "CARGO", "UNIDAD", "FOTO_MODIFICADA", "ID_CATEGORIA", "NUMERO_ACTA",
-                "VIGENTE", "MES", "ANIO", "ID_PERSONAJE_GRUPO"
-            };
-
-            var columnasFaltantes = columnasEsperadas
-                .Where(col => !columnasDisponibles.Contains(col))
-                .ToArray();
-
-            if (columnasFaltantes.Length > 0)
-            {
-                _logger.LogWarning(
-                    "PKG_PERSONAJE_MES.P_GET_ALL no devolvió todas las columnas esperadas. Faltantes: {Faltantes}. Disponibles: {Disponibles}",
-                    string.Join(", ", columnasFaltantes),
-                    string.Join(", ", columnasDisponibles.OrderBy(c => c)));
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = idPersonajeGrupo.HasValue ? selectSql.Replace("WHERE vigente = 1", $"WHERE vigente = 1 AND id_personaje_grupo = {idPersonajeGrupo.Value}") : selectSql;
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                        result.Add(MapPersonajeMesGeneric(reader));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudo consultar personajes del mes en MySQL. Se retorna lista vacía.");
+                }
+                return result;
             }
 
-            while (await reader.ReadAsync(ct))
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
             {
-                var personaje = MapPersonajeMes(reader);
-                // Si se solicita un grupo específico, filtrar por ese grupo y vigente
-                if (idPersonajeGrupo.HasValue && idPersonajeGrupo.Value > 0)
+                try
                 {
-                    if (personaje.IdPersonajeGrupo == idPersonajeGrupo.Value && personaje.Vigente == 1)
-                    {
-                        result.Add(personaje);
-                    }
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = idPersonajeGrupo.HasValue ? selectSql.Replace("WHERE vigente = 1", $"WHERE vigente = 1 AND id_personaje_grupo = {idPersonajeGrupo.Value}") : selectSql;
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                        result.Add(MapPersonajeMesGeneric(reader));
                 }
-                else
+                catch (Exception ex)
                 {
-                    // Si no se solicita grupo, solo los que NO tienen grupo y están vigentes
-                    if ((personaje.IdPersonajeGrupo == 0 || personaje.IdPersonajeGrupo == null) && personaje.Vigente == 1)
-                    {
-                        result.Add(personaje);
-                    }
+                    _logger.LogWarning(ex, "No se pudo consultar personajes del mes en PostgreSQL. Se retorna lista vacía.");
                 }
+                return result;
             }
 
-            return result;
+            await using var oracleConn = new OracleConnection(_cs);
+            await oracleConn.OpenAsync(ct);
+
+            try
+            {
+                await using var cmd = oracleConn.CreateCommand();
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PKG_PERSONAJE_MES.P_GET_ALL";
+                cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                await using var readerSp = await cmd.ExecuteReaderAsync(ct);
+                while (await readerSp.ReadAsync(ct))
+                    result.Add(MapPersonajeMesGeneric(readerSp));
+                return result;
+            }
+            catch
+            {
+                result.Clear();
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.CommandText = selectSql;
+                await using var readerQuery = await cmdQuery.ExecuteReaderAsync(ct);
+                while (await readerQuery.ReadAsync(ct))
+                    result.Add(MapPersonajeMesGeneric(readerQuery));
+                return result;
+            }
         }
         public async Task<DtoPersonajeMesResult> CreateAsync(DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
@@ -420,43 +439,103 @@ namespace Datos.Gestion
         public async Task<List<DtoPersonajeGrupo>> GetAllAsyncGrupo(CancellationToken ct)
         {
             var result = new List<DtoPersonajeGrupo>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            const string selectSql = @"
+                SELECT id_personaje_grupo, nombre_grupo, foto_grupo, numero_acta, mes, anio, vigente
+                FROM ctr_personaje_grupo
+                WHERE vigente = 1
+                ORDER BY id_personaje_grupo DESC";
 
-            await using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_PERSONAJE_MES.P_GET_ALL_GRUPO";
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-            var columnasDisponibles = Enumerable.Range(0, reader.FieldCount)
-                .Select(reader.GetName)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var columnasEsperadas = new[]
+            try
             {
-                "ID_PERSONAJE_GRUPO", "NOMBRE_GRUPO", "FOTO_GRUPO", "NUMERO_ACTA",
-                "MES", "VIGENTE"
-            };
+                if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = selectSql;
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoPersonajeGrupo
+                        {
+                            IdPersonajeGrupo = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                            NombreGrupo = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                            FotoGrupo = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            NumeroActa = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            Mes = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4)),
+                            Anio = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5)),
+                            Vigente = reader.IsDBNull(6) ? 1 : Convert.ToInt32(reader.GetValue(6))
+                        });
+                    }
+                    return result;
+                }
 
-            var columnasFaltantes = columnasEsperadas
-                .Where(col => !columnasDisponibles.Contains(col))
-                .ToArray();
+                if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = selectSql;
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoPersonajeGrupo
+                        {
+                            IdPersonajeGrupo = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                            NombreGrupo = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                            FotoGrupo = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            NumeroActa = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            Mes = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4)),
+                            Anio = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5)),
+                            Vigente = reader.IsDBNull(6) ? 1 : Convert.ToInt32(reader.GetValue(6))
+                        });
+                    }
+                    return result;
+                }
 
-            if (columnasFaltantes.Length > 0)
-            {
-                _logger.LogWarning(
-                    "PKG_PERSONAJE_MES.P_GET_ALL_GRUPO no devolvió todas las columnas esperadas. Faltantes: {Faltantes}. Disponibles: {Disponibles}",
-                    string.Join(", ", columnasFaltantes),
-                    string.Join(", ", columnasDisponibles.OrderBy(c => c)));
+                await using var oracleConn = new OracleConnection(_cs);
+                await oracleConn.OpenAsync(ct);
+
+                try
+                {
+                    await using var cmd = oracleConn.CreateCommand();
+                    cmd.BindByName = true;
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandText = "PKG_PERSONAJE_MES.P_GET_ALL_GRUPO";
+                    cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(MapPersonajeGrupo(reader));
+                    }
+                }
+                catch
+                {
+                    result.Clear();
+                    await using var cmdQuery = oracleConn.CreateCommand();
+                    cmdQuery.CommandText = selectSql;
+                    await using var reader = await cmdQuery.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoPersonajeGrupo
+                        {
+                            IdPersonajeGrupo = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                            NombreGrupo = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                            FotoGrupo = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            NumeroActa = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            Mes = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4)),
+                            Anio = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5)),
+                            Vigente = reader.IsDBNull(6) ? 1 : Convert.ToInt32(reader.GetValue(6))
+                        });
+                    }
+                }
             }
-
-            while (await reader.ReadAsync(ct))
+            catch (Exception ex)
             {
-                result.Add(MapPersonajeGrupo(reader));
+                _logger.LogWarning(ex, "No se pudo consultar grupos de personajes del mes.");
             }
 
             return result;
@@ -938,6 +1017,27 @@ namespace Datos.Gestion
             }
 
             return result;
+        }
+
+        private static DtoPersonajeMes MapPersonajeMesGeneric(System.Data.Common.DbDataReader reader)
+        {
+            return new DtoPersonajeMes
+            {
+                IdPersonajeMes = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                Identificacion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                Nombres = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                Apellidos = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                Grado = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                Cargo = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                Unidad = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                FotoModificada = reader.IsDBNull(7) ? null : reader.GetString(7),
+                IdCategoria = reader.IsDBNull(8) ? 0 : Convert.ToInt32(reader.GetValue(8)),
+                NumeroActa = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                Vigente = reader.IsDBNull(10) ? 1 : Convert.ToInt32(reader.GetValue(10)),
+                Mes = reader.IsDBNull(11) ? 1 : Convert.ToInt32(reader.GetValue(11)),
+                Anio = reader.IsDBNull(12) ? DateTime.Now.Year : Convert.ToInt32(reader.GetValue(12)),
+                IdPersonajeGrupo = reader.FieldCount > 13 && !reader.IsDBNull(13) ? Convert.ToInt32(reader.GetValue(13)) : 0
+            };
         }
     }
 }

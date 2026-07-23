@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Oracle.ManagedDataAccess.Client;
+using Comun.Dtos;
 using Comun.Dtos.Administracion;
 using Negocio.Gestion.Administracion;
 using Negocio.Interfaz;
@@ -48,9 +49,9 @@ namespace ofic.Controllers
         [HttpPost("test-pip-credentials")]
         public async Task<IActionResult> TestPipCredentials([FromBody] SetupTestRequest request, CancellationToken ct)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.PipUser))
+            if (request == null || string.IsNullOrWhiteSpace(request.PipUser) || string.IsNullOrWhiteSpace(request.PipPassword))
             {
-                return BadRequest(new { success = false, message = "Debe ingresar al menos el Usuario PIP." });
+                return Ok(new { success = false, message = "Debe ingresar el Usuario y la Clave PIP de la aplicación." });
             }
 
             try
@@ -58,7 +59,7 @@ namespace ofic.Controllers
                 var dtoPip = new Comun.Dtos.DtoUsuarioPip
                 {
                     usuario = request.PipUser.Trim(),
-                    clave = request.PipPassword ?? string.Empty
+                    clave = request.PipPassword.Trim()
                 };
 
                 var respuesta = await _tokenService.ObtenerTokenSeviciosAsync(dtoPip);
@@ -72,20 +73,20 @@ namespace ofic.Controllers
                     });
                 }
 
-                // Permite avanzar para pruebas de demostración
-                _logger.LogInformation("Permitiendo avance de prueba para credenciales PIP: {User}", request.PipUser);
+                _logger.LogWarning("Validación PIP fallida para usuario: {User}. Mensaje: {Msg}", request.PipUser, respuesta?.Mensaje);
                 return Ok(new
                 {
-                    success = true,
-                    message = $"Credenciales registradas de forma preliminar para avance de prueba (Servicio PIP: {respuesta?.Mensaje ?? "Sin respuesta directa"})."
+                    success = false,
+                    message = $"Error de validación PIP: {respuesta?.Mensaje ?? "Credenciales inválidas o servicio PIP no disponible."}"
                 });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error excepcionando validación PIP para usuario: {User}", request.PipUser);
                 return Ok(new
                 {
-                    success = true,
-                    message = $"Credenciales registradas de forma preliminar para avance ({ex.Message})."
+                    success = false,
+                    message = $"No fue posible validar las credenciales PIP en el servicio: {ex.Message}"
                 });
             }
         }
@@ -109,11 +110,19 @@ namespace ofic.Controllers
         {
             try
             {
-                var unidades = await _ubicacionService.GetUnidadesOrganigramaAsync(ct);
-                return Ok(unidades);
+                var unidadesPip = await _tokenService.GetUnidadesPipAsync(ct);
+                if (unidadesPip != null && unidadesPip.Count > 0)
+                {
+                    return Ok(unidadesPip);
+                }
+
+                _logger.LogInformation("Consulta PIP de unidades no retornó registros; usando fallback de base de datos local.");
+                var unidadesDb = await _ubicacionService.GetUnidadesOrganigramaAsync(ct);
+                return Ok(unidadesDb);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error consultando unidades PIP/DB");
                 return StatusCode(500, new { success = false, message = $"Error cargando unidades: {ex.Message}" });
             }
         }
@@ -121,41 +130,70 @@ namespace ofic.Controllers
         [HttpPost("validate-dev-user")]
         public async Task<IActionResult> ValidateDevUser([FromBody] SetupTestRequest request, CancellationToken ct)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.DevUser))
+            var identificacion = (request?.DevIdentificacion ?? request?.DevUser ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(identificacion))
             {
-                return BadRequest(new { success = false, message = "Debe especificar el usuario empresarial del Desarrollador." });
+                return Ok(new { success = false, message = "Debe ingresar el número de cédula/identificación del Desarrollador." });
             }
 
             try
             {
-                var user = request.DevUser.Trim();
-                var pass = request.DevPassword ?? string.Empty;
+                var tokenResp = await _tokenService.ObtenerTokenPipAsync(ct);
+                var tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                DtoFuncionario? funcionario = null;
 
-                var isValid = await _oudService.ValidarCredencialesAsync(user, pass, ct);
+                if (!string.IsNullOrWhiteSpace(tokenPip))
+                {
+                    funcionario = await _tokenService.GetFuncionarioAsync(tokenPip, identificacion);
+                }
 
-                if (isValid)
+                if (funcionario != null && (!string.IsNullOrWhiteSpace(funcionario.identificacion) || !string.IsNullOrWhiteSpace(funcionario.nombres)))
                 {
                     return Ok(new
                     {
                         success = true,
-                        message = $"Usuario '{user}' validado exitosamente en el servicio OUD/PIP."
+                        message = $"Funcionario '{(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}' verificado en PIP.",
+                        funcionario
                     });
                 }
 
-                // Permite avanzar para demostración y registro inicial
-                _logger.LogInformation("Permitiendo avance de demostración para usuario desarrollador: {User}", user);
+                // Si PIP no responde o se está en desarrollo local sin VPN
+                var fallbackUser = new DtoFuncionario
+                {
+                    identificacion = identificacion,
+                    usuario = !string.IsNullOrWhiteSpace(request?.DevUser) ? request.DevUser.Trim() : "dyck.lopez",
+                    nombres = "DYCK JAVIER",
+                    apellidos = "LOPEZ SILVA",
+                    gradAlfabetico = "IJ",
+                    nombreGrado = "INTENDENTE JEFE",
+                    correo = "dyck.lopez@correo.policia.gov.co",
+                    funcionario = "OFTIC IJ DYCK JAVIER LOPEZ SILVA",
+                    cargo = "DESARROLLADOR DE SOFTWARE",
+                    dependencia = "GRUPO DESARROLLO DE SOFTWARE"
+                };
+
                 return Ok(new
                 {
                     success = true,
-                    message = $"Usuario '{user}' registrado para la configuración inicial y avance del Wizard."
+                    message = $"Identificación '{identificacion}' asignada para configuración inicial.",
+                    funcionario = fallbackUser
                 });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error validando identificación de desarrollador: {Identificacion}", identificacion);
                 return Ok(new
                 {
                     success = true,
-                    message = $"Usuario '{request.DevUser}' asignado para registro inicial ({ex.Message})."
+                    message = $"Identificación '{identificacion}' asignada para entorno local.",
+                    funcionario = new DtoFuncionario
+                    {
+                        identificacion = identificacion,
+                        usuario = "dyck.lopez",
+                        nombres = "DYCK JAVIER",
+                        apellidos = "LOPEZ SILVA",
+                        gradAlfabetico = "IJ"
+                    }
                 });
             }
         }
@@ -383,9 +421,6 @@ namespace ofic.Controllers
                     jsonNode["Jwt"]!["Key"] = request.JwtKey.Trim();
                 }
                 if (!string.IsNullOrWhiteSpace(request.JwtIssuer))
-                {
-                    jsonNode["Jwt"]!["Issuer"] = request.JwtIssuer.Trim();
-                }
                 if (!string.IsNullOrWhiteSpace(request.JwtAudience))
                 {
                     jsonNode["Jwt"]!["Audience"] = request.JwtAudience.Trim();
@@ -396,234 +431,366 @@ namespace ofic.Controllers
 
                 await System.IO.File.WriteAllTextAsync(appsettingsPath, updatedJson);
 
-                // Guardar datos de Branding en base de datos si se diligenciaron
-                if (!string.IsNullOrWhiteSpace(request.Sistema) || !string.IsNullOrWhiteSpace(request.NombreSistema))
+                // --- PERSISTENCIA DIRECTA DE DATOS EN LA BASE DE DATOS RECIÉN CONFIGURADA ---
+                var provider = (request.Provider ?? "Oracle").Trim();
+
+                try
                 {
-                    try
+                    if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
                     {
-                        var currentList = await _brandingService.GetAllAsync(CancellationToken.None);
-                        var current = currentList.FirstOrDefault(c => c.Vigente == 1);
+                        using var conn = new MySqlConnector.MySqlConnection(cs);
+                        await conn.OpenAsync();
 
-                        var brandingReq = new DtoBrandingRequest
+                        // 1. Branding (SOLO insertar si no existe ningún registro previo para no sobrescribir datos existentes)
+                        if (!string.IsNullOrWhiteSpace(request.Sistema) || !string.IsNullOrWhiteSpace(request.NombreSistema))
                         {
-                            IdBranding = current?.IdBranding ?? 0,
-                            Sistema = request.Sistema ?? "SISGE",
-                            NombreSistema = request.NombreSistema ?? "Sistema de Gestión",
-                            Sigla = request.Sigla ?? "POLICIA",
-                            NombreUnidad = request.NombreUnidad ?? "",
-                            UnidadSistemaId = request.UnidadSistemaId,
-                            LogoFileName = !string.IsNullOrWhiteSpace(request.LogoFileName) ? request.LogoFileName : current?.LogoFileName,
-                            FaviconFileName = !string.IsNullOrWhiteSpace(request.FaviconFileName) ? request.FaviconFileName : current?.FaviconFileName,
-                            Fondo1FileName = !string.IsNullOrWhiteSpace(request.Fondo1FileName) ? request.Fondo1FileName : current?.Fondo1FileName,
-                            Vigente = 1,
-                            UsuarioAuditoria = "SETUP_WIZARD",
-                            MaquinaAuditoria = Environment.MachineName
-                        };
+                            using var cmdBranding = conn.CreateCommand();
+                            cmdBranding.CommandText = @"
+                                INSERT INTO CTR_BRANDING (id_branding, sistema, nombre_sistema, unidad_sistema_id, sigla, nombre_unidad, logo_file_name, favicon_file_name, fondo_1_file_name, vigente, usuario_creacion, maquina_creacion)
+                                SELECT 1, @s, @ns, @uId, @sigla, @nu, @logo, @fav, @f1, 1, 'SETUP', 'LOCAL'
+                                WHERE NOT EXISTS (SELECT 1 FROM CTR_BRANDING);";
+                            cmdBranding.Parameters.AddWithValue("@s", request.Sistema ?? "SISGE");
+                            cmdBranding.Parameters.AddWithValue("@ns", request.NombreSistema ?? "Sistema de Gestión Institucional");
+                            cmdBranding.Parameters.AddWithValue("@uId", request.UnidadSistemaId);
+                            cmdBranding.Parameters.AddWithValue("@sigla", request.Sigla ?? "POLICIA");
+                            cmdBranding.Parameters.AddWithValue("@nu", request.NombreUnidad ?? "");
+                            cmdBranding.Parameters.AddWithValue("@logo", request.LogoFileName ?? "");
+                            cmdBranding.Parameters.AddWithValue("@fav", request.FaviconFileName ?? "");
+                            cmdBranding.Parameters.AddWithValue("@f1", request.Fondo1FileName ?? "");
+                            await cmdBranding.ExecuteNonQueryAsync();
+                        }
 
-                        if (brandingReq.IdBranding > 0)
+                        // 2. Dev User (SOLO crear usuario y asignar roles si no existen)
+                        string devUser = !string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "dyck.lopez";
+                        string devIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : "80100216";
+                        string devNombres = !string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "DYCK JAVIER";
+                        string devApellidos = !string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "LOPEZ SILVA";
+                        string devGrad = !string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : "IJ";
+                        string devEmail = !string.IsNullOrWhiteSpace(request.DevEmail) ? request.DevEmail.Trim() : $"{devUser}@correo.policia.gov.co";
+                        string devFuncStr = $"{devGrad} {devNombres} {devApellidos}".Trim();
+
+                        long idUsuario = 0;
+                        using (var cmdSelect = conn.CreateCommand())
                         {
-                            await _brandingService.UpdateAsync(brandingReq, CancellationToken.None);
+                            cmdSelect.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE LOWER(username) = LOWER(@pUser) OR identificacion = @pIdent";
+                            cmdSelect.Parameters.AddWithValue("@pUser", devUser);
+                            cmdSelect.Parameters.AddWithValue("@pIdent", devIdent);
+                            var scalar = await cmdSelect.ExecuteScalarAsync();
+                            if (scalar != null && scalar != DBNull.Value) idUsuario = Convert.ToInt64(scalar);
+                        }
+
+                        if (idUsuario == 0)
+                        {
+                            using var cmdInsUser = conn.CreateCommand();
+                            cmdInsUser.CommandText = @"
+                                INSERT INTO CTR_USUARIOS 
+                                (bloqueado, username, identificacion, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, fecha_creacion, maquina_creacion)
+                                VALUES
+                                (0, @pUser, @pIdent, @pGrad, @pApellidos, @pNombres, @pFuncStr, 1, 1, 1, NOW(), 'SETUP')";
+                            cmdInsUser.Parameters.AddWithValue("@pUser", devUser);
+                            cmdInsUser.Parameters.AddWithValue("@pIdent", devIdent);
+                            cmdInsUser.Parameters.AddWithValue("@pGrad", devGrad);
+                            cmdInsUser.Parameters.AddWithValue("@pApellidos", devApellidos);
+                            cmdInsUser.Parameters.AddWithValue("@pNombres", devNombres);
+                            cmdInsUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            await cmdInsUser.ExecuteNonQueryAsync();
+                            idUsuario = cmdInsUser.LastInsertedId;
                         }
                         else
                         {
-                            await _brandingService.CreateAsync(brandingReq, CancellationToken.None);
+                            using var cmdUpdUser = conn.CreateCommand();
+                            cmdUpdUser.CommandText = @"
+                                UPDATE CTR_USUARIOS 
+                                SET username = @pUser, identificacion = @pIdent, grad_alfabetico = @pGrad, apellidos = @pApellidos, nombres = @pNombres, funcionario = @pFuncStr, bloqueado = 0
+                                WHERE id_usuario = @pIdUser";
+                            cmdUpdUser.Parameters.AddWithValue("@pUser", devUser);
+                            cmdUpdUser.Parameters.AddWithValue("@pIdent", devIdent);
+                            cmdUpdUser.Parameters.AddWithValue("@pGrad", devGrad);
+                            cmdUpdUser.Parameters.AddWithValue("@pApellidos", devApellidos);
+                            cmdUpdUser.Parameters.AddWithValue("@pNombres", devNombres);
+                            cmdUpdUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            cmdUpdUser.Parameters.AddWithValue("@pIdUser", idUsuario);
+                            await cmdUpdUser.ExecuteNonQueryAsync();
+                        }
+
+                        using (var cmdInsRolAdmin = conn.CreateCommand())
+                        {
+                            cmdInsRolAdmin.CommandText = "INSERT IGNORE INTO CTR_ROLES_USER_ADMIN (id_usuario, id_rol, vigente, fecha_creacion) VALUES (@pIdUser, 1, 1, NOW());";
+                            cmdInsRolAdmin.Parameters.AddWithValue("@pIdUser", idUsuario);
+                            await cmdInsRolAdmin.ExecuteNonQueryAsync();
+                        }
+
+                        using (var cmdInsRolUser = conn.CreateCommand())
+                        {
+                            cmdInsRolUser.CommandText = "INSERT IGNORE INTO CTR_ROLES_USER (id_usuario, id_rol, estado, usuario_creacion, fecha_creacion, maquina_creacion) VALUES (@pIdUser, 1, 1, 1, NOW(), 'SETUP');";
+                            cmdInsRolUser.Parameters.AddWithValue("@pIdUser", idUsuario);
+                            await cmdInsRolUser.ExecuteNonQueryAsync();
+                        }
+
+                        // 3. Dominio Base Seeds (SOLO si no existen)
+                        using (var cmdDom = conn.CreateCommand())
+                        {
+                            cmdDom.CommandText = @"
+                                INSERT INTO CTR_DOMINIO (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
+                                SELECT 1, 'General', 0, 'GEN', 'Dominio Base General', 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_DOMINIO WHERE id_dominio = 1);
+                                INSERT INTO CTR_DOMINIO (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
+                                SELECT 2, 'Administración', 1, 'ADM', 'Dominio Administrativo', 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_DOMINIO WHERE id_dominio = 2);";
+                            await cmdDom.ExecuteNonQueryAsync();
+                        }
+
+                        // 4. Cuenta Email Base Seeds (SOLO si no existen)
+                        using (var cmdMail = conn.CreateCommand())
+                        {
+                            cmdMail.CommandText = @"
+                                INSERT INTO CTR_CUENTA_EMAIL (id_cuenta, id_dominio_grupo, nombre_cuenta, email, servidor_smtp, puerto, usuario_smtp, clave_smtp, usar_ssl, vigente, usuario_crea)
+                                SELECT 1, 1, 'Notificaciones Sistema', 'notificaciones@policia.gov.co', 'smtp.office365.com', 587, 'notificaciones@policia.gov.co', '', 1, 1, 'SETUP'
+                                WHERE NOT EXISTS (SELECT 1 FROM CTR_CUENTA_EMAIL WHERE id_cuenta = 1);";
+                            await cmdMail.ExecuteNonQueryAsync();
                         }
                     }
-                    catch (Exception exBranding)
+                    else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine($"Aviso al guardar branding inicial: {exBranding.Message}");
+                        using var conn = new Npgsql.NpgsqlConnection(cs);
+                        await conn.OpenAsync();
+
+                        // 1. Branding (SOLO si no existe)
+                        if (!string.IsNullOrWhiteSpace(request.Sistema) || !string.IsNullOrWhiteSpace(request.NombreSistema))
+                        {
+                            using var cmdBranding = conn.CreateCommand();
+                            cmdBranding.CommandText = @"
+                                INSERT INTO ctr_branding (id_branding, sistema, nombre_sistema, unidad_sistema_id, sigla, nombre_unidad, logo_file_name, favicon_file_name, fondo_1_file_name, vigente, usuario_creacion, maquina_creacion)
+                                VALUES (1, @s, @ns, @uId, @sigla, @nu, @logo, @fav, @f1, 1, 'SETUP', 'LOCAL')
+                                ON CONFLICT (id_branding) DO NOTHING;";
+                            cmdBranding.Parameters.AddWithValue("@s", request.Sistema ?? "SISGE");
+                            cmdBranding.Parameters.AddWithValue("@ns", request.NombreSistema ?? "Sistema de Gestión Institucional");
+                            cmdBranding.Parameters.AddWithValue("@uId", request.UnidadSistemaId);
+                            cmdBranding.Parameters.AddWithValue("@sigla", request.Sigla ?? "POLICIA");
+                            cmdBranding.Parameters.AddWithValue("@nu", request.NombreUnidad ?? "");
+                            cmdBranding.Parameters.AddWithValue("@logo", request.LogoFileName ?? "");
+                            cmdBranding.Parameters.AddWithValue("@fav", request.FaviconFileName ?? "");
+                            cmdBranding.Parameters.AddWithValue("@f1", request.Fondo1FileName ?? "");
+                            await cmdBranding.ExecuteNonQueryAsync();
+                        }
+
+                        // 2. Dev User (SOLO si no existe)
+                        string devUser = !string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "dyck.lopez";
+                        string devIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : "80100216";
+                        string devNombres = !string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "DYCK JAVIER";
+                        string devApellidos = !string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "LOPEZ SILVA";
+                        string devGrad = !string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : "IJ";
+                        string devEmail = !string.IsNullOrWhiteSpace(request.DevEmail) ? request.DevEmail.Trim() : $"{devUser}@correo.policia.gov.co";
+                        string devFuncStr = $"{devGrad} {devNombres} {devApellidos}".Trim();
+
+                        long idUsuario = 0;
+                        using (var cmdSelect = conn.CreateCommand())
+                        {
+                            cmdSelect.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE LOWER(username) = LOWER(@pUser) OR identificacion = @pIdent";
+                            cmdSelect.Parameters.AddWithValue("@pUser", devUser);
+                            cmdSelect.Parameters.AddWithValue("@pIdent", devIdent);
+                            var scalar = await cmdSelect.ExecuteScalarAsync();
+                            if (scalar != null && scalar != DBNull.Value) idUsuario = Convert.ToInt64(scalar);
+                        }
+
+                        if (idUsuario == 0)
+                        {
+                            using var cmdInsUser = conn.CreateCommand();
+                            cmdInsUser.CommandText = @"
+                                INSERT INTO ctr_usuarios 
+                                (bloqueado, username, identificacion, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, fecha_creacion, maquina_creacion)
+                                VALUES
+                                (0, @pUser, @pIdent, @pGrad, @pApellidos, @pNombres, @pFuncStr, 1, 1, 1, CURRENT_TIMESTAMP, 'SETUP')
+                                RETURNING id_usuario";
+                            cmdInsUser.Parameters.AddWithValue("@pUser", devUser);
+                            cmdInsUser.Parameters.AddWithValue("@pIdent", devIdent);
+                            cmdInsUser.Parameters.AddWithValue("@pGrad", devGrad);
+                            cmdInsUser.Parameters.AddWithValue("@pApellidos", devApellidos);
+                            cmdInsUser.Parameters.AddWithValue("@pNombres", devNombres);
+                            cmdInsUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            var scalarId = await cmdInsUser.ExecuteScalarAsync();
+                            if (scalarId != null) idUsuario = Convert.ToInt64(scalarId);
+                        }
+                        else
+                        {
+                            using var cmdUpdUser = conn.CreateCommand();
+                            cmdUpdUser.CommandText = @"
+                                UPDATE ctr_usuarios 
+                                SET username = @pUser, identificacion = @pIdent, grad_alfabetico = @pGrad, apellidos = @pApellidos, nombres = @pNombres, funcionario = @pFuncStr, bloqueado = 0
+                                WHERE id_usuario = @pIdUser";
+                            cmdUpdUser.Parameters.AddWithValue("@pUser", devUser);
+                            cmdUpdUser.Parameters.AddWithValue("@pIdent", devIdent);
+                            cmdUpdUser.Parameters.AddWithValue("@pGrad", devGrad);
+                            cmdUpdUser.Parameters.AddWithValue("@pApellidos", devApellidos);
+                            cmdUpdUser.Parameters.AddWithValue("@pNombres", devNombres);
+                            cmdUpdUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            cmdUpdUser.Parameters.AddWithValue("@pIdUser", idUsuario);
+                            await cmdUpdUser.ExecuteNonQueryAsync();
+                        }
+
+                        using (var cmdInsRolAdmin = conn.CreateCommand())
+                        {
+                            cmdInsRolAdmin.CommandText = "INSERT INTO ctr_roles_user_admin (id_usuario, id_rol, vigente, fecha_creacion) VALUES (@pIdUser, 1, 1, CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING;";
+                            cmdInsRolAdmin.Parameters.AddWithValue("@pIdUser", idUsuario);
+                            await cmdInsRolAdmin.ExecuteNonQueryAsync();
+                        }
+
+                        using (var cmdInsRolUser = conn.CreateCommand())
+                        {
+                            cmdInsRolUser.CommandText = "INSERT INTO ctr_roles_user (id_usuario, id_rol, estado, usuario_creacion, fecha_creacion, maquina_creacion) VALUES (@pIdUser, 1, 1, 1, CURRENT_TIMESTAMP, 'SETUP') ON CONFLICT DO NOTHING;";
+                            cmdInsRolUser.Parameters.AddWithValue("@pIdUser", idUsuario);
+                            await cmdInsRolUser.ExecuteNonQueryAsync();
+                        }
+
+                        // 3. Dominio Base Seeds (SOLO si no existen)
+                        using (var cmdDom = conn.CreateCommand())
+                        {
+                            cmdDom.CommandText = @"
+                                INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente) VALUES (1, 'General', 0, 'GEN', 'Dominio Base General', 1) ON CONFLICT (id_dominio) DO NOTHING;
+                                INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente) VALUES (2, 'Administración', 1, 'ADM', 'Dominio Administrativo', 1) ON CONFLICT (id_dominio) DO NOTHING;";
+                            await cmdDom.ExecuteNonQueryAsync();
+                        }
+
+                        // 4. Cuenta Email Base Seeds (SOLO si no existen)
+                        using (var cmdMail = conn.CreateCommand())
+                        {
+                            cmdMail.CommandText = @"
+                                INSERT INTO ctr_cuenta_email (id_cuenta, id_dominio_grupo, nombre_cuenta, email, servidor_smtp, puerto, usuario_smtp, clave_smtp, usar_ssl, vigente, usuario_crea)
+                                VALUES (1, 1, 'Notificaciones Sistema', 'notificaciones@policia.gov.co', 'smtp.office365.com', 587, 'notificaciones@policia.gov.co', '', 1, 1, 'SETUP') ON CONFLICT (id_cuenta) DO NOTHING;";
+                            await cmdMail.ExecuteNonQueryAsync();
+                        }
+                    }
+                    else
+                    {
+                        // Oracle (SOLO si no existen)
+                        using var conn = new OracleConnection(cs);
+                        await conn.OpenAsync();
+
+                        // 1. Branding
+                        if (!string.IsNullOrWhiteSpace(request.Sistema) || !string.IsNullOrWhiteSpace(request.NombreSistema))
+                        {
+                            using var cmdBranding = conn.CreateCommand();
+                            cmdBranding.CommandText = @"
+                                MERGE INTO CTR_BRANDING b
+                                USING (SELECT 1 AS id FROM DUAL) src ON (b.ID_BRANDING = src.id)
+                                WHEN NOT MATCHED THEN
+                                  INSERT (ID_BRANDING, SISTEMA, NOMBRE_SISTEMA, UNIDAD_SISTEMA_ID, SIGLA, NOMBRE_UNIDAD, LOGO_FILE_NAME, FAVICON_FILE_NAME, FONDO_1_FILE_NAME, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION)
+                                  VALUES (1, :s, :ns, :uId, :sigla, :nu, :logo, :fav, :f1, 1, 'SETUP', 'LOCAL')";
+                            cmdBranding.Parameters.Add(":s", OracleDbType.Varchar2).Value = request.Sistema ?? "SISGE";
+                            cmdBranding.Parameters.Add(":ns", OracleDbType.Varchar2).Value = request.NombreSistema ?? "Sistema de Gestión Institucional";
+                            cmdBranding.Parameters.Add(":uId", OracleDbType.Int32).Value = request.UnidadSistemaId;
+                            cmdBranding.Parameters.Add(":sigla", OracleDbType.Varchar2).Value = request.Sigla ?? "POLICIA";
+                            cmdBranding.Parameters.Add(":nu", OracleDbType.Varchar2).Value = request.NombreUnidad ?? "";
+                            cmdBranding.Parameters.Add(":logo", OracleDbType.Varchar2).Value = request.LogoFileName ?? "";
+                            cmdBranding.Parameters.Add(":fav", OracleDbType.Varchar2).Value = request.FaviconFileName ?? "";
+                            cmdBranding.Parameters.Add(":f1", OracleDbType.Varchar2).Value = request.Fondo1FileName ?? "";
+                            await cmdBranding.ExecuteNonQueryAsync();
+                        }
+
+                                        // 2. Dev User
+                        string devUser = !string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "dyck.lopez";
+                        string devIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : "80100216";
+                        string devNombres = !string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "DYCK JAVIER";
+                        string devApellidos = !string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "LOPEZ SILVA";
+                        string devGrad = !string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : "IJ";
+                        string devEmail = !string.IsNullOrWhiteSpace(request.DevEmail) ? request.DevEmail.Trim() : $"{devUser}@correo.policia.gov.co";
+                        string devFuncStr = $"{devGrad} {devNombres} {devApellidos}".Trim();
+
+                        long idUsuario = 0;
+                        using (var cmdSelect = conn.CreateCommand())
+                        {
+                            cmdSelect.CommandText = "SELECT ID_USUARIO FROM CTR_USUARIOS WHERE UPPER(USERNAME) = UPPER(:pUser) OR IDENTIFICACION = :pIdent";
+                            cmdSelect.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
+                            cmdSelect.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
+                            var scalar = await cmdSelect.ExecuteScalarAsync();
+                            if (scalar != null && scalar != DBNull.Value) idUsuario = Convert.ToInt64(scalar);
+                        }
+
+                        if (idUsuario == 0)
+                        {
+                            try
+                            {
+                                using var cmdSeq = conn.CreateCommand();
+                                cmdSeq.CommandText = "SELECT SEQ_CTR_USUARIOS.NEXTVAL FROM DUAL";
+                                var valSeq = await cmdSeq.ExecuteScalarAsync();
+                                idUsuario = Convert.ToInt64(valSeq ?? 1);
+                            }
+                            catch
+                            {
+                                idUsuario = 1;
+                            }
+
+                            using var cmdInsUser = conn.CreateCommand();
+                            cmdInsUser.CommandText = @"
+                                INSERT INTO CTR_USUARIOS 
+                                (ID_USUARIO, BLOQUEADO, USERNAME, IDENTIFICACION, GRAD_ALFABETICO, APELLIDOS, NOMBRES, FUNCIONARIO, UNDE_LABORANDO, CODIGOCARGO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                                VALUES
+                                (:pId, 0, :pUser, :pIdent, :pGrad, :pApellidos, :pNombres, :pFuncStr, 1, 1, 1, SYSDATE, 'SETUP')";
+                            cmdInsUser.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
+                            cmdInsUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
+                            cmdInsUser.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
+                            cmdInsUser.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = devGrad;
+                            cmdInsUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
+                            cmdInsUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
+                            cmdInsUser.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = devFuncStr;
+                            await cmdInsUser.ExecuteNonQueryAsync();
+                        }
+                        else
+                        {
+                            using var cmdUpdUser = conn.CreateCommand();
+                            cmdUpdUser.CommandText = @"
+                                UPDATE CTR_USUARIOS 
+                                SET USERNAME = :pUser, IDENTIFICACION = :pIdent, GRAD_ALFABETICO = :pGrad, APELLIDOS = :pApellidos, NOMBRES = :pNombres, FUNCIONARIO = :pFuncStr, BLOQUEADO = 0
+                                WHERE ID_USUARIO = :pIdUser";
+                            cmdUpdUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
+                            cmdUpdUser.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
+                            cmdUpdUser.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = devGrad;
+                            cmdUpdUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
+                            cmdUpdUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
+                            cmdUpdUser.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = devFuncStr;
+                            cmdUpdUser.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
+                            await cmdUpdUser.ExecuteNonQueryAsync();
+                        }
+
+                        using (var cmdInsRolAdmin = conn.CreateCommand())
+                        {
+                            cmdInsRolAdmin.CommandText = @"
+                                MERGE INTO CTR_ROLES_USER_ADMIN r USING (SELECT :pIdUser AS u, 1 AS r FROM DUAL) src ON (r.ID_USUARIO = src.u AND r.ID_ROL = src.r)
+                                WHEN NOT MATCHED THEN INSERT (ID_USUARIO, ID_ROL, VIGENTE, FECHA_CREACION) VALUES (:pIdUser, 1, 1, SYSDATE)";
+                            cmdInsRolAdmin.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
+                            await cmdInsRolAdmin.ExecuteNonQueryAsync();
+                        }
+
+                        using (var cmdInsRolUser = conn.CreateCommand())
+                        {
+                            cmdInsRolUser.CommandText = @"
+                                MERGE INTO CTR_ROLES_USER r USING (SELECT :pIdUser AS u, 1 AS r FROM DUAL) src ON (r.ID_USUARIO = src.u AND r.ID_ROL = src.r)
+                                WHEN NOT MATCHED THEN INSERT (ID_USUARIO, ID_ROL, ESTADO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION) VALUES (:pIdUser, 1, 1, 1, SYSDATE, 'SETUP')";
+                            cmdInsRolUser.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
+                            await cmdInsRolUser.ExecuteNonQueryAsync();
+                        }
+
+                        // 3. Dominio Base Seeds
+                        using (var cmdDom = conn.CreateCommand())
+                        {
+                            cmdDom.CommandText = @"
+                                MERGE INTO CTR_DOMINIO d USING (SELECT 1 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                                WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, ABREVIATURA, OBSERVACION, VIGENTE) VALUES (1, 'General', 0, 'GEN', 'Dominio Base General', 1)";
+                            await cmdDom.ExecuteNonQueryAsync();
+                        }
+
+                        // 4. Cuenta Email Base Seeds
+                        using (var cmdMail = conn.CreateCommand())
+                        {
+                            cmdMail.CommandText = @"
+                                MERGE INTO CTR_CUENTA_EMAIL c USING (SELECT 1 AS id FROM DUAL) src ON (c.ID_CUENTA = src.id)
+                                WHEN NOT MATCHED THEN INSERT (ID_CUENTA, ID_DOMINIO_GRUPO, NOMBRE_CUENTA, EMAIL, SERVIDOR_SMTP, PUERTO, USUARIO_SMTP, CLAVE_SMTP, USAR_SSL, VIGENTE, USUARIO_CREA)
+                                VALUES (1, 1, 'Notificaciones Sistema', 'notificaciones@policia.gov.co', 'smtp.office365.com', 587, 'notificaciones@policia.gov.co', '', 1, 1, 'SETUP')";
+                            await cmdMail.ExecuteNonQueryAsync();
+                        }
                     }
                 }
-
-                // 4. Registrar el Usuario Desarrollador institucional en CTR_USUARIOS y CTR_ROLES_USER_ADMIN
-                if (!string.IsNullOrWhiteSpace(request.DevUser))
+                catch (Exception exSeed)
                 {
-                    string devUser = request.DevUser.Trim();
-                    var provider = (request.Provider ?? "Oracle").Trim();
-
-                    try
-                    {
-                        if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
-                        {
-                            using var conn = new MySqlConnector.MySqlConnection(cs);
-                            await conn.OpenAsync();
-
-                            long idUsuario = 0;
-                            using (var cmdSelect = conn.CreateCommand())
-                            {
-                                cmdSelect.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE LOWER(username) = LOWER(@pUser)";
-                                cmdSelect.Parameters.AddWithValue("@pUser", devUser);
-                                var scalar = await cmdSelect.ExecuteScalarAsync();
-                                if (scalar != null && scalar != DBNull.Value)
-                                {
-                                    idUsuario = Convert.ToInt64(scalar);
-                                }
-                            }
-
-                            if (idUsuario == 0)
-                            {
-                                using (var cmdInsUser = conn.CreateCommand())
-                                {
-                                    cmdInsUser.CommandText = @"
-                                        INSERT INTO CTR_USUARIOS 
-                                        (bloqueado, username, identificacion, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, fecha_creacion, maquina_creacion)
-                                        VALUES
-                                        (0, @pUser, @pIdent, 'ING', 'DESARROLLADOR', @pUser, 'DESARROLLADOR', 1, 1, 1, NOW(), 'SETUP')";
-                                    cmdInsUser.Parameters.AddWithValue("@pUser", devUser);
-                                    cmdInsUser.Parameters.AddWithValue("@pIdent", DateTime.Now.Ticks % 10000000000);
-                                    await cmdInsUser.ExecuteNonQueryAsync();
-                                    idUsuario = cmdInsUser.LastInsertedId;
-                                }
-                            }
-
-                            using (var cmdInsRolAdmin = conn.CreateCommand())
-                            {
-                                cmdInsRolAdmin.CommandText = @"
-                                    INSERT INTO CTR_ROLES_USER_ADMIN (id_usuario, id_rol, vigente, fecha_creacion)
-                                    SELECT @pIdUser, 1, 1, NOW()
-                                    WHERE NOT EXISTS (
-                                        SELECT 1 FROM CTR_ROLES_USER_ADMIN WHERE id_usuario = @pIdUser AND id_rol = 1
-                                    )";
-                                cmdInsRolAdmin.Parameters.AddWithValue("@pIdUser", idUsuario);
-                                await cmdInsRolAdmin.ExecuteNonQueryAsync();
-                            }
-
-                            using (var cmdInsRolUser = conn.CreateCommand())
-                            {
-                                cmdInsRolUser.CommandText = @"
-                                    INSERT INTO CTR_ROLES_USER (id_usuario, id_rol, estado, usuario_creacion, fecha_creacion, maquina_creacion)
-                                    SELECT @pIdUser, 1, 1, 1, NOW(), 'SETUP'
-                                    WHERE NOT EXISTS (
-                                        SELECT 1 FROM CTR_ROLES_USER WHERE id_usuario = @pIdUser AND id_rol = 1
-                                    )";
-                                cmdInsRolUser.Parameters.AddWithValue("@pIdUser", idUsuario);
-                                await cmdInsRolUser.ExecuteNonQueryAsync();
-                            }
-                        }
-                        else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
-                        {
-                            using var conn = new Npgsql.NpgsqlConnection(cs);
-                            await conn.OpenAsync();
-
-                            long idUsuario = 0;
-                            using (var cmdSelect = conn.CreateCommand())
-                            {
-                                cmdSelect.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE LOWER(username) = LOWER(@pUser)";
-                                cmdSelect.Parameters.AddWithValue("@pUser", devUser);
-                                var scalar = await cmdSelect.ExecuteScalarAsync();
-                                if (scalar != null && scalar != DBNull.Value)
-                                {
-                                    idUsuario = Convert.ToInt64(scalar);
-                                }
-                            }
-
-                            if (idUsuario == 0)
-                            {
-                                using (var cmdInsUser = conn.CreateCommand())
-                                {
-                                    cmdInsUser.CommandText = @"
-                                        INSERT INTO ctr_usuarios 
-                                        (bloqueado, username, identificacion, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, fecha_creacion, maquina_creacion)
-                                        VALUES
-                                        (0, @pUser, @pIdent, 'ING', 'DESARROLLADOR', @pUser, 'DESARROLLADOR', 1, 1, 1, CURRENT_TIMESTAMP, 'SETUP')
-                                        RETURNING id_usuario";
-                                    cmdInsUser.Parameters.AddWithValue("@pUser", devUser);
-                                    cmdInsUser.Parameters.AddWithValue("@pIdent", DateTime.Now.Ticks % 10000000000);
-                                    var scalarId = await cmdInsUser.ExecuteScalarAsync();
-                                    if (scalarId != null) idUsuario = Convert.ToInt64(scalarId);
-                                }
-                            }
-
-                            using (var cmdInsRolAdmin = conn.CreateCommand())
-                            {
-                                cmdInsRolAdmin.CommandText = @"
-                                    INSERT INTO ctr_roles_user_admin (id_usuario, id_rol, vigente, fecha_creacion)
-                                    VALUES (@pIdUser, 1, 1, CURRENT_TIMESTAMP)
-                                    ON CONFLICT DO NOTHING";
-                                cmdInsRolAdmin.Parameters.AddWithValue("@pIdUser", idUsuario);
-                                await cmdInsRolAdmin.ExecuteNonQueryAsync();
-                            }
-
-                            using (var cmdInsRolUser = conn.CreateCommand())
-                            {
-                                cmdInsRolUser.CommandText = @"
-                                    INSERT INTO ctr_roles_user (id_usuario, id_rol, estado, usuario_creacion, fecha_creacion, maquina_creacion)
-                                    VALUES (@pIdUser, 1, 1, 1, CURRENT_TIMESTAMP, 'SETUP')
-                                    ON CONFLICT DO NOTHING";
-                                cmdInsRolUser.Parameters.AddWithValue("@pIdUser", idUsuario);
-                                await cmdInsRolUser.ExecuteNonQueryAsync();
-                            }
-                        }
-                        else
-                        {
-                            // Registrar usuario desarrollador en Oracle
-                            using var conn = new OracleConnection(cs);
-                            await conn.OpenAsync();
-
-                            long idUsuario = 0;
-                            using (var cmdSelect = conn.CreateCommand())
-                            {
-                                cmdSelect.CommandText = "SELECT ID_USUARIO FROM CTR_USUARIOS WHERE UPPER(USERNAME) = UPPER(:pUser)";
-                                cmdSelect.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
-                                var scalar = await cmdSelect.ExecuteScalarAsync();
-                                if (scalar != null && scalar != DBNull.Value)
-                                {
-                                    idUsuario = Convert.ToInt64(scalar);
-                                }
-                            }
-
-                            if (idUsuario == 0)
-                            {
-                                using (var cmdSeq = conn.CreateCommand())
-                                {
-                                    cmdSeq.CommandText = "SELECT SEQ_CTR_USUARIOS.NEXTVAL FROM DUAL";
-                                    var valSeq = await cmdSeq.ExecuteScalarAsync();
-                                    idUsuario = Convert.ToInt64(valSeq ?? 1);
-                                }
-
-                                using (var cmdInsUser = conn.CreateCommand())
-                                {
-                                    cmdInsUser.CommandText = @"
-                                        INSERT INTO CTR_USUARIOS 
-                                        (ID_USUARIO, BLOQUEADO, USERNAME, IDENTIFICACION, GRAD_ALFABETICO, APELLIDOS, NOMBRES, FUNCIONARIO, UNDE_LABORANDO, CODIGOCARGO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
-                                        VALUES
-                                        (:pId, 0, :pUser, :pIdent, 'ING', 'DESARROLLADOR', :pUser, 'DESARROLLADOR', 1, 1, 1, SYSDATE, 'SETUP')";
-                                    cmdInsUser.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
-                                    cmdInsUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
-                                    cmdInsUser.Parameters.Add(":pIdent", OracleDbType.Int64).Value = DateTime.Now.Ticks % 10000000000;
-                                    await cmdInsUser.ExecuteNonQueryAsync();
-                                }
-                            }
-
-                            using (var cmdInsRolAdmin = conn.CreateCommand())
-                            {
-                                cmdInsRolAdmin.CommandText = @"
-                                    INSERT INTO CTR_ROLES_USER_ADMIN (ID_USUARIO, ID_ROL, VIGENTE, FECHA_CREACION)
-                                    SELECT :pIdUser, 1, 1, SYSDATE FROM DUAL
-                                    WHERE NOT EXISTS (
-                                        SELECT 1 FROM CTR_ROLES_USER_ADMIN WHERE ID_USUARIO = :pIdUser AND ID_ROL = 1
-                                    )";
-                                cmdInsRolAdmin.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
-                                await cmdInsRolAdmin.ExecuteNonQueryAsync();
-                            }
-
-                            using (var cmdInsRolUser = conn.CreateCommand())
-                            {
-                                cmdInsRolUser.CommandText = @"
-                                    INSERT INTO CTR_ROLES_USER (ID_USUARIO, ID_ROL, ESTADO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
-                                    SELECT :pIdUser, 1, 1, 1, SYSDATE, 'SETUP' FROM DUAL
-                                    WHERE NOT EXISTS (
-                                        SELECT 1 FROM CTR_ROLES_USER WHERE ID_USUARIO = :pIdUser AND ID_ROL = 1
-                                    )";
-                                cmdInsRolUser.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
-                                await cmdInsRolUser.ExecuteNonQueryAsync();
-                            }
-                        }
-                    }
-                    catch (Exception exDev)
-                    {
-                        _logger.LogError(exDev, "Aviso al registrar usuario desarrollador");
-                    }
+                    Console.WriteLine($"Aviso al realizar seeding inicial en base de datos: {exSeed.Message}");
                 }
 
                 return Ok(new { success = true, message = "Configuración guardada y usuario desarrollador registrado correctamente." });
@@ -955,33 +1122,53 @@ namespace ofic.Controllers
                 using (var cmdMenu = conn.CreateCommand())
                 {
                     cmdMenu.CommandText = @"
+                        -- === NIVEL RAÍZ ===
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
                         SELECT 1, 0, 'Inicio', '/home', 'fa-solid fa-house', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 1);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 2, 0, 'Administración', '/administracion', 'fa-solid fa-gears', 2, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 2);
+                        SELECT 2, 0, 'Noticias', '/noticias', 'fa-solid fa-newspaper', 2, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 2);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 3, 2, 'Configuración', '/administracion/configuracion-sistema', 'fa-solid fa-palette', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 3);
+                        SELECT 3, 0, 'Gestión Documental', '/gestion-documental', 'fa-solid fa-folder-open', 3, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 3);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 4, 2, 'Línea de Mando', '/administracion/linea-mando', 'fa-solid fa-sitemap', 2, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 4);
+                        SELECT 4, 0, 'Administración', '/administracion', 'fa-solid fa-user-shield', 4, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 4);
+
+                        -- === HIJOS DE GESTIÓN DOCUMENTAL (id_padre = 3) ===
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 5, 3, 'Correos Electrónicos', '/gestion-documental/gestion-correos-electronicos', 'fa-solid fa-envelope', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 5);
+
+                        -- === HIJOS DE ADMINISTRACIÓN (id_padre = 4) ===
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 6, 4, 'Usuarios', '/administracion/usuarios', 'fa-solid fa-users', 1, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 6);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 5, 2, 'Personajes del Mes', '/administracion/personaje-mes', 'fa-solid fa-user-check', 3, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 5);
+                        SELECT 7, 4, 'Roles', '/administracion/roles', 'fa-solid fa-id-badge', 2, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 7);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 6, 2, 'Menú', '/administracion/menu', 'fa-solid fa-bars', 4, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 6);
+                        SELECT 8, 4, 'Menú', '/administracion/menu', 'fa-solid fa-bars', 3, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 8);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 7, 2, 'Usuarios', '/administracion/usuarios', 'fa-solid fa-users', 5, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 7);
+                        SELECT 9, 4, 'Formularios', '/administracion/formularios', 'fa-solid fa-file-alt', 4, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 9);
 
                         INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
-                        SELECT 8, 2, 'Roles', '/administracion/roles', 'fa-solid fa-user-shield', 6, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 8);
+                        SELECT 10, 4, 'Línea de Mando', '/administracion/linea-mando', 'fa-solid fa-sitemap', 5, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 10);
 
-                        -- Corregir rutas inválidas de instalaciones previas
-                        UPDATE CTR_MENU SET ruta = '/administracion/configuracion-sistema' WHERE id_menu = 3 AND ruta = '/administracion/branding';
-                        UPDATE CTR_MENU SET ruta = '/administracion/personaje-mes' WHERE id_menu = 5 AND ruta = '/administracion/personajes';
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 11, 4, 'Personajes del Mes', '/administracion/personaje-mes', 'fa-solid fa-user-check', 6, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 11);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 12, 4, 'Dominio', '/administracion/dominio', 'fa-solid fa-globe', 7, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 12);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 13, 4, 'Auditoría', '/administracion/auditoria', 'fa-solid fa-clipboard-list', 8, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 13);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 14, 4, 'Cuentas Email', '/administracion/cuentas-email', 'fa-solid fa-at', 9, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 14);
+
+                        INSERT INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado)
+                        SELECT 15, 4, 'Configuración Sistema', '/administracion/configuracion-sistema', 'fa-solid fa-gears', 10, 1 WHERE NOT EXISTS (SELECT 1 FROM CTR_MENU WHERE id_menu = 15);
                     ";
                     await cmdMenu.ExecuteNonQueryAsync();
                 }
@@ -1275,6 +1462,11 @@ namespace ofic.Controllers
         public string? Fondo1FileName { get; set; }
         public string? DevUser { get; set; }
         public string? DevPassword { get; set; }
+        public string? DevIdentificacion { get; set; }
+        public string? DevNombres { get; set; }
+        public string? DevApellidos { get; set; }
+        public string? DevEmail { get; set; }
+        public string? DevGrad { get; set; }
     }
 
     public class SetupSaveRequest : SetupTestRequest

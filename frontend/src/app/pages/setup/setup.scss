@@ -10,7 +10,7 @@
 
 .setup-card {
   width: 100%;
-  max-width: 840px;
+  max-width: 1100px;
   background: #11221c;
   border: 1px solid rgba(8, 166, 203, 0.35);
   border-radius: 16px;
@@ -90,6 +90,7 @@
         border-color: #38bdf8;
         box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
       }
+
       .step-label {
         color: #f8fafc;
         font-weight: 700;
@@ -197,6 +198,7 @@
   .border-sky {
     border-color: #38bdf8 !important;
     color: #38bdf8 !important;
+
     &:hover {
       background: rgba(56, 189, 248, 0.15) !important;
     }
@@ -222,15 +224,33 @@
     padding: 0 0.625rem;
     box-sizing: border-box;
 
-    &.ui-col-12 { flex: 0 0 100%; max-width: 100%; }
-    &.ui-col-8  { flex: 0 0 66.666667%; max-width: 66.666667%; }
-    &.ui-col-6  { flex: 0 0 50%; max-width: 50%; }
-    &.ui-col-4  { flex: 0 0 33.333333%; max-width: 33.333333%; }
+    &.ui-col-12 {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+
+    &.ui-col-8 {
+      flex: 0 0 66.666667%;
+      max-width: 66.666667%;
+    }
+
+    &.ui-col-6 {
+      flex: 0 0 50%;
+      max-width: 50%;
+    }
+
+    &.ui-col-4 {
+      flex: 0 0 33.333333%;
+      max-width: 33.333333%;
+    }
   }
 
   @media (max-width: 640px) {
     .ui-field {
-      &.ui-col-8, &.ui-col-6, &.ui-col-4 {
+
+      &.ui-col-8,
+      &.ui-col-6,
+      &.ui-col-4 {
         flex: 0 0 100%;
         max-width: 100%;
       }
@@ -269,9 +289,17 @@
       font-size: 2.5rem;
       margin-bottom: 0.85rem;
 
-      &.oracle { color: #f87171; }
-      &.postgres { color: #38bdf8; }
-      &.mysql { color: #fbbf24; }
+      &.oracle {
+        color: #f87171;
+      }
+
+      &.postgres {
+        color: #38bdf8;
+      }
+
+      &.mysql {
+        color: #fbbf24;
+      }
     }
 
     h4 {
@@ -293,8 +321,13 @@
   display: flex;
   align-items: center;
 
-  &.right { justify-content: flex-end; }
-  &.justify-between { justify-content: space-between; }
+  &.right {
+    justify-content: flex-end;
+  }
+
+  &.justify-between {
+    justify-content: space-between;
+  }
 
   .ui-btn {
     padding: 0.75rem 1.6rem;
@@ -377,4 +410,3 @@
     color: #fca5a5;
   }
 }
-

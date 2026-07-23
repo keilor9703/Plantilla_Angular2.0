@@ -18,7 +18,7 @@ namespace Negocio.Gestion
         {
             _cfg = cfg;
 
-            _key = Environment.GetEnvironmentVariable("Jwt__Key") ?? cfg["Jwt:Key"];
+            _key = (Environment.GetEnvironmentVariable("Jwt__Key") ?? cfg["Jwt:Key"])?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(_key))
             {
                 // Fallback temporal para permitir inicio en modo desarrollo / setup
@@ -29,8 +29,11 @@ namespace Negocio.Gestion
                 throw new InvalidOperationException(
                     "Jwt:Key debe tener al menos 32 caracteres.");
 
-            _issuer   = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? cfg["Jwt:Issuer"] ?? "oftic.api";
-            _audience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? cfg["Jwt:Audience"] ?? _issuer;
+            var rawIssuer = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? cfg["Jwt:Issuer"];
+            _issuer = string.IsNullOrWhiteSpace(rawIssuer) ? "oftic.api" : rawIssuer.Trim();
+
+            var rawAudience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? cfg["Jwt:Audience"];
+            _audience = string.IsNullOrWhiteSpace(rawAudience) ? _issuer : rawAudience.Trim();
         }
 
         public string CreateToken(long idUsuario, string usuario, List<long> roles)

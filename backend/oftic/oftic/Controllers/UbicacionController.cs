@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
+using Servicios.ApiInterfaz;
 
 namespace Api.Controllers
 {
@@ -10,11 +11,16 @@ namespace Api.Controllers
     public class UbicacionController : ControllerBase
     {
         private readonly IDbUbicacionService _service;
+        private readonly IApiWebToken _tokenService;
         private readonly ILogger<UbicacionController> _logger;
 
-        public UbicacionController(IDbUbicacionService service, ILogger<UbicacionController> logger)
+        public UbicacionController(
+            IDbUbicacionService service,
+            IApiWebToken tokenService,
+            ILogger<UbicacionController> logger)
         {
             _service = service;
+            _tokenService = tokenService;
             _logger = logger;
         }
 
@@ -53,6 +59,12 @@ namespace Api.Controllers
         {
             try
             {
+                var unidadesPip = await _tokenService.GetUnidadesPipAsync(CancellationToken.None);
+                if (unidadesPip != null && unidadesPip.Count > 0)
+                {
+                    return Ok(unidadesPip);
+                }
+
                 var result = await _service.GetUnidadesOrganigramaAsync(CancellationToken.None);
                 return Ok(result);
             }

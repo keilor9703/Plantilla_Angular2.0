@@ -260,7 +260,7 @@
             <select class="ui-control" [(ngModel)]="selectedUnidadConsecutivo" (change)="onUnidadChange()">
               <option [ngValue]="null">-- Seleccione una unidad --</option>
               <option *ngFor="let u of unidades" [value]="u.consecutivo">
-                {{ u.nombre }}
+                {{ u.nombre }}{{ u.siglaPapa ? ' - ' + u.siglaPapa : (u.sigla ? ' - ' + u.sigla : '') }}
               </option>
             </select>
           </div>

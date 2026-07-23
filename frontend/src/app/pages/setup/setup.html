@@ -210,7 +210,8 @@
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Generar Clave Aleatoria Segura
               </button>
             </div>
-            <input class="ui-control font-mono" type="text" [(ngModel)]="formData.jwtKey" placeholder="">
+            <input class="ui-control font-mono" type="text" [(ngModel)]="formData.jwtKey"
+              placeholder="Ej: ClaveSeguraMinimo32Caracteres_2026...">
           </div>
 
           <div class="ui-field ui-col-6">
@@ -236,23 +237,28 @@
 
       <!-- PASO 5: Usuario Desarrollador Inicial -->
       <div *ngIf="step === 5" class="step-content">
-        <h3>Paso 5: Usuario Desarrollador Inicial</h3>
-        <p class="section-desc">Ingresa el usuario institucional y contraseña del Desarrollador. El sistema los validará
-          automáticamente contra la API de autenticación <strong>OudLogin</strong> antes de continuar y le asignará el
-          Rol
-          <strong>Desarrollador (Acceso Total)</strong> en la base de datos:
+        <h3>Paso 5: Cédula del Usuario Desarrollador / Superadministrador</h3>
+        <p class="section-desc">Ingresa el número de cédula (identificación) del Desarrollador / Superadministrador. El
+          sistema consultará la información en la API institucional (PIP) e insertará sus datos reales en la base de
+          datos asignándole el Rol <strong>Desarrollador (Acceso Total)</strong>:
         </p>
 
         <div class="ui-grid">
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Usuario Desarrollador</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.devUser" placeholder="Ej: dyck.lopez">
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Número de Cédula / Identificación del Desarrollador</label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.devIdentificacion" placeholder="Ej: 80100216">
           </div>
+        </div>
 
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Contraseña Institucional (OudLogin)</label>
-            <input class="ui-control" type="password" [(ngModel)]="formData.devPassword" placeholder="Contraseña OUD">
-          </div>
+        <div *ngIf="devFuncionario" class="funcionario-info-card mt-3 p-3"
+          style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;">
+          <p style="margin-bottom: 4px; color: #4ade80;"><strong><i class="fa-solid fa-user-check"></i> Funcionario
+              Encontrado:</strong> {{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico }} {{
+            devFuncionario.nombres }} {{ devFuncionario.apellidos }}</p>
+          <p style="margin-bottom: 4px; font-size: 0.9em; opacity: 0.9;"><strong>Usuario Empresarial:</strong> {{
+            devFuncionario.usuario || devFuncionario.usuarioEmpresarial }}</p>
+          <p style="margin-bottom: 0; font-size: 0.9em; opacity: 0.8;"><strong>Cargo / Unidad:</strong> {{
+            devFuncionario.cargo }} - {{ devFuncionario.dependencia || devFuncionario.siglaLaborando }}</p>
         </div>
 
         <div *ngIf="testResult && step === 5" class="alert-box mt-3" [class.success]="testResult.success"
@@ -269,7 +275,7 @@
           <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="testing" (click)="nextStep()">
             <i class="fa-solid" [class.fa-arrow-right]="!testing" [class.fa-spinner]="testing"
               [class.fa-spin]="testing"></i>
-            {{ testing ? 'Validando OUD...' : 'Validar en OUD y Siguiente' }}
+            {{ testing ? 'Consultando PIP...' : 'Consultar PIP y Siguiente' }}
           </button>
         </div>
       </div>
@@ -296,14 +302,15 @@
             <label class="ui-label">Unidad Policial (Organigrama)</label>
             <select class="ui-control" (change)="onUnidadChange($event)" [value]="formData.unidadSistemaId">
               <option [value]="0">-- Seleccione una Unidad --</option>
-              <option *ngFor="let u of unidadesList" [value]="u.idOrganigrama || u.id">
-                {{ u.sigla ? u.sigla + ' - ' : '' }}{{ u.nombre || u.nombreUnidad }}
+              <option *ngFor="let u of unidadesList" [value]="u.consecutivo || u.idOrganigrama || u.id">
+                {{ u.nombre || u.descripcionDependencia || u.nombreUnidad }}{{ u.siglaPapa ? ' - ' + u.siglaPapa :
+                (u.sigla ? ' - ' + u.sigla : '') }}
               </option>
             </select>
           </div>
 
           <div class="ui-field ui-col-6">
-            <label class="ui-label">Sigla / Nombre Corto de la Unidad</label>
+            <label class="ui-label">Sigla Sistema</label>
             <input class="ui-control" type="text" [(ngModel)]="formData.sigla" placeholder="Ej: OFTIC">
           </div>
 

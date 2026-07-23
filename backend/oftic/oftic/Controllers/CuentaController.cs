@@ -19,6 +19,7 @@ namespace ofic.Controllers
         private readonly IApiWebOud _apiWebOud;
         private readonly IJwtService _jwtService;
         private readonly IDbAuthRepository _dbAuthRepository;
+        private readonly IDbUsuarioRepository _dbUsuarioRepository;
         private readonly ILogger<CuentaController> _logger;
         private readonly IWebHostEnvironment _env;
         private readonly IConfiguration _configuration;
@@ -28,6 +29,7 @@ namespace ofic.Controllers
             IApiWebOud apiWebOud,
             IJwtService jwtService,
             IDbAuthRepository dbAuthRepository,
+            IDbUsuarioRepository dbUsuarioRepository,
             ILogger<CuentaController> logger,
             IWebHostEnvironment env,
             IConfiguration configuration)
@@ -35,6 +37,7 @@ namespace ofic.Controllers
             _apiWebOud = apiWebOud;
             _jwtService = jwtService;
             _dbAuthRepository = dbAuthRepository;
+            _dbUsuarioRepository = dbUsuarioRepository;
             _logger = logger;
             _env = env;
             _configuration = configuration;
@@ -59,27 +62,12 @@ namespace ofic.Controllers
                     });
                 }
 
-                // Validar contra la base de datos Oracle (ctr_usuarios)
-                var (idUsuario, roles) = await _dbAuthRepository.GetUsuarioYRolesAsync(request.Usuario, CancellationToken.None);
-
-                _logger.LogInformation("User {Usuario} - idUsuario: {id}, roles: {roles}", request.Usuario, idUsuario, roles?.Count);
-
-                if (idUsuario is null)
-                {
-                    return Unauthorized(new DtoTokenResponse
-                    {
-                        success = false,
-                        message = "Usuario o contraseña incorrectos"
-                    });
-                }
-
                 var validateOudInDevelopment = _configuration.GetValue<bool>("Auth:ValidateOudInDevelopment");
                 var shouldValidateExternal = !_env.IsDevelopment() || validateOudInDevelopment;
 
-                // Validación de credenciales contra API externa (OUD/PIP)
+                // 1. Validación de credenciales en OUD / PIP si aplica
                 if (shouldValidateExternal)
                 {
-                    // Flujo SISGE: token técnico (AuthHeaderHandler) + validación OUD con usuario/contraseña.
                     var externalOk = await _apiWebOud.ValidarCredencialesAsync(
                         request.Usuario,
                         request.Contrasena,
@@ -87,21 +75,29 @@ namespace ofic.Controllers
 
                     if (!externalOk)
                     {
+                        _logger.LogWarning("Validación OUD fallida para usuario: {Usuario}", request.Usuario);
                         return Unauthorized(new DtoTokenResponse
                         {
                             success = false,
                             message = "Usuario o contraseña incorrectos"
                         });
                     }
-
                 }
-                else
+
+                // 2. Obtener idUsuario y roles desde la BD local
+                var (idUsuario, roles) = await _dbAuthRepository.GetUsuarioYRolesAsync(request.Usuario, CancellationToken.None);
+
+                _logger.LogInformation("User {Usuario} - idUsuario: {id}, roles: {roles}", request.Usuario, idUsuario, roles?.Count);
+
+                if (idUsuario is null)
                 {
-                    _logger.LogWarning("MODO DESARROLLO: Validación OUD deshabilitada por configuración");
+                    // Auto-aprovisionar usuario autenticado si aún no existe en la base de datos local
+                    idUsuario = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(request.Usuario.Trim(), request.Usuario.Trim(), CancellationToken.None);
+                    roles = new List<long> { 1 };
                 }
 
-                // Generar token JWT local con los roles de la DB
-                var jwtToken = _jwtService.CreateToken(idUsuario.Value, request.Usuario, roles ?? new List<long>());
+                // 3. Generar token JWT local
+                var jwtToken = _jwtService.CreateToken(idUsuario.Value, request.Usuario, roles ?? new List<long> { 1 });
 
                 return Ok(new DtoTokenResponse
                 {
@@ -121,7 +117,6 @@ namespace ofic.Controllers
                 });
             }
         }
-
         [HttpPost("Impersonate")]
         [Authorize]
         public async Task<IActionResult> Impersonate([FromBody] DtoImpersonateRequest request)

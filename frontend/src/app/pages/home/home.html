@@ -1,5 +1,67 @@
 <main class="content-area">
   <section class="view-container">
+    <!-- Banner Slider (Estilo SICOE) -->
+    <div class="slider-wrapper" *ngIf="slidersPublicos && slidersPublicos.length > 0">
+      <div class="main-slider"
+        #mainSlider
+        [class.is-dragging]="sliderIsDragging"
+        (mousedown)="onSliderDragStart($event)"
+        (mousemove)="onSliderDragMove($event)"
+        (mouseup)="onSliderDragEnd($event)"
+        (mouseleave)="onSliderDragCancel()">
+        <div
+          class="slide-item"
+          *ngFor="let banner of slidersPublicos; let i = index; trackBy: trackBySlider"
+          [class.active]="i === currentPublicSliderIndex"
+          [class.has-link]="!!banner.redireccionUrl"
+          [class.is-drag-neighbor]="i === sliderNeighborIndex"
+          [style.transform]="getSlideItemTransform(i)"
+          [style.transition]="sliderIsDragging ? 'none' : null"
+          (click)="openBannerLink(banner)"
+          (mousemove)="onSlideMouseMove($event, banner)"
+          (mouseleave)="onSlideMouseLeave()"
+          (dragstart)="$event.preventDefault()">
+          <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
+          <div class="slide-overlay"></div>
+          <div class="slide-content">
+            <span class="badge">{{ getBannerTitle(banner) }}</span>
+            <p *ngIf="banner.descripcion">{{ banner.descripcion }}</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="slider-nav-btn slider-nav-btn--prev"
+          (click)="prevPublicSlide(); $event.stopPropagation()"
+          aria-label="Banner anterior"
+          *ngIf="slidersPublicos.length > 1">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button
+          type="button"
+          class="slider-nav-btn slider-nav-btn--next"
+          (click)="nextPublicSlide(); $event.stopPropagation()"
+          aria-label="Banner siguiente"
+          *ngIf="slidersPublicos.length > 1">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+
+        <div class="slider-controls" *ngIf="slidersPublicos.length > 1">
+          <button
+            type="button"
+            *ngFor="let _ of slidersPublicos; let i = index; trackBy: trackBySlider"
+            [class.slideractive]="i === currentPublicSliderIndex"
+            (click)="goToPublicSlide(i); $event.stopPropagation()"
+            [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cursor tooltip Ver más -->
+    <div class="cursor-dot-verde" *ngIf="showSliderCursor"
+      [style.left.px]="cursorX"
+      [style.top.px]="cursorY"></div>
+
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
@@ -304,6 +366,15 @@
       </div>
     </div>
     <div class="ui-modal__foot">
+      <button 
+        class="news-like" 
+        type="button" 
+        (click)="selectedNews && likeNoticia(selectedNews, $event)" 
+        [disabled]="selectedNews && hasLiked(selectedNews.id)" 
+        title="Me gusta"
+      >
+        <i class="fa-solid fa-heart" [class.liked]="selectedNews && hasLiked(selectedNews.id)"></i> {{ selectedNews?.megusta || 0 }}
+      </button>
       <button class="ui-btn outline" type="button" (click)="closeNews()">Cerrar</button>
     </div>
   </div>
@@ -386,6 +457,36 @@
           <div class="cmd-lightbox__role">{{ getLineaMandoCargoDisplay(current) }}</div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Vigente PIP (Pop-up de Inicio) -->
+<div class="ui-modal ui-modal--vigente" *ngIf="modalVigenteOpen" (click)="closeModalVigente()">
+  <div class="ui-modal__dialog ui-modal__dialog--vigente" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <button class="ui-modal__close-btn" type="button" (click)="closeModalVigente()" aria-label="Cerrar aviso">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="modal-vigente__body" *ngIf="currentModalVigente as modal">
+      <a [href]="modal.redireccionUrl" *ngIf="modal.redireccionUrl; else noLinkImg" target="_blank" rel="noopener noreferrer" class="modal-vigente__link">
+        <img [src]="modal.imagenUrl" [alt]="modal.titulo || 'Aviso institucional'" class="modal-vigente__img" (error)="onModalImageError($event)" />
+      </a>
+      <ng-template #noLinkImg>
+        <img [src]="modal.imagenUrl" [alt]="modal.titulo || 'Aviso institucional'" class="modal-vigente__img" (error)="onModalImageError($event)" />
+      </ng-template>
+      <div class="modal-vigente__info" *ngIf="modal.titulo || modal.subtitulo">
+        <h3 class="modal-vigente__title" *ngIf="modal.titulo">{{ modal.titulo }}</h3>
+        <p class="modal-vigente__desc" *ngIf="modal.subtitulo">{{ modal.subtitulo }}</p>
+      </div>
+    </div>
+    <div class="modal-vigente__nav" *ngIf="modalesVigentes.length > 1">
+      <button type="button" class="nav-btn prev" (click)="prevModalVigente()" aria-label="Anterior aviso">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      <span class="nav-counter">{{ currentModalVigenteIndex + 1 }} / {{ modalesVigentes.length }}</span>
+      <button type="button" class="nav-btn next" (click)="nextModalVigente()" aria-label="Siguiente aviso">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
     </div>
   </div>
 </div>

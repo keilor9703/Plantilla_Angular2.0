@@ -22,6 +22,10 @@ export interface DtoUnidadOrg {
   consecutivo: number;
   sigla: string;
   nombre: string;
+  siglaPapa?: string;
+  descripcionDependencia?: string;
+  vigente?: string;
+  direccion?: string;
 }
 
 @Injectable({ providedIn: 'root' })

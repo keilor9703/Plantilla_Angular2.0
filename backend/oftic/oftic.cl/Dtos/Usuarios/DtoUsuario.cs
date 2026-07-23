@@ -21,6 +21,7 @@ namespace Comun.Dtos
         public string? cargo { get; set; }
         public string? tiempoServicio { get; set; }
         public string? gradAlfabetico { get; set; }
+        public string? funcionario { get; set; }
         public string? funcionarioCodigo { get; set; }
         public string? undeLaborandoCodigo { get; set; }
         public string? codigoCargo { get; set; }

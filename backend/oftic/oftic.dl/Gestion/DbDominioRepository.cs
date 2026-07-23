@@ -18,36 +18,96 @@ namespace Datos.Gestion
     public class DbDominioRepository: IDbDominioRepository
     {
         private readonly string _cs;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<DbDominioRepository> _logger;
 
         public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger)
         {
             _cs = configuration.GetDecryptedConnectionString();
+            _configuration = configuration;
             _logger = logger;
         }
 
         public async Task<List<DtoDominio>> GetAllAsync(CancellationToken ct)
         {
             var result = new List<DtoDominio>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandTimeout = 30;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.P_GET_ALL_DOMINIO";
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            
-            while (await reader.ReadAsync(ct))
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
             {
-                result.Add(MapDominio(reader));
+                using var conn = new MySqlConnector.MySqlConnection(_cs);
+                await conn.OpenAsync(ct);
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT id_dominio, descripcion, id_padre, abreviatura, observacion, vigente FROM CTR_DOMINIO WHERE vigente = 1 ORDER BY id_dominio";
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new DtoDominio
+                    {
+                        IdDominio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                        Descripcion = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        IdPadre = reader.IsDBNull(2) ? 0 : Convert.ToInt64(reader.GetValue(2)),
+                        Abreviatura = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                        Observacion = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                        Vigente = reader.IsDBNull(5) ? 1 : Convert.ToInt32(reader.GetValue(5))
+                    });
+                }
+                return result;
             }
 
-            return result;
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                using var conn = new Npgsql.NpgsqlConnection(_cs);
+                await conn.OpenAsync(ct);
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT id_dominio, descripcion, id_padre, abreviatura, observacion, vigente FROM ctr_dominio WHERE vigente = 1 ORDER BY id_dominio";
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new DtoDominio
+                    {
+                        IdDominio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                        Descripcion = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        IdPadre = reader.IsDBNull(2) ? 0 : Convert.ToInt64(reader.GetValue(2)),
+                        Abreviatura = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                        Observacion = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                        Vigente = reader.IsDBNull(5) ? 1 : Convert.ToInt32(reader.GetValue(5))
+                    });
+                }
+                return result;
+            }
+
+            await using var oracleConn = new OracleConnection(_cs);
+            await oracleConn.OpenAsync(ct);
+
+            try
+            {
+                await using var cmd = oracleConn.CreateCommand();
+                cmd.CommandTimeout = 30;
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PK_ADMINISTRACION.P_GET_ALL_DOMINIO";
+                cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(MapDominio(reader));
+                }
+                return result;
+            }
+            catch
+            {
+                result.Clear();
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.CommandText = "SELECT ID_DOMINIO, DESCRIPCION, ID_PADRE, ABREVIATURA, OBSERVACION, VIGENTE FROM CTR_DOMINIO WHERE VIGENTE = 1 ORDER BY ID_DOMINIO";
+                await using var reader = await cmdQuery.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(MapDominio(reader));
+                }
+                return result;
+            }
         }
 
         public async Task<List<DtoUnidad>> GetUnidadesAsync(CancellationToken ct)

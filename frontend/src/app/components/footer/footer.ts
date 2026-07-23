@@ -2,6 +2,14 @@ import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BrandingService } from '../../core/services/administracion/branding.service';
+import { DtoRadioEmisora, RadioService } from '../../core/services/administracion/radio.service';
+
+interface FooterStation {
+  id: string;
+  name: string;
+  url: string;
+  logoUrl?: string | null;
+}
 
 @Component({
   selector: 'app-footer',
@@ -13,9 +21,15 @@ import { BrandingService } from '../../core/services/administracion/branding.ser
 export class FooterComponent implements OnInit, OnDestroy {
   systemName = 'OFTIC';
   systemDisplayName = 'Sistema de gestion de Policia';
+  isPlaying = false;
+  errorMessage = '';
+  selectedStation = '';
+  private audio: HTMLAudioElement | null = null;
 
   supportOpen = false;
   policyOpen = false;
+
+  stations: FooterStation[] = [];
 
   supportForm = {
     tipo: 'Incidente (error)',
@@ -27,12 +41,16 @@ export class FooterComponent implements OnInit, OnDestroy {
   };
 
   constructor(
-    private brandingService: BrandingService
+    private brandingService: BrandingService,
+    private radioService: RadioService
   ) {
     this.loadBranding();
+    this.initAudio();
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.loadStations();
+  }
 
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
@@ -46,6 +64,112 @@ export class FooterComponent implements OnInit, OnDestroy {
         this.systemName = 'OFTIC';
         this.systemDisplayName = 'Sistema de gestion de Policia';
       }
+    });
+  }
+
+  private loadStations(): void {
+    this.radioService.getPublicas().subscribe({
+      next: (data) => {
+        const mapped = (data ?? [])
+          .map((x, idx) => this.mapStation(x, idx))
+          .filter((x) => !!x.url);
+
+        this.stations = mapped;
+        this.selectedStation = this.stations[0]?.id ?? '';
+
+        if (this.audio && this.currentStationUrl) {
+          this.audio.src = this.currentStationUrl;
+        }
+      },
+      error: (err) => {
+        console.warn('Error consultando emisoras PIP:', err);
+        this.stations = [];
+        this.selectedStation = '';
+        this.errorMessage = 'No fue posible cargar emisoras activas.';
+      }
+    });
+  }
+
+  get currentStationUrl(): string {
+    const station = this.stations.find((s) => s.id === this.selectedStation);
+    return station?.url ?? '';
+  }
+
+  get currentStationName(): string {
+    const station = this.stations.find((s) => s.id === this.selectedStation);
+    return station?.name ?? 'Sin emisora';
+  }
+
+  get currentStationLogo(): string {
+    const station = this.stations.find((s) => s.id === this.selectedStation);
+    return (station?.logoUrl ?? '').trim() || 'imagenes/radio-policia-bogota.svg';
+  }
+
+  get currentStationLabel(): string {
+    return `Radio Policía - ${this.currentStationName}`;
+  }
+
+  onLogoError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('imagenes/radio-policia-bogota.svg')) {
+      img.src = 'imagenes/radio-policia-bogota.svg';
+    }
+  }
+
+  private initAudio(): void {
+    this.audio = new Audio();
+    this.audio.volume = 0.75;
+
+    this.audio.addEventListener('playing', () => {
+      this.isPlaying = true;
+      this.errorMessage = '';
+    });
+
+    this.audio.addEventListener('pause', () => {
+      this.isPlaying = false;
+    });
+
+    this.audio.addEventListener('error', () => {
+      this.isPlaying = false;
+      this.errorMessage = 'No se pudo conectar con la radio.';
+    });
+
+    this.audio.addEventListener('ended', () => {
+      this.isPlaying = false;
+    });
+  }
+
+  onStationChange(): void {
+    if (!this.audio || !this.currentStationUrl) return;
+
+    const wasPlaying = this.isPlaying;
+    this.audio.pause();
+    this.audio.src = this.currentStationUrl;
+    this.isPlaying = false;
+
+    if (wasPlaying) {
+      this.audio.play().catch(() => {
+        this.errorMessage = 'No se pudo reproducir esta emisora.';
+      });
+    }
+  }
+
+  togglePlay(): void {
+    if (!this.audio) return;
+
+    if (!this.currentStationUrl) {
+      this.errorMessage = 'No hay emisoras activas configuradas.';
+      return;
+    }
+
+    if (this.isPlaying) {
+      this.audio.pause();
+      return;
+    }
+
+    this.errorMessage = '';
+    this.audio.play().catch(() => {
+      this.errorMessage = 'No se pudo iniciar la radio.';
     });
   }
 
@@ -114,8 +238,21 @@ export class FooterComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = '';
+      this.audio = null;
+    }
+
     document.body.classList.remove('ui-modal-open');
   }
+
+  private mapStation(item: DtoRadioEmisora, index: number): FooterStation {
+    return {
+      id: String(item.idEmisora ?? index + 1),
+      name: (item.nombre ?? '').trim() || `Emisora ${index + 1}`,
+      url: (item.streamUrl ?? '').trim(),
+      logoUrl: item.logoUrl ?? null
+    };
+  }
 }
-
-

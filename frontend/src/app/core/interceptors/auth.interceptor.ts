@@ -14,7 +14,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   const baseReq = req.clone({ withCredentials: true });
 
-  if (req.url.includes('/Cuenta/Refresh')) {
+  if (req.url.includes('/Cuenta/Refresh') || req.url.includes('/Cuenta/Token') || req.url.includes('/setup/')) {
     return next(baseReq);
   }
 

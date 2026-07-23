@@ -1,4 +1,5 @@
 using Comun.Dtos.LineasMando;
+using Comun.Extensions;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -15,34 +16,95 @@ namespace Datos.Gestion
     public class DbLineaMandoRepository : IDbLineaMandoRepository
     {
         private readonly string _cs;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<DbLineaMandoRepository> _logger;
 
         public DbLineaMandoRepository(IConfiguration configuration, ILogger<DbLineaMandoRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbConnection")!;
+            _cs = configuration.GetDecryptedConnectionString();
+            _configuration = configuration;
             _logger = logger;
         }
 
         public async Task<List<DtoLineaMando>> GetAllAsync(CancellationToken ct)
         {
             var result = new List<DtoLineaMando>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            const string selectSql = @"
+                SELECT id_linea_mando, identificacion, nombre, apellidos, grado, cargo, unidad, foto_base64, orden, vigente, peso
+                FROM ctr_linea_mando
+                WHERE vigente = 1
+                ORDER BY orden, id_linea_mando";
 
-            await using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_LINEA_MANDO.P_GET_ALL";
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
             {
-                result.Add(MapLineaMando(reader));
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = selectSql;
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                        result.Add(MapLineaMandoGeneric(reader));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudo consultar línea de mando en MySQL. Se retorna lista vacía.");
+                }
+                return result;
             }
 
-            return result;
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = selectSql;
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                        result.Add(MapLineaMandoGeneric(reader));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudo consultar línea de mando en PostgreSQL. Se retorna lista vacía.");
+                }
+                return result;
+            }
+
+            await using var oracleConn = new OracleConnection(_cs);
+            await oracleConn.OpenAsync(ct);
+
+            try
+            {
+                await using var cmd = oracleConn.CreateCommand();
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PKG_LINEA_MANDO.P_GET_ALL";
+                cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                await using var readerSp = await cmd.ExecuteReaderAsync(ct);
+                while (await readerSp.ReadAsync(ct))
+                {
+                    result.Add(MapLineaMando(readerSp));
+                }
+                return result;
+            }
+            catch
+            {
+                result.Clear();
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.CommandText = selectSql;
+                await using var readerQuery = await cmdQuery.ExecuteReaderAsync(ct);
+                while (await readerQuery.ReadAsync(ct))
+                {
+                    result.Add(MapLineaMandoGeneric(readerQuery));
+                }
+                return result;
+            }
         }
 
         public async Task<DtoLineaMando?> GetByIdAsync(long id, CancellationToken ct)
@@ -513,6 +575,24 @@ namespace Datos.Gestion
             }
 
             return result;
+        }
+
+        private static DtoLineaMando MapLineaMandoGeneric(System.Data.Common.DbDataReader reader)
+        {
+            return new DtoLineaMando
+            {
+                IdLineaMando = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                Identificacion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                Nombre = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                Apellidos = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                Grado = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                Cargo = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                Unidad = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                FotoBase64 = reader.IsDBNull(7) ? null : reader.GetString(7),
+                Orden = reader.IsDBNull(8) ? 1 : Convert.ToInt32(reader.GetValue(8)),
+                Vigente = reader.IsDBNull(9) ? 1 : Convert.ToInt32(reader.GetValue(9)),
+                Peso = reader.FieldCount > 10 && !reader.IsDBNull(10) ? reader.GetString(10) : string.Empty
+            };
         }
 
         private static DtoLineaMando MapLineaMando(OracleDataReader reader)

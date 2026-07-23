@@ -1,7 +1,7 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { HomeService, HomeStats } from '../../core/services/home.service';
+import { HomeService, HomeStats, DtoSliderPublico, DtoModalVigente } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
@@ -15,7 +15,7 @@ type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 interface NewsItem {
   id: number;
   date: string;
-  tag: NewsTag;
+  tag: string;
   title: string;
   lead: string;     
   content: string;  
@@ -32,6 +32,10 @@ interface NewsItem {
   styleUrls: ['./home.scss'],
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  // --- Modales Vigentes (PIP) Pop-up ---
+  modalesVigentes: DtoModalVigente[] = [];
+  modalVigenteOpen = false;
+  currentModalVigenteIndex = 0;
   // Slider de grupos de alto rendimiento
   grupoSliderIndex: number = 0;
   grupoSliderTimer: any = null;
@@ -123,16 +127,31 @@ export class HomeComponent implements OnInit, OnDestroy {
     reportesGenerados: 0,
     alertasSistema: 0
   };
-  showCursorVerMas = false;
-  showSliderCursor = false;
-  cursorX = 0;
-  cursorY = 0;
   videoUnidadUrl = '';
   lineaMando: DtoLineaMando[] = [];
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
   personajesMes: DtoPersonajeMes[] = [];
   equiposAltoRendimiento: any[] = [];
+
+  // --- Sliders Públicos Institucionales (PIP) ---
+  slidersPublicos: DtoSliderPublico[] = [];
+  currentPublicSliderIndex: number = 0;
+  publicSliderTimer: any = null;
+  isPublicSliderPaused: boolean = false;
+
+  // --- Banner drag (mouse) y cursor (SICOE) ---
+  sliderIsDragging = false;
+  sliderDragOffset = 0;
+  sliderNeighborIndex = -1;
+  private sliderDragStartX = 0;
+  private sliderDragMoved = false;
+  private readonly DRAG_THRESHOLD = 50;
+  showSliderCursor = false;
+  showCursorVerMas = false;
+  cursorX = 0;
+  cursorY = 0;
+  @ViewChild('mainSlider') mainSliderRef!: ElementRef<HTMLDivElement>;
 
   // --- Agrupación y slider de personajes del mes por categoría ---
   personajesMesPorCategoria: { categoria: string, items: DtoPersonajeMes[] }[] = [];
@@ -247,6 +266,12 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Inicializar con sliders de plantilla mientras responde la API
+    this.slidersPublicos = this.getFallbackSliders();
+    this.startPublicSliderAutoPlay();
+
+    this.loadSlidersPublicos();
+    this.loadModalesVigentes();
     this.loadStats();
     this.loadVideoUnidad();
     this.loadLineaMando();
@@ -256,8 +281,256 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadCategoriasPersonajeMes();
   }
 
+  loadModalesVigentes(): void {
+    this.homeService.getModalesVigentes().subscribe({
+      next: (items) => {
+        const active = (items ?? []).filter((m) => Number(m.vigente ?? 1) === 1 && !!m.imagenUrl);
+        if (active.length > 0) {
+          this.modalesVigentes = active;
+          this.currentModalVigenteIndex = 0;
+          this.modalVigenteOpen = true;
+          this.syncBodyModalClass();
+        }
+      },
+      error: (err) => {
+        console.warn('Error consultando modales vigentes PIP:', err);
+      }
+    });
+  }
 
+  get currentModalVigente(): DtoModalVigente | null {
+    if (!this.modalesVigentes || this.modalesVigentes.length === 0) return null;
+    return this.modalesVigentes[this.currentModalVigenteIndex] ?? null;
+  }
 
+  closeModalVigente(): void {
+    this.modalVigenteOpen = false;
+    this.syncBodyModalClass();
+  }
+
+  nextModalVigente(): void {
+    if (!this.modalesVigentes || this.modalesVigentes.length <= 1) return;
+    this.currentModalVigenteIndex = (this.currentModalVigenteIndex + 1) % this.modalesVigentes.length;
+  }
+
+  prevModalVigente(): void {
+    if (!this.modalesVigentes || this.modalesVigentes.length <= 1) return;
+    this.currentModalVigenteIndex = (this.currentModalVigenteIndex - 1 + this.modalesVigentes.length) % this.modalesVigentes.length;
+  }
+
+  onModalImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.style.display = 'none';
+    }
+  }
+
+  loadSlidersPublicos(): void {
+    this.homeService.getSlidersPublicos().subscribe({
+      next: (items) => {
+        const active = (items ?? []).filter((s) => s.activo !== false);
+        if (active.length > 0) {
+          this.slidersPublicos = active;
+        } else {
+          this.slidersPublicos = this.getFallbackSliders();
+        }
+        this.currentPublicSliderIndex = 0;
+        this.startPublicSliderAutoPlay();
+      },
+      error: (err) => {
+        console.warn('No se pudo consultar el servicio PIP de sliders públicos. Utilizando banners por defecto:', err);
+        this.slidersPublicos = this.getFallbackSliders();
+        this.currentPublicSliderIndex = 0;
+        this.startPublicSliderAutoPlay();
+      }
+    });
+  }
+
+  private getFallbackSliders(): DtoSliderPublico[] {
+    return [
+      {
+        id: 1,
+        titulo: 'Sistema de Gestión Especializada - SISGE',
+        descripcion: 'Plataforma institucional estandarizada para la Policía Nacional de Colombia.',
+        imagenUrl: 'banner/banner1.jpg',
+        orden: 1,
+        activo: true
+      },
+      {
+        id: 2,
+        titulo: 'Transformación Digital OFTIC',
+        descripcion: 'Innovación tecnológica y soluciones digitales al servicio de la institución.',
+        imagenUrl: 'banner/banner2.jpg',
+        orden: 2,
+        activo: true
+      },
+      {
+        id: 3,
+        titulo: 'Compromiso y Excelencia Policial',
+        descripcion: 'Garantizando la seguridad y la convivencia con altos estándares de calidad.',
+        imagenUrl: 'banner/banner3.jpg',
+        orden: 3,
+        activo: true
+      }
+    ];
+  }
+
+  onImageError(event: Event, item: DtoSliderPublico): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('banner/banner1.jpg')) {
+      img.src = 'banner/banner1.jpg';
+    }
+  }
+
+  startPublicSliderAutoPlay(): void {
+    this.stopPublicSliderAutoPlay();
+    if (!this.slidersPublicos || this.slidersPublicos.length <= 1) return;
+    this.publicSliderTimer = setInterval(() => {
+      if (!this.isPublicSliderPaused) {
+        this.nextPublicSlide();
+      }
+    }, 5000);
+  }
+
+  stopPublicSliderAutoPlay(): void {
+    if (this.publicSliderTimer) {
+      clearInterval(this.publicSliderTimer);
+      this.publicSliderTimer = null;
+    }
+  }
+
+  nextPublicSlide(): void {
+    if (!this.slidersPublicos || this.slidersPublicos.length <= 1) return;
+    this.currentPublicSliderIndex = (this.currentPublicSliderIndex + 1) % this.slidersPublicos.length;
+  }
+
+  prevPublicSlide(): void {
+    if (!this.slidersPublicos || this.slidersPublicos.length <= 1) return;
+    this.currentPublicSliderIndex = (this.currentPublicSliderIndex - 1 + this.slidersPublicos.length) % this.slidersPublicos.length;
+  }
+
+  goToPublicSlide(index: number): void {
+    if (!this.slidersPublicos || index < 0 || index >= this.slidersPublicos.length) return;
+    this.currentPublicSliderIndex = index;
+    this.startPublicSliderAutoPlay();
+  }
+
+  pausePublicSlider(): void {
+    this.isPublicSliderPaused = true;
+  }
+
+  resumePublicSlider(): void {
+    this.isPublicSliderPaused = false;
+  }
+
+  // --- Métodos del Slider con Arrastre (Estilo SICOE) ---
+  onSliderDragStart(e: MouseEvent): void {
+    e.preventDefault();
+    this.sliderDragStartX = e.clientX;
+    this.sliderIsDragging = true;
+    this.sliderDragMoved = false;
+    this.sliderDragOffset = 0;
+    this.sliderNeighborIndex = -1;
+    this.stopPublicSliderAutoPlay();
+  }
+
+  onSliderDragMove(e: MouseEvent): void {
+    if (!this.sliderIsDragging) return;
+    const delta = e.clientX - this.sliderDragStartX;
+    if (Math.abs(delta) > 5) {
+      this.sliderDragMoved = true;
+    }
+    this.sliderDragOffset = delta;
+    if (this.slidersPublicos.length > 1) {
+      if (delta < 0) {
+        this.sliderNeighborIndex = (this.currentPublicSliderIndex + 1) % this.slidersPublicos.length;
+      } else if (delta > 0) {
+        this.sliderNeighborIndex = (this.currentPublicSliderIndex - 1 + this.slidersPublicos.length) % this.slidersPublicos.length;
+      }
+    }
+  }
+
+  onSliderDragEnd(e: MouseEvent): void {
+    if (!this.sliderIsDragging) return;
+    const delta = e.clientX - this.sliderDragStartX;
+    this.sliderIsDragging = false;
+    this.sliderDragOffset = 0;
+    this.sliderNeighborIndex = -1;
+    if (Math.abs(delta) >= this.DRAG_THRESHOLD && this.slidersPublicos.length > 1) {
+      if (delta < 0) {
+        this.currentPublicSliderIndex = (this.currentPublicSliderIndex + 1) % this.slidersPublicos.length;
+      } else {
+        this.currentPublicSliderIndex = (this.currentPublicSliderIndex - 1 + this.slidersPublicos.length) % this.slidersPublicos.length;
+      }
+    }
+    this.startPublicSliderAutoPlay();
+  }
+
+  onSliderDragCancel(): void {
+    if (this.sliderIsDragging) {
+      this.sliderIsDragging = false;
+      this.sliderDragOffset = 0;
+      this.sliderNeighborIndex = -1;
+      this.startPublicSliderAutoPlay();
+    }
+  }
+
+  getSlideItemTransform(i: number): string | null {
+    if (!this.sliderIsDragging) return null;
+    const w = this.mainSliderRef?.nativeElement?.offsetWidth ?? 800;
+    if (i === this.currentPublicSliderIndex) {
+      return `translateX(${this.sliderDragOffset}px)`;
+    }
+    if (i === this.sliderNeighborIndex) {
+      const base = this.sliderDragOffset < 0 ? w : -w;
+      return `translateX(${base + this.sliderDragOffset}px)`;
+    }
+    return null;
+  }
+
+  onSlideMouseMove(e: MouseEvent, banner: DtoSliderPublico): void {
+    this.cursorX = e.clientX;
+    this.cursorY = e.clientY;
+    this.showSliderCursor = true;
+    this.showCursorVerMas = !!banner.redireccionUrl;
+  }
+
+  onSlideMouseLeave(): void {
+    this.showCursorVerMas = false;
+    this.showSliderCursor = false;
+  }
+
+  openBannerLink(item: DtoSliderPublico): void {
+    if (this.sliderDragMoved) {
+      this.sliderDragMoved = false;
+      return;
+    }
+    const url = (item.redireccionUrl ?? '').trim();
+    if (!url) {
+      return;
+    }
+
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    window.location.href = url.startsWith('/') ? url : `/${url}`;
+  }
+
+  getBannerTitle(item: DtoSliderPublico): string {
+    const title = (item.titulo ?? '').trim();
+    return title || 'SISGE';
+  }
+
+  getBannerImageUrl(item: DtoSliderPublico): string {
+    const raw = (item.imagenUrl ?? '').trim();
+    return raw || 'banner/banner1.jpg';
+  }
+
+  trackBySlider(_: number, item: DtoSliderPublico): number {
+    return item.id;
+  }
 
   loadNoticias(): void {
     this.noticiaService.getActivas().subscribe({
@@ -290,16 +563,16 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private getNoticiaImageUrl(raw: string): string {
-    if (!raw) return '';
+    if (!raw) return 'imagenes/actividades/news2.jpg';
     if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/') || raw.startsWith('data:')) return raw;
     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
-    return fileName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
+    return fileName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/actividades/news2.jpg';
   }
 
   private getNoticiaImageUrls(imagenNoticia: string | null | undefined): string[] {
     const raw = (imagenNoticia ?? '').trim();
     if (!raw) {
-      return [];
+      return ['imagenes/actividades/news2.jpg'];
     }
 
     const parts = raw
@@ -311,19 +584,20 @@ export class HomeComponent implements OnInit, OnDestroy {
       .map((x) => this.getNoticiaImageUrl(x))
       .filter(Boolean);
 
-    return urls.length > 0 ? urls : [];
+    return urls.length > 0 ? urls : ['imagenes/actividades/news2.jpg'];
   }
 
-  private mapSeccionToTag(seccion: string): NewsTag {
-    switch (seccion.toLowerCase()) {
-      case 'comunicado': return 'Comunicado';
-      case 'servicio': return 'Servicio';
-      case 'importante': return 'Importante';
-      default: return 'Comunicado';
-    }
+  private mapSeccionToTag(seccion: string): string {
+    if (!seccion) return 'Comunicado';
+    const lower = seccion.toLowerCase();
+    if (lower.includes('comunicado')) return 'Comunicado';
+    if (lower.includes('servicio')) return 'Servicio';
+    if (lower.includes('importante')) return 'Importante';
+    return seccion.charAt(0).toUpperCase() + seccion.slice(1);
   }
 
    ngOnDestroy(): void {
+     this.stopPublicSliderAutoPlay();
      if (this.grupoSliderTimer) {
       clearInterval(this.grupoSliderTimer);
       this.grupoSliderTimer = null;
@@ -507,7 +781,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen) {
+    if (this.modalVigenteOpen || this.newsModalOpen || this.lineaMandoLightboxOpen || this.personajeMesLightboxOpen || this.grupoLightboxOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }

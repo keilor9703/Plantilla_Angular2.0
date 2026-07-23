@@ -19,6 +19,8 @@ export class SetupComponent implements OnInit {
   logoPreview: string | null = null;
   faviconPreview: string | null = null;
 
+  devFuncionario: any = null;
+
   formData: SetupTestRequest = {
     provider: 'Oracle',
     host: '',
@@ -29,7 +31,7 @@ export class SetupComponent implements OnInit {
     connectionStringRaw: '',
     pipUser: '',
     pipPassword: '',
-    jwtKey: 'CAMBIAR_EN_PRODUCCION_ClaveSeguraMinimo32Caracteres_2026',
+    jwtKey: '',
     jwtIssuer: 'oftic.api',
     jwtAudience: 'oftic.api',
     sistema: 'SISGE',
@@ -39,7 +41,8 @@ export class SetupComponent implements OnInit {
     logoFileName: '',
     faviconFileName: '',
     devUser: '',
-    devPassword: ''
+    devPassword: '',
+    devIdentificacion: '80100216'
   };
 
   testing = false;
@@ -87,10 +90,10 @@ export class SetupComponent implements OnInit {
     const target = event.target as HTMLSelectElement;
     const selectedId = Number(target.value);
     this.formData.unidadSistemaId = selectedId;
-    const found = this.unidadesList.find(u => u.idOrganigrama === selectedId || u.id === selectedId);
+    const found = this.unidadesList.find(u => u.consecutivo === selectedId || u.idOrganigrama === selectedId || u.id === selectedId);
     if (found) {
-      this.formData.nombreUnidad = found.nombre || found.nombreUnidad || found.sigla || '';
-      if (found.sigla && !this.formData.sigla) {
+      this.formData.nombreUnidad = found.nombre || found.descripcionDependencia || found.nombreUnidad || found.sigla || '';
+      if (found.sigla && (!this.formData.sigla || this.formData.sigla === 'POLICIA')) {
         this.formData.sigla = found.sigla;
       }
     }
@@ -216,24 +219,40 @@ export class SetupComponent implements OnInit {
       return;
     }
 
+    if (this.step === 4) {
+      if (!this.formData.jwtKey?.trim()) {
+        this.generateRandomJwtKey();
+      }
+    }
+
     if (this.step === 5) {
-      if (!this.formData.devUser?.trim() || !this.formData.devPassword?.trim()) {
+      const ident = (this.formData.devIdentificacion || this.formData.devUser || '').trim();
+      if (!ident) {
         this.testResult = {
           success: false,
-          message: 'Debe ingresar el usuario empresarial y la contraseña del Desarrollador.'
+          message: 'Debe ingresar el número de cédula/identificación del Desarrollador.'
         };
         return;
       }
 
+      this.formData.devIdentificacion = ident;
       this.testing = true;
       this.testResult = null;
 
       const payload = this.preparePayload();
       this.setupService.validateDevUser(payload).subscribe({
-        next: (res) => {
+        next: (res: any) => {
           this.testing = false;
           this.testResult = res;
           if (res.success) {
+            if (res.funcionario) {
+              this.devFuncionario = res.funcionario;
+              this.formData.devUser = res.funcionario.usuario || res.funcionario.usuarioEmpresarial || this.formData.devUser;
+              this.formData.devNombres = res.funcionario.nombres || this.formData.devNombres;
+              this.formData.devApellidos = res.funcionario.apellidos || this.formData.devApellidos;
+              this.formData.devEmail = res.funcionario.correo || res.funcionario.correoElectronico || this.formData.devEmail;
+              this.formData.devGrad = res.funcionario.gradAlfabetico || res.funcionario.nombreGrado || this.formData.devGrad;
+            }
             this.step++;
           }
         },
@@ -241,7 +260,7 @@ export class SetupComponent implements OnInit {
           this.testing = false;
           this.testResult = {
             success: false,
-            message: err?.error?.message || 'Error al validar el usuario en el servicio OUD.'
+            message: err?.error?.message || 'Error al consultar la identificación del Desarrollador en PIP.'
           };
         }
       });
@@ -353,6 +372,11 @@ export class SetupComponent implements OnInit {
       jwtAudience: this.formData.jwtAudience,
       devUser: this.formData.devUser,
       devPassword: this.formData.devPassword,
+      devIdentificacion: this.formData.devIdentificacion,
+      devNombres: this.formData.devNombres,
+      devApellidos: this.formData.devApellidos,
+      devEmail: this.formData.devEmail,
+      devGrad: this.formData.devGrad,
       sistema: this.formData.sistema,
       nombreSistema: this.formData.nombreSistema,
       sigla: this.formData.sigla,

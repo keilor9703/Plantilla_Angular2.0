@@ -9,6 +9,7 @@ namespace Datos.Interfaz
         Task<string?> GetIdentificacionByUsernameAsync(string username, CancellationToken ct);
         Task<bool?> GetActivoByIdentificacionOrUsernameAsync(string? identificacion, string? username, CancellationToken ct);
         Task<long> EnsureUsuarioExistsAsync(DtoFuncionario funcionario, CancellationToken ct);
+        Task<long> EnsureUsuarioExistsAsync(string username, string? identificacion = null, CancellationToken ct = default);
         Task<List<DtoUsuarioListadoItem>> GetUsuariosListadoAsync(string? nombre, CancellationToken ct);
         Task<List<DtoRolAsignado>> GetRolesAsignadosAsync(string username, CancellationToken ct);
         Task<List<DtoRol>> GetRolesAsync(CancellationToken ct);

@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Comun.Dtos;
+using Comun.Dtos.Administracion;
 using Servicios.ApiInterfaz;
 
 namespace Servicios.Api
@@ -765,6 +766,693 @@ namespace Servicios.Api
             if (keys.Any(k => k.Contains("cargo"))) score++;
 
             return score >= 2;
+        }
+
+        public async Task<List<Comun.Dtos.Administracion.DtoUnidadOrg>> GetUnidadesPipAsync(CancellationToken ct = default)
+        {
+            var result = new List<Comun.Dtos.Administracion.DtoUnidadOrg>();
+            try
+            {
+                var usuarioPip = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+                var clavePip = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
+
+                if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+                {
+                    usuarioPip = "USRSW.NEWUPD";
+                    clavePip = "HWV9Dq8N!*_X%zU%juz*";
+                }
+
+                var tokenResp = await ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                {
+                    usuario = usuarioPip.Trim(),
+                    clave = clavePip.Trim()
+                });
+                var token = tokenResp?.Respuesta ?? string.Empty;
+
+                var client = _factory.CreateClient("AuthClient");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    client.DefaultRequestHeaders.Remove("Authorization");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                }
+
+                var url = _cfg["ApiSettings:ConsultaUnidadesPip"] ?? "https://internalpip.policia.gov.co:8080/api/Icahu/Unidades?_vigente=SI";
+                var resp = await client.GetAsync(url, ct);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("ConsultaUnidadesPip request failed with StatusCode={StatusCode}", resp.StatusCode);
+                    return result;
+                }
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                JsonElement arrayElem = default;
+                if (root.TryGetProperty("respuesta", out var rElem) && rElem.ValueKind == JsonValueKind.Array)
+                {
+                    arrayElem = rElem;
+                }
+                else if (root.ValueKind == JsonValueKind.Array)
+                {
+                    arrayElem = root;
+                }
+
+                if (arrayElem.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var elem in arrayElem.EnumerateArray())
+                    {
+                        var consecutivo = elem.TryGetProperty("consecutivo", out var cProp) && cProp.ValueKind == JsonValueKind.Number ? cProp.GetInt32() : 0;
+                        var nombre = elem.TryGetProperty("descripcionDependencia", out var dProp) ? dProp.GetString() ?? string.Empty : string.Empty;
+                        var sigla = elem.TryGetProperty("siglaFisica", out var sProp) ? sProp.GetString() ?? string.Empty :
+                                    (elem.TryGetProperty("siglaDepende", out var sdProp) ? sdProp.GetString() ?? string.Empty : string.Empty);
+                        var siglaPapa = elem.TryGetProperty("siglaPapa", out var spProp) ? spProp.GetString() : null;
+                        var vigente = elem.TryGetProperty("vigente", out var vProp) ? vProp.GetString() ?? "SI" : "SI";
+                        var direccion = elem.TryGetProperty("direccion", out var dirProp) ? dirProp.GetString() : null;
+
+                        if (consecutivo > 0 && !string.IsNullOrWhiteSpace(nombre))
+                        {
+                            result.Add(new Comun.Dtos.Administracion.DtoUnidadOrg
+                            {
+                                Consecutivo = consecutivo,
+                                Nombre = nombre,
+                                Sigla = string.IsNullOrWhiteSpace(sigla) ? nombre : sigla,
+                                SiglaPapa = siglaPapa,
+                                Vigente = vigente,
+                                Direccion = direccion
+                            });
+                        }
+                    }
+                }
+
+                _logger.LogInformation("Se obtuvieron {Count} unidades institucionales desde PIP (Icahu/Unidades)", result.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al consultar unidades en PIP API (Icahu/Unidades)");
+            }
+
+            return result;
+        }
+
+        public async Task<List<DtoSliderPublico>> GetSlidersPublicosAsync(DtoConsultaSliderPublicoRequest request, CancellationToken ct = default)
+        {
+            var result = new List<DtoSliderPublico>();
+            try
+            {
+                var usuarioPip = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+                var clavePip = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
+
+                if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+                {
+                    usuarioPip = "USRSW.NEWUPD";
+                    clavePip = "HWV9Dq8N!*_X%zU%juz*";
+                }
+
+                var tokenResp = await ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                {
+                    usuario = usuarioPip.Trim(),
+                    clave = clavePip.Trim()
+                });
+                var token = tokenResp?.Respuesta ?? string.Empty;
+
+                var client = _factory.CreateClient("AuthClient");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    client.DefaultRequestHeaders.Remove("Authorization");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                }
+
+                var url = _cfg["ApiSettings:ConsultaSlidersPublicos"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Consulta_Sliders_Publicos";
+                var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvdockergusof.policia.gov.co/sicoe/";
+
+                var jsonPayload = JsonSerializer.Serialize(request);
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Consultando sliders públicos en PIP ({Url}) con payload: {Payload}", url, jsonPayload);
+                var resp = await client.PostAsync(url, content, ct);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Consulta_Sliders_Publicos request failed. StatusCode={StatusCode}", resp.StatusCode);
+                    return result;
+                }
+
+                var responseJson = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogInformation("Respuesta recibida de Consulta_Sliders_Publicos: {Body}", responseJson);
+
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                JsonElement arrayElem = default;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    arrayElem = root;
+                }
+                else if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("respuesta", out var rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Respuesta", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("sliders", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Sliders", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                }
+
+                if (arrayElem.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 1;
+                    foreach (var elem in arrayElem.EnumerateArray())
+                    {
+                        var vigenteVal = PickLong(elem, "vigente", "Vigente", "activo", "Activo", "estado", "Estado");
+                        if (vigenteVal.HasValue && vigenteVal.Value == 0)
+                        {
+                            continue;
+                        }
+
+                        var rawImg = Pick(elem, "urlImagen", "UrlImagen", "url_imagen", "Url_Imagen", "imagenUrl", "ImagenUrl", "imagen", "Imagen", "rutaImagen", "RutaImagen", "foto", "Foto", "path", "Path", "url", "Url", "archivo", "Archivo");
+                        if (string.IsNullOrWhiteSpace(rawImg))
+                        {
+                            _logger.LogWarning("Elemento de slider omitido por no tener propiedad de imagen válida. Elemento JSON: {Elem}", elem.GetRawText());
+                            continue;
+                        }
+
+                        string fullImgUrl;
+                        if (rawImg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                            rawImg.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                            rawImg.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                        {
+                            fullImgUrl = rawImg;
+                        }
+                        else
+                        {
+                            var baseClean = imageBaseUrl.TrimEnd('/');
+                            var pathClean = rawImg.TrimStart('/');
+                            fullImgUrl = $"{baseClean}/{pathClean}";
+                        }
+
+                        var sliderId = PickLong(elem, "idSlider", "IdSlider", "id_slider", "id", "Id") ?? index;
+                        var titulo = Pick(elem, "titulo", "Titulo", "nombre", "Nombre", "descripcion", "Descripcion", "title", "Title");
+                        var desc = Pick(elem, "subtitulo", "Subtitulo", "descripcion", "Descripcion", "detalle", "Detalle", "lead", "Lead");
+                        var redirect = Pick(elem, "urlDestino", "UrlDestino", "url_destino", "Url_Destino", "redireccionUrl", "RedireccionUrl", "link", "Link", "url", "Url", "hipervinculo", "Hipervinculo", "enlace", "Enlace");
+                        var orden = PickLong(elem, "orden", "Orden", "posicion", "Posicion", "secuencia", "Secuencia") ?? index;
+
+                        result.Add(new DtoSliderPublico
+                        {
+                            Id = sliderId,
+                            Titulo = titulo,
+                            Descripcion = desc,
+                            ImagenUrl = fullImgUrl,
+                            RedireccionUrl = redirect,
+                            Orden = (int)orden,
+                            Activo = true
+                        });
+                        index++;
+                    }
+                }
+
+                _logger.LogInformation("Se obtuvieron {Count} sliders públicos desde PIP", result.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando sliders públicos en PIP");
+            }
+
+            return result;
+        }
+
+        public async Task<List<DtoNoticia>> GetNoticiasInternasAsync(DtoConsultaSliderPublicoRequest request, CancellationToken ct = default)
+        {
+            var result = new List<DtoNoticia>();
+            try
+            {
+                var usuarioPip = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+                var clavePip = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
+
+                if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+                {
+                    usuarioPip = "USRSW.NEWUPD";
+                    clavePip = "HWV9Dq8N!*_X%zU%juz*";
+                }
+
+                var tokenResp = await ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                {
+                    usuario = usuarioPip.Trim(),
+                    clave = clavePip.Trim()
+                });
+                var token = tokenResp?.Respuesta ?? string.Empty;
+
+                var client = _factory.CreateClient("AuthClient");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    client.DefaultRequestHeaders.Remove("Authorization");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                }
+
+                var url = _cfg["ApiSettings:ConsultaNoticiasInternas"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Consulta_Noticia_Interna";
+                var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvdockergusof.policia.gov.co/sicoe/";
+
+                var jsonPayload = JsonSerializer.Serialize(request);
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Consultando noticias internas en PIP ({Url}) con payload: {Payload}", url, jsonPayload);
+                var resp = await client.PostAsync(url, content, ct);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Consulta_Noticia_Interna request failed. StatusCode={StatusCode}", resp.StatusCode);
+                    return result;
+                }
+
+                var responseJson = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogInformation("Respuesta recibida de Consulta_Noticia_Interna: {Body}", responseJson);
+
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                JsonElement arrayElem = default;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    arrayElem = root;
+                }
+                else if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("respuesta", out var rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Respuesta", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("noticias", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Noticias", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                }
+
+                if (arrayElem.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 1;
+                    foreach (var elem in arrayElem.EnumerateArray())
+                    {
+                        var vigenteVal = PickLong(elem, "vigente", "Vigente", "activo", "Activo", "estado", "Estado");
+                        if (vigenteVal.HasValue && vigenteVal.Value == 0)
+                        {
+                            continue;
+                        }
+
+                        var idNoticia = PickLong(elem, "idNoticia", "IdNoticia", "id_noticia", "id", "Id") ?? index;
+                        var unidad = Pick(elem, "unidad", "Unidad");
+                        var titulo = Pick(elem, "titulo", "Titulo");
+                        var seccion = Pick(elem, "seccion", "Seccion");
+                        var ciudad = Pick(elem, "ciudad", "Ciudad");
+                        var subtitulo = Pick(elem, "subtitulo", "Subtitulo");
+                        var contenido = Pick(elem, "contenido", "Contenido");
+                        var fechaCreacion = Pick(elem, "fechaCreacion", "FechaCreacion", "fecha_creacion");
+                        var usuarioCreacion = Pick(elem, "usuarioCreacion", "UsuarioCreacion");
+                        var maquinaCreacion = Pick(elem, "maquinaCreacion", "MaquinaCreacion");
+                        var fechaModifica = Pick(elem, "fechaModifica", "FechaModifica");
+                        var usuarioModifica = Pick(elem, "usuarioModifica", "UsuarioModifica");
+                        var maquinaModifica = Pick(elem, "maquinaModifica", "MaquinaModifica");
+                        var megusta = PickLong(elem, "megusta", "Megusta", "meGusta", "MeGusta") ?? 0;
+
+                        var rawImg = Pick(elem, "imagenNoticia", "ImagenNoticia", "imagen_noticia", "imagen", "Imagen", "rutaImagen", "RutaImagen");
+                        string? formattedImages = null;
+                        if (!string.IsNullOrWhiteSpace(rawImg))
+                        {
+                            var parts = rawImg.Split('|').Select(p => p.Trim()).Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+                            var fullParts = new List<string>();
+                            foreach (var p in parts)
+                            {
+                                if (p.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                    p.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                                    p.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    fullParts.Add(p);
+                                }
+                                else
+                                {
+                                    var baseClean = imageBaseUrl.TrimEnd('/');
+                                    var pathClean = p.TrimStart('/');
+                                    if (pathClean.StartsWith("api/", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        fullParts.Add($"{baseClean}/{pathClean}");
+                                    }
+                                    else
+                                    {
+                                        fullParts.Add($"{baseClean}/api/NoticiaUpload/Imagen/{pathClean}");
+                                    }
+                                }
+                            }
+                            formattedImages = string.Join("|", fullParts);
+                        }
+
+                        result.Add(new DtoNoticia
+                        {
+                            IdNoticia = idNoticia,
+                            Unidad = unidad ?? string.Empty,
+                            Titulo = titulo ?? string.Empty,
+                            Seccion = seccion ?? "General",
+                            Ciudad = ciudad ?? string.Empty,
+                            ImagenNoticia = formattedImages,
+                            Subtitulo = subtitulo,
+                            Contenido = contenido,
+                            Vigente = (int)(vigenteVal ?? 1),
+                            FechaCreacion = fechaCreacion ?? DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                            UsuarioCreacion = usuarioCreacion ?? string.Empty,
+                            MaquinaCreacion = maquinaCreacion,
+                            FechaModifica = fechaModifica,
+                            UsuarioModifica = usuarioModifica,
+                            MaquinaModifica = maquinaModifica,
+                            Megusta = (int)megusta
+                        });
+                        index++;
+                    }
+                }
+
+                _logger.LogInformation("Se obtuvieron {Count} noticias internas desde PIP", result.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando noticias internas en PIP");
+            }
+
+            return result;
+        }
+
+        public async Task<bool> RegistrarLikeNoticiaAsync(DtoLikeNoticiaRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var usuarioPip = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+                var clavePip = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
+
+                if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+                {
+                    usuarioPip = "USRSW.NEWUPD";
+                    clavePip = "HWV9Dq8N!*_X%zU%juz*";
+                }
+
+                var tokenResp = await ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                {
+                    usuario = usuarioPip.Trim(),
+                    clave = clavePip.Trim()
+                });
+                var token = tokenResp?.Respuesta ?? string.Empty;
+
+                var client = _factory.CreateClient("AuthClient");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    client.DefaultRequestHeaders.Remove("Authorization");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                }
+
+                var url = _cfg["ApiSettings:LikeNoticiaUrl"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Like_Noticia";
+                var jsonPayload = JsonSerializer.Serialize(request);
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Enviando Like_Noticia a PIP ({Url}) con payload: {Payload}", url, jsonPayload);
+                var resp = await client.PostAsync(url, content, ct);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Like_Noticia request failed. StatusCode={StatusCode}", resp.StatusCode);
+                    return false;
+                }
+
+                var responseJson = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogInformation("Respuesta recibida de Like_Noticia: {Body}", responseJson);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al enviar Like_Noticia a PIP");
+                return false;
+            }
+        }
+
+        public async Task<List<DtoModalVigente>> GetModalesVigentesAsync(DtoConsultaSliderPublicoRequest request, CancellationToken ct = default)
+        {
+            var result = new List<DtoModalVigente>();
+            try
+            {
+                var usuarioPip = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+                var clavePip = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
+
+                if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+                {
+                    usuarioPip = "USRSW.NEWUPD";
+                    clavePip = "HWV9Dq8N!*_X%zU%juz*";
+                }
+
+                var tokenResp = await ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                {
+                    usuario = usuarioPip.Trim(),
+                    clave = clavePip.Trim()
+                });
+                var token = tokenResp?.Respuesta ?? string.Empty;
+
+                var client = _factory.CreateClient("AuthClient");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    client.DefaultRequestHeaders.Remove("Authorization");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                }
+
+                var url = _cfg["ApiSettings:ConsultaModalVigente"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Consulta_Modal_Vigente";
+                var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvdockergusof.policia.gov.co/sicoe/";
+
+                var jsonPayload = JsonSerializer.Serialize(request);
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Consultando modales vigentes en PIP ({Url}) con payload: {Payload}", url, jsonPayload);
+                var resp = await client.PostAsync(url, content, ct);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Consulta_Modal_Vigente request failed. StatusCode={StatusCode}", resp.StatusCode);
+                    return result;
+                }
+
+                var responseJson = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogInformation("Respuesta recibida de Consulta_Modal_Vigente: {Body}", responseJson);
+
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                JsonElement arrayElem = default;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    arrayElem = root;
+                }
+                else if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("respuesta", out var rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Respuesta", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("modales", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Modales", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                }
+
+                if (arrayElem.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 1;
+                    foreach (var elem in arrayElem.EnumerateArray())
+                    {
+                        var vigenteVal = PickLong(elem, "vigente", "Vigente", "activo", "Activo", "estado", "Estado");
+                        if (vigenteVal.HasValue && vigenteVal.Value == 0)
+                        {
+                            continue;
+                        }
+
+                        var idModal = PickLong(elem, "idModal", "IdModal", "id_modal", "id", "Id") ?? index;
+                        var titulo = Pick(elem, "titulo", "Titulo", "nombre", "Nombre");
+                        var subtitulo = Pick(elem, "subtitulo", "Subtitulo", "descripcion", "Descripcion");
+                        var redirect = Pick(elem, "urlDestino", "UrlDestino", "url_destino", "redireccionUrl", "RedireccionUrl", "link", "Link", "url", "Url");
+                        var orden = PickLong(elem, "orden", "Orden", "posicion", "Posicion") ?? index;
+
+                        var rawImg = Pick(elem, "urlImagen", "UrlImagen", "url_imagen", "imagenUrl", "ImagenUrl", "imagen", "Imagen", "rutaImagen", "RutaImagen");
+                        string? fullImgUrl = null;
+                        if (!string.IsNullOrWhiteSpace(rawImg))
+                        {
+                            if (rawImg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                rawImg.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                                rawImg.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                fullImgUrl = rawImg;
+                            }
+                            else
+                            {
+                                var baseClean = imageBaseUrl.TrimEnd('/');
+                                var pathClean = rawImg.TrimStart('/');
+                                fullImgUrl = $"{baseClean}/{pathClean}";
+                            }
+                        }
+
+                        result.Add(new DtoModalVigente
+                        {
+                            IdModal = idModal,
+                            Titulo = titulo,
+                            Subtitulo = subtitulo,
+                            ImagenUrl = fullImgUrl,
+                            RedireccionUrl = redirect,
+                            Orden = (int)orden,
+                            Vigente = (int)(vigenteVal ?? 1)
+                        });
+                        index++;
+                    }
+                }
+
+                _logger.LogInformation("Se obtuvieron {Count} modales vigentes desde PIP", result.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando modales vigentes en PIP");
+            }
+
+            return result;
+        }
+
+        public async Task<List<DtoRadioEmisora>> GetEmisorasAsync(DtoConsultaSliderPublicoRequest? request = null, CancellationToken ct = default)
+        {
+            var result = new List<DtoRadioEmisora>();
+            try
+            {
+                var usuarioPip = Environment.GetEnvironmentVariable("ApiSettings__UsuarioPip") ?? _cfg["ApiSettings:UsuarioPip"];
+                var clavePip = Environment.GetEnvironmentVariable("ApiSettings__ClavePip") ?? _cfg["ApiSettings:ClavePip"];
+
+                if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+                {
+                    usuarioPip = "USRSW.NEWUPD";
+                    clavePip = "HWV9Dq8N!*_X%zU%juz*";
+                }
+
+                var tokenResp = await ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                {
+                    usuario = usuarioPip.Trim(),
+                    clave = clavePip.Trim()
+                });
+                var token = tokenResp?.Respuesta ?? string.Empty;
+
+                var client = _factory.CreateClient("AuthClient");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    client.DefaultRequestHeaders.Remove("Authorization");
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                }
+
+                var url = _cfg["ApiSettings:ConsultaEmisorasAll"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Consulta_Emisoras_All";
+                var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvdockergusof.policia.gov.co/sicoe/";
+                var siglaSistema = _cfg["ApiSettings:SiglaSistema"] ?? "SISGE";
+                var nombreSistema = _cfg["ApiSettings:NombreSistema"] ?? "Sistema de Gestión Especializada - SISGE";
+
+                var auditPayload = new
+                {
+                    FUENTE_TRANSACCION = string.IsNullOrWhiteSpace(request?.FUENTE_TRANSACCION) ? siglaSistema : request.FUENTE_TRANSACCION,
+                    SISTEMA_INFORMACION = string.IsNullOrWhiteSpace(request?.SISTEMA_INFORMACION) ? nombreSistema : request.SISTEMA_INFORMACION,
+                    IP_MAQUINA = string.IsNullOrWhiteSpace(request?.IP_MAQUINA) ? "127.0.0.1" : request.IP_MAQUINA,
+                    USUARIO = string.IsNullOrWhiteSpace(request?.USUARIO) ? "INVITADO" : request.USUARIO
+                };
+                var jsonAudit = JsonSerializer.Serialize(auditPayload);
+
+                _logger.LogInformation("Consultando emisoras de radio en PIP ({Url}) con payload dinámico: {Payload}", url, jsonAudit);
+                
+                using var postContent = new StringContent(jsonAudit, Encoding.UTF8, "application/json");
+                var resp = await client.PostAsync(url, postContent, ct);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("POST Consulta_Emisoras_All falló con status {StatusCode}. Intentando GET...", resp.StatusCode);
+                    resp = await client.GetAsync(url, ct);
+                }
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Consulta_Emisoras_All request failed. StatusCode={StatusCode}", resp.StatusCode);
+                    return result;
+                }
+
+                var responseJson = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogInformation("Respuesta recibida de Consulta_Emisoras_All: {Body}", responseJson);
+
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                JsonElement arrayElem = default;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    arrayElem = root;
+                }
+                else if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("respuesta", out var rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Respuesta", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Data", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Resultado", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("emisoras", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                    else if (root.TryGetProperty("Emisoras", out rElem) && rElem.ValueKind == JsonValueKind.Array) arrayElem = rElem;
+                }
+
+                if (arrayElem.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 1;
+                    foreach (var elem in arrayElem.EnumerateArray())
+                    {
+                        var activoVal = PickLong(elem, "activo", "Activo", "vigente", "Vigente", "estado", "Estado");
+                        if (activoVal.HasValue && activoVal.Value == 0)
+                        {
+                            continue;
+                        }
+
+                        var idEmisora = PickLong(elem, "idEmisora", "IdEmisora", "id_emisora", "id", "Id") ?? index;
+                        var nombre = Pick(elem, "nombre", "Nombre", "titulo", "Titulo");
+                        var streamUrl = Pick(elem, "streamUrl", "StreamUrl", "stream_url", "url", "Url");
+                        var orden = PickLong(elem, "orden", "Orden", "posicion", "Posicion") ?? index;
+
+                        var rawLogo = Pick(elem, "logoUrl", "LogoUrl", "logo_url", "logo", "Logo", "urlLogo", "UrlLogo");
+                        string? fullLogoUrl = null;
+                        if (!string.IsNullOrWhiteSpace(rawLogo))
+                        {
+                            if (rawLogo.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                rawLogo.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                                rawLogo.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                fullLogoUrl = rawLogo;
+                            }
+                            else
+                            {
+                                var baseClean = imageBaseUrl.TrimEnd('/');
+                                var pathClean = rawLogo.TrimStart('/');
+                                fullLogoUrl = $"{baseClean}/{pathClean}";
+                            }
+                        }
+
+                        result.Add(new DtoRadioEmisora
+                        {
+                            IdEmisora = idEmisora,
+                            Nombre = nombre ?? $"Emisora {index}",
+                            StreamUrl = streamUrl,
+                            LogoUrl = fullLogoUrl,
+                            Orden = (int)orden,
+                            Activo = (int)(activoVal ?? 1)
+                        });
+                        index++;
+                    }
+                }
+
+                _logger.LogInformation("Se obtuvieron {Count} emisoras de radio desde PIP", result.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando emisoras de radio en PIP");
+            }
+
+            return result;
         }
     }
 }

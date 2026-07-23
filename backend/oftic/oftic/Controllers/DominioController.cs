@@ -1,4 +1,4 @@
-﻿using Comun.Dtos.Dominio;
+using Comun.Dtos.Dominio;
 using Comun.Dtos.LineasMando;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,15 +25,31 @@ namespace Api.Controllers
         [HttpGet]
         public async Task<ActionResult> GetAll()
         {
-            var result = await _service.GetAllAsync(CancellationToken.None);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetAllAsync(CancellationToken.None);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Base de datos no disponible para Dominios. Retornando lista vacía.");
+                return Ok(new List<DtoDominio>());
+            }
         }
 
         [HttpGet("unidades")]
         public async Task<ActionResult> GetUnidades()
         {
-            var result = await _service.GetUnidadesAsync(CancellationToken.None);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetUnidadesAsync(CancellationToken.None);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Base de datos no disponible para Unidades de Dominio. Retornando lista vacía.");
+                return Ok(new List<DtoDominio>());
+            }
         }
 
         [HttpPost]

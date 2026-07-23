@@ -56,28 +56,24 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication
-var jwtKey = Environment.GetEnvironmentVariable("Jwt__Key") ?? builder.Configuration["Jwt:Key"];
-var jwtIssuer = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? builder.Configuration["Jwt:Issuer"] ?? "oftic.api";
-var jwtAudience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
-
-if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
-{
-    // Clave provisional de fallback para permitir inicialización y acceso al Setup Wizard
-    jwtKey = "CAMBIAR_EN_PRODUCCION_ClaveSeguraMinimo32Caracteres_2026";
-}
-
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
+            ValidateIssuer = false,
+            ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+            {
+                var key = Environment.GetEnvironmentVariable("Jwt__Key") ?? builder.Configuration["Jwt:Key"];
+                if (string.IsNullOrWhiteSpace(key) || key.Length < 32)
+                {
+                    key = "CAMBIAR_EN_PRODUCCION_ClaveSeguraMinimo32Caracteres_2026";
+                }
+                return new[] { new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key.Trim())) };
+            }
         };
     });
 

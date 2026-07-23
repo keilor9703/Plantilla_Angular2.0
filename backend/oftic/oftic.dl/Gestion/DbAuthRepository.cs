@@ -27,103 +27,127 @@ namespace Datos.Gestion
 
             if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
             {
-                await using var conn = new MySqlConnector.MySqlConnection(_cs);
-                await conn.OpenAsync(ct);
-
-                _logger.LogInformation("Buscando usuario en MySQL: {Usuario}", usuario);
-                long? idUsuario = null;
-
-                await using (var cmd = conn.CreateCommand())
+                try
                 {
-                    cmd.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE LOWER(username) = LOWER(@pUser) AND bloqueado = 0";
-                    cmd.Parameters.AddWithValue("@pUser", usuario);
-                    var obj = await cmd.ExecuteScalarAsync(ct);
-                    if (obj != null && obj != DBNull.Value) idUsuario = Convert.ToInt64(obj);
+                    await using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+
+                    _logger.LogInformation("Buscando usuario en MySQL: {Usuario}", usuario);
+                    long? idUsuario = null;
+
+                    await using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE LOWER(username) = LOWER(@pUser) AND bloqueado = 0";
+                        cmd.Parameters.AddWithValue("@pUser", usuario);
+                        var obj = await cmd.ExecuteScalarAsync(ct);
+                        if (obj != null && obj != DBNull.Value) idUsuario = Convert.ToInt64(obj);
+                    }
+
+                    if (idUsuario is null) return (null, new List<long>());
+
+                    var roles = new List<long>();
+                    await using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT DISTINCT id_rol FROM CTR_ROLES_USER_ADMIN WHERE id_usuario = @pIdUser AND IFNULL(vigente, 0) = 1";
+                        cmd.Parameters.AddWithValue("@pIdUser", idUsuario.Value);
+                        await using var reader = await cmd.ExecuteReaderAsync(ct);
+                        while (await reader.ReadAsync(ct)) roles.Add(reader.GetInt64(0));
+                    }
+
+                    if (roles.Count == 0) roles.Add(1);
+                    return (idUsuario.Value, roles);
                 }
-
-                if (idUsuario is null) return (null, new List<long>());
-
-                var roles = new List<long>();
-                await using (var cmd = conn.CreateCommand())
+                catch (Exception ex)
                 {
-                    cmd.CommandText = "SELECT DISTINCT id_rol FROM CTR_ROLES_USER_ADMIN WHERE id_usuario = @pIdUser AND IFNULL(vigente, 0) = 1";
-                    cmd.Parameters.AddWithValue("@pIdUser", idUsuario.Value);
-                    await using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct)) roles.Add(reader.GetInt64(0));
+                    _logger.LogWarning(ex, "No se pudo consultar usuario en MySQL. Se retornará null para auto-aprovisionar.");
+                    return (null, new List<long>());
                 }
-
-                if (roles.Count == 0) roles.Add(1);
-                return (idUsuario.Value, roles);
             }
 
             if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
             {
-                await using var conn = new Npgsql.NpgsqlConnection(_cs);
-                await conn.OpenAsync(ct);
-
-                _logger.LogInformation("Buscando usuario en PostgreSQL: {Usuario}", usuario);
-                long? idUsuario = null;
-
-                await using (var cmd = conn.CreateCommand())
+                try
                 {
-                    cmd.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE LOWER(username) = LOWER(@pUser) AND bloqueado = 0";
-                    cmd.Parameters.AddWithValue("@pUser", usuario);
-                    var obj = await cmd.ExecuteScalarAsync(ct);
-                    if (obj != null && obj != DBNull.Value) idUsuario = Convert.ToInt64(obj);
+                    await using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+
+                    _logger.LogInformation("Buscando usuario en PostgreSQL: {Usuario}", usuario);
+                    long? idUsuario = null;
+
+                    await using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE LOWER(username) = LOWER(@pUser) AND bloqueado = 0";
+                        cmd.Parameters.AddWithValue("@pUser", usuario);
+                        var obj = await cmd.ExecuteScalarAsync(ct);
+                        if (obj != null && obj != DBNull.Value) idUsuario = Convert.ToInt64(obj);
+                    }
+
+                    if (idUsuario is null) return (null, new List<long>());
+
+                    var roles = new List<long>();
+                    await using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT DISTINCT id_rol FROM ctr_roles_user_admin WHERE id_usuario = @pIdUser AND COALESCE(vigente, 0) = 1";
+                        cmd.Parameters.AddWithValue("@pIdUser", idUsuario.Value);
+                        await using var reader = await cmd.ExecuteReaderAsync(ct);
+                        while (await reader.ReadAsync(ct)) roles.Add(reader.GetInt64(0));
+                    }
+
+                    if (roles.Count == 0) roles.Add(1);
+                    return (idUsuario.Value, roles);
                 }
-
-                if (idUsuario is null) return (null, new List<long>());
-
-                var roles = new List<long>();
-                await using (var cmd = conn.CreateCommand())
+                catch (Exception ex)
                 {
-                    cmd.CommandText = "SELECT DISTINCT id_rol FROM ctr_roles_user_admin WHERE id_usuario = @pIdUser AND COALESCE(vigente, 0) = 1";
-                    cmd.Parameters.AddWithValue("@pIdUser", idUsuario.Value);
-                    await using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct)) roles.Add(reader.GetInt64(0));
+                    _logger.LogWarning(ex, "No se pudo consultar usuario en PostgreSQL. Se retornará null para auto-aprovisionar.");
+                    return (null, new List<long>());
                 }
-
-                if (roles.Count == 0) roles.Add(1);
-                return (idUsuario.Value, roles);
             }
 
             // Oracle por defecto
-            await using var oracleConn = new OracleConnection(_cs);
-            await oracleConn.OpenAsync(ct);
-
-            _logger.LogInformation("Buscando usuario en Oracle: {Usuario}", usuario);
-            long? idUserOracle = null;
-
-            await using (var cmd = oracleConn.CreateCommand())
+            try
             {
-                cmd.CommandType = CommandType.Text;
-                cmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE UPPER(username) = UPPER(:pUsuario) AND bloqueado = 0";
-                cmd.Parameters.Add(":pUsuario", OracleDbType.Varchar2).Value = usuario;
+                await using var oracleConn = new OracleConnection(_cs);
+                await oracleConn.OpenAsync(ct);
 
-                var obj = await cmd.ExecuteScalarAsync(ct);
-                if (obj != null && obj != DBNull.Value) idUserOracle = Convert.ToInt64(obj);
-            }
+                _logger.LogInformation("Buscando usuario en Oracle: {Usuario}", usuario);
+                long? idUserOracle = null;
 
-            if (idUserOracle is null) return (null, new List<long>());
+                await using (var cmd = oracleConn.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.Text;
+                    cmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE UPPER(username) = UPPER(:pUsuario) AND bloqueado = 0";
+                    cmd.Parameters.Add(":pUsuario", OracleDbType.Varchar2).Value = usuario;
 
-            var oracleRoles = new List<long>();
-            await using (var cmd = oracleConn.CreateCommand())
-            {
-                cmd.CommandType = CommandType.Text;
-                cmd.BindByName = true;
-                cmd.CommandText = @"
+                    var obj = await cmd.ExecuteScalarAsync(ct);
+                    if (obj != null && obj != DBNull.Value) idUserOracle = Convert.ToInt64(obj);
+                }
+
+                if (idUserOracle is null) return (null, new List<long>());
+
+                var oracleRoles = new List<long>();
+                await using (var cmd = oracleConn.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.Text;
+                    cmd.BindByName = true;
+                    cmd.CommandText = @"
 SELECT DISTINCT rua.id_rol
   FROM ctr_roles_user_admin rua
  WHERE rua.id_usuario = :pIdUsuario
    AND NVL(rua.vigente, 0) = 1";
-                cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUserOracle.Value;
+                    cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUserOracle.Value;
 
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                while (await reader.ReadAsync(ct)) oracleRoles.Add(reader.GetInt64(0));
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct)) oracleRoles.Add(reader.GetInt64(0));
+                }
+
+                if (oracleRoles.Count == 0) oracleRoles.Add(1);
+                return (idUserOracle.Value, oracleRoles);
             }
-
-            if (oracleRoles.Count == 0) oracleRoles.Add(1);
-            return (idUserOracle.Value, oracleRoles);
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo consultar usuario en Oracle. Se retornará null para auto-aprovisionar.");
+                return (null, new List<long>());
+            }
         }
     }
 }

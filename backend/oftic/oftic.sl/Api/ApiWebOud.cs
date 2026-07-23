@@ -45,6 +45,8 @@ namespace Servicios.Api
             var normalizedPassword = contrasena ?? string.Empty;
             var payload = new
             {
+                usuario = normalizedUser,
+                clave = normalizedPassword,
                 Usuario = normalizedUser,
                 Contrasena = normalizedPassword
             };
@@ -52,8 +54,8 @@ namespace Servicios.Api
             var json = JsonSerializer.Serialize(payload);
             var safePayload = JsonSerializer.Serialize(new
             {
-                Usuario = normalizedUser,
-                Contrasena = "***"
+                usuario = normalizedUser,
+                clave = "***"
             });
             try
             {

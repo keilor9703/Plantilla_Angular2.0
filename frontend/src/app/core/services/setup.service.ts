@@ -32,6 +32,11 @@ export interface SetupTestRequest {
   fondo1FileName?: string;
   devUser?: string;
   devPassword?: string;
+  devIdentificacion?: string;
+  devNombres?: string;
+  devApellidos?: string;
+  devEmail?: string;
+  devGrad?: string;
 }
 
 export interface SetupResponse {
