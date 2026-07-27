@@ -17,6 +17,7 @@ namespace ofic.Controllers
     public class CuentaController : ControllerBase
     {
         private readonly IApiWebOud _apiWebOud;
+        private readonly IApiWebToken _apiWebToken;
         private readonly IJwtService _jwtService;
         private readonly IDbAuthRepository _dbAuthRepository;
         private readonly IDbUsuarioRepository _dbUsuarioRepository;
@@ -27,6 +28,7 @@ namespace ofic.Controllers
 
         public CuentaController(
             IApiWebOud apiWebOud,
+            IApiWebToken apiWebToken,
             IJwtService jwtService,
             IDbAuthRepository dbAuthRepository,
             IDbUsuarioRepository dbUsuarioRepository,
@@ -35,6 +37,7 @@ namespace ofic.Controllers
             IConfiguration configuration)
         {
             _apiWebOud = apiWebOud;
+            _apiWebToken = apiWebToken;
             _jwtService = jwtService;
             _dbAuthRepository = dbAuthRepository;
             _dbUsuarioRepository = dbUsuarioRepository;
@@ -91,8 +94,34 @@ namespace ofic.Controllers
 
                 if (idUsuario is null)
                 {
-                    // Auto-aprovisionar usuario autenticado si aún no existe en la base de datos local
-                    idUsuario = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(request.Usuario.Trim(), request.Usuario.Trim(), CancellationToken.None);
+                    // Auto-aprovisionar usuario autenticado consultando sus datos en PIP
+                    DtoFuncionario? pipFunc = null;
+                    try
+                    {
+                        var tokenResp = await _apiWebToken.ObtenerTokenPipAsync(CancellationToken.None);
+                        var tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                        if (!string.IsNullOrWhiteSpace(tokenPip))
+                        {
+                            pipFunc = await _apiWebToken.GetFuncionarioAsync(tokenPip, request.Usuario.Trim());
+                        }
+                    }
+                    catch (Exception exPip)
+                    {
+                        _logger.LogWarning(exPip, "No se pudo consultar PIP para auto-aprovisionar a {Usuario}", request.Usuario);
+                    }
+
+                    if (pipFunc != null && (!string.IsNullOrWhiteSpace(pipFunc.identificacion) || !string.IsNullOrWhiteSpace(pipFunc.nombres)))
+                    {
+                        if (string.IsNullOrWhiteSpace(pipFunc.usuario))
+                        {
+                            pipFunc.usuario = request.Usuario.Trim();
+                        }
+                        idUsuario = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(pipFunc, CancellationToken.None);
+                    }
+                    else
+                    {
+                        idUsuario = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(request.Usuario.Trim(), request.Usuario.Trim(), CancellationToken.None);
+                    }
                     roles = new List<long> { 1 };
                 }
 

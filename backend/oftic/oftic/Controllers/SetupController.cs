@@ -92,16 +92,112 @@ namespace ofic.Controllers
         }
 
         [HttpGet("status")]
-        public IActionResult GetStatus()
+        public async Task<IActionResult> GetStatus(CancellationToken ct)
         {
             var cs = _configuration.GetConnectionString("DbConnection");
             var isConfigured = !string.IsNullOrWhiteSpace(cs);
+            var provider = _configuration["DatabaseProvider"] ?? "Oracle";
+            var pipUser = _configuration["ApiSettings:UsuarioPip"] ?? "";
+            var nombreSistema = _configuration["ApiSettings:NombreSistema"] ?? "";
+            var siglaSistema = _configuration["ApiSettings:SiglaSistema"] ?? "";
+
+            string devUser = "";
+            string devIdentificacion = "";
+            string devNombres = "";
+            string devApellidos = "";
+            string devGrad = "";
+            string dbOrService = "";
+
+            if (isConfigured)
+            {
+                try
+                {
+                    var decryptedCs = Comun.Security.CryptoUtility.Decrypt(cs, _configuration);
+                    if (string.IsNullOrWhiteSpace(decryptedCs)) decryptedCs = cs;
+
+                    if (provider.Equals("Oracle", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (decryptedCs.Contains("SERVICE_NAME=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var parts = decryptedCs.Split(new[] { "SERVICE_NAME=" }, StringSplitOptions.None);
+                            if (parts.Length > 1)
+                            {
+                                dbOrService = parts[1].Split(')', ';')[0].Trim();
+                            }
+                        }
+
+                        using var conn = new OracleConnection(decryptedCs);
+                        await conn.OpenAsync(ct);
+
+                        using var cmdUser = conn.CreateCommand();
+                        cmdUser.CommandText = "SELECT USERNAME, IDENTIFICACION, NOMBRES, APELLIDOS, GRAD_ALFABETICO FROM CTR_USUARIOS WHERE ROWNUM = 1 ORDER BY ID_USUARIO ASC";
+                        using var reader = await cmdUser.ExecuteReaderAsync(ct);
+                        if (await reader.ReadAsync(ct))
+                        {
+                            devUser = reader["USERNAME"]?.ToString() ?? "";
+                            devIdentificacion = reader["IDENTIFICACION"]?.ToString() ?? "";
+                            devNombres = reader["NOMBRES"]?.ToString() ?? "";
+                            devApellidos = reader["APELLIDOS"]?.ToString() ?? "";
+                            devGrad = reader["GRAD_ALFABETICO"]?.ToString() ?? "";
+                        }
+                    }
+                    else if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using var conn = new MySqlConnector.MySqlConnection(decryptedCs);
+                        await conn.OpenAsync(ct);
+                        dbOrService = conn.Database;
+
+                        using var cmdUser = conn.CreateCommand();
+                        cmdUser.CommandText = "SELECT username, identificacion, nombres, apellidos, grad_alfabetico FROM CTR_USUARIOS ORDER BY id_usuario ASC LIMIT 1";
+                        using var reader = await cmdUser.ExecuteReaderAsync(ct);
+                        if (await reader.ReadAsync(ct))
+                        {
+                            devUser = reader["username"]?.ToString() ?? "";
+                            devIdentificacion = reader["identificacion"]?.ToString() ?? "";
+                            devNombres = reader["nombres"]?.ToString() ?? "";
+                            devApellidos = reader["apellidos"]?.ToString() ?? "";
+                            devGrad = reader["grad_alfabetico"]?.ToString() ?? "";
+                        }
+                    }
+                    else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using var conn = new Npgsql.NpgsqlConnection(decryptedCs);
+                        await conn.OpenAsync(ct);
+                        dbOrService = conn.Database;
+
+                        using var cmdUser = conn.CreateCommand();
+                        cmdUser.CommandText = "SELECT username, identificacion, nombres, apellidos, grad_alfabetico FROM ctr_usuarios ORDER BY id_usuario ASC LIMIT 1";
+                        using var reader = await cmdUser.ExecuteReaderAsync(ct);
+                        if (await reader.ReadAsync(ct))
+                        {
+                            devUser = reader["username"]?.ToString() ?? "";
+                            devIdentificacion = reader["identificacion"]?.ToString() ?? "";
+                            devNombres = reader["nombres"]?.ToString() ?? "";
+                            devApellidos = reader["apellidos"]?.ToString() ?? "";
+                            devGrad = reader["grad_alfabetico"]?.ToString() ?? "";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "GetStatus: No se pudo obtener el detalle de instalación desde la BD.");
+                }
+            }
 
             return Ok(new
             {
                 configured = isConfigured,
-                provider = _configuration["DatabaseProvider"] ?? "Oracle",
-                connectionStringConfigured = isConfigured
+                provider = provider,
+                connectionStringConfigured = isConfigured,
+                pipUser = pipUser,
+                nombreSistema = nombreSistema,
+                siglaSistema = siglaSistema,
+                databaseOrService = dbOrService,
+                devUser = devUser,
+                devIdentificacion = devIdentificacion,
+                devNombres = devNombres,
+                devApellidos = devApellidos,
+                devGrad = devGrad
             });
         }
 
@@ -138,8 +234,23 @@ namespace ofic.Controllers
 
             try
             {
-                var tokenResp = await _tokenService.ObtenerTokenPipAsync(ct);
-                var tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                string tokenPip = "";
+                if (!string.IsNullOrWhiteSpace(request?.PipUser) && !string.IsNullOrWhiteSpace(request?.PipPassword))
+                {
+                    var tokenRespServ = await _tokenService.ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                    {
+                        usuario = request.PipUser.Trim(),
+                        clave = request.PipPassword.Trim()
+                    });
+                    tokenPip = tokenRespServ?.Respuesta ?? string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(tokenPip))
+                {
+                    var tokenResp = await _tokenService.ObtenerTokenPipAsync(ct);
+                    tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                }
+
                 DtoFuncionario? funcionario = null;
 
                 if (!string.IsNullOrWhiteSpace(tokenPip))
@@ -149,34 +260,34 @@ namespace ofic.Controllers
 
                 if (funcionario != null && (!string.IsNullOrWhiteSpace(funcionario.identificacion) || !string.IsNullOrWhiteSpace(funcionario.nombres)))
                 {
+                    string siglaDep = (funcionario.siglaDependencia ?? funcionario.siglaLaborando ?? funcionario.siglaFisica ?? "").Trim();
+                    bool isGusof = siglaDep.Equals("GUSOF", StringComparison.OrdinalIgnoreCase);
+
+                    if (!isGusof)
+                    {
+                        return Ok(new
+                        {
+                            success = false,
+                            isGusof = false,
+                            message = $"El funcionario ({(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}) pertenece a la dependencia '{(!string.IsNullOrWhiteSpace(siglaDep) ? siglaDep : funcionario.dependencia ?? "DESCONOCIDA")}', no al Grupo de Desarrollo de Software (GUSOF). Por favor contáctese con el administrador del sistema.",
+                            funcionario
+                        });
+                    }
+
                     return Ok(new
                     {
                         success = true,
-                        message = $"Funcionario '{(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}' verificado en PIP.",
+                        isGusof = true,
+                        message = $"Funcionario '{(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}' verificado exitosamente como integrante del Grupo de Desarrollo de Software (GUSOF).",
                         funcionario
                     });
                 }
 
-                // Si PIP no responde o se está en desarrollo local sin VPN
-                var fallbackUser = new DtoFuncionario
-                {
-                    identificacion = identificacion,
-                    usuario = !string.IsNullOrWhiteSpace(request?.DevUser) ? request.DevUser.Trim() : "dyck.lopez",
-                    nombres = "DYCK JAVIER",
-                    apellidos = "LOPEZ SILVA",
-                    gradAlfabetico = "IJ",
-                    nombreGrado = "INTENDENTE JEFE",
-                    correo = "dyck.lopez@correo.policia.gov.co",
-                    funcionario = "OFTIC IJ DYCK JAVIER LOPEZ SILVA",
-                    cargo = "DESARROLLADOR DE SOFTWARE",
-                    dependencia = "GRUPO DESARROLLO DE SOFTWARE"
-                };
-
                 return Ok(new
                 {
-                    success = true,
-                    message = $"Identificación '{identificacion}' asignada para configuración inicial.",
-                    funcionario = fallbackUser
+                    success = false,
+                    isGusof = false,
+                    message = $"No se encontró ningún funcionario registrado en PIP con la cédula/identificación '{identificacion}'. Por favor verifique el número e intente de nuevo."
                 });
             }
             catch (Exception ex)
@@ -184,16 +295,9 @@ namespace ofic.Controllers
                 _logger.LogError(ex, "Error validando identificación de desarrollador: {Identificacion}", identificacion);
                 return Ok(new
                 {
-                    success = true,
-                    message = $"Identificación '{identificacion}' asignada para entorno local.",
-                    funcionario = new DtoFuncionario
-                    {
-                        identificacion = identificacion,
-                        usuario = "dyck.lopez",
-                        nombres = "DYCK JAVIER",
-                        apellidos = "LOPEZ SILVA",
-                        gradAlfabetico = "IJ"
-                    }
+                    success = false,
+                    isGusof = false,
+                    message = $"No fue posible consultar PIP para la identificación '{identificacion}'. Verifique las credenciales PIP/OUD y la conectividad a la red institucional."
                 });
             }
         }
@@ -317,37 +421,13 @@ namespace ofic.Controllers
         }
 
         [HttpPost("migrate-database")]
-        public async Task<IActionResult> MigrateDatabase([FromBody] SetupTestRequest request)
+        public async Task<IActionResult> MigrateDatabase([FromBody] SetupTestRequest request, CancellationToken ct)
         {
             if (request == null) return BadRequest(new { success = false, message = "Datos requeridos." });
 
-            string cs = BuildConnectionString(request);
-
             try
             {
-                var provider = (request.Provider ?? "Oracle").Trim();
-                if (provider.Equals("Oracle", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var conn = new OracleConnection(cs);
-                    await conn.OpenAsync();
-                    await ExecuteAutoMigrationIfNeededAsync(conn, _env.ContentRootPath);
-                    await conn.CloseAsync();
-                }
-                else if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var conn = new MySqlConnector.MySqlConnection(cs);
-                    await conn.OpenAsync();
-                    await ExecuteMySqlMigrationIfNeededAsync(conn, _env.ContentRootPath);
-                    await conn.CloseAsync();
-                }
-                else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var conn = new Npgsql.NpgsqlConnection(cs);
-                    await conn.OpenAsync();
-                    await ExecutePostgresMigrationIfNeededAsync(conn, _env.ContentRootPath);
-                    await conn.CloseAsync();
-                }
-
+                await Datos.Gestion.DatabaseMigration.RunAsync(_configuration, _logger, ct);
                 return Ok(new { success = true, message = "¡Migración del esquema base de administración ejecutada con éxito en la base de datos!" });
             }
             catch (Exception ex)
@@ -377,7 +457,15 @@ namespace ofic.Controllers
                 var appsettingsPath = Path.Combine(_env.ContentRootPath, "appsettings.json");
                 if (!System.IO.File.Exists(appsettingsPath))
                 {
-                    return StatusCode(500, new { success = false, message = "No se encontró el archivo appsettings.json." });
+                    var templatePath = Path.Combine(_env.ContentRootPath, "appsettings.template.json");
+                    if (System.IO.File.Exists(templatePath))
+                    {
+                        System.IO.File.Copy(templatePath, appsettingsPath);
+                    }
+                    else
+                    {
+                        return StatusCode(500, new { success = false, message = "No se encontró el archivo appsettings.json ni la plantilla appsettings.template.json." });
+                    }
                 }
 
                 var jsonString = await System.IO.File.ReadAllTextAsync(appsettingsPath);
@@ -411,6 +499,18 @@ namespace ofic.Controllers
                     jsonNode["ApiSettings"]!["ClavePip"] = request.PipPassword;
                 }
 
+                // Configurar NombreSistema y SiglaSistema
+                string nombreSistemaVal = !string.IsNullOrWhiteSpace(request.NombreSistema) 
+                    ? request.NombreSistema.Trim() 
+                    : "Sistema de Gestión Institucional";
+                    
+                string siglaSistemaVal = !string.IsNullOrWhiteSpace(request.Sistema) 
+                    ? request.Sistema.Trim() 
+                    : (!string.IsNullOrWhiteSpace(request.Sigla) ? request.Sigla.Trim() : "SISGE");
+
+                jsonNode["ApiSettings"]!["NombreSistema"] = nombreSistemaVal;
+                jsonNode["ApiSettings"]!["SiglaSistema"] = siglaSistemaVal;
+
                 // Set JWT Settings if provided
                 if (jsonNode["Jwt"] == null)
                 {
@@ -434,6 +534,73 @@ namespace ofic.Controllers
                 // --- PERSISTENCIA DIRECTA DE DATOS EN LA BASE DE DATOS RECIÉN CONFIGURADA ---
                 var provider = (request.Provider ?? "Oracle").Trim();
 
+                // Consulta dinámica de PIP para obtener datos reales del Usuario Desarrollador Semilla
+                DtoFuncionario? pipDevFunc = null;
+                string searchIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) 
+                    ? request.DevIdentificacion.Trim() 
+                    : (!string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "");
+
+                if (!string.IsNullOrWhiteSpace(searchIdent))
+                {
+                    try
+                    {
+                        string tokenPip = "";
+                        if (!string.IsNullOrWhiteSpace(request.PipUser) && !string.IsNullOrWhiteSpace(request.PipPassword))
+                        {
+                            var tokenRespServ = await _tokenService.ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                            {
+                                usuario = request.PipUser.Trim(),
+                                clave = request.PipPassword.Trim()
+                            });
+                            tokenPip = tokenRespServ?.Respuesta ?? string.Empty;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(tokenPip))
+                        {
+                            var tokenResp = await _tokenService.ObtenerTokenPipAsync(HttpContext.RequestAborted);
+                            tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(tokenPip))
+                        {
+                            pipDevFunc = await _tokenService.GetFuncionarioAsync(tokenPip, searchIdent);
+                        }
+                    }
+                    catch (Exception exPip)
+                    {
+                        _logger.LogWarning(exPip, "No se pudo obtener información de PIP para '{SearchIdent}' durante SaveConfig", searchIdent);
+                    }
+                }
+
+                string devIdent = !string.IsNullOrWhiteSpace(pipDevFunc?.identificacion)
+                    ? pipDevFunc.identificacion.Trim()
+                    : (!string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : searchIdent);
+
+                string devUser = !string.IsNullOrWhiteSpace(pipDevFunc?.usuario)
+                    ? pipDevFunc.usuario.Trim()
+                    : (!string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : devIdent);
+
+                string devNombres = !string.IsNullOrWhiteSpace(pipDevFunc?.nombres)
+                    ? pipDevFunc.nombres.Trim()
+                    : (!string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "");
+
+                string devApellidos = !string.IsNullOrWhiteSpace(pipDevFunc?.apellidos)
+                    ? pipDevFunc.apellidos.Trim()
+                    : (!string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "");
+
+                string devGrad = !string.IsNullOrWhiteSpace(pipDevFunc?.gradAlfabetico)
+                    ? pipDevFunc.gradAlfabetico.Trim()
+                    : (!string.IsNullOrWhiteSpace(pipDevFunc?.nombreGrado) 
+                        ? pipDevFunc.nombreGrado.Trim() 
+                        : (!string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : ""));
+
+                string devFuncStr = !string.IsNullOrWhiteSpace(pipDevFunc?.funcionario)
+                    ? pipDevFunc.funcionario.Trim()
+                    : $"{devGrad} {devNombres} {devApellidos}".Trim();
+
+                long devUndeLaborando = long.TryParse(pipDevFunc?.undeLaborandoCodigo, out var uL) ? uL : 1L;
+                long devCodigoCargo = long.TryParse(pipDevFunc?.codigoCargo, out var cC) ? cC : 1L;
+
                 try
                 {
                     if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
@@ -441,7 +608,7 @@ namespace ofic.Controllers
                         using var conn = new MySqlConnector.MySqlConnection(cs);
                         await conn.OpenAsync();
 
-                        // 1. Branding (SOLO insertar si no existe ningún registro previo para no sobrescribir datos existentes)
+                        // 1. Branding (SOLO insertar si no existe ningún registro previo)
                         if (!string.IsNullOrWhiteSpace(request.Sistema) || !string.IsNullOrWhiteSpace(request.NombreSistema))
                         {
                             using var cmdBranding = conn.CreateCommand();
@@ -460,15 +627,7 @@ namespace ofic.Controllers
                             await cmdBranding.ExecuteNonQueryAsync();
                         }
 
-                        // 2. Dev User (SOLO crear usuario y asignar roles si no existen)
-                        string devUser = !string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "dyck.lopez";
-                        string devIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : "80100216";
-                        string devNombres = !string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "DYCK JAVIER";
-                        string devApellidos = !string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "LOPEZ SILVA";
-                        string devGrad = !string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : "IJ";
-                        string devEmail = !string.IsNullOrWhiteSpace(request.DevEmail) ? request.DevEmail.Trim() : $"{devUser}@correo.policia.gov.co";
-                        string devFuncStr = $"{devGrad} {devNombres} {devApellidos}".Trim();
-
+                        // 2. Dev User (Registrar o actualizar con datos de PIP)
                         long idUsuario = 0;
                         using (var cmdSelect = conn.CreateCommand())
                         {
@@ -486,13 +645,15 @@ namespace ofic.Controllers
                                 INSERT INTO CTR_USUARIOS 
                                 (bloqueado, username, identificacion, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, fecha_creacion, maquina_creacion)
                                 VALUES
-                                (0, @pUser, @pIdent, @pGrad, @pApellidos, @pNombres, @pFuncStr, 1, 1, 1, NOW(), 'SETUP')";
+                                (0, @pUser, @pIdent, @pGrad, @pApellidos, @pNombres, @pFuncStr, @pUnde, @pCargo, 1, NOW(), 'SETUP')";
                             cmdInsUser.Parameters.AddWithValue("@pUser", devUser);
                             cmdInsUser.Parameters.AddWithValue("@pIdent", devIdent);
                             cmdInsUser.Parameters.AddWithValue("@pGrad", devGrad);
                             cmdInsUser.Parameters.AddWithValue("@pApellidos", devApellidos);
                             cmdInsUser.Parameters.AddWithValue("@pNombres", devNombres);
                             cmdInsUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            cmdInsUser.Parameters.AddWithValue("@pUnde", devUndeLaborando);
+                            cmdInsUser.Parameters.AddWithValue("@pCargo", devCodigoCargo);
                             await cmdInsUser.ExecuteNonQueryAsync();
                             idUsuario = cmdInsUser.LastInsertedId;
                         }
@@ -501,7 +662,7 @@ namespace ofic.Controllers
                             using var cmdUpdUser = conn.CreateCommand();
                             cmdUpdUser.CommandText = @"
                                 UPDATE CTR_USUARIOS 
-                                SET username = @pUser, identificacion = @pIdent, grad_alfabetico = @pGrad, apellidos = @pApellidos, nombres = @pNombres, funcionario = @pFuncStr, bloqueado = 0
+                                SET username = @pUser, identificacion = @pIdent, grad_alfabetico = @pGrad, apellidos = @pApellidos, nombres = @pNombres, funcionario = @pFuncStr, unde_laborando = @pUnde, codigocargo = @pCargo, bloqueado = 0
                                 WHERE id_usuario = @pIdUser";
                             cmdUpdUser.Parameters.AddWithValue("@pUser", devUser);
                             cmdUpdUser.Parameters.AddWithValue("@pIdent", devIdent);
@@ -509,6 +670,8 @@ namespace ofic.Controllers
                             cmdUpdUser.Parameters.AddWithValue("@pApellidos", devApellidos);
                             cmdUpdUser.Parameters.AddWithValue("@pNombres", devNombres);
                             cmdUpdUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            cmdUpdUser.Parameters.AddWithValue("@pUnde", devUndeLaborando);
+                            cmdUpdUser.Parameters.AddWithValue("@pCargo", devCodigoCargo);
                             cmdUpdUser.Parameters.AddWithValue("@pIdUser", idUsuario);
                             await cmdUpdUser.ExecuteNonQueryAsync();
                         }
@@ -527,7 +690,7 @@ namespace ofic.Controllers
                             await cmdInsRolUser.ExecuteNonQueryAsync();
                         }
 
-                        // 3. Dominio Base Seeds (SOLO si no existen)
+                        // 3. Dominio Base Seeds
                         using (var cmdDom = conn.CreateCommand())
                         {
                             cmdDom.CommandText = @"
@@ -538,7 +701,7 @@ namespace ofic.Controllers
                             await cmdDom.ExecuteNonQueryAsync();
                         }
 
-                        // 4. Cuenta Email Base Seeds (SOLO si no existen)
+                        // 4. Cuenta Email Base Seeds
                         using (var cmdMail = conn.CreateCommand())
                         {
                             cmdMail.CommandText = @"
@@ -553,7 +716,7 @@ namespace ofic.Controllers
                         using var conn = new Npgsql.NpgsqlConnection(cs);
                         await conn.OpenAsync();
 
-                        // 1. Branding (SOLO si no existe)
+                        // 1. Branding
                         if (!string.IsNullOrWhiteSpace(request.Sistema) || !string.IsNullOrWhiteSpace(request.NombreSistema))
                         {
                             using var cmdBranding = conn.CreateCommand();
@@ -572,15 +735,7 @@ namespace ofic.Controllers
                             await cmdBranding.ExecuteNonQueryAsync();
                         }
 
-                        // 2. Dev User (SOLO si no existe)
-                        string devUser = !string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "dyck.lopez";
-                        string devIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : "80100216";
-                        string devNombres = !string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "DYCK JAVIER";
-                        string devApellidos = !string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "LOPEZ SILVA";
-                        string devGrad = !string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : "IJ";
-                        string devEmail = !string.IsNullOrWhiteSpace(request.DevEmail) ? request.DevEmail.Trim() : $"{devUser}@correo.policia.gov.co";
-                        string devFuncStr = $"{devGrad} {devNombres} {devApellidos}".Trim();
-
+                        // 2. Dev User
                         long idUsuario = 0;
                         using (var cmdSelect = conn.CreateCommand())
                         {
@@ -598,7 +753,7 @@ namespace ofic.Controllers
                                 INSERT INTO ctr_usuarios 
                                 (bloqueado, username, identificacion, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, fecha_creacion, maquina_creacion)
                                 VALUES
-                                (0, @pUser, @pIdent, @pGrad, @pApellidos, @pNombres, @pFuncStr, 1, 1, 1, CURRENT_TIMESTAMP, 'SETUP')
+                                (0, @pUser, @pIdent, @pGrad, @pApellidos, @pNombres, @pFuncStr, @pUnde, @pCargo, 1, CURRENT_TIMESTAMP, 'SETUP')
                                 RETURNING id_usuario";
                             cmdInsUser.Parameters.AddWithValue("@pUser", devUser);
                             cmdInsUser.Parameters.AddWithValue("@pIdent", devIdent);
@@ -606,6 +761,8 @@ namespace ofic.Controllers
                             cmdInsUser.Parameters.AddWithValue("@pApellidos", devApellidos);
                             cmdInsUser.Parameters.AddWithValue("@pNombres", devNombres);
                             cmdInsUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            cmdInsUser.Parameters.AddWithValue("@pUnde", devUndeLaborando);
+                            cmdInsUser.Parameters.AddWithValue("@pCargo", devCodigoCargo);
                             var scalarId = await cmdInsUser.ExecuteScalarAsync();
                             if (scalarId != null) idUsuario = Convert.ToInt64(scalarId);
                         }
@@ -614,7 +771,7 @@ namespace ofic.Controllers
                             using var cmdUpdUser = conn.CreateCommand();
                             cmdUpdUser.CommandText = @"
                                 UPDATE ctr_usuarios 
-                                SET username = @pUser, identificacion = @pIdent, grad_alfabetico = @pGrad, apellidos = @pApellidos, nombres = @pNombres, funcionario = @pFuncStr, bloqueado = 0
+                                SET username = @pUser, identificacion = @pIdent, grad_alfabetico = @pGrad, apellidos = @pApellidos, nombres = @pNombres, funcionario = @pFuncStr, unde_laborando = @pUnde, codigocargo = @pCargo, bloqueado = 0
                                 WHERE id_usuario = @pIdUser";
                             cmdUpdUser.Parameters.AddWithValue("@pUser", devUser);
                             cmdUpdUser.Parameters.AddWithValue("@pIdent", devIdent);
@@ -622,6 +779,8 @@ namespace ofic.Controllers
                             cmdUpdUser.Parameters.AddWithValue("@pApellidos", devApellidos);
                             cmdUpdUser.Parameters.AddWithValue("@pNombres", devNombres);
                             cmdUpdUser.Parameters.AddWithValue("@pFuncStr", devFuncStr);
+                            cmdUpdUser.Parameters.AddWithValue("@pUnde", devUndeLaborando);
+                            cmdUpdUser.Parameters.AddWithValue("@pCargo", devCodigoCargo);
                             cmdUpdUser.Parameters.AddWithValue("@pIdUser", idUsuario);
                             await cmdUpdUser.ExecuteNonQueryAsync();
                         }
@@ -640,7 +799,7 @@ namespace ofic.Controllers
                             await cmdInsRolUser.ExecuteNonQueryAsync();
                         }
 
-                        // 3. Dominio Base Seeds (SOLO si no existen)
+                        // 3. Dominio Base Seeds
                         using (var cmdDom = conn.CreateCommand())
                         {
                             cmdDom.CommandText = @"
@@ -649,7 +808,7 @@ namespace ofic.Controllers
                             await cmdDom.ExecuteNonQueryAsync();
                         }
 
-                        // 4. Cuenta Email Base Seeds (SOLO si no existen)
+                        // 4. Cuenta Email Base Seeds
                         using (var cmdMail = conn.CreateCommand())
                         {
                             cmdMail.CommandText = @"
@@ -660,7 +819,7 @@ namespace ofic.Controllers
                     }
                     else
                     {
-                        // Oracle (SOLO si no existen)
+                        // Oracle
                         using var conn = new OracleConnection(cs);
                         await conn.OpenAsync();
 
@@ -685,15 +844,7 @@ namespace ofic.Controllers
                             await cmdBranding.ExecuteNonQueryAsync();
                         }
 
-                                        // 2. Dev User
-                        string devUser = !string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "dyck.lopez";
-                        string devIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : "80100216";
-                        string devNombres = !string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "DYCK JAVIER";
-                        string devApellidos = !string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "LOPEZ SILVA";
-                        string devGrad = !string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : "IJ";
-                        string devEmail = !string.IsNullOrWhiteSpace(request.DevEmail) ? request.DevEmail.Trim() : $"{devUser}@correo.policia.gov.co";
-                        string devFuncStr = $"{devGrad} {devNombres} {devApellidos}".Trim();
-
+                        // 2. Dev User
                         long idUsuario = 0;
                         using (var cmdSelect = conn.CreateCommand())
                         {
@@ -723,7 +874,7 @@ namespace ofic.Controllers
                                 INSERT INTO CTR_USUARIOS 
                                 (ID_USUARIO, BLOQUEADO, USERNAME, IDENTIFICACION, GRAD_ALFABETICO, APELLIDOS, NOMBRES, FUNCIONARIO, UNDE_LABORANDO, CODIGOCARGO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
                                 VALUES
-                                (:pId, 0, :pUser, :pIdent, :pGrad, :pApellidos, :pNombres, :pFuncStr, 1, 1, 1, SYSDATE, 'SETUP')";
+                                (:pId, 0, :pUser, :pIdent, :pGrad, :pApellidos, :pNombres, :pFuncStr, :pUnde, :pCargo, 1, SYSDATE, 'SETUP')";
                             cmdInsUser.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
                             cmdInsUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
                             cmdInsUser.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
@@ -731,6 +882,8 @@ namespace ofic.Controllers
                             cmdInsUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
                             cmdInsUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
                             cmdInsUser.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = devFuncStr;
+                            cmdInsUser.Parameters.Add(":pUnde", OracleDbType.Int64).Value = devUndeLaborando;
+                            cmdInsUser.Parameters.Add(":pCargo", OracleDbType.Int64).Value = devCodigoCargo;
                             await cmdInsUser.ExecuteNonQueryAsync();
                         }
                         else
@@ -738,7 +891,7 @@ namespace ofic.Controllers
                             using var cmdUpdUser = conn.CreateCommand();
                             cmdUpdUser.CommandText = @"
                                 UPDATE CTR_USUARIOS 
-                                SET USERNAME = :pUser, IDENTIFICACION = :pIdent, GRAD_ALFABETICO = :pGrad, APELLIDOS = :pApellidos, NOMBRES = :pNombres, FUNCIONARIO = :pFuncStr, BLOQUEADO = 0
+                                SET USERNAME = :pUser, IDENTIFICACION = :pIdent, GRAD_ALFABETICO = :pGrad, APELLIDOS = :pApellidos, NOMBRES = :pNombres, FUNCIONARIO = :pFuncStr, UNDE_LABORANDO = :pUnde, CODIGOCARGO = :pCargo, BLOQUEADO = 0
                                 WHERE ID_USUARIO = :pIdUser";
                             cmdUpdUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
                             cmdUpdUser.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
@@ -746,6 +899,8 @@ namespace ofic.Controllers
                             cmdUpdUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
                             cmdUpdUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
                             cmdUpdUser.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = devFuncStr;
+                            cmdUpdUser.Parameters.Add(":pUnde", OracleDbType.Int64).Value = devUndeLaborando;
+                            cmdUpdUser.Parameters.Add(":pCargo", OracleDbType.Int64).Value = devCodigoCargo;
                             cmdUpdUser.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
                             await cmdUpdUser.ExecuteNonQueryAsync();
                         }

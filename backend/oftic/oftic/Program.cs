@@ -218,4 +218,13 @@ app.UseRateLimiter();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 
+try
+{
+    await Datos.Gestion.DatabaseMigration.RunAsync(app.Configuration, app.Logger);
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Error ejecutando la migración inicial de la base de datos");
+}
+
 app.Run();

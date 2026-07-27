@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
 using Datos.Interfaz;
-
 using Comun.Extensions;
 
 namespace Datos.Gestion
@@ -37,7 +36,7 @@ namespace Datos.Gestion
 
                     await using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE LOWER(username) = LOWER(@pUser) AND bloqueado = 0";
+                        cmd.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE (LOWER(username) = LOWER(@pUser) OR identificacion = @pUser) AND bloqueado = 0";
                         cmd.Parameters.AddWithValue("@pUser", usuario);
                         var obj = await cmd.ExecuteScalarAsync(ct);
                         if (obj != null && obj != DBNull.Value) idUsuario = Convert.ToInt64(obj);
@@ -76,7 +75,7 @@ namespace Datos.Gestion
 
                     await using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE LOWER(username) = LOWER(@pUser) AND bloqueado = 0";
+                        cmd.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE (LOWER(username) = LOWER(@pUser) OR identificacion = @pUser) AND bloqueado = 0";
                         cmd.Parameters.AddWithValue("@pUser", usuario);
                         var obj = await cmd.ExecuteScalarAsync(ct);
                         if (obj != null && obj != DBNull.Value) idUsuario = Convert.ToInt64(obj);
@@ -115,7 +114,7 @@ namespace Datos.Gestion
                 await using (var cmd = oracleConn.CreateCommand())
                 {
                     cmd.CommandType = CommandType.Text;
-                    cmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE UPPER(username) = UPPER(:pUsuario) AND bloqueado = 0";
+                    cmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE (UPPER(username) = UPPER(:pUsuario) OR identificacion = :pUsuario) AND bloqueado = 0";
                     cmd.Parameters.Add(":pUsuario", OracleDbType.Varchar2).Value = usuario;
 
                     var obj = await cmd.ExecuteScalarAsync(ct);

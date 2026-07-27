@@ -7,6 +7,15 @@ export interface SetupStatus {
   configured: boolean;
   provider?: string;
   connectionStringConfigured: boolean;
+  pipUser?: string;
+  nombreSistema?: string;
+  siglaSistema?: string;
+  databaseOrService?: string;
+  devUser?: string;
+  devIdentificacion?: string;
+  devNombres?: string;
+  devApellidos?: string;
+  devGrad?: string;
 }
 
 export interface SetupTestRequest {

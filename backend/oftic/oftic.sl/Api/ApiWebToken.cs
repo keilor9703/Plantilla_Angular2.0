@@ -427,21 +427,30 @@ namespace Servicios.Api
 
         private static DtoFuncionario MapFlexibleFuncionario(JsonElement obj)
         {
+            var correoStr = Pick(obj, "correo", "Correo", "email", "Email", "correoElectronico", "CorreoElectronico", "mail", "Mail");
+            var userStr = Pick(obj, "usuario", "Usuario", "username", "Username", "usuarioEmpresarial", "UsuarioEmpresarial");
+            if (string.IsNullOrWhiteSpace(userStr) && !string.IsNullOrWhiteSpace(correoStr) && correoStr.Contains('@'))
+            {
+                userStr = correoStr.Split('@')[0].Trim();
+            }
+
             return new DtoFuncionario
             {
                 identificacion = Pick(obj, "identificacion", "Identificacion", "numeroDocumento", "NumeroDocumento", "documento", "Documento", "identidad", "IdFuncionario"),
                 nombres = Pick(obj, "nombres", "Nombres", "nombre", "Nombre", "primerNombre", "PrimerNombre", "nombresFuncionario"),
                 apellidos = Pick(obj, "apellidos", "Apellidos", "apellido", "Apellido", "primerApellido", "PrimerApellido", "apellidosFuncionario"),
                 situacionLaboral = Pick(obj, "situacionLaboral", "SituacionLaboral", "situacion_laboral", "Situacion_Laboral", "situacion", "Situacion", "estadoLaboral", "EstadoLaboral"),
-                correo = Pick(obj, "correo", "Correo", "email", "Email", "correoElectronico", "CorreoElectronico", "mail", "Mail"),
-                usuario = Pick(obj, "usuario", "Usuario", "username", "Username", "usuarioEmpresarial", "UsuarioEmpresarial"),
+                correo = correoStr,
+                usuario = userStr,
                 celular = Pick(obj, "celular", "Celular", "numeroCelular", "NumeroCelular", "telefono", "Telefono", "telefonoMovil", "TelefonoMovil", "movil", "Movil"),
                 dependencia = Pick(obj, "descripcionDependencia", "DescripcionDependencia"),
                 siglaFisica = Pick(obj, "siglaFisica", "SiglaFisica", "siglaLaborando", "SiglaLaborando"),
                 siglaLaborando = Pick(obj, "siglaLaborando", "SiglaLaborando"),
+                siglaDependencia = Pick(obj, "siglaDependencia", "SiglaDependencia", "siglaDependenciaLaborando"),
                 nombreGrado = Pick(obj, "nombreGrado", "NombreGrado", "grado", "Grado"),
                 gradAlfabetico = Pick(obj, "gradAlfabetico", "GradAlfabetico", "gradoAlfabetico", "GradoAlfabetico", "siglaGrado", "SiglaGrado"),
                 tiempoServicio = Pick(obj, "tiempoServicio", "TiempoServicio", "tiempo_servicio", "Tiempo_Servicio"),
+                funcionario = Pick(obj, "funcionario", "Funcionario"),
                 // En PIP "funcionario" llega como texto; para código usamos consecutivo/numerico.
                 funcionarioCodigo = Pick(obj, "consecutivo", "Consecutivo", "numerico", "Numerico", "identificacion", "Identificacion"),
                 // Código de unidad donde labora.
@@ -468,6 +477,9 @@ namespace Servicios.Api
             primary.celular ??= fallback.celular;
             primary.dependencia ??= fallback.dependencia;
             primary.siglaFisica ??= fallback.siglaFisica;
+            primary.siglaLaborando ??= fallback.siglaLaborando;
+            primary.siglaDependencia ??= fallback.siglaDependencia;
+            primary.funcionario ??= fallback.funcionario;
             primary.siglaLaborando ??= fallback.siglaLaborando;
             primary.nombreGrado ??= fallback.nombreGrado;
             primary.cargo ??= fallback.cargo;

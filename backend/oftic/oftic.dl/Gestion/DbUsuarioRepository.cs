@@ -44,7 +44,7 @@ namespace Datos.Gestion
                 await using var conn = new Npgsql.NpgsqlConnection(_cs);
                 await conn.OpenAsync(ct);
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT id_usuario FROM ctr_usuarios WHERE LOWER(username) = LOWER(@pUser)";
+                cmd.CommandText = "SELECT id_usuario FROM CTR_USUARIOS WHERE LOWER(username) = LOWER(@pUser)";
                 cmd.Parameters.AddWithValue("@pUser", username.Trim());
                 var obj = await cmd.ExecuteScalarAsync(ct);
                 return (obj is null || obj == DBNull.Value) ? null : Convert.ToInt64(obj);
@@ -54,7 +54,7 @@ namespace Datos.Gestion
             await oracleConn.OpenAsync(ct);
             await using var oracleCmd = oracleConn.CreateCommand();
             oracleCmd.CommandType = CommandType.Text;
-            oracleCmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE UPPER(username) = UPPER(:pUsuario)";
+            oracleCmd.CommandText = @"SELECT id_usuario FROM CTR_USUARIOS WHERE UPPER(username) = UPPER(:pUsuario)";
             oracleCmd.Parameters.Add(":pUsuario", OracleDbType.Varchar2).Value = username.Trim();
             var res = await oracleCmd.ExecuteScalarAsync(ct);
             return (res is null || res == DBNull.Value) ? null : Convert.ToInt64(res);
@@ -168,6 +168,17 @@ namespace Datos.Gestion
             }
 
             var identificacion = (funcionario.identificacion ?? username).Trim();
+            var pGrad = !string.IsNullOrWhiteSpace(funcionario.gradAlfabetico) 
+                ? funcionario.gradAlfabetico 
+                : (!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : "");
+            var pApellidos = funcionario.apellidos ?? "";
+            var pNombres = funcionario.nombres ?? username;
+            var pFuncStr = !string.IsNullOrWhiteSpace(funcionario.funcionario) 
+                ? funcionario.funcionario 
+                : $"{pGrad} {pNombres} {pApellidos}".Trim();
+            long pUnde = long.TryParse(funcionario.undeLaborandoCodigo, out var uCode) ? uCode : 0L;
+            long pCargo = long.TryParse(funcionario.codigoCargo, out var cCode) ? cCode : 0L;
+
             var existingId = await GetUsuarioIdByUsernameAsync(username, ct);
             if (existingId.HasValue)
             {
@@ -181,66 +192,21 @@ namespace Datos.Gestion
                 using var conn = new MySqlConnector.MySqlConnection(_cs);
                 await conn.OpenAsync(ct);
 
-                // 1. Crear tabla con el esquema oficial completo
-                using (var cmdDdl = conn.CreateCommand())
-                {
-                    cmdDdl.CommandText = @"
-                        CREATE TABLE IF NOT EXISTS CTR_USUARIOS (
-                            id_usuario BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            bloqueado TINYINT(1) DEFAULT 0 NOT NULL,
-                            username VARCHAR(255) NOT NULL UNIQUE,
-                            identificacion VARCHAR(50) NOT NULL UNIQUE,
-                            grad_alfabetico VARCHAR(255) DEFAULT '' NOT NULL,
-                            apellidos VARCHAR(255) DEFAULT '' NOT NULL,
-                            nombres VARCHAR(255) DEFAULT '' NOT NULL,
-                            funcionario VARCHAR(255) DEFAULT '' NOT NULL,
-                            unde_laborando BIGINT DEFAULT 0 NOT NULL,
-                            codigocargo BIGINT DEFAULT 0 NOT NULL,
-                            usuario_creacion BIGINT DEFAULT 1 NOT NULL,
-                            fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                            maquina_creacion VARCHAR(255) DEFAULT 'LOCAL' NOT NULL,
-                            usuario_modifica BIGINT,
-                            fecha_modifica DATETIME,
-                            maquina_modifica VARCHAR(255)
-                        );";
-                    await cmdDdl.ExecuteNonQueryAsync(ct);
-                }
-
-                // 2. Reparar tabla en instalaciones locales que se crearon previamente de forma incompleta
-                var alterCols = new[]
-                {
-                    "ADD COLUMN grad_alfabetico VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN apellidos VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN nombres VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN funcionario VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN unde_laborando BIGINT DEFAULT 0 NOT NULL",
-                    "ADD COLUMN codigocargo BIGINT DEFAULT 0 NOT NULL",
-                    "ADD COLUMN usuario_creacion BIGINT DEFAULT 1 NOT NULL",
-                    "ADD COLUMN fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL",
-                    "ADD COLUMN maquina_creacion VARCHAR(255) DEFAULT 'LOCAL' NOT NULL",
-                    "ADD COLUMN usuario_modifica BIGINT",
-                    "ADD COLUMN fecha_modifica DATETIME",
-                    "ADD COLUMN maquina_modifica VARCHAR(255)"
-                };
-
-                foreach (var col in alterCols)
-                {
-                    try
-                    {
-                        using var cmdAlter = conn.CreateCommand();
-                        cmdAlter.CommandText = $"ALTER TABLE CTR_USUARIOS {col};";
-                        await cmdAlter.ExecuteNonQueryAsync(ct);
-                    }
-                    catch { /* ignorar si la columna ya existe */ }
-                }
-
                 using (var cmdInsert = conn.CreateCommand())
                 {
                     cmdInsert.CommandText = @"
-                        INSERT IGNORE INTO CTR_USUARIOS (username, identificacion, bloqueado, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, maquina_creacion)
-                        VALUES (@pUser, @pIdent, 0, 'ING', 'DESARROLLADOR', @pUser, 'DESARROLLADOR', 1, 1, 1, 'SETUP');";
+                        INSERT IGNORE INTO CTR_USUARIOS 
+                        (username, identificacion, bloqueado, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, maquina_creacion)
+                        VALUES 
+                        (@pUser, @pIdent, 0, @pGrad, @pApellidos, @pNombres, @pFuncStr, @pUnde, @pCargo, 1, 'SETUP');";
                     cmdInsert.Parameters.AddWithValue("@pUser", username);
-                    cmdInsert.Parameters.AddWithValue("@pIdent", (object?)identificacion ?? username);
+                    cmdInsert.Parameters.AddWithValue("@pIdent", identificacion);
+                    cmdInsert.Parameters.AddWithValue("@pGrad", pGrad);
+                    cmdInsert.Parameters.AddWithValue("@pApellidos", pApellidos);
+                    cmdInsert.Parameters.AddWithValue("@pNombres", pNombres);
+                    cmdInsert.Parameters.AddWithValue("@pFuncStr", pFuncStr);
+                    cmdInsert.Parameters.AddWithValue("@pUnde", pUnde);
+                    cmdInsert.Parameters.AddWithValue("@pCargo", pCargo);
                     await cmdInsert.ExecuteNonQueryAsync(ct);
                 }
 
@@ -257,65 +223,22 @@ namespace Datos.Gestion
                 using var conn = new Npgsql.NpgsqlConnection(_cs);
                 await conn.OpenAsync(ct);
 
-                using (var cmdDdl = conn.CreateCommand())
-                {
-                    cmdDdl.CommandText = @"
-                        CREATE TABLE IF NOT EXISTS ctr_usuarios (
-                            id_usuario BIGSERIAL PRIMARY KEY,
-                            bloqueado SMALLINT DEFAULT 0 NOT NULL,
-                            username VARCHAR(255) NOT NULL UNIQUE,
-                            identificacion VARCHAR(50) NOT NULL UNIQUE,
-                            grad_alfabetico VARCHAR(255) DEFAULT '' NOT NULL,
-                            apellidos VARCHAR(255) DEFAULT '' NOT NULL,
-                            nombres VARCHAR(255) DEFAULT '' NOT NULL,
-                            funcionario VARCHAR(255) DEFAULT '' NOT NULL,
-                            unde_laborando BIGINT DEFAULT 0 NOT NULL,
-                            codigocargo BIGINT DEFAULT 0 NOT NULL,
-                            usuario_creacion BIGINT DEFAULT 1 NOT NULL,
-                            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                            maquina_creacion VARCHAR(255) DEFAULT 'LOCAL' NOT NULL,
-                            usuario_modifica BIGINT,
-                            fecha_modifica TIMESTAMP,
-                            maquina_modifica VARCHAR(255)
-                        );";
-                    await cmdDdl.ExecuteNonQueryAsync(ct);
-                }
-
-                var alterColsPg = new[]
-                {
-                    "ADD COLUMN IF NOT EXISTS grad_alfabetico VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS apellidos VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS nombres VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS funcionario VARCHAR(255) DEFAULT '' NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS unde_laborando BIGINT DEFAULT 0 NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS codigocargo BIGINT DEFAULT 0 NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS usuario_creacion BIGINT DEFAULT 1 NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(255) DEFAULT 'LOCAL' NOT NULL",
-                    "ADD COLUMN IF NOT EXISTS usuario_modifica BIGINT",
-                    "ADD COLUMN IF NOT EXISTS fecha_modifica TIMESTAMP",
-                    "ADD COLUMN IF NOT EXISTS maquina_modifica VARCHAR(255)"
-                };
-
-                foreach (var col in alterColsPg)
-                {
-                    try
-                    {
-                        using var cmdAlter = conn.CreateCommand();
-                        cmdAlter.CommandText = $"ALTER TABLE ctr_usuarios {col};";
-                        await cmdAlter.ExecuteNonQueryAsync(ct);
-                    }
-                    catch { /* ignorar si ya existe */ }
-                }
-
                 using (var cmdInsert = conn.CreateCommand())
                 {
                     cmdInsert.CommandText = @"
-                        INSERT INTO ctr_usuarios (username, identificacion, bloqueado, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, maquina_creacion)
-                        VALUES (@pUser, @pIdent, 0, 'ING', 'DESARROLLADOR', @pUser, 'DESARROLLADOR', 1, 1, 1, 'SETUP')
+                        INSERT INTO ctr_usuarios 
+                        (username, identificacion, bloqueado, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, maquina_creacion)
+                        VALUES 
+                        (@pUser, @pIdent, 0, @pGrad, @pApellidos, @pNombres, @pFuncStr, @pUnde, @pCargo, 1, 'SETUP')
                         ON CONFLICT (username) DO NOTHING;";
                     cmdInsert.Parameters.AddWithValue("@pUser", username);
-                    cmdInsert.Parameters.AddWithValue("@pIdent", (object?)identificacion ?? username);
+                    cmdInsert.Parameters.AddWithValue("@pIdent", identificacion);
+                    cmdInsert.Parameters.AddWithValue("@pGrad", pGrad);
+                    cmdInsert.Parameters.AddWithValue("@pApellidos", pApellidos);
+                    cmdInsert.Parameters.AddWithValue("@pNombres", pNombres);
+                    cmdInsert.Parameters.AddWithValue("@pFuncStr", pFuncStr);
+                    cmdInsert.Parameters.AddWithValue("@pUnde", pUnde);
+                    cmdInsert.Parameters.AddWithValue("@pCargo", pCargo);
                     await cmdInsert.ExecuteNonQueryAsync(ct);
                 }
 
@@ -347,11 +270,17 @@ namespace Datos.Gestion
                     cmdInsert.Transaction = tx;
                     cmdInsert.CommandType = CommandType.Text;
                     cmdInsert.CommandText = @"
-INSERT INTO ctr_usuarios (id_usuario, username, identificacion, bloqueado)
-VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
+INSERT INTO ctr_usuarios (id_usuario, username, identificacion, bloqueado, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, maquina_creacion)
+VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0, :pGrad, :pApellidos, :pNombres, :pFuncStr, :pUnde, :pCargo, 1, 'SETUP')";
                     cmdInsert.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = nextId;
                     cmdInsert.Parameters.Add(":pUsername", OracleDbType.Varchar2).Value = username;
                     cmdInsert.Parameters.Add(":pIdentificacion", OracleDbType.Varchar2).Value = identificacion;
+                    cmdInsert.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = pGrad;
+                    cmdInsert.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = pApellidos;
+                    cmdInsert.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = pNombres;
+                    cmdInsert.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = pFuncStr;
+                    cmdInsert.Parameters.Add(":pUnde", OracleDbType.Int64).Value = pUnde;
+                    cmdInsert.Parameters.Add(":pCargo", OracleDbType.Int64).Value = pCargo;
                     await cmdInsert.ExecuteNonQueryAsync(ct);
                 }
 
@@ -379,42 +308,6 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
                 {
                     using var conn = new MySqlConnector.MySqlConnection(_cs);
                     await conn.OpenAsync(ct);
-
-                    // Asegurar tablas auxiliares (pueden no existir todavía)
-                    using (var cmdDdl1 = conn.CreateCommand())
-                    {
-                        cmdDdl1.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles (
-                                id_rol INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                                descripcion VARCHAR(200),
-                                vigente INT DEFAULT 1
-                            );";
-                        await cmdDdl1.ExecuteNonQueryAsync(ct);
-                    }
-                    using (var cmdDdl2 = conn.CreateCommand())
-                    {
-                        cmdDdl2.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles_user_admin (
-                                id_usuario BIGINT NOT NULL,
-                                id_rol INT NOT NULL,
-                                justificacion VARCHAR(1000),
-                                fecha_fin DATE,
-                                vigente INT DEFAULT 1,
-                                PRIMARY KEY (id_usuario, id_rol)
-                            );";
-                        await cmdDdl2.ExecuteNonQueryAsync(ct);
-                    }
-
-                    // Reparar tablas existentes con esquema incompleto usando IF NOT EXISTS (MySQL 8.0+)
-                    using (var cmdAlter = conn.CreateCommand())
-                    {
-                        cmdAlter.CommandText = @"
-                            ALTER TABLE ctr_roles_user_admin
-                                ADD COLUMN IF NOT EXISTS justificacion VARCHAR(1000),
-                                ADD COLUMN IF NOT EXISTS fecha_fin DATE,
-                                ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1;";
-                        await cmdAlter.ExecuteNonQueryAsync(ct);
-                    }
 
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
@@ -478,7 +371,7 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
                     using (var cmdDdl1 = conn.CreateCommand())
                     {
                         cmdDdl1.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles (
+                            CREATE TABLE IF NOT EXISTS CTR_ROLES (
                                 id_rol SERIAL PRIMARY KEY,
                                 descripcion VARCHAR(200),
                                 vigente INT DEFAULT 1
@@ -488,7 +381,7 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
                     using (var cmdDdl2 = conn.CreateCommand())
                     {
                         cmdDdl2.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles_user_admin (
+                            CREATE TABLE IF NOT EXISTS CTR_ROLES_USER_ADMIN (
                                 id_usuario BIGINT NOT NULL,
                                 id_rol INT NOT NULL,
                                 justificacion VARCHAR(1000),
@@ -509,8 +402,8 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
                             COALESCE(STRING_AGG(DISTINCT COALESCE(r.descripcion, 'Sin rol'), ', '), 'Sin rol') AS roles,
                             MAX(rua.fecha_fin) AS fecha_fin_rol
                         FROM ctr_usuarios u
-                        LEFT JOIN ctr_roles_user_admin rua ON rua.id_usuario = u.id_usuario AND COALESCE(rua.vigente, 1) = 1
-                        LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
+                        LEFT JOIN CTR_ROLES_USER_ADMIN rua ON rua.id_usuario = u.id_usuario AND COALESCE(rua.vigente, 1) = 1
+                        LEFT JOIN CTR_ROLES r ON r.id_rol = rua.id_rol
                         WHERE (@pNombre IS NULL OR @pNombre = '' 
                            OR LOWER(u.username) LIKE LOWER('%' || @pNombre || '%')
                            OR LOWER(u.identificacion::text) LIKE LOWER('%' || @pNombre || '%')
@@ -566,7 +459,7 @@ WITH roles_agg AS (
             rua.id_usuario,
             NVL(r.descripcion, 'Sin rol') AS rol_desc,
             CASE WHEN rua.fecha_fin IS NOT NULL THEN TO_CHAR(rua.fecha_fin, 'YYYY-MM-DD') END AS fecha_fin_txt
-        FROM ctr_roles_user_admin rua
+        FROM CTR_ROLES_USER_ADMIN rua
         LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
         WHERE NVL(rua.vigente, 0) = 1
           AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
@@ -706,7 +599,7 @@ ORDER BY UPPER(u.username)";
                             rua.justificacion,
                             rua.fecha_fin,
                             COALESCE(rua.vigente, 1) AS vigente
-                        FROM ctr_roles_user_admin rua
+                        FROM CTR_ROLES_USER_ADMIN rua
                         LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
                         WHERE rua.id_usuario = @pIdUsuario
                         ORDER BY descripcion_rol, rua.id_rol;";
@@ -755,7 +648,7 @@ ORDER BY UPPER(u.username)";
                            rua.justificacion,
                            rua.fecha_fin,
                            NVL(rua.vigente, 0) AS vigente
-                    FROM ctr_roles_user_admin rua
+                    FROM CTR_ROLES_USER_ADMIN rua
                     LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
                     WHERE rua.id_usuario = :pIdUsuario
                     ORDER BY descripcion_rol, rua.id_rol";
@@ -833,7 +726,7 @@ ORDER BY UPPER(u.username)";
                     await conn.OpenAsync(ct);
 
                     using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "UPDATE ctr_roles_user_admin SET vigente = 0, fecha_fin = CURRENT_TIMESTAMP WHERE id_usuario = @pIdUser AND id_rol = @pIdRol;";
+                    cmd.CommandText = "UPDATE CTR_ROLES_USER_ADMIN SET vigente = 0, fecha_fin = CURRENT_TIMESTAMP WHERE id_usuario = @pIdUser AND id_rol = @pIdRol;";
                     cmd.Parameters.AddWithValue("@pIdUser", idUsuario);
                     cmd.Parameters.AddWithValue("@pIdRol", rolId);
 
@@ -860,7 +753,7 @@ ORDER BY UPPER(u.username)";
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = @"
-UPDATE ctr_roles_user_admin
+UPDATE CTR_ROLES_USER_ADMIN
    SET vigente = 0,
        fecha_fin = NVL(fecha_fin, TRUNC(SYSDATE))
  WHERE id_usuario = :pIdUsuario
@@ -904,7 +797,7 @@ UPDATE ctr_roles_user_admin
 
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
-                        UPDATE ctr_roles_user_admin
+                        UPDATE CTR_ROLES_USER_ADMIN
                            SET justificacion = @pJust, fecha_fin = @pFechaFin
                          WHERE id_usuario = @pIdUser AND id_rol = @pIdRol;";
                     cmd.Parameters.AddWithValue("@pIdUser", idUsuario);
@@ -931,7 +824,7 @@ UPDATE ctr_roles_user_admin
 
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
-                        UPDATE ctr_roles_user_admin
+                        UPDATE CTR_ROLES_USER_ADMIN
                            SET justificacion = @pJust, fecha_fin = @pFechaFin
                          WHERE id_usuario = @pIdUser AND id_rol = @pIdRol;";
                     cmd.Parameters.AddWithValue("@pIdUser", idUsuario);
@@ -1258,7 +1151,7 @@ ORDER BY id_rol";
                     using (var cmd1 = conn.CreateCommand())
                     {
                         cmd1.Transaction = tx;
-                        cmd1.CommandText = "UPDATE ctr_usuarios SET bloqueado = 1 WHERE id_usuario = @pId";
+                        cmd1.CommandText = "UPDATE CTR_USUARIOS SET bloqueado = 1 WHERE id_usuario = @pId";
                         cmd1.Parameters.AddWithValue("@pId", idUsuario);
                         var affected = await cmd1.ExecuteNonQueryAsync(ct);
                         if (affected <= 0)
@@ -1271,7 +1164,7 @@ ORDER BY id_rol";
                     using (var cmd2 = conn.CreateCommand())
                     {
                         cmd2.Transaction = tx;
-                        cmd2.CommandText = @"UPDATE ctr_roles_user_admin
+                        cmd2.CommandText = @"UPDATE CTR_ROLES_USER_ADMIN
    SET vigente = 0, fecha_fin = COALESCE(fecha_fin, CURDATE())
  WHERE id_usuario = @pId AND COALESCE(vigente, 0) = 1";
                         cmd2.Parameters.AddWithValue("@pId", idUsuario);
@@ -1301,7 +1194,7 @@ ORDER BY id_rol";
                     using (var cmd1 = conn.CreateCommand())
                     {
                         cmd1.Transaction = tx;
-                        cmd1.CommandText = "UPDATE ctr_usuarios SET bloqueado = 1 WHERE id_usuario = @pId";
+                        cmd1.CommandText = "UPDATE CTR_USUARIOS SET bloqueado = 1 WHERE id_usuario = @pId";
                         cmd1.Parameters.AddWithValue("@pId", idUsuario);
                         var affected = await cmd1.ExecuteNonQueryAsync(ct);
                         if (affected <= 0)
@@ -1314,7 +1207,7 @@ ORDER BY id_rol";
                     using (var cmd2 = conn.CreateCommand())
                     {
                         cmd2.Transaction = tx;
-                        cmd2.CommandText = @"UPDATE ctr_roles_user_admin
+                        cmd2.CommandText = @"UPDATE CTR_ROLES_USER_ADMIN
    SET vigente = 0, fecha_fin = COALESCE(fecha_fin, CURRENT_DATE)
  WHERE id_usuario = @pId AND COALESCE(vigente, 0) = 1";
                         cmd2.Parameters.AddWithValue("@pId", idUsuario);
@@ -1342,7 +1235,7 @@ ORDER BY id_rol";
                 {
                     cmd1.Transaction = oraTx;
                     cmd1.BindByName = true;
-                    cmd1.CommandText = "UPDATE ctr_usuarios SET bloqueado = 1 WHERE id_usuario = :pId";
+                    cmd1.CommandText = "UPDATE CTR_USUARIOS SET bloqueado = 1 WHERE id_usuario = :pId";
                     cmd1.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
                     var affected = await cmd1.ExecuteNonQueryAsync(ct);
                     if (affected <= 0)
@@ -1356,7 +1249,7 @@ ORDER BY id_rol";
                 {
                     cmd2.Transaction = oraTx;
                     cmd2.BindByName = true;
-                    cmd2.CommandText = @"UPDATE ctr_roles_user_admin
+                    cmd2.CommandText = @"UPDATE CTR_ROLES_USER_ADMIN
    SET vigente = 0, fecha_fin = NVL(fecha_fin, TRUNC(SYSDATE))
  WHERE id_usuario = :pId AND NVL(vigente, 0) = 1";
                     cmd2.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
@@ -1389,34 +1282,9 @@ ORDER BY id_rol";
                     using var conn = new MySqlConnector.MySqlConnection(_cs);
                     await conn.OpenAsync(ct);
 
-                    using (var cmdTable = conn.CreateCommand())
-                    {
-                        cmdTable.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles_user_admin (
-                                id_usuario BIGINT NOT NULL,
-                                id_rol INT NOT NULL,
-                                justificacion VARCHAR(1000),
-                                fecha_fin DATE,
-                                vigente INT DEFAULT 1,
-                                PRIMARY KEY (id_usuario, id_rol)
-                            );";
-                        await cmdTable.ExecuteNonQueryAsync(ct);
-                    }
-
-                    // Reparar esquema incompleto de tablas anteriores (MySQL 8.0+ IF NOT EXISTS)
-                    using (var cmdAlter = conn.CreateCommand())
-                    {
-                        cmdAlter.CommandText = @"
-                            ALTER TABLE ctr_roles_user_admin
-                                ADD COLUMN IF NOT EXISTS justificacion VARCHAR(1000),
-                                ADD COLUMN IF NOT EXISTS fecha_fin DATE,
-                                ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1;";
-                        await cmdAlter.ExecuteNonQueryAsync(ct);
-                    }
-
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
-                        INSERT INTO ctr_roles_user_admin (id_usuario, id_rol, justificacion, fecha_fin, vigente)
+                        INSERT INTO CTR_ROLES_USER_ADMIN (id_usuario, id_rol, justificacion, fecha_fin, vigente)
                         VALUES (@pIdUser, @pIdRol, @pJust, @pFechaFin, 1)
                         ON DUPLICATE KEY UPDATE 
                             justificacion = VALUES(justificacion),
@@ -1447,7 +1315,7 @@ ORDER BY id_rol";
                     using (var cmdTable = conn.CreateCommand())
                     {
                         cmdTable.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles_user_admin (
+                            CREATE TABLE IF NOT EXISTS CTR_ROLES_USER_ADMIN (
                                 id_usuario BIGINT NOT NULL,
                                 id_rol INT NOT NULL,
                                 justificacion VARCHAR(1000),
@@ -1462,7 +1330,7 @@ ORDER BY id_rol";
                     using (var cmdAlter = conn.CreateCommand())
                     {
                         cmdAlter.CommandText = @"
-                            ALTER TABLE ctr_roles_user_admin
+                            ALTER TABLE CTR_ROLES_USER_ADMIN
                                 ADD COLUMN IF NOT EXISTS justificacion VARCHAR(1000),
                                 ADD COLUMN IF NOT EXISTS fecha_fin DATE,
                                 ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1;";
@@ -1471,7 +1339,7 @@ ORDER BY id_rol";
 
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
-                        INSERT INTO ctr_roles_user_admin (id_usuario, id_rol, justificacion, fecha_fin, vigente)
+                        INSERT INTO CTR_ROLES_USER_ADMIN (id_usuario, id_rol, justificacion, fecha_fin, vigente)
                         VALUES (@pIdUser, @pIdRol, @pJust, @pFechaFin, 1)
                         ON CONFLICT (id_usuario, id_rol) DO UPDATE SET 
                             justificacion = EXCLUDED.justificacion,
@@ -1500,7 +1368,7 @@ ORDER BY id_rol";
                 await using var cmd = oracleConn.CreateCommand();
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = @"
-                    MERGE INTO ctr_roles_user_admin target
+                    MERGE INTO CTR_ROLES_USER_ADMIN target
                     USING (SELECT :pIdUser AS id_usuario, :pIdRol AS id_rol FROM dual) src
                     ON (target.id_usuario = src.id_usuario AND target.id_rol = src.id_rol)
                     WHEN MATCHED THEN

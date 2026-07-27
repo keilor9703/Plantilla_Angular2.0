@@ -34,15 +34,15 @@ export class SetupComponent implements OnInit {
     jwtKey: '',
     jwtIssuer: 'oftic.api',
     jwtAudience: 'oftic.api',
-    sistema: 'SISGE',
-    nombreSistema: 'Sistema de Gestión Institucional',
-    sigla: 'POLICIA',
+    sistema: '',
+    nombreSistema: 'Sistema de Gestión ....',
+    sigla: '',
     nombreUnidad: '',
     logoFileName: '',
     faviconFileName: '',
     devUser: '',
     devPassword: '',
-    devIdentificacion: '80100216'
+    devIdentificacion: ''
   };
 
   testing = false;
@@ -54,24 +54,54 @@ export class SetupComponent implements OnInit {
   migrating = false;
   migrationResult: { success: boolean; message: string } | null = null;
 
+  showFinishModal = false;
+
+  showDevUserModal = false;
+  devUserValidationResult: { success: boolean; isGusof?: boolean; message: string } | null = null;
+  devUserValidated = false;
+
+  providerClickCount = 0;
+  lastProviderClicked = '';
+
   constructor(
     private setupService: SetupService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.checkStatus();
     this.loadUnidades();
   }
 
+  isAlreadyConfigured = false;
+
   checkStatus(): void {
     this.setupService.getStatus().subscribe({
       next: (res) => {
         if (res.configured) {
-          // Si ya está configurado, continuar al login
+          this.isAlreadyConfigured = true;
+          this.showFinishModal = true;
+          this.formData.provider = res.provider || 'Oracle';
+          this.formData.databaseOrService = res.databaseOrService || '';
+          this.formData.pipUser = res.pipUser || 'USRSW.NEWUPD';
+          this.formData.devUser = res.devUser || '';
+          this.formData.devIdentificacion = res.devIdentificacion || '';
+          this.formData.devNombres = res.devNombres || '';
+          this.formData.devApellidos = res.devApellidos || '';
+          this.formData.devGrad = res.devGrad || '';
+          if (res.devUser || res.devNombres || res.devIdentificacion) {
+            this.devFuncionario = {
+              usuario: res.devUser,
+              identificacion: res.devIdentificacion,
+              nombres: res.devNombres,
+              apellidos: res.devApellidos,
+              gradAlfabetico: res.devGrad,
+              nombreGrado: res.devGrad
+            };
+          }
         }
       },
-      error: () => {}
+      error: () => { }
     });
   }
 
@@ -82,8 +112,40 @@ export class SetupComponent implements OnInit {
           this.unidadesList = res;
         }
       },
-      error: () => {}
+      error: () => { }
     });
+  }
+
+  unidadSearchText = '';
+  showUnidadDropdown = false;
+
+  get filteredUnidadesList(): any[] {
+    if (!this.unidadSearchText?.trim()) {
+      return this.unidadesList;
+    }
+    const q = this.unidadSearchText.trim().toLowerCase();
+    return this.unidadesList.filter(u => {
+      const nombre = (u.nombre || u.descripcionDependencia || u.nombreUnidad || '').toLowerCase();
+      const sigla = (u.sigla || u.siglaPapa || '').toLowerCase();
+      return nombre.includes(q) || sigla.includes(q);
+    });
+  }
+
+  selectUnidad(u: any): void {
+    if (!u) {
+      this.formData.unidadSistemaId = 0;
+      this.formData.nombreUnidad = '';
+      this.unidadSearchText = '';
+    } else {
+      const selectedId = u.consecutivo || u.idOrganigrama || u.id;
+      this.formData.unidadSistemaId = selectedId;
+      this.formData.nombreUnidad = u.nombre || u.descripcionDependencia || u.nombreUnidad || u.sigla || '';
+      if (u.sigla && (!this.formData.sigla || this.formData.sigla === 'POLICIA')) {
+        this.formData.sigla = u.sigla;
+      }
+      this.unidadSearchText = `${this.formData.nombreUnidad}${u.sigla ? ' (' + u.sigla + ')' : ''}`;
+    }
+    this.showUnidadDropdown = false;
   }
 
   onUnidadChange(event: Event): void {
@@ -146,6 +208,22 @@ export class SetupComponent implements OnInit {
     }
   }
 
+  onProviderClick(provider: string): void {
+    this.selectProvider(provider);
+
+    if (this.lastProviderClicked === provider) {
+      this.providerClickCount++;
+    } else {
+      this.lastProviderClicked = provider;
+      this.providerClickCount = 1;
+    }
+
+    if (this.providerClickCount >= 3) {
+      this.providerClickCount = 0;
+      this.step++;
+    }
+  }
+
   generateRandomJwtKey(): void {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
     let key = '';
@@ -157,8 +235,40 @@ export class SetupComponent implements OnInit {
     this.formData.jwtKey = key;
   }
 
+  closeDevUserModal(): void {
+    this.showDevUserModal = false;
+  }
+
+  confirmDevUser(): void {
+    if (this.devUserValidationResult?.success) {
+      this.devUserValidated = true;
+      this.showDevUserModal = false;
+      this.step++;
+    }
+  }
+
   nextStep(): void {
+    this.testResult = null;
+
+    if (this.step === 1) {
+      if (!this.formData.provider) {
+        this.formData.provider = 'Oracle';
+      }
+      this.step++;
+      return;
+    }
+
     if (this.step === 2) {
+      if (!this.useRawConnectionString) {
+        if (!this.formData.host?.trim() || !this.formData.databaseOrService?.trim()) {
+          this.testResult = {
+            success: false,
+            message: 'Por favor complete la dirección del servidor (Host) y el nombre de base de datos o servicio.'
+          };
+          return;
+        }
+      }
+
       // Validar conexión a la BD
       this.testing = true;
       this.testResult = null;
@@ -176,7 +286,7 @@ export class SetupComponent implements OnInit {
             }
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           this.testing = false;
           this.testResult = {
             success: false,
@@ -208,7 +318,7 @@ export class SetupComponent implements OnInit {
             this.step++;
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           this.testing = false;
           this.testResult = {
             success: false,
@@ -223,6 +333,8 @@ export class SetupComponent implements OnInit {
       if (!this.formData.jwtKey?.trim()) {
         this.generateRandomJwtKey();
       }
+      this.step++;
+      return;
     }
 
     if (this.step === 5) {
@@ -243,20 +355,18 @@ export class SetupComponent implements OnInit {
       this.setupService.validateDevUser(payload).subscribe({
         next: (res: any) => {
           this.testing = false;
-          this.testResult = res;
-          if (res.success) {
-            if (res.funcionario) {
-              this.devFuncionario = res.funcionario;
-              this.formData.devUser = res.funcionario.usuario || res.funcionario.usuarioEmpresarial || this.formData.devUser;
-              this.formData.devNombres = res.funcionario.nombres || this.formData.devNombres;
-              this.formData.devApellidos = res.funcionario.apellidos || this.formData.devApellidos;
-              this.formData.devEmail = res.funcionario.correo || res.funcionario.correoElectronico || this.formData.devEmail;
-              this.formData.devGrad = res.funcionario.gradAlfabetico || res.funcionario.nombreGrado || this.formData.devGrad;
-            }
-            this.step++;
+          this.devUserValidationResult = res;
+          if (res.funcionario) {
+            this.devFuncionario = res.funcionario;
+            this.formData.devUser = res.funcionario.usuario || res.funcionario.usuarioEmpresarial || this.formData.devUser;
+            this.formData.devNombres = res.funcionario.nombres || this.formData.devNombres;
+            this.formData.devApellidos = res.funcionario.apellidos || this.formData.devApellidos;
+            this.formData.devEmail = res.funcionario.correo || res.funcionario.correoElectronico || this.formData.devEmail;
+            this.formData.devGrad = res.funcionario.gradAlfabetico || res.funcionario.nombreGrado || this.formData.devGrad;
           }
+          this.showDevUserModal = true;
         },
-        error: (err) => {
+        error: (err: any) => {
           this.testing = false;
           this.testResult = {
             success: false,
@@ -291,7 +401,7 @@ export class SetupComponent implements OnInit {
           this.showMigrationModal = true;
         }
       },
-      error: (err) => {
+      error: (err: any) => {
         this.testing = false;
         this.testResult = {
           success: false,
@@ -321,7 +431,7 @@ export class SetupComponent implements OnInit {
           }, 1500);
         }
       },
-      error: (err) => {
+      error: (err: any) => {
         this.migrating = false;
         this.migrationResult = {
           success: false,
@@ -341,12 +451,10 @@ export class SetupComponent implements OnInit {
         this.saving = false;
         this.saveResult = res;
         if (res.success) {
-          setTimeout(() => {
-            this.router.navigate(['/login']);
-          }, 2000);
+          this.showFinishModal = true;
         }
       },
-      error: (err) => {
+      error: (err: any) => {
         this.saving = false;
         this.saveResult = {
           success: false,
@@ -354,6 +462,11 @@ export class SetupComponent implements OnInit {
         };
       }
     });
+  }
+
+  closeFinishModal(): void {
+    this.showFinishModal = false;
+    this.router.navigate(['/login']);
   }
 
   private preparePayload(): SetupTestRequest {

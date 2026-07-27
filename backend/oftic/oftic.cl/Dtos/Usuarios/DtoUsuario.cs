@@ -17,6 +17,7 @@ namespace Comun.Dtos
         public string? dependencia { get; set; }
         public string? siglaFisica { get; set; }
         public string? siglaLaborando { get; set; }
+        public string? siglaDependencia { get; set; }
         public string? nombreGrado { get; set; }
         public string? cargo { get; set; }
         public string? tiempoServicio { get; set; }

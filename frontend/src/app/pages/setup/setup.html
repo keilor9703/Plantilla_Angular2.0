@@ -8,8 +8,8 @@
       <p class="setup-subtitle">Plantilla del proyecto paso a paso de forma segura</p>
     </div>
 
-    <!-- Stepper indicator (6 pasos) -->
-    <div class="setup-stepper">
+    <!-- Stepper indicator (6 pasos - sólo visible durante la instalación) -->
+    <div class="setup-stepper" *ngIf="!isAlreadyConfigured">
       <div class="step-item" [class.active]="step >= 1" [class.completed]="step > 1">
         <span class="step-number">1</span>
         <span class="step-label">Motor BD</span>
@@ -46,7 +46,15 @@
       </div>
     </div>
 
-    <div class="setup-body">
+    <!-- Mensaje si ya está configurado -->
+    <div *ngIf="isAlreadyConfigured" class="setup-body text-center p-4">
+      <div class="alert-box success mb-3" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 16px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <i class="fa-solid fa-lock" style="font-size: 1.4rem;"></i>
+        <span style="font-weight: 700;">El sistema ya se encuentra instalado y parametrizado.</span>
+      </div>
+    </div>
+
+    <div class="setup-body" *ngIf="!isAlreadyConfigured">
       <!-- PASO 1: Selección de Motor BD -->
       <div *ngIf="step === 1" class="step-content">
         <h3>Paso 1: Selecciona el motor de base de datos</h3>
@@ -54,7 +62,7 @@
 
         <div class="provider-grid">
           <div class="provider-card" [class.selected]="formData.provider === 'Oracle'"
-            (click)="selectProvider('Oracle')">
+            (click)="onProviderClick('Oracle')" (dblclick)="nextStep()">
             <div class="provider-icon oracle">
               <i class="fa-solid fa-database"></i>
             </div>
@@ -63,7 +71,7 @@
           </div>
 
           <div class="provider-card" [class.selected]="formData.provider === 'PostgreSQL'"
-            (click)="selectProvider('PostgreSQL')">
+            (click)="onProviderClick('PostgreSQL')" (dblclick)="nextStep()">
             <div class="provider-icon postgres">
               <i class="fa-solid fa-server"></i>
             </div>
@@ -71,7 +79,8 @@
             <p>Base de datos relacional de código abierto</p>
           </div>
 
-          <div class="provider-card" [class.selected]="formData.provider === 'MySQL'" (click)="selectProvider('MySQL')">
+          <div class="provider-card" [class.selected]="formData.provider === 'MySQL'" 
+            (click)="onProviderClick('MySQL')" (dblclick)="nextStep()">
             <div class="provider-icon mysql">
               <i class="fa-solid fa-cubes"></i>
             </div>
@@ -246,7 +255,8 @@
         <div class="ui-grid">
           <div class="ui-field ui-col-12">
             <label class="ui-label">Número de Cédula / Identificación del Desarrollador</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.devIdentificacion" placeholder="Ej: 80100216">
+            <input class="ui-control" type="text" [(ngModel)]="formData.devIdentificacion"
+              placeholder="No usar puntos ni comas">
           </div>
         </div>
 
@@ -298,15 +308,26 @@
               placeholder="Ej: Sistema de Gestión Estratégica">
           </div>
 
-          <div class="ui-field ui-col-6">
+          <div class="ui-field ui-col-6 searchable-unit-container">
             <label class="ui-label">Unidad Policial (Organigrama)</label>
-            <select class="ui-control" (change)="onUnidadChange($event)" [value]="formData.unidadSistemaId">
-              <option [value]="0">-- Seleccione una Unidad --</option>
-              <option *ngFor="let u of unidadesList" [value]="u.consecutivo || u.idOrganigrama || u.id">
-                {{ u.nombre || u.descripcionDependencia || u.nombreUnidad }}{{ u.siglaPapa ? ' - ' + u.siglaPapa :
-                (u.sigla ? ' - ' + u.sigla : '') }}
-              </option>
-            </select>
+            <div class="searchable-control-wrapper">
+              <input class="ui-control" type="text" placeholder="🔍 Buscar unidad por nombre o sigla..."
+                [(ngModel)]="unidadSearchText" (focus)="showUnidadDropdown = true" (input)="showUnidadDropdown = true">
+              <div *ngIf="showUnidadDropdown" class="searchable-dropdown-list">
+                <div class="dropdown-item option-clear" (click)="selectUnidad(null)">
+                  <em>-- Sin seleccionar / Seleccionar más tarde --</em>
+                </div>
+                <div *ngFor="let u of filteredUnidadesList" class="dropdown-item" (click)="selectUnidad(u)">
+                  <span class="unit-title">{{ u.nombre || u.descripcionDependencia || u.nombreUnidad }}</span>
+                  <span *ngIf="u.sigla || u.siglaPapa" class="unit-badge">
+                    {{ u.siglaPapa ? u.siglaPapa + ' - ' : '' }}{{ u.sigla || '' }}
+                  </span>
+                </div>
+                <div *ngIf="filteredUnidadesList.length === 0" class="dropdown-empty">
+                  No se encontraron unidades con "{{ unidadSearchText }}"
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="ui-field ui-col-6">
@@ -396,6 +417,167 @@
           {{ migrating ? 'Ejecutando Migración...' : 'Ejecutar Migración' }}
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Resumen de Instalación / Finalización del Setup -->
+  <div *ngIf="showFinishModal" class="setup-finish-backdrop">
+    <div class="setup-finish-card">
+
+      <!-- Icono de éxito y Encabezado -->
+      <div class="finish-header text-center">
+        <div class="finish-icon-badge">
+          <i class="fa-solid" [class.fa-lock]="isAlreadyConfigured" [class.fa-circle-check]="!isAlreadyConfigured"></i>
+        </div>
+        <h3 class="finish-title">{{ isAlreadyConfigured ? '¡Sistema Ya Instalado!' : '¡Configuración e Instalación Exitosa!' }}</h3>
+        <p class="finish-subtitle">{{ isAlreadyConfigured ? 'El sistema se encuentra parametrizado y activo en este entorno. Datos registrados:' : 'El sistema ha sido parametrizado y guardado correctamente' }}</p>
+      </div>
+
+      <!-- Cuerpo con Datos de Instalación -->
+      <div class="finish-body">
+        <div class="summary-grid">
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-database text-cyan"></i> Tipo de Base de Datos</span>
+            <span class="summary-value highlight">{{ formData.provider || 'Oracle' }}</span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-server text-cyan"></i> Esquema / Base de Datos</span>
+            <span class="summary-value">{{ formData.databaseOrService || (formData.host ? formData.host + ':' +
+              formData.port : 'Configurado en appsettings') }}</span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-shield-halved text-cyan"></i> Usuario PIP / OUD</span>
+            <span class="summary-value">{{ formData.pipUser || 'USRSW.NEWUPD' }}</span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-user-gear text-cyan"></i> Usuario Semilla /
+              Developer</span>
+            <span class="summary-value">
+              <ng-container *ngIf="devFuncionario">
+                <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico || formData.devGrad }} {{
+                  devFuncionario.nombres || formData.devNombres }} {{ devFuncionario.apellidos || formData.devApellidos
+                  }}</strong>
+                <br>
+                <small class="text-sub">C.C. {{ formData.devIdentificacion }} | Usuario: {{ formData.devUser }}</small>
+              </ng-container>
+              <ng-container *ngIf="!devFuncionario">
+                <strong>{{ formData.devGrad || 'ING' }} {{ formData.devNombres || 'DESARROLLADOR' }} {{
+                  formData.devApellidos || '' }}</strong>
+                <br>
+                <small class="text-sub">C.C. {{ formData.devIdentificacion }} | Usuario: {{ formData.devUser }}</small>
+              </ng-container>
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Banner de Advertencia para reiniciar el Backend (Sólo en instalación fresca) -->
+        <div class="warning-banner mt-4" *ngIf="!isAlreadyConfigured">
+          <div class="warning-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="warning-details">
+            <strong class="warning-title">ADVERTENCIA: RECARGAR BACKEND</strong>
+            <p class="warning-desc">
+              Debe <strong>reiniciar o recargar el backend (ASP.NET Core)</strong> para que aplique los cambios de
+              <code>appsettings.json</code> (cadena de conexión y proveedor de base de datos).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pie de Modal: Créditos y Botón Aceptar -->
+      <div class="finish-footer">
+        <div class="credits-box">
+          <i class="fa-solid fa-code text-cyan me-1"></i>
+          <span>Desarrollada por grupo de Desarrollo de sofftware Ij. Dyck Lopez - Pt Wilson Lopez</span>
+        </div>
+
+        <button class="ui-btn primary ui-btn--fx btn-accept mt-3" type="button" (click)="closeFinishModal()">
+          <i class="fa-solid" [class.fa-right-to-bracket]="isAlreadyConfigured" [class.fa-check]="!isAlreadyConfigured"></i>
+          {{ isAlreadyConfigured ? 'Ir al Inicio de Sesión' : 'Aceptar' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL DE VERIFICACIÓN DE USUARIO PIP (GUSOF) -->
+  <div *ngIf="showDevUserModal" class="setup-finish-backdrop">
+    <div class="setup-finish-card">
+      
+      <div class="finish-header">
+        <div class="finish-badge">
+          <i class="fa-solid fa-id-card"></i>
+        </div>
+        <h2>Verificación de Funcionario PIP</h2>
+        <p class="finish-subtitle">Resultado de la consulta institucional en la API PIP</p>
+      </div>
+
+      <div class="finish-body mt-3" *ngIf="devFuncionario">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-user-check text-cyan me-1"></i> Nombre Completo</span>
+            <span class="summary-value">
+              <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico }} {{ devFuncionario.nombres }} {{ devFuncionario.apellidos }}</strong>
+            </span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-address-card text-cyan me-1"></i> Cédula</span>
+            <span class="summary-value">{{ devFuncionario.identificacion }}</span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-at text-cyan me-1"></i> Usuario Empresarial</span>
+            <span class="summary-value">{{ devFuncionario.usuario || devFuncionario.usuarioEmpresarial || formData.devUser }}</span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label"><i class="fa-solid fa-briefcase text-cyan me-1"></i> Cargo</span>
+            <span class="summary-value">{{ devFuncionario.cargo || 'DESARROLLADOR DE SOFTWARE' }}</span>
+          </div>
+
+          <div class="summary-card" style="grid-column: span 2;">
+            <span class="summary-label"><i class="fa-solid fa-building text-cyan me-1"></i> Dependencia / Sigla</span>
+            <span class="summary-value">
+              {{ devFuncionario.descripcionDependencia || devFuncionario.dependencia }} 
+              <strong class="unit-badge ms-2" [class.badge-gusof]="devUserValidationResult?.success" [class.badge-non-gusof]="!devUserValidationResult?.success">
+                ({{ devFuncionario.siglaDependencia || devFuncionario.siglaLaborando || devFuncionario.siglaFisica || 'N/A' }})
+              </strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- ALERTA SI PERTENECE A GUSOF -->
+        <div *ngIf="devUserValidationResult?.success" class="alert-box success mt-4" style="background: rgba(34, 197, 94, 0.15); border: 1.5px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
+          <i class="fa-solid fa-circle-check me-2"></i>
+          <span>Funcionario verificado exitosamente como integrante del <strong>Grupo de Desarrollo de Software (GUSOF)</strong>. Puede proceder a la instalación.</span>
+        </div>
+
+        <!-- ALERTA SI NO PERTENECE A GUSOF (BLOQUEO) -->
+        <div *ngIf="!devUserValidationResult?.success" class="alert-box error mt-4" style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid rgba(239, 68, 68, 0.5); color: #fca5a5;">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <span>{{ devUserValidationResult?.message }}</span>
+        </div>
+      </div>
+
+      <div class="finish-footer mt-4" style="border-top: none;">
+        <!-- Botón Aceptar (Sólo si es GUSOF) -->
+        <button *ngIf="devUserValidationResult?.success" class="ui-btn primary ui-btn--fx" type="button" (click)="confirmDevUser()">
+          <i class="fa-solid fa-arrow-right me-2"></i> Aceptar y Continuar a Instalación
+        </button>
+
+        <!-- Botón Cerrar (Si NO es GUSOF) -->
+        <button *ngIf="!devUserValidationResult?.success" class="ui-btn secondary ui-btn--fx" type="button" (click)="closeDevUserModal()" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5;">
+          <i class="fa-solid fa-xmark me-2"></i> Cerrar (Instalación No Permitida)
+        </button>
+      </div>
+
     </div>
   </div>
 </div>
