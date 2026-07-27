@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.OpenApi.Models;
+using Scalar.AspNetCore;
 using System.Text;
 using System.Threading.RateLimiting;
 using Datos.Gestion;
@@ -127,36 +127,7 @@ builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
 builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "SICOE API", Version = "v1" });
-
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Ingrese: Bearer {token}"
-    });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+builder.Services.AddOpenApi();
 
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -201,8 +172,14 @@ app.UseCors("DevCors");
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("SISGE / OFTIC API - .NET 10")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Fetch);
+    });
 }
 
 app.UseStaticFiles(new StaticFileOptions
