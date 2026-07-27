@@ -91,17 +91,17 @@ namespace Datos.Gestion
             const string sqlMenuPorRoles = @"
                 WITH roles_vigentes AS (
                     SELECT DISTINCT rua.id_rol
-                      FROM ctr_roles_user_admin rua
+                      FROM CTR_ROLES_USER_ADMIN rua
                      WHERE rua.id_usuario = :pIdUsuario
                         AND NVL(rua.vigente, 0) = 1
                 ),
                 menus_asignados AS (
                     SELECT DISTINCT m.id_menu
-                      FROM ctr_menu m
+                      FROM CTR_MENU m
                      WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol IN (1, 2))
                     UNION
                     SELECT DISTINCT mr.id_menu
-                      FROM ctr_menu_roles mr
+                      FROM CTR_MENU_ROLES mr
                       JOIN roles_vigentes rv ON rv.id_rol = mr.id_rol
                 )
                 SELECT DISTINCT

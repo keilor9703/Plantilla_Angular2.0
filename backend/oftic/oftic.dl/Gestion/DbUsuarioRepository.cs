@@ -850,7 +850,7 @@ UPDATE CTR_ROLES_USER_ADMIN
                 await using var cmd = oracleConn.CreateCommand();
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = @"
-                    UPDATE ctr_roles_user_admin
+                    UPDATE CTR_ROLES_USER_ADMIN
                        SET justificacion = :pJust, fecha_fin = :pFechaFin
                      WHERE id_usuario = :pIdUser AND id_rol = :pIdRol";
 

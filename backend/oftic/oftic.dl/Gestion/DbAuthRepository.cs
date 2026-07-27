@@ -86,7 +86,7 @@ namespace Datos.Gestion
                     var roles = new List<long>();
                     await using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT DISTINCT id_rol FROM ctr_roles_user_admin WHERE id_usuario = @pIdUser AND COALESCE(vigente, 0) = 1";
+                        cmd.CommandText = "SELECT DISTINCT id_rol FROM CTR_ROLES_USER_ADMIN WHERE id_usuario = @pIdUser AND COALESCE(vigente, 0) = 1";
                         cmd.Parameters.AddWithValue("@pIdUser", idUsuario.Value);
                         await using var reader = await cmd.ExecuteReaderAsync(ct);
                         while (await reader.ReadAsync(ct)) roles.Add(reader.GetInt64(0));
@@ -114,7 +114,7 @@ namespace Datos.Gestion
                 await using (var cmd = oracleConn.CreateCommand())
                 {
                     cmd.CommandType = CommandType.Text;
-                    cmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE (UPPER(username) = UPPER(:pUsuario) OR identificacion = :pUsuario) AND bloqueado = 0";
+                    cmd.CommandText = @"SELECT id_usuario FROM CTR_USUARIOS WHERE (UPPER(username) = UPPER(:pUsuario) OR identificacion = :pUsuario) AND bloqueado = 0";
                     cmd.Parameters.Add(":pUsuario", OracleDbType.Varchar2).Value = usuario;
 
                     var obj = await cmd.ExecuteScalarAsync(ct);
@@ -130,7 +130,7 @@ namespace Datos.Gestion
                     cmd.BindByName = true;
                     cmd.CommandText = @"
 SELECT DISTINCT rua.id_rol
-  FROM ctr_roles_user_admin rua
+  FROM CTR_ROLES_USER_ADMIN rua
  WHERE rua.id_usuario = :pIdUsuario
    AND NVL(rua.vigente, 0) = 1";
                     cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUserOracle.Value;
