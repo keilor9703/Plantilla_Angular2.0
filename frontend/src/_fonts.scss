@@ -1,8 +1,64 @@
-/* Montserrat Font - System & Local Fallback */
+/* Montserrat Font - Local WOFF2 Files */
+
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 300;
   font-display: swap;
-  src: local('Montserrat'), local('Montserrat-Regular'), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  src: local('Montserrat Light'), local('Montserrat-Light'),
+       url('/fonts/montserrat/montserrat-latin-300.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Montserrat Regular'), local('Montserrat-Regular'),
+       url('/fonts/montserrat/montserrat-latin-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local('Montserrat Medium'), local('Montserrat-Medium'),
+       url('/fonts/montserrat/montserrat-latin-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Montserrat SemiBold'), local('Montserrat-SemiBold'),
+       url('/fonts/montserrat/montserrat-latin-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Montserrat Bold'), local('Montserrat-Bold'),
+       url('/fonts/montserrat/montserrat-latin-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: local('Montserrat ExtraBold'), local('Montserrat-ExtraBold'),
+       url('/fonts/montserrat/montserrat-latin-800.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: local('Montserrat Black'), local('Montserrat-Black'),
+       url('/fonts/montserrat/montserrat-latin-900.woff2') format('woff2');
 }

@@ -56,8 +56,8 @@ namespace ofic.Controllers.Administracion
                 return Ok(new
                 {
                     sistema = string.IsNullOrWhiteSpace(cfg.Sistema) ? "OFTIC" : cfg.Sistema,
-                    nombreSistema = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "SISGE / OFTIC" : cfg.NombreSistema,
-                    systemName = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "SISGE / OFTIC" : cfg.NombreSistema,
+                    nombreSistema = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "OFTIC" : cfg.NombreSistema,
+                    systemName = string.IsNullOrWhiteSpace(cfg.NombreSistema) ? "OFTIC" : cfg.NombreSistema,
                     sigla = string.IsNullOrWhiteSpace(cfg.Sigla) ? "OFTIC" : cfg.Sigla,
                     nombreUnidad = cfg.NombreUnidad,
                     logoUrl = BuildLogoUrl(cfg.LogoFileName),
@@ -70,8 +70,8 @@ namespace ofic.Controllers.Administracion
                 return Ok(new
                 {
                     sistema = "OFTIC",
-                    nombreSistema = "SISGE / OFTIC",
-                    systemName = "SISGE / OFTIC",
+                    nombreSistema = "OFTIC",
+                    systemName = "OFTIC",
                     sigla = "OFTIC",
                     nombreUnidad = "",
                     logoUrl = "/escudo.png",

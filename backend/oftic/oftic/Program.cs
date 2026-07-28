@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
@@ -125,9 +126,38 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
+builder.Services.AddScoped<IDbRolRepository, DbRolRepository>();
+builder.Services.AddScoped<IDbRolService, DbRolService>();
 builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        if (document != null)
+        {
+            document.Info ??= new OpenApiInfo();
+            document.Info.Title = "OFTIC / DOC API";
+            document.Info.Version = "v1";
+
+            document.Components ??= new OpenApiComponents();
+            if (document.Components.SecuritySchemes == null)
+            {
+                document.Components.SecuritySchemes = new Dictionary<string, IOpenApiSecurityScheme>();
+            }
+
+            document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Description = "Ingrese su Token JWT de autenticación"
+            };
+        }
+
+        return Task.CompletedTask;
+    });
+});
 
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -176,10 +206,12 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(options =>
     {
         options
-            .WithTitle("SISGE / OFTIC API - .NET 10")
+            .WithTitle("DOCS / OFTIC API - .NET 10")
             .WithTheme(ScalarTheme.Purple)
             .WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Fetch);
     });
+
+    app.MapGet("/", () => Results.Redirect("/scalar/v1"));
 }
 
 app.UseStaticFiles(new StaticFileOptions

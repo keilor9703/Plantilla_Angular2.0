@@ -106,13 +106,13 @@ namespace Datos.Gestion
                 )
                 SELECT DISTINCT
                        m.id_menu,
-                       COALESCE(m.titulo, m.descripcion) AS descripcion,
-                       COALESCE(m.id_padre, m.idpadre) AS idpadre,
-                       COALESCE(m.orden, m.posicion) AS posicion,
+                       m.titulo AS descripcion,
+                       m.id_padre AS idpadre,
+                       m.orden AS posicion,
                        'Ruta' AS tipo,
                        m.icono,
-                       COALESCE(m.estado, m.vigente) AS vigente,
-                       COALESCE(m.ruta, m.detalle) AS detalle
+                       m.estado AS vigente,
+                       m.ruta AS detalle
                   FROM ctr_menu m
                  WHERE m.id_menu IN (SELECT ma.id_menu FROM menus_asignados ma)
                  ORDER BY 3, 4, 1";
@@ -199,7 +199,7 @@ namespace Datos.Gestion
                 return result;
             }
 
-            // Oracle — intenta con columnas nuevas, fallback a columnas legacy
+            // Oracle — consulta directa con columnas estandarizadas de CTR_MENU
             await using var oracleConn = new OracleConnection(_cs);
             await oracleConn.OpenAsync(ct);
             await using var oracleCmd = oracleConn.CreateCommand();
@@ -207,17 +207,10 @@ namespace Datos.Gestion
             try
             {
                 oracleCmd.CommandText = @"
-                    SELECT id_menu,
-                           COALESCE(titulo, descripcion) AS titulo,
-                           COALESCE(id_padre, idpadre) AS id_padre,
-                           COALESCE(orden, posicion) AS orden,
-                           'Ruta' AS tipo,
-                           icono,
-                           COALESCE(estado, vigente) AS estado,
-                           COALESCE(ruta, detalle) AS ruta
+                    SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta
                       FROM ctr_menu
-                     WHERE COALESCE(estado, vigente, 1) = 1
-                     ORDER BY 3, 4, 1";
+                     WHERE estado = 1
+                     ORDER BY id_padre, orden, id_menu";
                 await using var reader = await oracleCmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
                     result.Add(MapMenuItemGeneric(reader));
@@ -226,12 +219,12 @@ namespace Datos.Gestion
             {
                 result.Clear();
                 oracleCmd.CommandText = @"
-                    SELECT id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle
+                    SELECT id_menu, titulo, id_padre, orden, 'Ruta' AS tipo, icono, estado, ruta
                       FROM ctr_menu
-                     ORDER BY idpadre, posicion, id_menu";
+                     ORDER BY id_padre, orden, id_menu";
                 await using var reader = await oracleCmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
-                    result.Add(MapMenuItem(reader));
+                    result.Add(MapMenuItemGeneric(reader));
             }
 
             return result;
@@ -353,12 +346,12 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"
-UPDATE ctr_menu
-   SET vigente          = :pVigente,
-       usuario_modifica = :pUsuarioModifica,
-       fecha_modifica   = SYSDATE,
-       maquina_modifica = :pMaquinaModifica
- WHERE id_menu = :pIdMenu";
+                UPDATE ctr_menu
+                   SET vigente          = :pVigente,
+                       usuario_modifica = :pUsuarioModifica,
+                       fecha_modifica   = SYSDATE,
+                       maquina_modifica = :pMaquinaModifica
+                 WHERE id_menu = :pIdMenu";
 
             cmd.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente is 0 ? 0 : 1;
             cmd.Parameters.Add(":pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
@@ -388,19 +381,39 @@ UPDATE ctr_menu
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"
-SELECT r.id_rol, r.descripcion
+SELECT r.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, r.codigo_rol)) AS descripcion
   FROM ctr_roles r
- WHERE NVL(r.vigente, 1) = 1
- ORDER BY r.descripcion";
+ WHERE NVL(r.estado, NVL(r.vigente, 1)) = 1
+ ORDER BY NVL(r.nombre_rol, NVL(r.descripcion, r.codigo_rol))";
 
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            try
             {
-                result.Add(new DtoMenuRolCatalogItem
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
-                    IdRol = reader.GetInt32(0),
-                    Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
-                });
+                    result.Add(new DtoMenuRolCatalogItem
+                    {
+                        IdRol = Convert.ToInt32(ToInt64Safe(reader.GetValue(0))),
+                        Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                    });
+                }
+            }
+            catch (OracleException ex) when (ex.Number == 904)
+            {
+                cmd.CommandText = @"
+SELECT r.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, r.codigo_rol)) AS descripcion
+  FROM ctr_roles r
+ WHERE NVL(r.vigente, NVL(r.estado, 1)) = 1
+ ORDER BY NVL(r.descripcion, NVL(r.nombre_rol, r.codigo_rol))";
+                await using var reader2 = await cmd.ExecuteReaderAsync(ct);
+                while (await reader2.ReadAsync(ct))
+                {
+                    result.Add(new DtoMenuRolCatalogItem
+                    {
+                        IdRol = Convert.ToInt32(ToInt64Safe(reader2.GetValue(0))),
+                        Descripcion = reader2.IsDBNull(1) ? string.Empty : reader2.GetString(1)
+                    });
+                }
             }
 
             return result;
@@ -416,22 +429,46 @@ SELECT r.id_rol, r.descripcion
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"
-SELECT mr.id_menurol, mr.id_rol, NVL(r.descripcion, 'Rol ' || mr.id_rol) AS descripcion_rol
+SELECT mr.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, 'Rol ' || mr.id_rol)) AS descripcion_rol
   FROM ctr_menu_roles mr
   LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
  WHERE mr.id_menu = :pIdMenu
- ORDER BY descripcion_rol, mr.id_menurol";
+ ORDER BY descripcion_rol";
             cmd.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
 
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            try
             {
-                result.Add(new DtoMenuRolItem
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                long idx = 1;
+                while (await reader.ReadAsync(ct))
                 {
-                    IdMenuRol = reader.GetInt64(0),
-                    IdRol = reader.GetInt32(1),
-                    DescripcionRol = reader.IsDBNull(2) ? string.Empty : reader.GetString(2)
-                });
+                    result.Add(new DtoMenuRolItem
+                    {
+                        IdMenuRol = idx++,
+                        IdRol = Convert.ToInt32(ToInt64Safe(reader.GetValue(0))),
+                        DescripcionRol = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                    });
+                }
+            }
+            catch (OracleException ex) when (ex.Number == 904)
+            {
+                cmd.CommandText = @"
+SELECT mr.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, 'Rol ' || mr.id_rol)) AS descripcion_rol
+  FROM ctr_menu_roles mr
+  LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
+ WHERE mr.id_menu = :pIdMenu
+ ORDER BY descripcion_rol";
+                await using var reader2 = await cmd.ExecuteReaderAsync(ct);
+                long idx = 1;
+                while (await reader2.ReadAsync(ct))
+                {
+                    result.Add(new DtoMenuRolItem
+                    {
+                        IdMenuRol = idx++,
+                        IdRol = Convert.ToInt32(ToInt64Safe(reader2.GetValue(0))),
+                        DescripcionRol = reader2.IsDBNull(1) ? string.Empty : reader2.GetString(1)
+                    });
+                }
             }
 
             return result;
@@ -466,45 +503,77 @@ SELECT COUNT(1)
                     }
                 }
 
-                long nextId;
-                await using (var cmdNext = conn.CreateCommand())
+                long nextId = 1;
+                try
                 {
+                    await using var cmdNext = conn.CreateCommand();
                     cmdNext.Transaction = tx;
                     cmdNext.CommandType = CommandType.Text;
-                    cmdNext.CommandText = "SELECT NVL(MAX(id_menurol), 0) + 1 FROM ctr_menu_roles";
+                    cmdNext.CommandText = "SELECT NVL(MAX(id_menu_rol), 0) + 1 FROM ctr_menu_roles";
                     nextId = ToInt64Safe(await cmdNext.ExecuteScalarAsync(ct));
                 }
-
-                await using (var cmdInsert = conn.CreateCommand())
+                catch (OracleException ex) when (ex.Number == 904)
                 {
-                    cmdInsert.Transaction = tx;
-                    cmdInsert.CommandType = CommandType.Text;
-                    cmdInsert.CommandText = @"
-INSERT INTO ctr_menu_roles
-  (id_menurol, id_rol, id_menu, usuario_creacion, fecha_creacion, maquina_creacion)
-VALUES
-  (:pIdMenuRol, :pIdRol, :pIdMenu, :pUsuarioCreacion, SYSDATE, :pMaquinaCreacion)";
-                    cmdInsert.Parameters.Add(":pIdMenuRol", OracleDbType.Int64).Value = nextId;
-                    cmdInsert.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
-                    cmdInsert.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
-                    cmdInsert.Parameters.Add(":pUsuarioCreacion", OracleDbType.Int64).Value = usuarioAuditoria;
-                    cmdInsert.Parameters.Add(":pMaquinaCreacion", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
-
-                    var rows = await cmdInsert.ExecuteNonQueryAsync(ct);
-                    if (rows <= 0)
+                    try
                     {
-                        await tx.RollbackAsync(ct);
-                        return new DtoMenuResult { Id = 0, Message = "No fue posible asignar el rol al menú." };
+                        await using var cmdNext2 = conn.CreateCommand();
+                        cmdNext2.Transaction = tx;
+                        cmdNext2.CommandType = CommandType.Text;
+                        cmdNext2.CommandText = "SELECT NVL(MAX(id_menurol), 0) + 1 FROM ctr_menu_roles";
+                        nextId = ToInt64Safe(await cmdNext2.ExecuteScalarAsync(ct));
                     }
+                    catch { nextId = 1; }
+                }
+
+                var usrVal = usuarioAuditoria > 0 ? usuarioAuditoria.ToString() : "ADMIN";
+                var inserted = false;
+                string[] insertSqls = new[]
+                {
+                    @"INSERT INTO ctr_menu_roles (id_menu_rol, id_rol, id_menu, estado, usuario_creacion, fecha_creacion) VALUES (:pIdMenuRol, :pIdRol, :pIdMenu, 1, :pUsr, SYSDATE)",
+                    @"INSERT INTO ctr_menu_roles (id_menurol, id_rol, id_menu, estado, usuario_creacion, fecha_creacion) VALUES (:pIdMenuRol, :pIdRol, :pIdMenu, 1, :pUsr, SYSDATE)",
+                    @"INSERT INTO ctr_menu_roles (id_menu_rol, id_rol, id_menu, estado) VALUES (:pIdMenuRol, :pIdRol, :pIdMenu, 1)",
+                    @"INSERT INTO ctr_menu_roles (id_menurol, id_rol, id_menu, estado) VALUES (:pIdMenuRol, :pIdRol, :pIdMenu, 1)",
+                    @"INSERT INTO ctr_menu_roles (id_rol, id_menu, estado) VALUES (:pIdRol, :pIdMenu, 1)",
+                    @"INSERT INTO ctr_menu_roles (id_rol, id_menu) VALUES (:pIdRol, :pIdMenu)"
+                };
+
+                foreach (var sql in insertSqls)
+                {
+                    try
+                    {
+                        await using var cmdInsert = conn.CreateCommand();
+                        cmdInsert.Transaction = tx;
+                        cmdInsert.BindByName = true;
+                        cmdInsert.CommandType = CommandType.Text;
+                        cmdInsert.CommandText = sql;
+                        if (sql.Contains(":pIdMenuRol")) cmdInsert.Parameters.Add(":pIdMenuRol", OracleDbType.Int64).Value = nextId;
+                        if (sql.Contains(":pIdRol")) cmdInsert.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
+                        if (sql.Contains(":pIdMenu")) cmdInsert.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
+                        if (sql.Contains(":pUsr")) cmdInsert.Parameters.Add(":pUsr", OracleDbType.Varchar2).Value = usrVal;
+
+                        await cmdInsert.ExecuteNonQueryAsync(ct);
+                        inserted = true;
+                        break;
+                    }
+                    catch (OracleException ex) when (ex.Number == 904 || ex.Number == 957 || ex.Number == 1400)
+                    {
+                        // Intentar siguiente variante de consulta SQL
+                    }
+                }
+
+                if (!inserted)
+                {
+                    await tx.RollbackAsync(ct);
+                    return new DtoMenuResult { Id = 0, Message = "No fue posible asignar el menú al rol." };
                 }
 
                 await tx.CommitAsync(ct);
                 return new DtoMenuResult { Id = nextId, Message = "Rol asignado al menú correctamente." };
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
-                throw;
+                return new DtoMenuResult { Id = 0, Message = $"Error asignando menú a rol: {ex.Message}" };
             }
         }
 
@@ -536,10 +605,10 @@ DELETE FROM ctr_menu_roles
                 await tx.CommitAsync(ct);
                 return new DtoMenuResult { Id = idMenu, Message = "Asignación menú-rol eliminada." };
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
-                throw;
+                return new DtoMenuResult { Id = 0, Message = $"Error eliminando asignación: {ex.Message}" };
             }
         }
 
@@ -554,29 +623,59 @@ DELETE FROM ctr_menu_roles
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"
 SELECT m.id_menu,
-       m.descripcion,
-       m.idpadre,
-       m.posicion,
-       m.tipo,
+       m.titulo AS descripcion,
+       m.id_padre AS idpadre,
+       m.orden AS posicion,
+       'Ruta' AS tipo,
+       m.ruta AS detalle
+  FROM ctr_menu_roles mr
+  JOIN ctr_menu m ON m.id_menu = mr.id_menu
+ WHERE mr.id_rol = :pIdRol
+ ORDER BY m.id_padre, m.orden, m.id_menu";
+            cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
+
+            try
+            {
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new DtoRoleMenuItem
+                    {
+                        IdMenu = ToInt64Safe(reader.GetValue(0)),
+                        DescripcionMenu = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                        IdPadre = ToInt64Safe(reader.GetValue(2)),
+                        Posicion = ToInt32Safe(reader.GetValue(3)),
+                        Tipo = reader.IsDBNull(4) ? "Ruta" : reader.GetString(4),
+                        Detalle = reader.IsDBNull(5) ? null : reader.GetString(5)
+                    });
+                }
+            }
+            catch (OracleException ex) when (ex.Number == 904)
+            {
+                cmd.CommandText = @"
+SELECT m.id_menu,
+       NVL(m.descripcion, 'Menú ' || m.id_menu) AS descripcion,
+       NVL(m.idpadre, 0) AS idpadre,
+       1 AS posicion,
+       NVL(m.tipo, 'Ruta') AS tipo,
        m.detalle
   FROM ctr_menu_roles mr
   JOIN ctr_menu m ON m.id_menu = mr.id_menu
  WHERE mr.id_rol = :pIdRol
- ORDER BY m.idpadre, m.posicion, m.descripcion";
-            cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
-            {
-                result.Add(new DtoRoleMenuItem
+ ORDER BY NVL(m.idpadre, 0), m.id_menu";
+                await using var readerFallback = await cmd.ExecuteReaderAsync(ct);
+                while (await readerFallback.ReadAsync(ct))
                 {
-                    IdMenu = reader.GetInt64(0),
-                    DescripcionMenu = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
-                    IdPadre = reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
-                    Posicion = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                    Tipo = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
-                    Detalle = reader.IsDBNull(5) ? null : reader.GetString(5)
-                });
+                    result.Add(new DtoRoleMenuItem
+                    {
+                        IdMenu = ToInt64Safe(readerFallback.GetValue(0)),
+                        DescripcionMenu = readerFallback.IsDBNull(1) ? string.Empty : readerFallback.GetString(1),
+                        IdPadre = ToInt64Safe(readerFallback.GetValue(2)),
+                        Posicion = ToInt32Safe(readerFallback.GetValue(3)),
+                        Tipo = readerFallback.IsDBNull(4) ? "Ruta" : readerFallback.GetString(4),
+                        Detalle = readerFallback.IsDBNull(5) ? null : readerFallback.GetString(5)
+                    });
+                }
             }
 
             return result;

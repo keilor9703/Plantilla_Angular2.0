@@ -350,9 +350,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     return [
       {
         id: 1,
-        titulo: 'Sistema de Gestión Especializada - SISGE',
+        titulo: 'Oficina de Tecnologías de la Información y las Comunicaciones - OFTIC',
         descripcion: 'Plataforma institucional estandarizada para la Policía Nacional de Colombia.',
-        imagenUrl: 'banner/banner1.jpg',
+        imagenUrl: '/background/banner1.jpg',
         orden: 1,
         activo: true
       },
@@ -360,7 +360,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         id: 2,
         titulo: 'Transformación Digital OFTIC',
         descripcion: 'Innovación tecnológica y soluciones digitales al servicio de la institución.',
-        imagenUrl: 'banner/banner2.jpg',
+        imagenUrl: '/background/banner2.jpg',
         orden: 2,
         activo: true
       },
@@ -368,7 +368,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         id: 3,
         titulo: 'Compromiso y Excelencia Policial',
         descripcion: 'Garantizando la seguridad y la convivencia con altos estándares de calidad.',
-        imagenUrl: 'banner/banner3.jpg',
+        imagenUrl: '/background/banner3.jpg',
         orden: 3,
         activo: true
       }
@@ -520,12 +520,18 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   getBannerTitle(item: DtoSliderPublico): string {
     const title = (item.titulo ?? '').trim();
-    return title || 'SISGE';
+    return title || 'OFTIC';
   }
 
   getBannerImageUrl(item: DtoSliderPublico): string {
-    const raw = (item.imagenUrl ?? '').trim();
-    return raw || 'banner/banner1.jpg';
+    let raw = (item.imagenUrl ?? '').trim();
+    if (!raw) {
+      return '/background/banner1.jpg';
+    }
+    if (raw === 'banner/banner1.jpg') return '/background/banner1.jpg';
+    if (raw === 'banner/banner2.jpg') return '/background/banner2.jpg';
+    if (raw === 'banner/banner3.jpg') return '/background/banner3.jpg';
+    return raw;
   }
 
   trackBySlider(_: number, item: DtoSliderPublico): number {

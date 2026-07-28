@@ -4,7 +4,7 @@ create table CTR_AUDITORIA
  id_auditoria     NUMBER not null,
   evento           VARCHAR2(255),
   descripcion      VARCHAR2(3000),
-  ano              NUMBER,
+  anio              NUMBER,
   identificador  Varchar2(3000),
   usuario_creacion NUMBER not null,
   fecha_creacion   DATE not null,
@@ -24,17 +24,17 @@ comment on column CTR_AUDITORIA.id_auditoria
 comment on column CTR_AUDITORIA.evento
   is 'Evento o procedimiento que ejecuta';
 comment on column CTR_AUDITORIA.descripcion
-  is 'Descripción';
+  is 'Descripciï¿½n';
 comment on column CTR_AUDITORIA.ano
-  is 'Año de grabación del registro';
+  is 'Aï¿½o de grabaciï¿½n del registro';
 comment on column CTR_AUDITORIA.identificador
   is 'Identificador';
 comment on column CTR_AUDITORIA.usuario_creacion
   is 'Usuario creador del registro';
 comment on column CTR_AUDITORIA.fecha_creacion
-  is 'Fecha de creación del registro';
+  is 'Fecha de creaciï¿½n del registro';
 comment on column CTR_AUDITORIA.maquina_creacion
-  is 'Máquina de Creación del regisro';
+  is 'Mï¿½quina de Creaciï¿½n del regisro';
 comment on column CTR_AUDITORIA.usuario_modifica
   is 'Usuario modifica el registro';
 comment on column CTR_AUDITORIA.fecha_modifica

@@ -3,9 +3,13 @@ using Comun.Dtos.LineasMando;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
+using System;
+using System.Collections.Generic;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Api.Controllers
+namespace Api.Controllers.Administracion
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -14,14 +18,15 @@ namespace Api.Controllers
     {
         private readonly IDbDominioService _service;
         private readonly ILogger<DominioController> _logger;
+
         public DominioController(
             IDbDominioService service,
             ILogger<DominioController> logger)
         {
             _service = service;
             _logger = logger;
-        
         }
+
         [HttpGet]
         public async Task<ActionResult> GetAll()
         {
@@ -61,7 +66,6 @@ namespace Api.Controllers
                     "Dominio Create - Descripcion={Descripcion}, IdPadre={IdPadre}",
                     request?.Descripcion,
                     request?.IdPadre
-                    
                 );
 
                 var (usuario, maquina) = ObtenerAuditoria();
@@ -84,7 +88,7 @@ namespace Api.Controllers
                 return StatusCode(500, new { success = false, message = $"Error: {ex.Message}", detail = ex.ToString() });
             }
         }
-        
+
         [HttpPut("{id:long}")]
         public async Task<ActionResult> Update(long id, [FromBody] DtoDominioRequest request)
         {
@@ -115,7 +119,6 @@ namespace Api.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
-
         private (long usuario, string maquina) ObtenerAuditoria()
         {
             var rawId = User.FindFirstValue("id_usuario")
@@ -135,6 +138,5 @@ namespace Api.Controllers
 
             return (usuario, maquina);
         }
-
     }
 }

@@ -20,14 +20,13 @@
           <div class="ui-field">
             <label class="ui-label">Archivo (máx 100MB)</label>
             <div class="custom-file-input" [class.has-file]="selectedVideoPreviewUrl">
-              <input #videoInput type="file" accept=".mp4,.webm,.ogg,.mov,video/*"
-                (change)="onFileSelected($event)" [disabled]="uploading" hidden>
-              <div class="file-input-wrapper" (click)="videoInput.click()"
-                (dragover)="onVideoDragOver($event)"
-                (dragleave)="onVideoDragLeave($event)"
-                (drop)="onVideoDrop($event)">
+              <input #videoInput type="file" accept=".mp4,.webm,.ogg,.mov,video/*" (change)="onFileSelected($event)"
+                [disabled]="uploading" hidden>
+              <div class="file-input-wrapper" (click)="videoInput.click()" (dragover)="onVideoDragOver($event)"
+                (dragleave)="onVideoDragLeave($event)" (drop)="onVideoDrop($event)">
                 <div class="file-preview-area" *ngIf="selectedVideoPreviewUrl; else videoPlaceholder">
-                  <video class="branding-preview-img-inline" controls preload="metadata" [src]="selectedVideoPreviewUrl">
+                  <video class="branding-preview-img-inline" controls preload="metadata"
+                    [src]="selectedVideoPreviewUrl">
                   </video>
                 </div>
                 <ng-template #videoPlaceholder>
@@ -132,8 +131,7 @@
               <input #loginImageInput type="file" accept=".jpg,.jpeg,.png,.webp,image/*"
                 (change)="onLoginImageSelected($event)" [disabled]="loginSaving" hidden>
               <div class="file-input-wrapper" (click)="loginImageInput.click()"
-                (dragover)="onLoginImageDragOver($event)"
-                (dragleave)="onLoginImageDragLeave($event)"
+                (dragover)="onLoginImageDragOver($event)" (dragleave)="onLoginImageDragLeave($event)"
                 (drop)="onLoginImageDrop($event)">
                 <div class="file-preview-area" *ngIf="selectedLoginImageFile; else loginImagePlaceholder">
                   <img [src]="loginPreviewUrl" alt="Vista previa" class="branding-preview-img-inline">
@@ -197,7 +195,8 @@
             No hay imágenes de login configuradas.
           </div>
 
-          <div class="reorder-list-inline" *ngIf="!loginLoading && loginItems.length > 0" cdkDropList (cdkDropListDropped)="onDropInline($event)">
+          <div class="reorder-list-inline" *ngIf="!loginLoading && loginItems.length > 0" cdkDropList
+            (cdkDropListDropped)="onDropInline($event)">
             <div class="reorder-item-inline" *ngFor="let item of loginItems; let i = index" cdkDrag>
               <div class="drag-handle-inline" cdkDragHandle>
                 <i class="fa-solid fa-grip-vertical"></i>
@@ -222,11 +221,13 @@
           </div>
 
           <div class="reorder-actions-inline" *ngIf="!loginLoading && loginItems.length > 0">
-            <button class="ui-btn primary" type="button" (click)="saveReorderInline()" [disabled]="loginSaving || !hasOrderChanged()">
+            <button class="ui-btn primary" type="button" (click)="saveReorderInline()"
+              [disabled]="loginSaving || !hasOrderChanged()">
               <i class="fa-solid fa-floppy-disk"></i>
               {{ loginSaving ? 'Guardando...' : 'Guardar orden' }}
             </button>
-            <button class="ui-btn secondary" type="button" (click)="resetReorderInline()" [disabled]="loginSaving || !hasOrderChanged()">
+            <button class="ui-btn secondary" type="button" (click)="resetReorderInline()"
+              [disabled]="loginSaving || !hasOrderChanged()">
               <i class="fa-solid fa-rotate-left"></i>
               Restablecer
             </button>
@@ -254,27 +255,68 @@
         <article class="tab-card form-card">
           <div class="list-loading" *ngIf="brandingLoading">Cargando configuracion de marca...</div>
 
-          <div class="ui-field">
-            <label class="sub-title">Unidad Institucional (Organigrama)</label>
-            <small class="meta">Seleccione una unidad para auto-completar los datos del dueño.</small>
-            <select class="ui-control" [(ngModel)]="selectedUnidadConsecutivo" (change)="onUnidadChange()">
-              <option [ngValue]="null">-- Seleccione una unidad --</option>
-              <option *ngFor="let u of unidades" [value]="u.consecutivo">
-                {{ u.nombre }}{{ u.siglaPapa ? ' - ' + u.siglaPapa : (u.sigla ? ' - ' + u.sigla : '') }}
-              </option>
-            </select>
+          <div class="ui-field custom-select-wrapper" style="position: relative;">
+            <label class="sub-title">Unidad a la que pertenece el sistema</label>
+
+
+            <!-- Disparador del Selector (Combobox) -->
+            <div class="custom-select-trigger ui-control" (click)="toggleUnitDropdown()"
+              [class.is-open]="isUnitDropdownOpen"
+              style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{
+                getSelectedUnidadDisplayText() }}</span>
+              <i class="fa-solid" [ngClass]="isUnitDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"
+                style="color: #888; font-size: 0.85rem; margin-left: 8px;"></i>
+            </div>
+
+            <!-- Menú desplegable flotante con buscador integrado dentro -->
+            <div class="custom-select-menu" *ngIf="isUnitDropdownOpen"
+              style="position: absolute; top: 100%; left: 0; right: 0; z-index: 100; background: #ffffff; border: 1px solid #c8c8c8; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); margin-top: 4px; padding: 8px; max-height: 280px; display: flex; flex-direction: column;">
+
+              <!-- Buscador interno de la lista -->
+              <div style="position: relative; margin-bottom: 8px;">
+                <input type="text" class="ui-control" [(ngModel)]="unidadSearchTerm"
+                  placeholder="Buscar unidad por sigla o nombre..."
+                  style="padding-left: 32px; height: 36px; font-size: 0.875rem;" (click)="$event.stopPropagation()" />
+                <i class="fa-solid fa-magnifying-glass"
+                  style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 0.85rem;"></i>
+              </div>
+
+              <!-- Lista de Opciones Filtradas -->
+              <div class="options-list" style="overflow-y: auto; flex: 1; max-height: 210px;">
+                <div class="custom-option" (click)="selectUnidadNull()"
+                  style="padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.875rem; color: #666;"
+                  [style.background-color]="selectedUnidadConsecutivo === null ? '#eef4ff' : 'transparent'">
+                  -- Seleccione una unidad --
+                </div>
+
+                <div *ngFor="let u of filteredUnidades" class="custom-option" (click)="selectUnidad(u)"
+                  style="padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.875rem; border-bottom: 1px solid #f0f0f0;"
+                  [style.background-color]="selectedUnidadConsecutivo === u.consecutivo ? '#eef4ff' : 'transparent'"
+                  [style.font-weight]="selectedUnidadConsecutivo === u.consecutivo ? '600' : 'normal'">
+                  {{ getUnidadLabel(u) }}
+                </div>
+
+                <div *ngIf="filteredUnidades.length === 0"
+                  style="padding: 12px; text-align: center; color: #888; font-size: 0.85rem;">
+                  No se encontraron unidades que coincidan con "{{ unidadSearchTerm }}"
+                </div>
+              </div>
+            </div>
           </div>
+
           <div class="ui-field">
             <label class="ui-label">Sigla unidad</label>
-            <small class="meta">Ej: COEST, ARCO, etc.</small>
-            <input class="ui-control" type="text" maxlength="100" [(ngModel)]="brandingSigla" placeholder="Ej: COEST" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+            <small class="meta">Auto-completada según la unidad seleccionada.</small>
+            <input class="ui-control" type="text" maxlength="100" [(ngModel)]="brandingSigla" placeholder="Ej: COEST"
+              readonly style="background-color: #f5f5f5; cursor: not-allowed;">
           </div>
 
           <div class="ui-field">
             <label class="ui-label">Sigla del sistema</label>
-            <small class="meta">Maximo 10 caracteres.</small>
-            <input class="ui-control" type="text" maxlength="10" [(ngModel)]="brandingSistema" placeholder="Ej: SISGE">
-
+            <small class="meta">Sigla identificadora de la aplicación (Máximo 50 caracteres).</small>
+            <input class="ui-control" type="text" maxlength="50" [(ngModel)]="brandingSistema"
+              placeholder="Ej: SISGE / OFTIC">
           </div>
 
 
@@ -295,13 +337,13 @@
             <div class="custom-file-input" [class.has-file]="selectedBrandingLogoPreviewUrl">
               <input #logoInput type="file" accept=".jpg,.jpeg,.png,.webp,.svg,image/*"
                 (change)="onBrandingLogoSelected($event)" [disabled]="brandingSaving" hidden>
-              <div class="file-input-wrapper" (click)="logoInput.click()"
-                (dragover)="onBrandingLogoDragOver($event)"
-                (dragleave)="onBrandingLogoDragLeave($event)"
-                (drop)="onBrandingLogoDrop($event)">
+              <div class="file-input-wrapper" (click)="logoInput.click()" (dragover)="onBrandingLogoDragOver($event)"
+                (dragleave)="onBrandingLogoDragLeave($event)" (drop)="onBrandingLogoDrop($event)">
                 <div class="file-preview-area" *ngIf="selectedBrandingLogoPreviewUrl; else logoPlaceholder">
-                  <img [src]="selectedBrandingLogoPreviewUrl" alt="Vista previa logo" class="branding-preview-img-inline">
-                  <button class="btn-remove-file" type="button" (click)="limpiarBrandingLogo(); $event.stopPropagation()" [disabled]="brandingSaving">
+                  <img [src]="selectedBrandingLogoPreviewUrl" alt="Vista previa logo"
+                    class="branding-preview-img-inline">
+                  <button class="btn-remove-file" type="button"
+                    (click)="limpiarBrandingLogo(); $event.stopPropagation()" [disabled]="brandingSaving">
                     <i class="fa-solid fa-xmark"></i>
                   </button>
                 </div>
@@ -313,7 +355,7 @@
                   </div>
                 </ng-template>
               </div>
-            </div>            
+            </div>
           </div>
 
           <div class="ui-field">
@@ -324,12 +366,13 @@
                 accept=".ico,.png,.webp,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/webp,image/svg+xml"
                 (change)="onBrandingFaviconSelected($event)" [disabled]="brandingSaving" hidden>
               <div class="file-input-wrapper" (click)="faviconInput.click()"
-                (dragover)="onBrandingFaviconDragOver($event)"
-                (dragleave)="onBrandingFaviconDragLeave($event)"
+                (dragover)="onBrandingFaviconDragOver($event)" (dragleave)="onBrandingFaviconDragLeave($event)"
                 (drop)="onBrandingFaviconDrop($event)">
                 <div class="file-preview-area" *ngIf="selectedBrandingFaviconPreviewUrl; else faviconPlaceholder">
-                  <img [src]="selectedBrandingFaviconPreviewUrl" alt="Vista previa favicon" class="branding-preview-img-inline">
-                  <button class="btn-remove-file" type="button" (click)="limpiarBrandingFavicon(); $event.stopPropagation()" [disabled]="brandingSaving">
+                  <img [src]="selectedBrandingFaviconPreviewUrl" alt="Vista previa favicon"
+                    class="branding-preview-img-inline">
+                  <button class="btn-remove-file" type="button"
+                    (click)="limpiarBrandingFavicon(); $event.stopPropagation()" [disabled]="brandingSaving">
                     <i class="fa-solid fa-xmark"></i>
                   </button>
                 </div>
@@ -342,7 +385,7 @@
                 </ng-template>
               </div>
             </div>
-            
+
           </div>
 
           <div class="list-loading" *ngIf="brandingSaving">Guardando, por favor espere...</div>
@@ -366,7 +409,7 @@
           <div class="news-state" *ngIf="brandingIdBranding === 0">No hay marca configurada.</div>
 
           <div class="branding-preview" *ngIf="brandingIdBranding > 0">
-            
+
 
             <div class="branding-files">
               <div class="file-preview-item" *ngIf="getBrandingLogoUrl()">

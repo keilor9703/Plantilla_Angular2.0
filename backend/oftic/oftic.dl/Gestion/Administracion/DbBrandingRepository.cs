@@ -166,12 +166,23 @@ namespace Datos.Gestion
                 using (var connection = new OracleConnection(_cs))
                 {
                     await connection.OpenAsync(ct);
-                    using (var command = new OracleCommand("UPDATE CTR_BRANDING SET VIGENTE = 0, USUARIO_MODIFICACION = :u, MAQUINA_MODIFICACION = :m, FECHA_MODIFICACION = SYSTIMESTAMP WHERE ID_BRANDING = :id", connection))
+                    using (var command = connection.CreateCommand())
                     {
-                        command.Parameters.Add(":u", OracleDbType.Varchar2).Value = usuario;
-                        command.Parameters.Add(":m", OracleDbType.Varchar2).Value = maquina;
-                        command.Parameters.Add(":id", OracleDbType.Int32).Value = id;
-                        await command.ExecuteNonQueryAsync(ct);
+                        command.BindByName = true;
+                        command.CommandText = "UPDATE CTR_BRANDING SET VIGENTE = 0, USUARIO_MODIFICA = :u, MAQUINA_MODIFICA = :m, FECHA_MODIFICA = SYSDATE WHERE ID_BRANDING = :id";
+                        command.Parameters.Add("u", OracleDbType.Varchar2).Value = usuario;
+                        command.Parameters.Add("m", OracleDbType.Varchar2).Value = maquina;
+                        command.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+                        try
+                        {
+                            await command.ExecuteNonQueryAsync(ct);
+                        }
+                        catch (OracleException ex) when (ex.Number == 904)
+                        {
+                            command.CommandText = "UPDATE CTR_BRANDING SET VIGENTE = 0, USUARIO_MODIFICACION = :u, MAQUINA_MODIFICACION = :m, FECHA_MODIFICACION = SYSDATE WHERE ID_BRANDING = :id";
+                            await command.ExecuteNonQueryAsync(ct);
+                        }
                         return new DtoBrandingResult { Success = true, Message = "Branding eliminado lógicamente." };
                     }
                 }
@@ -206,7 +217,7 @@ namespace Datos.Gestion
                         command.Parameters.AddWithValue("@mc", request.MaquinaAuditoria ?? "LOCAL");
                     }
 
-                    command.Parameters.AddWithValue("@s", request.Sistema ?? "SISGE");
+                    command.Parameters.AddWithValue("@s", request.Sistema ?? "GUSOF");
                     command.Parameters.AddWithValue("@ns", request.NombreSistema ?? "Sistema");
                     command.Parameters.AddWithValue("@uId", request.UnidadSistemaId);
                     command.Parameters.AddWithValue("@sigla", request.Sigla ?? "POLICIA");
@@ -246,7 +257,7 @@ namespace Datos.Gestion
                         command.Parameters.AddWithValue("@mc", request.MaquinaAuditoria ?? "LOCAL");
                     }
 
-                    command.Parameters.AddWithValue("@s", request.Sistema ?? "SISGE");
+                    command.Parameters.AddWithValue("@s", request.Sistema ?? "GUSOF");
                     command.Parameters.AddWithValue("@ns", request.NombreSistema ?? "Sistema");
                     command.Parameters.AddWithValue("@uId", request.UnidadSistemaId);
                     command.Parameters.AddWithValue("@sigla", request.Sigla ?? "POLICIA");
@@ -285,35 +296,106 @@ namespace Datos.Gestion
                         command.BindByName = true;
                         if (isUpdate)
                         {
-                            command.CommandText = @"UPDATE CTR_BRANDING SET SISTEMA = :s, NOMBRE_SISTEMA = :ns, UNIDAD_SISTEMA_ID = :uId, SIGLA = :sigla, NOMBRE_UNIDAD = :nu, LOGO_FILE_NAME = :logo, FAVICON_FILE_NAME = :fav, FONDO_1_FILE_NAME = :f1, FONDO_2_FILE_NAME = :f2, FONDO_3_FILE_NAME = :f3, VIGENTE = :v, USUARIO_MODIFICACION = :um, MAQUINA_MODIFICACION = :mm, FECHA_MODIFICACION = SYSTIMESTAMP WHERE ID_BRANDING = :id";
-                            command.Parameters.Add(":id", OracleDbType.Int32).Value = request.IdBranding;
+                            command.CommandText = @"
+UPDATE CTR_BRANDING
+   SET SISTEMA           = :sistema,
+       NOMBRE_SISTEMA    = :nombre_sistema,
+       UNIDAD_SISTEMA_ID = :unidad_sistema_id,
+       SIGLA             = :sigla,
+       NOMBRE_UNIDAD     = :nombre_unidad,
+       LOGO_FILE_NAME    = :logo_file_name,
+       FAVICON_FILE_NAME = :favicon_file_name,
+       FONDO_1_FILE_NAME = :fondo_1_file_name,
+       FONDO_2_FILE_NAME = :fondo_2_file_name,
+       FONDO_3_FILE_NAME = :fondo_3_file_name,
+       VIGENTE           = :vigente,
+       USUARIO_MODIFICA  = :usuario_auditoria,
+       MAQUINA_MODIFICA  = :maquina_auditoria,
+       FECHA_MODIFICA    = SYSDATE
+ WHERE ID_BRANDING       = :id";
+
+                            command.Parameters.Add("id", OracleDbType.Int32).Value = request.IdBranding;
+                            command.Parameters.Add("sistema", OracleDbType.Varchar2).Value = request.Sistema ?? "GUSOF";
+                            command.Parameters.Add("nombre_sistema", OracleDbType.Varchar2).Value = request.NombreSistema ?? "Sistema";
+                            command.Parameters.Add("unidad_sistema_id", OracleDbType.Int32).Value = request.UnidadSistemaId;
+                            command.Parameters.Add("sigla", OracleDbType.Varchar2).Value = request.Sigla ?? "POLICIA";
+                            command.Parameters.Add("nombre_unidad", OracleDbType.Varchar2).Value = request.NombreUnidad ?? "";
+                            command.Parameters.Add("logo_file_name", OracleDbType.Varchar2).Value = request.LogoFileName ?? "";
+                            command.Parameters.Add("favicon_file_name", OracleDbType.Varchar2).Value = request.FaviconFileName ?? "";
+                            command.Parameters.Add("fondo_1_file_name", OracleDbType.Varchar2).Value = request.Fondo1FileName ?? "";
+                            command.Parameters.Add("fondo_2_file_name", OracleDbType.Varchar2).Value = request.Fondo2FileName ?? "";
+                            command.Parameters.Add("fondo_3_file_name", OracleDbType.Varchar2).Value = request.Fondo3FileName ?? "";
+                            command.Parameters.Add("vigente", OracleDbType.Int32).Value = request.Vigente;
+                            command.Parameters.Add("usuario_auditoria", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SETUP";
+                            command.Parameters.Add("maquina_auditoria", OracleDbType.Varchar2).Value = request.MaquinaAuditoria ?? "LOCAL";
+
+                            try
+                            {
+                                await command.ExecuteNonQueryAsync(ct);
+                            }
+                            catch (OracleException ex) when (ex.Number == 904)
+                            {
+                                command.CommandText = @"
+UPDATE CTR_BRANDING
+   SET SISTEMA               = :sistema,
+       NOMBRE_SISTEMA        = :nombre_sistema,
+       UNIDAD_SISTEMA_ID     = :unidad_sistema_id,
+       SIGLA                 = :sigla,
+       NOMBRE_UNIDAD         = :nombre_unidad,
+       LOGO_FILE_NAME        = :logo_file_name,
+       FAVICON_FILE_NAME     = :favicon_file_name,
+       FONDO_1_FILE_NAME     = :fondo_1_file_name,
+       FONDO_2_FILE_NAME     = :fondo_2_file_name,
+       FONDO_3_FILE_NAME     = :fondo_3_file_name,
+       VIGENTE               = :vigente,
+       USUARIO_MODIFICACION  = :usuario_auditoria,
+       MAQUINA_MODIFICACION  = :maquina_auditoria,
+       FECHA_MODIFICACION    = SYSDATE
+ WHERE ID_BRANDING           = :id";
+                                await command.ExecuteNonQueryAsync(ct);
+                            }
+                            return new DtoBrandingResult { Id = request.IdBranding, Success = true, Message = "Actualización exitosa en Oracle." };
                         }
                         else
                         {
-                            command.CommandText = @"INSERT INTO CTR_BRANDING (SISTEMA, NOMBRE_SISTEMA, UNIDAD_SISTEMA_ID, SIGLA, NOMBRE_UNIDAD, LOGO_FILE_NAME, FAVICON_FILE_NAME, FONDO_1_FILE_NAME, FONDO_2_FILE_NAME, FONDO_3_FILE_NAME, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION, FECHA_CREACION) VALUES (:s, :ns, :uId, :sigla, :nu, :logo, :fav, :f1, :f2, :f3, :v, :uc, :mc, SYSTIMESTAMP)";
-                            command.Parameters.Add(":uc", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SETUP";
-                            command.Parameters.Add(":mc", OracleDbType.Varchar2).Value = request.MaquinaAuditoria ?? "LOCAL";
-                        }
+                            long nextId = 1;
+                            try
+                            {
+                                using var cmdNext = connection.CreateCommand();
+                                cmdNext.CommandText = "SELECT NVL(MAX(ID_BRANDING), 0) + 1 FROM CTR_BRANDING";
+                                var val = await cmdNext.ExecuteScalarAsync(ct);
+                                nextId = val != null && val != DBNull.Value ? Convert.ToInt64(val) : 1;
+                            }
+                            catch { nextId = 1; }
 
-                        command.Parameters.Add(":s", OracleDbType.Varchar2).Value = request.Sistema ?? "SISGE";
-                        command.Parameters.Add(":ns", OracleDbType.Varchar2).Value = request.NombreSistema ?? "Sistema";
-                        command.Parameters.Add(":uId", OracleDbType.Int32).Value = request.UnidadSistemaId;
-                        command.Parameters.Add(":sigla", OracleDbType.Varchar2).Value = request.Sigla ?? "POLICIA";
-                        command.Parameters.Add(":nu", OracleDbType.Varchar2).Value = request.NombreUnidad ?? "";
-                        command.Parameters.Add(":logo", OracleDbType.Varchar2).Value = request.LogoFileName ?? "";
-                        command.Parameters.Add(":fav", OracleDbType.Varchar2).Value = request.FaviconFileName ?? "";
-                        command.Parameters.Add(":f1", OracleDbType.Varchar2).Value = request.Fondo1FileName ?? "";
-                        command.Parameters.Add(":f2", OracleDbType.Varchar2).Value = request.Fondo2FileName ?? "";
-                        command.Parameters.Add(":f3", OracleDbType.Varchar2).Value = request.Fondo3FileName ?? "";
-                        command.Parameters.Add(":v", OracleDbType.Int32).Value = request.Vigente;
-                        if (isUpdate)
-                        {
-                            command.Parameters.Add(":um", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SETUP";
-                            command.Parameters.Add(":mm", OracleDbType.Varchar2).Value = request.MaquinaAuditoria ?? "LOCAL";
-                        }
+                            command.CommandText = @"
+INSERT INTO CTR_BRANDING
+  (ID_BRANDING, SISTEMA, NOMBRE_SISTEMA, UNIDAD_SISTEMA_ID, SIGLA, NOMBRE_UNIDAD,
+   LOGO_FILE_NAME, FAVICON_FILE_NAME, FONDO_1_FILE_NAME, FONDO_2_FILE_NAME, FONDO_3_FILE_NAME,
+   VIGENTE, USUARIO_CREACION, MAQUINA_CREACION, FECHA_CREACION)
+VALUES
+  (:id, :sistema, :nombre_sistema, :unidad_sistema_id, :sigla, :nombre_unidad,
+   :logo_file_name, :favicon_file_name, :fondo_1_file_name, :fondo_2_file_name, :fondo_3_file_name,
+   :vigente, :usuario_auditoria, :maquina_auditoria, SYSDATE)";
 
-                        await command.ExecuteNonQueryAsync(ct);
-                        return new DtoBrandingResult { Id = request.IdBranding, Success = true, Message = "Operación exitosa en Oracle." };
+                            command.Parameters.Add("id", OracleDbType.Int64).Value = nextId;
+                            command.Parameters.Add("sistema", OracleDbType.Varchar2).Value = request.Sistema ?? "GUSOF";
+                            command.Parameters.Add("nombre_sistema", OracleDbType.Varchar2).Value = request.NombreSistema ?? "Sistema";
+                            command.Parameters.Add("unidad_sistema_id", OracleDbType.Int32).Value = request.UnidadSistemaId;
+                            command.Parameters.Add("sigla", OracleDbType.Varchar2).Value = request.Sigla ?? "POLICIA";
+                            command.Parameters.Add("nombre_unidad", OracleDbType.Varchar2).Value = request.NombreUnidad ?? "";
+                            command.Parameters.Add("logo_file_name", OracleDbType.Varchar2).Value = request.LogoFileName ?? "";
+                            command.Parameters.Add("favicon_file_name", OracleDbType.Varchar2).Value = request.FaviconFileName ?? "";
+                            command.Parameters.Add("fondo_1_file_name", OracleDbType.Varchar2).Value = request.Fondo1FileName ?? "";
+                            command.Parameters.Add("fondo_2_file_name", OracleDbType.Varchar2).Value = request.Fondo2FileName ?? "";
+                            command.Parameters.Add("fondo_3_file_name", OracleDbType.Varchar2).Value = request.Fondo3FileName ?? "";
+                            command.Parameters.Add("vigente", OracleDbType.Int32).Value = request.Vigente;
+                            command.Parameters.Add("usuario_auditoria", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SETUP";
+                            command.Parameters.Add("maquina_auditoria", OracleDbType.Varchar2).Value = request.MaquinaAuditoria ?? "LOCAL";
+
+                            await command.ExecuteNonQueryAsync(ct);
+                            return new DtoBrandingResult { Id = (int)nextId, Success = true, Message = "Inserción exitosa en Oracle." };
+                        }
                     }
                 }
             }

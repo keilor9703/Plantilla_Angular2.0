@@ -136,6 +136,17 @@
             <label class="ui-label">Contraseña (PASSWORD)</label>
             <input class="ui-control" type="password" [(ngModel)]="formData.password">
           </div>
+
+          <ng-container *ngIf="formData.provider === 'Oracle'">
+            <div class="ui-field ui-col-6">
+              <label class="ui-label"><i class="fa-solid fa-database"></i> Tablespace de Datos (Tablas)</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.tablespaceData" placeholder="Ej: DEVELOPER_DATA">
+            </div>
+            <div class="ui-field ui-col-6">
+              <label class="ui-label"><i class="fa-solid fa-list-ol"></i> Tablespace de Índices (Índices / Keys)</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.tablespaceIndexes" placeholder="Ej: DEVELOPER_INDEX">
+            </div>
+          </ng-container>
         </div>
 
         <div *ngIf="useRawConnectionString" class="ui-field ui-col-12">

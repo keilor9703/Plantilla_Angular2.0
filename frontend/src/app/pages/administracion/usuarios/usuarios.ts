@@ -124,6 +124,23 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.rolesCatalogo = [];
   }
 
+  onlyNumbers(event: KeyboardEvent): boolean {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode < 48 || charCode > 57) {
+      event.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
+  onSearchIdentInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input) {
+      input.value = input.value.replace(/[^0-9]/g, '');
+      this.searchIdentification = input.value;
+    }
+  }
+
   consultarUsuario(): void {
     const documento = this.searchIdentification.trim();
     if (!documento) {
@@ -188,10 +205,27 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   toggleEstadoUsuario(): void {
-    if (!this.user) {
+    if (!this.user || !this.user.identificacion) {
       return;
     }
-    this.user.activo = !this.user.activo;
+    const nuevoEstado = !this.user.activo;
+    this.usuarioAdminService.cambiarEstadoUsuario(this.user.identificacion, nuevoEstado).subscribe({
+      next: (resp) => {
+        if (resp.success !== false) {
+          this.user!.activo = nuevoEstado;
+          this.toast.success(
+            'Estado actualizado',
+            `El usuario ahora se encuentra ${nuevoEstado ? 'ACTIVO' : 'INACTIVO (BLOQUEADO)'}.`
+          );
+          this.cargarListadoUsuarios();
+        } else {
+          this.toast.error('Error', resp.message || 'No se pudo cambiar el estado.');
+        }
+      },
+      error: (err) => {
+        this.toast.error('Error', err?.error?.message || 'Error al cambiar el estado del usuario.');
+      }
+    });
   }
 
  get activeRolesCount(): number {

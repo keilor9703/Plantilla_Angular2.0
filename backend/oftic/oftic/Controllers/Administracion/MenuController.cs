@@ -284,8 +284,8 @@ namespace Api.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error asignando menÃº a rol. idRol={IdRol}", idRol);
-                return StatusCode(500, new { success = false, message = "Error asignando menÃº a rol." });
+                _logger.LogError(ex, "Error asignando menú a rol. idRol={IdRol}", idRol);
+                return StatusCode(500, new { success = false, message = "Error asignando menú a rol." });
             }
         }
 
@@ -297,7 +297,7 @@ namespace Api.Controllers.Administracion
             {
                 if (idRol <= 0 || idMenu <= 0)
                 {
-                    return BadRequest(new { success = false, message = "ParÃ¡metros invÃ¡lidos." });
+                    return BadRequest(new { success = false, message = "Parámetros inválidos." });
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);

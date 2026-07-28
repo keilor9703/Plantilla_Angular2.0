@@ -55,7 +55,7 @@ export class FooterComponent implements OnInit, OnDestroy {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
+        const sigla = (cfg?.sistema ?? cfg?.sigla ?? cfg?.systemName ?? '').trim();
         const nombre = (cfg?.nombreSistema ?? '').trim();
         this.systemName = sigla || 'OFTIC';
         this.systemDisplayName = nombre || 'Sistema de gestion de Policia';

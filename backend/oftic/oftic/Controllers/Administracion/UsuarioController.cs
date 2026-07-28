@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Comun.Dtos;
@@ -814,135 +814,41 @@ namespace ofic.Controllers.Administracion
             }
         }
 
-        [HttpGet("Roles/Admin")]
-        public async Task<IActionResult> GetRolesAdmin()
+
+
+        [HttpPatch("{identificacion}/Estado")]
+        public async Task<IActionResult> CambiarEstadoUsuario(string identificacion, [FromBody] DtoCambiarEstadoRequest request)
         {
             try
             {
-                var roles = await _dbUsuarioRepository.GetRolesAdminAsync(HttpContext.RequestAborted);
-                return Ok(roles);
+                if (string.IsNullOrWhiteSpace(identificacion))
+                {
+                    return BadRequest(new { success = false, message = "Identificación requerida." });
+                }
+
+                var success = await _dbUsuarioRepository.SetUsuarioEstadoAsync(
+                    identificacion,
+                    request?.activo ?? true,
+                    HttpContext.RequestAborted);
+
+                if (!success)
+                {
+                    return BadRequest(new { success = false, message = "No fue posible cambiar el estado del usuario en base de datos." });
+                }
+
+                return Ok(new { success = true, message = (request?.activo ?? true) ? "Usuario activado correctamente." : "Usuario bloqueado/desactivado correctamente." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando administraciÃ³n de roles");
-                return StatusCode(500, new { success = false, message = "Error al consultar roles." });
+                _logger.LogError(ex, "Error cambiando estado de usuario. Identificacion={Identificacion}", identificacion);
+                return StatusCode(500, new { success = false, message = "Error al cambiar estado del usuario." });
             }
         }
+    }
 
-        [HttpPost("Roles/Admin")]
-        public async Task<IActionResult> SaveRolAdmin([FromBody] DtoSaveRolRequest request)
-        {
-            try
-            {
-                if (request is null)
-                {
-                    return BadRequest(new { success = false, message = "Payload invÃ¡lido." });
-                }
-
-                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
-                    User,
-                    null,
-                    HttpContext.RequestAborted);
-
-                var maquinaAuditoria =
-                    HttpContext.Connection.RemoteIpAddress?.ToString()
-                    ?? Environment.MachineName
-                    ?? "N/A";
-
-                var result = await _dbUsuarioRepository.SaveRolAdminAsync(
-                    request,
-                    usuarioAuditoria,
-                    maquinaAuditoria,
-                    HttpContext.RequestAborted);
-
-                if (result.idRol <= 0)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = string.IsNullOrWhiteSpace(result.message)
-                            ? "No fue posible guardar el rol."
-                            : result.message
-                    });
-                }
-
-                return Ok(new
-                {
-                    success = true,
-                    idRol = result.idRol,
-                    message = string.IsNullOrWhiteSpace(result.message)
-                        ? "Rol guardado correctamente."
-                        : result.message
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error guardando rol");
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Error al guardar rol"
-                });
-            }
-        }
-
-        [HttpPatch("Roles/Admin/{idRol:int}/Estado")]
-        public async Task<IActionResult> SetRolEstado(int idRol, [FromBody] DtoSetRolEstadoRequest request)
-        {
-            try
-            {
-                if (idRol <= 0)
-                {
-                    return BadRequest(new { success = false, message = "Id de rol invÃ¡lido." });
-                }
-
-                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
-                    User,
-                    null,
-                    HttpContext.RequestAborted);
-
-                var maquinaAuditoria =
-                    HttpContext.Connection.RemoteIpAddress?.ToString()
-                    ?? Environment.MachineName
-                    ?? "N/A";
-
-                var result = await _dbUsuarioRepository.SetRolEstadoAsync(
-                    idRol,
-                    request?.vigente ?? 0,
-                    usuarioAuditoria,
-                    maquinaAuditoria,
-                    HttpContext.RequestAborted);
-
-                if (result.idRol <= 0)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = string.IsNullOrWhiteSpace(result.message)
-                            ? "No fue posible actualizar el estado del rol."
-                            : result.message
-                    });
-                }
-
-                return Ok(new
-                {
-                    success = true,
-                    idRol = result.idRol,
-                    message = string.IsNullOrWhiteSpace(result.message)
-                        ? "Estado del rol actualizado."
-                        : result.message
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error actualizando estado del rol. idRol={IdRol}", idRol);
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Error al actualizar estado del rol"
-                });
-            }
-        }
+    public class DtoCambiarEstadoRequest
+    {
+        public bool activo { get; set; }
     }
 }
 

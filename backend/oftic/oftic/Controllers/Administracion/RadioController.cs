@@ -48,8 +48,8 @@ namespace ofic.Controllers.Administracion
 
                 var request = new DtoConsultaSliderPublicoRequest
                 {
-                    FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "SISGE",
-                    SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "Sistema de Gestión Especializada - SISGE",
+                    FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "GUSOF",
+                    SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "OFTIC",
                     IP_MAQUINA = ip,
                     USUARIO = usuario
                 };

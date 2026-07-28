@@ -162,7 +162,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const name = (cfg?.sigla ?? cfg?.sistema ?? '').trim();
+        const name = (cfg?.sistema ?? cfg?.sigla ?? '').trim();
         this.systemName = name || 'OFTIC';
         this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/imagenes/oftic-logo-app.png';
       },
@@ -181,7 +181,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
           return;
         }
         const mapped = this.mapDbMenu(items);
-        this.menuItems = this.ensureInicioItem(mapped);
+        this.menuItems = this.orderAndSortMenu(mapped);
       },
       error: () => {
         this.loadMenuByUserFallback();
@@ -198,10 +198,10 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
 
     this.menuService.getByUser(userId).subscribe({
       next: (items) => {
-        this.menuItems = this.ensureInicioItem(this.mapDbMenu(items));
+        this.menuItems = this.orderAndSortMenu(this.mapDbMenu(items));
       },
       error: () => {
-        this.menuItems = this.ensureInicioItem([]);
+        this.menuItems = this.orderAndSortMenu([]);
       }
     });
   }
@@ -422,30 +422,71 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     );
   }
 
-  private ensureInicioItem(items: MenuItem[]): MenuItem[] {
+  private orderAndSortMenu(items: MenuItem[]): MenuItem[] {
     if (!this.authService.isAuthenticated()) {
       return items;
     }
 
-    const inicioIndex = items.findIndex((item) => item.route === '/home' || item.label.toLowerCase() === 'inicio');
-    if (inicioIndex >= 0) {
-      const inicio = {
-        ...items[inicioIndex],
-        route: '/home'
-      };
-      const rest = items.filter((_, idx) => idx !== inicioIndex);
-      return [inicio, ...rest];
+    // 1. Clonar y ordenar submenús de cada elemento alfabéticamente
+    const processed = (items ?? []).map((item) => {
+      if (item.submenu && item.submenu.length > 0) {
+        const sortedSub = [...item.submenu].sort((a, b) =>
+          a.label.localeCompare(b.label, 'es', { sensitivity: 'base' })
+        );
+        return { ...item, submenu: sortedSub };
+      }
+      return { ...item };
+    });
+
+    let inicioItem: MenuItem | undefined;
+    let adminItem: MenuItem | undefined;
+    const remainingItems: MenuItem[] = [];
+
+    // 2. Extraer Inicio y Administración
+    for (const item of processed) {
+      const normLabel = item.label.toLowerCase().trim();
+      const normRoute = (item.route ?? '').toLowerCase().trim();
+
+      if (normLabel === 'inicio' || normRoute === '/home') {
+        inicioItem = {
+          ...item,
+          icon: item.icon || 'fa-solid fa-house',
+          label: 'Inicio',
+          route: '/home'
+        };
+      } else if (normLabel === 'administración' || normLabel === 'administracion') {
+        adminItem = {
+          ...item,
+          label: 'Administración'
+        };
+      } else {
+        remainingItems.push(item);
+      }
     }
 
-    return [
-      {
+    // 3. Ordenar alfabéticamente todos los demás módulos de primer nivel
+    remainingItems.sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+
+    // 4. Construir menú garantizando el orden: Inicio -> Administración -> Alfabético
+    const finalMenu: MenuItem[] = [];
+
+    if (inicioItem) {
+      finalMenu.push(inicioItem);
+    } else {
+      finalMenu.push({
         id: 999000,
         icon: 'fa-solid fa-house',
         label: 'Inicio',
         route: '/home'
-      },
-      ...items
-    ];
+      });
+    }
+
+    if (adminItem) {
+      finalMenu.push(adminItem);
+    }
+
+    finalMenu.push(...remainingItems);
+    return finalMenu;
   }
   
 }

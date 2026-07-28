@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -187,6 +187,14 @@ export class UsuarioAdminService {
 
   eliminarUsuario(idUsuario: number): Observable<EliminarUsuarioResponse> {
     return this.http.delete<EliminarUsuarioResponse>(`${this.baseUrl}/${idUsuario}`);
+  }
+
+  cambiarEstadoUsuario(identificacion: string, activo: boolean): Observable<{ success: boolean; message: string }> {
+    const id = (identificacion ?? '').trim();
+    return this.http.patch<{ success: boolean; message: string }>(
+      `${this.baseUrl}/${id}/Estado`,
+      { activo }
+    );
   }
 
    private normalizeFotoResponse(raw: string | null): string | null {

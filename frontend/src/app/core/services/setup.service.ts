@@ -25,6 +25,8 @@ export interface SetupTestRequest {
   databaseOrService?: string;
   user?: string;
   password?: string;
+  tablespaceData?: string;
+  tablespaceIndexes?: string;
   connectionStringRaw?: string;
   pipUser?: string;
   pipPassword?: string;
@@ -76,6 +78,10 @@ export class SetupService {
 
   validateDevUser(request: SetupTestRequest): Observable<SetupResponse> {
     return this.http.post<SetupResponse>(`${this.apiBase}/validate-dev-user`, request);
+  }
+
+  confirmDevUser(request: SetupTestRequest): Observable<SetupResponse> {
+    return this.http.post<SetupResponse>(`${this.apiBase}/confirm-dev-user`, request);
   }
 
   testPipCredentials(request: SetupTestRequest): Observable<SetupResponse> {

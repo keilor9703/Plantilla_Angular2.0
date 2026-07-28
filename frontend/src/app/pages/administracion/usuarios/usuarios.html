@@ -78,6 +78,9 @@
                 <label class="ui-label">Identificación</label>
                 <div class="ui-input-group">
                   <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040"
+                    inputmode="numeric" pattern="[0-9]*"
+                    (keypress)="onlyNumbers($event)"
+                    (input)="onSearchIdentInput($event)"
                     (keyup.enter)="consultarUsuario()">
                   <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()"
                     [disabled]="loading">
@@ -225,6 +228,9 @@
 
           <div class="empty-search">
             <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Identificación"
+              inputmode="numeric" pattern="[0-9]*"
+              (keypress)="onlyNumbers($event)"
+              (input)="onSearchIdentInput($event)"
               (keyup.enter)="consultarUsuario()">
             <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
               <i class="fa-solid fa-magnifying-glass"></i>

@@ -32,7 +32,7 @@ namespace Datos.Gestion
                 }
                 else
                 {
-                    logger.LogInformation("DatabaseProvider es Oracle. La migración automática se omite o se maneja vía scripts Oracle.");
+                    await MigrateOracleAsync(connectionString, logger, ct, cfg);
                 }
             }
             catch (Exception ex)
@@ -158,12 +158,24 @@ namespace Datos.Gestion
                 // 7. CTR_DOMINIO
                 @"CREATE TABLE IF NOT EXISTS CTR_DOMINIO (
                     id_dominio INT AUTO_INCREMENT PRIMARY KEY,
-                    dominio VARCHAR(100) NOT NULL,
-                    valor VARCHAR(255) NOT NULL,
-                    descripcion VARCHAR(500),
-                    orden INT DEFAULT 1,
-                    vigente INT DEFAULT 1 NOT NULL
+                    descripcion VARCHAR(500) NOT NULL,
+                    id_padre INT DEFAULT 0 NOT NULL,
+                    abreviatura VARCHAR(100),
+                    observacion VARCHAR(500),
+                    vigente INT DEFAULT 1 NOT NULL,
+                    usuario_creacion VARCHAR(100) DEFAULT 'SETUP',
+                    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    maquina_creacion VARCHAR(255) DEFAULT 'LOCAL',
+                    usuario_modifica VARCHAR(100),
+                    fecha_modifica DATETIME,
+                    maquina_modifica VARCHAR(255)
                 );",
+                @"ALTER TABLE CTR_DOMINIO
+                    ADD COLUMN IF NOT EXISTS id_padre INT DEFAULT 0 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS abreviatura VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS observacion VARCHAR(500),
+                    ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL;",
+                @"INSERT IGNORE INTO CTR_DOMINIO (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente) VALUES (1, 'DOMINIO PRINCIPAL / RAÍZ', 0, 'RAIZ', 'Dominio Semilla Raíz Principal', 1);",
 
                 // 8. CTR_AUDITORIA
                 @"CREATE TABLE IF NOT EXISTS CTR_AUDITORIA (
@@ -189,7 +201,7 @@ namespace Datos.Gestion
                 // 10. CTR_BRANDING
                 @"CREATE TABLE IF NOT EXISTS CTR_BRANDING (
                     id_branding BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    sistema VARCHAR(10) NOT NULL,
+                    sistema VARCHAR(50) NOT NULL,
                     nombre_sistema VARCHAR(100) NOT NULL,
                     unidad_sistema_id INT,
                     logo_file_name VARCHAR(255),
@@ -448,6 +460,30 @@ namespace Datos.Gestion
                     ADD COLUMN IF NOT EXISTS fecha_fin DATE,
                     ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1;",
 
+                // 7. ctr_dominio
+                @"CREATE TABLE IF NOT EXISTS ctr_dominio (
+                    id_dominio SERIAL PRIMARY KEY,
+                    descripcion VARCHAR(500) NOT NULL,
+                    id_padre INT DEFAULT 0 NOT NULL,
+                    abreviatura VARCHAR(100),
+                    observacion VARCHAR(500),
+                    vigente INT DEFAULT 1 NOT NULL,
+                    usuario_creacion VARCHAR(100) DEFAULT 'SETUP',
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    maquina_creacion VARCHAR(255) DEFAULT 'LOCAL',
+                    usuario_modifica VARCHAR(100),
+                    fecha_modifica TIMESTAMP,
+                    maquina_modifica VARCHAR(255)
+                );",
+                @"ALTER TABLE ctr_dominio
+                    ADD COLUMN IF NOT EXISTS id_padre INT DEFAULT 0 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS abreviatura VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS observacion VARCHAR(500),
+                    ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL;",
+                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
+                  VALUES (1, 'DOMINIO PRINCIPAL / RAÍZ', 0, 'RAIZ', 'Dominio Semilla Raíz Principal', 1)
+                  ON CONFLICT (id_dominio) DO NOTHING;",
+
                 // Seed Data - Roles
                 @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, estado, usuario_creacion, maquina_creacion)
                   VALUES (1, 'DESARROLLADOR', 'Desarrollador', 'Rol con acceso total de desarrollo y plantilla', 1, 'SETUP', 'LOCAL')
@@ -502,6 +538,510 @@ namespace Datos.Gestion
             }
 
             logger.LogInformation("Migración de base de datos PostgreSQL completada exitosamente.");
+        }
+
+        private static async Task MigrateOracleAsync(string cs, ILogger logger, CancellationToken ct, IConfiguration? cfg = null)
+        {
+            var tsDataName = (cfg?["OracleSettings:TablespaceData"] ?? "DEVELOPER_DATA").Trim();
+            var tsIndName = (cfg?["OracleSettings:TablespaceIndexes"] ?? "DEVELOPER_INDEX").Trim();
+
+            await using var conn = new Oracle.ManagedDataAccess.Client.OracleConnection(cs);
+            await conn.OpenAsync(ct);
+
+            string tsDataClause = "";
+            string tsIndClause = "";
+
+            try
+            {
+                await using var cmdData = conn.CreateCommand();
+                cmdData.CommandText = "SELECT COUNT(*) FROM ALL_TABLESPACES WHERE TABLESPACE_NAME = UPPER(:ts)";
+                cmdData.Parameters.Add(":ts", Oracle.ManagedDataAccess.Client.OracleDbType.Varchar2).Value = tsDataName;
+                var countData = Convert.ToInt32(await cmdData.ExecuteScalarAsync(ct));
+                if (countData > 0)
+                {
+                    tsDataClause = $" TABLESPACE {tsDataName}";
+                }
+
+                await using var cmdInd = conn.CreateCommand();
+                cmdInd.CommandText = "SELECT COUNT(*) FROM ALL_TABLESPACES WHERE TABLESPACE_NAME = UPPER(:ts)";
+                cmdInd.Parameters.Add(":ts", Oracle.ManagedDataAccess.Client.OracleDbType.Varchar2).Value = tsIndName;
+                var countInd = Convert.ToInt32(await cmdInd.ExecuteScalarAsync(ct));
+                if (countInd > 0)
+                {
+                    tsIndClause = $" TABLESPACE {tsIndName}";
+                }
+            }
+            catch (Exception exCheck)
+            {
+                logger.LogWarning(exCheck, "Aviso verificando ALL_TABLESPACES. Usando cláusulas especificadas por el usuario.");
+                tsDataClause = $" TABLESPACE {tsDataName}";
+                tsIndClause = $" TABLESPACE {tsIndName}";
+            }
+
+            string usingIndexClause = string.IsNullOrWhiteSpace(tsIndClause) ? "" : $" USING INDEX{tsIndClause}";
+
+            logger.LogInformation("Migración Oracle activa. Tablespace Datos: '{TsData}' ({DataClause}), Tablespace Índices: '{TsInd}' ({IndClause})", 
+                tsDataName, string.IsNullOrWhiteSpace(tsDataClause) ? "Default User TS" : tsDataClause, 
+                tsIndName, string.IsNullOrWhiteSpace(tsIndClause) ? "Default User TS" : tsIndClause);
+
+            string[] blocks = new[]
+            {
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_USUARIOS (
+                      ID_USUARIO       NUMBER NOT NULL,
+                      BLOQUEADO        NUMBER(1) DEFAULT 0 NOT NULL,
+                      USERNAME         VARCHAR2(255 CHAR) NOT NULL,
+                      IDENTIFICACION   NUMBER NOT NULL,
+                      GRAD_ALFABETICO  VARCHAR2(255 CHAR) DEFAULT '''' NOT NULL,
+                      APELLIDOS        VARCHAR2(255 CHAR) DEFAULT '''' NOT NULL,
+                      NOMBRES          VARCHAR2(255 CHAR) DEFAULT '''' NOT NULL,
+                      FUNCIONARIO      VARCHAR2(255 CHAR) DEFAULT '''' NOT NULL,
+                      UNDE_LABORANDO   NUMBER DEFAULT 0 NOT NULL,
+                      CODIGOCARGO      NUMBER DEFAULT 0 NOT NULL,
+                      USUARIO_CREACION NUMBER DEFAULT 1 NOT NULL,
+                      FECHA_CREACION   DATE DEFAULT SYSDATE NOT NULL,
+                      MAQUINA_CREACION VARCHAR2(255 CHAR) DEFAULT ''LOCAL'' NOT NULL,
+                      USUARIO_MODIFICA NUMBER,
+                      FECHA_MODIFICA   DATE,
+                      MAQUINA_MODIFICA VARCHAR2(255 CHAR),
+                      CONSTRAINT CTR_USUARIOS_A1_PK PRIMARY KEY (ID_USUARIO){usingIndexClause},
+                      CONSTRAINT CTR_USUARIOS_A2_UK UNIQUE (USERNAME){usingIndexClause},
+                      CONSTRAINT CTR_USUARIOS_A3_UK UNIQUE (IDENTIFICACION){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN EXECUTE IMMEDIATE 'CREATE INDEX CTR_USUARIOS_B1_I ON CTR_USUARIOS (UNDE_LABORANDO){tsIndClause}'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF; END;",
+                $@"BEGIN EXECUTE IMMEDIATE 'CREATE INDEX CTR_USUARIOS_B2_I ON CTR_USUARIOS (CODIGOCARGO){tsIndClause}'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF; END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_ROLES (
+                      ID_ROL           NUMBER NOT NULL,
+                      CODIGO_ROL       VARCHAR2(50 CHAR) NOT NULL,
+                      NOMBRE_ROL       VARCHAR2(255 CHAR) NOT NULL,
+                      DESCRIPCION      VARCHAR2(500 CHAR),
+                      ESTADO           NUMBER(1) DEFAULT 1 NOT NULL,
+                      FECHA_CREACION   DATE DEFAULT SYSDATE NOT NULL,
+                      USUARIO_CREACION VARCHAR2(100 CHAR) NOT NULL,
+                      MAQUINA_CREACION VARCHAR2(100 CHAR),
+                      FECHA_MODIFICA   DATE,
+                      USUARIO_MODIFICA VARCHAR2(100 CHAR),
+                      MAQUINA_MODIFICA VARCHAR2(100 CHAR),
+                      CONSTRAINT CTR_ROLES_PK PRIMARY KEY (ID_ROL){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_MENU (
+                      ID_MENU          NUMBER NOT NULL,
+                      ID_PADRE         NUMBER DEFAULT 0 NOT NULL,
+                      TITULO           VARCHAR2(255 CHAR) NOT NULL,
+                      RUTA             VARCHAR2(255 CHAR),
+                      ICONO            VARCHAR2(100 CHAR),
+                      ORDEN            NUMBER DEFAULT 1 NOT NULL,
+                      ESTADO           NUMBER(1) DEFAULT 1 NOT NULL,
+                      FECHA_CREACION   DATE DEFAULT SYSDATE NOT NULL,
+                      USUARIO_CREACION VARCHAR2(100 CHAR) NOT NULL,
+                      CONSTRAINT CTR_MENU_PK PRIMARY KEY (ID_MENU){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_MENU_ROLES (
+                      ID_MENU_ROL      NUMBER NOT NULL,
+                      ID_MENU          NUMBER NOT NULL,
+                      ID_ROL           NUMBER NOT NULL,
+                      ESTADO           NUMBER(1) DEFAULT 1 NOT NULL,
+                      FECHA_CREACION   DATE DEFAULT SYSDATE NOT NULL,
+                      USUARIO_CREACION VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
+                      MAQUINA_CREACION VARCHAR2(255 CHAR) DEFAULT ''LOCAL'',
+                      FECHA_MODIFICA   DATE,
+                      USUARIO_MODIFICA VARCHAR2(100 CHAR),
+                      MAQUINA_MODIFICA VARCHAR2(255 CHAR),
+                      CONSTRAINT CTR_MENU_ROLES_PK PRIMARY KEY (ID_MENU_ROL){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_MENU_ROLES ADD USUARIO_CREACION VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_MENU_ROLES ADD FECHA_CREACION DATE DEFAULT SYSDATE'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_MENU_ROLES ADD MAQUINA_CREACION VARCHAR2(255 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_MENU_ROLES ADD USUARIO_MODIFICA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_MENU_ROLES ADD FECHA_MODIFICA DATE'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_MENU_ROLES ADD MAQUINA_MODIFICA VARCHAR2(255 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_ROLES_USER_ADMIN (
+                      ID_USER_ROL      NUMBER NOT NULL,
+                      ID_USUARIO       NUMBER NOT NULL,
+                      ID_ROL           NUMBER NOT NULL,
+                      VIGENTE          NUMBER(1) DEFAULT 1 NOT NULL,
+                      JUSTIFICACION    VARCHAR2(500 CHAR),
+                      FECHA_INICIO     DATE,
+                      FECHA_FIN        DATE,
+                      USUARIO_CREACION VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
+                      FECHA_CREACION   DATE DEFAULT SYSDATE NOT NULL,
+                      MAQUINA_CREACION VARCHAR2(255 CHAR) DEFAULT ''LOCAL'' NOT NULL,
+                      CONSTRAINT CTR_ROLES_USER_ADMIN_PK PRIMARY KEY (ID_USER_ROL){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES_USER_ADMIN ADD FECHA_INICIO DATE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 AND SQLCODE != -904 THEN NULL; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES_USER_ADMIN ADD FECHA_FIN DATE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 AND SQLCODE != -904 THEN NULL; END IF; END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_BRANDING (
+                      ID_BRANDING        NUMBER NOT NULL,
+                      SISTEMA            VARCHAR2(50 CHAR) DEFAULT ''GUSOF'' NOT NULL,
+                      NOMBRE_SISTEMA     VARCHAR2(255 CHAR) DEFAULT ''OFTIC'' NOT NULL,
+                      UNIDAD_SISTEMA_ID  NUMBER,
+                      SIGLA              VARCHAR2(100 CHAR),
+                      NOMBRE_UNIDAD      VARCHAR2(255 CHAR),
+                      LOGO_FILE_NAME     VARCHAR2(255 CHAR),
+                      FAVICON_FILE_NAME  VARCHAR2(255 CHAR),
+                      FONDO_1_FILE_NAME  VARCHAR2(255 CHAR),
+                      FONDO_2_FILE_NAME  VARCHAR2(255 CHAR),
+                      FONDO_3_FILE_NAME  VARCHAR2(255 CHAR),
+                      VIGENTE            NUMBER(1) DEFAULT 1 NOT NULL,
+                      USUARIO_CREACION   VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
+                      FECHA_CREACION     DATE DEFAULT SYSDATE NOT NULL,
+                      MAQUINA_CREACION   VARCHAR2(255 CHAR) DEFAULT ''LOCAL'' NOT NULL,
+                      USUARIO_MODIFICA   VARCHAR2(100 CHAR),
+                      FECHA_MODIFICA     DATE,
+                      MAQUINA_MODIFICA   VARCHAR2(255 CHAR),
+                      CONSTRAINT CTR_BRANDING_PK PRIMARY KEY (ID_BRANDING){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_DOMINIOS (
+                      ID_DOMINIO       NUMBER NOT NULL,
+                      DESCRIPCION      VARCHAR2(3000 CHAR),
+                      ID_PADRE         NUMBER DEFAULT 0,
+                      VIGENTE          NUMBER DEFAULT 1,
+                      ABREVIATURA      VARCHAR2(255 CHAR),
+                      OBSERVACION      VARCHAR2(255 CHAR),
+                      USUARIO_CREACION NUMBER,
+                      FECHA_CREACION   DATE DEFAULT SYSDATE,
+                      MAQUINA_CREACION VARCHAR2(255 CHAR),
+                      USUARIO_MODIFICA NUMBER,
+                      FECHA_MODIFICA   DATE,
+                      MAQUINA_MODIFICA VARCHAR2(255 CHAR),
+                      CONSTRAINT CTR_DOM_A1_PK PRIMARY KEY (ID_DOMINIO){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_AUDITORIA (
+                      ID_AUDITORIA     NUMBER NOT NULL,
+                      FECHA            DATE DEFAULT SYSDATE NOT NULL,
+                      USUARIO          VARCHAR2(100 CHAR),
+                      MODULO           VARCHAR2(100 CHAR),
+                      ACCION           VARCHAR2(100 CHAR),
+                      REGISTRO         VARCHAR2(500 CHAR),
+                      RESULTADO        VARCHAR2(100 CHAR),
+                      MAQUINA          VARCHAR2(100 CHAR),
+                      CONSTRAINT CTR_AUDITORIA_PK PRIMARY KEY (ID_AUDITORIA){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD MODULO VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD ACCION VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD REGISTRO VARCHAR2(500 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD RESULTADO VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD MAQUINA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_CUENTA_EMAIL (
+                      ID_CUENTA        NUMBER NOT NULL,
+                      ID_DOMINIO_GRUPO NUMBER,
+                      NOMBRE_CUENTA    VARCHAR2(200 CHAR) NOT NULL,
+                      EMAIL            VARCHAR2(250 CHAR) NOT NULL,
+                      SERVIDOR_SMTP    VARCHAR2(200 CHAR) NOT NULL,
+                      PUERTO           NUMBER DEFAULT 587 NOT NULL,
+                      USUARIO_SMTP     VARCHAR2(200 CHAR) NOT NULL,
+                      CLAVE_SMTP       VARCHAR2(500 CHAR),
+                      USAR_SSL         NUMBER(1) DEFAULT 1 NOT NULL,
+                      VIGENTE          NUMBER(1) DEFAULT 1 NOT NULL,
+                      USUARIO_CREA     VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
+                      FECHA_CREA       DATE DEFAULT SYSDATE NOT NULL,
+                      CONSTRAINT CTR_CUENTA_EMAIL_PK PRIMARY KEY (ID_CUENTA){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_CUENTA_EMAIL_USUARIO (
+                      ID_CUENTA_USUARIO NUMBER NOT NULL,
+                      ID_CUENTA         NUMBER NOT NULL,
+                      ID_USUARIO        NUMBER NOT NULL,
+                      VIGENTE           NUMBER(1) DEFAULT 1 NOT NULL,
+                      USUARIO_CREA      VARCHAR2(100 CHAR) DEFAULT ''SETUP'',
+                      FECHA_CREA        DATE DEFAULT SYSDATE NOT NULL,
+                      USUARIO_MODIFICA  VARCHAR2(100 CHAR),
+                      FECHA_MODIFICA    DATE,
+                      IP_REGISTRO       VARCHAR2(50 CHAR),
+                      CONSTRAINT CTR_CUENTA_EMAIL_USUARIO_PK PRIMARY KEY (ID_CUENTA_USUARIO){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_ENVIO_CORREO (
+                      ID_ENVIO         NUMBER NOT NULL,
+                      ID_CUENTA_EMAIL  NUMBER,
+                      RADICADO         VARCHAR2(100 CHAR),
+                      DESTINATARIO     VARCHAR2(500 CHAR) NOT NULL,
+                      ASUNTO           VARCHAR2(500 CHAR),
+                      CUERPO           CLOB,
+                      ID_CLASIFICACION NUMBER,
+                      USUARIO_CREA     VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
+                      MAQUINA_CREA     VARCHAR2(100 CHAR) DEFAULT ''LOCAL'' NOT NULL,
+                      FECHA_CREA       DATE DEFAULT SYSDATE NOT NULL,
+                      CONSTRAINT CTR_ENVIO_CORREO_PK PRIMARY KEY (ID_ENVIO){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_LINEA_MANDO (
+                      ID_LINEA_MANDO     NUMBER NOT NULL,
+                      IDENTIFICACION     VARCHAR2(50 CHAR) NOT NULL,
+                      NOMBRE             VARCHAR2(100 CHAR),
+                      APELLIDOS          VARCHAR2(100 CHAR),
+                      GRADO              VARCHAR2(50 CHAR),
+                      CARGO              VARCHAR2(100 CHAR),
+                      UNIDAD             VARCHAR2(200 CHAR),
+                      FOTO_BASE64        CLOB,
+                      ORDEN              NUMBER DEFAULT 1 NOT NULL,
+                      VIGENTE            NUMBER(1) DEFAULT 1 NOT NULL,
+                      USUARIO_CREA       VARCHAR2(100 CHAR) DEFAULT ''SETUP'',
+                      FECHA_CREA         DATE DEFAULT SYSDATE NOT NULL,
+                      MAQUINA_CREA       VARCHAR2(100 CHAR) DEFAULT ''LOCAL'',
+                      USUARIO_MOD        VARCHAR2(100 CHAR),
+                      FECHA_MOD          DATE,
+                      MAQUINA_MOD        VARCHAR2(100 CHAR),
+                      PESO               VARCHAR2(100 CHAR),
+                      CONSTRAINT CTR_LINEA_MANDO_PK PRIMARY KEY (ID_LINEA_MANDO){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_PERSONAJE_GRUPO (
+                      ID_PERSONAJE_GRUPO NUMBER NOT NULL,
+                      NOMBRE_GRUPO       VARCHAR2(100 CHAR),
+                      NUMERO_ACTA        VARCHAR2(50 CHAR),
+                      MES                NUMBER,
+                      VIGENTE            NUMBER(1) DEFAULT 1 NOT NULL,
+                      USUARIO_CREA       VARCHAR2(100 CHAR) DEFAULT ''SETUP'',
+                      FECHA_CREA         DATE DEFAULT SYSDATE NOT NULL,
+                      MAQUINA_CREA       VARCHAR2(100 CHAR) DEFAULT ''LOCAL'',
+                      USUARIO_MOD        VARCHAR2(100 CHAR),
+                      FECHA_MOD          DATE,
+                      MAQUINA_MOD        VARCHAR2(100 CHAR),
+                      FOTO_GRUPO         VARCHAR2(200 CHAR),
+                      ANIO               NUMBER,
+                      CONSTRAINT CTR_PERSONAJE_GRUPO_PK PRIMARY KEY (ID_PERSONAJE_GRUPO){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_PERSONAJE_MES (
+                      ID_PERSONAJE_MES   NUMBER NOT NULL,
+                      IDENTIFICACION     VARCHAR2(50 CHAR),
+                      NOMBRES            VARCHAR2(100 CHAR),
+                      APELLIDOS          VARCHAR2(100 CHAR),
+                      GRADO              VARCHAR2(50 CHAR),
+                      CARGO              VARCHAR2(100 CHAR),
+                      UNIDAD             VARCHAR2(200 CHAR),
+                      ID_CATEGORIA       NUMBER,
+                      NUMERO_ACTA        VARCHAR2(50 CHAR),
+                      VIGENTE            NUMBER(1) DEFAULT 1 NOT NULL,
+                      USUARIO_CREA       VARCHAR2(100 CHAR) DEFAULT ''SETUP'',
+                      FECHA_CREA         DATE DEFAULT SYSDATE NOT NULL,
+                      MAQUINA_CREA       VARCHAR2(100 CHAR) DEFAULT ''LOCAL'',
+                      USUARIO_MOD        VARCHAR2(100 CHAR),
+                      FECHA_MOD          DATE,
+                      MAQUINA_MOD        VARCHAR2(100 CHAR),
+                      FOTO_MODIFICADA    VARCHAR2(255 CHAR),
+                      MES                NUMBER,
+                      ANIO               NUMBER,
+                      ID_PERSONAJE_GRUPO NUMBER,
+                      CONSTRAINT CTR_PERSONAJE_MES_PK PRIMARY KEY (ID_PERSONAJE_MES){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                $@"BEGIN
+                    EXECUTE IMMEDIATE '
+                    CREATE TABLE CTR_VIDEOS (
+                      ID_VIDEO         NUMBER NOT NULL,
+                      DESCRIPCION      VARCHAR2(255 CHAR) NOT NULL,
+                      OBSERVACIONES    VARCHAR2(500 CHAR),
+                      FECHA_CREACION   DATE DEFAULT SYSDATE NOT NULL,
+                      USUARIO_CREACION VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
+                      RUTA_VIDEO       VARCHAR2(500 CHAR),
+                      VIGENTE          NUMBER(1) DEFAULT 1 NOT NULL,
+                      FECHA_MODIFICA   DATE,
+                      USUARIO_MODIFICA VARCHAR2(100 CHAR),
+                      MAQUINA_MODIFICA VARCHAR2(100 CHAR),
+                      CONSTRAINT CTR_VIDEOS_PK PRIMARY KEY (ID_VIDEO){usingIndexClause}
+                    ){tsDataClause}';
+                  EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+                  END;",
+
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_USUARIOS START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_ROLES START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_MENU START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_MENU_ROLES START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_ROLES_USER_ADMIN START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_BRANDING START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_DOMINIO START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_AUDITORIA START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_CUENTA_EMAIL START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_LINEA_MANDO START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_PERSONAJE_GRUPO START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_PERSONAJE_MES START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_VIDEOS START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_CUENTA_EMAIL_USUARIOS START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_ENVIO_CORREO START WITH 1 INCREMENT BY 1'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+                @"BEGIN
+                    MERGE INTO CTR_ROLES r USING (SELECT 1 AS id FROM DUAL) src ON (r.ID_ROL = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_ROL, CODIGO_ROL, NOMBRE_ROL, DESCRIPCION, ESTADO, FECHA_CREACION, USUARIO_CREACION)
+                    VALUES (1, 'DEV', 'Desarrollador', 'Acceso total y configuración del sistema', 1, SYSDATE, 'SETUP');
+                  END;",
+
+                @"BEGIN
+                    MERGE INTO CTR_ROLES r USING (SELECT 2 AS id FROM DUAL) src ON (r.ID_ROL = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_ROL, CODIGO_ROL, NOMBRE_ROL, DESCRIPCION, ESTADO, FECHA_CREACION, USUARIO_CREACION)
+                    VALUES (2, 'ADMIN', 'Administrador', 'Gestión administrativa del sistema', 1, SYSDATE, 'SETUP');
+                  END;",
+
+                @"BEGIN
+                    MERGE INTO CTR_BRANDING b USING (SELECT 1 AS id FROM DUAL) src ON (b.ID_BRANDING = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_BRANDING, SISTEMA, NOMBRE_SISTEMA, SIGLA, NOMBRE_UNIDAD, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION)
+                    VALUES (1, 'GUSOF', 'OFTIC', 'OFTIC', 'Oficina de Tecnologías de la Información y las Comunicaciones', 1, 'SETUP', 'LOCAL');
+                  END;",
+
+                @"BEGIN
+                    MERGE INTO CTR_MENU m USING (SELECT 1 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (1, 0, 'Inicio', '/home', 'fa-solid fa-house', 1, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 2 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (2, 0, 'Noticias', '/noticias', 'fa-solid fa-newspaper', 2, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 3 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (3, 0, 'Gestión Documental', NULL, 'fa-solid fa-folder-open', 3, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 31 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (31, 3, 'Gestión Correos Electrónicos', '/gestion-documental/gestion-correos-electronicos', 'fa-solid fa-envelope', 1, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 4 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (4, 0, 'Administración', NULL, 'fa-solid fa-gears', 4, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 401 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (401, 4, 'Inicio Administración', '/administracion/inicio', 'fa-solid fa-sliders', 1, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 402 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (402, 4, 'Usuarios', '/administracion/usuarios', 'fa-solid fa-users-gear', 2, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 403 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (403, 4, 'Roles', '/administracion/roles', 'fa-solid fa-user-shield', 3, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 404 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (404, 4, 'Menú', '/administracion/menu', 'fa-solid fa-sitemap', 4, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 405 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (405, 4, 'Configuración Sistema', '/administracion/configuracion-sistema', 'fa-solid fa-wrench', 5, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 406 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (406, 4, 'Línea de Mando', '/administracion/linea-mando', 'fa-solid fa-user-tie', 6, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 407 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (407, 4, 'Personaje del Mes', '/administracion/personaje-mes', 'fa-solid fa-award', 7, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 408 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (408, 4, 'Dominios', '/administracion/dominio', 'fa-solid fa-list-check', 8, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 409 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (409, 4, 'Auditoría', '/administracion/auditoria', 'fa-solid fa-clock-rotate-left', 9, 1, 'SETUP');
+
+                    MERGE INTO CTR_MENU m USING (SELECT 410 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
+                    VALUES (410, 4, 'Cuentas Email', '/administracion/cuentas-email', 'fa-solid fa-at', 10, 1, 'SETUP');
+                  END;",
+
+                @"BEGIN
+                    FOR r IN 1..2 LOOP
+                        FOR m IN (SELECT id_menu FROM CTR_MENU) LOOP
+                            MERGE INTO CTR_MENU_ROLES mr 
+                            USING (SELECT m.id_menu AS id_m, r AS id_r FROM DUAL) src 
+                            ON (mr.ID_MENU = src.id_m AND mr.ID_ROL = src.id_r)
+                            WHEN NOT MATCHED THEN INSERT (ID_MENU_ROL, ID_MENU, ID_ROL, ESTADO, FECHA_CREACION, USUARIO_CREACION)
+                            VALUES (SEQ_CTR_MENU_ROLES.NEXTVAL, src.id_m, src.id_r, 1, SYSDATE, 'SETUP');
+                        END LOOP;
+                    END LOOP;
+                  END;",
+
+                @"BEGIN
+                    MERGE INTO CTR_DOMINIOS d USING (SELECT 17 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                    WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                    VALUES (17, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ', 1143458803, SYSDATE, '::1');
+                  END;"
+            };
+
+            foreach (var block in blocks)
+            {
+                try
+                {
+                    await using var cmd = conn.CreateCommand();
+                    cmd.CommandText = block;
+                    await cmd.ExecuteNonQueryAsync(ct);
+                }
+                catch (Exception exBlock)
+                {
+                    logger.LogWarning(exBlock, "Error al ejecutar bloque DDL Oracle. Mensaje: {Msg}", exBlock.Message);
+                }
+            }
+
+            logger.LogInformation("Migración automática de esquema Oracle completada exitosamente.");
         }
     }
 }

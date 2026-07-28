@@ -118,7 +118,7 @@ export class HeaderComponent implements OnInit {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
+        const sigla = (cfg?.sistema ?? cfg?.sigla ?? cfg?.systemName ?? '').trim();
         this.userRole = sigla || 'OFTIC';
       },
       error: () => {

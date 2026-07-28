@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VideoUnidadInfo, VideoUnidadService } from '../../../core/services/administracion/video-unidad.service';
@@ -60,8 +60,22 @@ selectedLoginImageFile: File | null = null;
   selectedBrandingFaviconPreviewUrl = '';
   faviconDragOver = false;
   
-unidades: DtoUnidadOrg[] = [];
+  unidades: DtoUnidadOrg[] = [];
   selectedUnidadConsecutivo: number | null = null;
+  unidadSearchTerm = '';
+
+  get filteredUnidades(): DtoUnidadOrg[] {
+    if (!this.unidadSearchTerm || !this.unidadSearchTerm.trim()) {
+      return this.unidades;
+    }
+    const term = this.unidadSearchTerm.toLowerCase().trim();
+    return this.unidades.filter(u => {
+      const sigla = (u.sigla || '').toLowerCase();
+      const nombre = (u.nombre || u.descripcionDependencia || '').toLowerCase();
+      const papa = (u.siglaPapa || '').toLowerCase();
+      return sigla.includes(term) || nombre.includes(term) || papa.includes(term);
+    });
+  }
 
   showReorderModal = false;
   reorderItems: LoginVisualItem[] = [];
@@ -460,19 +474,91 @@ limpiarLoginForm(): void {
     this.ubicacionService.getUnidadesOrganigrama().subscribe({
       next: (data) => {
         this.unidades = data;
+        if (this.selectedUnidadConsecutivo) {
+          const found = this.unidades.find(u => u.consecutivo === Number(this.selectedUnidadConsecutivo));
+          if (found) {
+            if (!this.brandingSigla) {
+              this.brandingSigla = (found.sigla || found.siglaPapa || '').trim();
+            }
+            if (!this.brandingNombreUnidad) {
+              this.brandingNombreUnidad = (found.nombre || found.descripcionDependencia || found.sigla || '').trim();
+            }
+          }
+        }
       },
       error: (err) => console.error('Error cargando unidades', err)
     });
+  }
+
+  getUnidadLabel(u: DtoUnidadOrg): string {
+    if (!u) return '';
+    const sigla = (u.sigla || '').trim();
+    const nombre = (u.nombre || u.descripcionDependencia || '').trim();
+    const papa = (u.siglaPapa || '').trim();
+
+    let label = '';
+    if (sigla && nombre && sigla.toUpperCase() !== nombre.toUpperCase()) {
+      label = `${sigla} - ${nombre}`;
+    } else {
+      label = nombre || sigla || `Unidad ${u.consecutivo}`;
+    }
+
+    if (papa && papa.toUpperCase() !== sigla.toUpperCase() && papa.toUpperCase() !== nombre.toUpperCase()) {
+      label += ` (${papa})`;
+    }
+
+    return label;
   }
 
   onUnidadChange(): void {
     if (!this.selectedUnidadConsecutivo) return;
     const unidad = this.unidades.find(u => u.consecutivo === Number(this.selectedUnidadConsecutivo));
     if (unidad) {
-      this.brandingSigla = unidad.sigla;
-      this.brandingNombreUnidad = unidad.nombre;
+      this.brandingSigla = (unidad.sigla || unidad.siglaPapa || '').trim();
+      this.brandingNombreUnidad = (unidad.nombre || unidad.descripcionDependencia || unidad.sigla || '').trim();
       this.brandingUnidadSistemaId = unidad.consecutivo;
     }
+  }
+
+  isUnitDropdownOpen = false;
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.custom-select-wrapper')) {
+      this.isUnitDropdownOpen = false;
+    }
+  }
+
+  toggleUnitDropdown(): void {
+    this.isUnitDropdownOpen = !this.isUnitDropdownOpen;
+    if (this.isUnitDropdownOpen) {
+      this.unidadSearchTerm = '';
+    }
+  }
+
+  selectUnidad(u: DtoUnidadOrg): void {
+    this.selectedUnidadConsecutivo = u.consecutivo;
+    this.brandingSigla = (u.sigla || u.siglaPapa || '').trim();
+    this.brandingNombreUnidad = (u.nombre || u.descripcionDependencia || u.sigla || '').trim();
+    this.brandingUnidadSistemaId = u.consecutivo;
+    this.isUnitDropdownOpen = false;
+    this.unidadSearchTerm = '';
+  }
+
+  selectUnidadNull(): void {
+    this.selectedUnidadConsecutivo = null;
+    this.brandingSigla = '';
+    this.brandingNombreUnidad = '';
+    this.brandingUnidadSistemaId = 0;
+    this.isUnitDropdownOpen = false;
+    this.unidadSearchTerm = '';
+  }
+
+  getSelectedUnidadDisplayText(): string {
+    if (!this.selectedUnidadConsecutivo) return '-- Seleccione una unidad --';
+    const unidad = this.unidades.find(u => u.consecutivo === Number(this.selectedUnidadConsecutivo));
+    return unidad ? this.getUnidadLabel(unidad) : '-- Seleccione una unidad --';
   }
 
   loadBrandingConfig(): void {
@@ -490,6 +576,14 @@ limpiarLoginForm(): void {
         this.brandingIdBranding = cfg?.idBranding ?? 0;
         this.brandingUnidadSistemaId = cfg?.unidadSistemaId ?? 0;
         this.selectedUnidadConsecutivo = cfg?.unidadSistemaId ?? null;
+
+        if (this.selectedUnidadConsecutivo && this.unidades.length > 0) {
+          const found = this.unidades.find(u => u.consecutivo === Number(this.selectedUnidadConsecutivo));
+          if (found) {
+            if (!this.brandingSigla) this.brandingSigla = (found.sigla || found.siglaPapa || '').trim();
+            if (!this.brandingNombreUnidad) this.brandingNombreUnidad = (found.nombre || found.descripcionDependencia || found.sigla || '').trim();
+          }
+        }
         this.brandingLoading = false;
       },
       error: (err) => {
@@ -661,8 +755,8 @@ limpiarBrandingFavicon(): void {
       this.toast.warning('Marca del sistema', 'El campo Sistema es obligatorio.');
       return;
     }
-    if (sistema.length > 10) {
-      this.toast.warning('Marca del sistema', 'El campo Sistema solo permite hasta 10 caracteres.');
+    if (sistema.length > 50) {
+      this.toast.warning('Marca del sistema', 'El campo Sistema solo permite hasta 50 caracteres.');
       return;
     }
     if (!nombreSistema) {

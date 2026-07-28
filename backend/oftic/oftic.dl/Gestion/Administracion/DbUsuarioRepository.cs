@@ -14,12 +14,14 @@ namespace Datos.Gestion
         private readonly string _cs;
         private readonly IConfiguration _cfg;
         private readonly ILogger<DbUsuarioRepository> _logger;
+        private readonly IDbRolRepository _rolRepo;
 
-        public DbUsuarioRepository(IConfiguration cfg, ILogger<DbUsuarioRepository> logger)
+        public DbUsuarioRepository(IConfiguration cfg, ILogger<DbUsuarioRepository> logger, IDbRolRepository rolRepo)
         {
             _cs = Comun.Extensions.ConfigurationExtensions.GetDecryptedConnectionString(cfg);
             _cfg = cfg;
             _logger = logger;
+            _rolRepo = rolRepo;
         }
 
         public async Task<long?> GetUsuarioIdByUsernameAsync(string username, CancellationToken ct)
@@ -92,8 +94,9 @@ namespace Datos.Gestion
             await oracleConn.OpenAsync(ct);
             await using var oracleCmd = oracleConn.CreateCommand();
             oracleCmd.CommandType = CommandType.Text;
-            oracleCmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE identificacion = :pIdentificacion";
-            oracleCmd.Parameters.Add(":pIdentificacion", OracleDbType.Varchar2).Value = identificacion.Trim();
+            long pIdentNum = long.TryParse(identificacion, out var idVal) && idVal > 0 ? idVal : 0L;
+            oracleCmd.CommandText = @"SELECT id_usuario FROM ctr_usuarios WHERE (identificacion > 0 AND identificacion = :pIdentificacion)";
+            oracleCmd.Parameters.Add(":pIdentificacion", OracleDbType.Int64).Value = pIdentNum;
             var res = await oracleCmd.ExecuteScalarAsync(ct);
             return (res is null || res == DBNull.Value) ? null : Convert.ToInt64(res);
         }
@@ -142,11 +145,140 @@ namespace Datos.Gestion
             var user = (username ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(doc) && string.IsNullOrWhiteSpace(user)) return null;
 
-            var idByDoc = !string.IsNullOrWhiteSpace(doc) ? await GetUsuarioIdByIdentificacionAsync(doc, ct) : null;
-            var idByUser = !string.IsNullOrWhiteSpace(user) ? await GetUsuarioIdByUsernameAsync(user, ct) : null;
+            var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
 
-            if (idByDoc.HasValue || idByUser.HasValue) return true; // Usuario registrado y activo
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT COALESCE(bloqueado, 0) FROM CTR_USUARIOS WHERE (@pDoc <> '' AND identificacion = @pDoc) OR (@pUser <> '' AND LOWER(username) = LOWER(@pUser)) LIMIT 1";
+                    cmd.Parameters.AddWithValue("@pDoc", doc);
+                    cmd.Parameters.AddWithValue("@pUser", user);
+                    var val = await cmd.ExecuteScalarAsync(ct);
+                    if (val is null || val == DBNull.Value) return null;
+                    return Convert.ToInt32(val) == 0;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error consultando activo local en MySQL");
+                }
+            }
+            else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT COALESCE(bloqueado, 0) FROM ctr_usuarios WHERE (@pDoc <> '' AND identificacion::text = @pDoc) OR (@pUser <> '' AND LOWER(username) = LOWER(@pUser)) LIMIT 1";
+                    cmd.Parameters.AddWithValue("@pDoc", doc);
+                    cmd.Parameters.AddWithValue("@pUser", user);
+                    var val = await cmd.ExecuteScalarAsync(ct);
+                    if (val is null || val == DBNull.Value) return null;
+                    return Convert.ToInt32(val) == 0;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error consultando activo local en PostgreSQL");
+                }
+            }
+            else
+            {
+                try
+                {
+                    await using var conn = new OracleConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    await using var cmd = conn.CreateCommand();
+                    cmd.BindByName = true;
+                    long pIdentNum = long.TryParse(doc, out var idVal) && idVal > 0 ? idVal : 0L;
+                    cmd.CommandText = "SELECT NVL(bloqueado, 0) FROM ctr_usuarios WHERE (:pIdentNum > 0 AND identificacion = :pIdentNum) OR (:pUser IS NOT NULL AND UPPER(username) = UPPER(:pUser)) FETCH FIRST 1 ROWS ONLY";
+                    cmd.Parameters.Add(":pIdentNum", OracleDbType.Int64).Value = pIdentNum;
+                    cmd.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(user) ? DBNull.Value : user;
+                    var val = await cmd.ExecuteScalarAsync(ct);
+                    if (val is null || val == DBNull.Value) return null;
+                    return Convert.ToInt32(val) == 0;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error consultando activo local en Oracle");
+                }
+            }
+
             return null;
+        }
+
+        public async Task<bool> SetUsuarioEstadoAsync(string identificacion, bool activo, CancellationToken ct)
+        {
+            var doc = (identificacion ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(doc)) return false;
+
+            int bloqueado = activo ? 0 : 1;
+            var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "UPDATE CTR_USUARIOS SET bloqueado = @pBloq WHERE identificacion = @pDoc OR LOWER(username) = LOWER(@pDoc)";
+                    cmd.Parameters.AddWithValue("@pBloq", bloqueado);
+                    cmd.Parameters.AddWithValue("@pDoc", doc);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    return rows > 0;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error actualizando estado de usuario en MySQL");
+                    return false;
+                }
+            }
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "UPDATE ctr_usuarios SET bloqueado = @pBloq WHERE identificacion::text = @pDoc OR LOWER(username) = LOWER(@pDoc)";
+                    cmd.Parameters.AddWithValue("@pBloq", bloqueado);
+                    cmd.Parameters.AddWithValue("@pDoc", doc);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    return rows > 0;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error actualizando estado de usuario en PostgreSQL");
+                    return false;
+                }
+            }
+
+            try
+            {
+                await using var conn = new OracleConnection(_cs);
+                await conn.OpenAsync(ct);
+                await using var cmd = conn.CreateCommand();
+                cmd.BindByName = true;
+                long pIdentNum = long.TryParse(doc, out var idVal) && idVal > 0 ? idVal : 0L;
+                cmd.CommandText = @"UPDATE ctr_usuarios 
+                                       SET bloqueado = :pBloq 
+                                     WHERE (:pIdentNum > 0 AND identificacion = :pIdentNum) 
+                                        OR UPPER(username) = UPPER(:pDoc)";
+                cmd.Parameters.Add(":pBloq", OracleDbType.Int32).Value = bloqueado;
+                cmd.Parameters.Add(":pIdentNum", OracleDbType.Int64).Value = pIdentNum;
+                cmd.Parameters.Add(":pDoc", OracleDbType.Varchar2).Value = doc;
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                return rows > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando estado de usuario en Oracle");
+                return false;
+            }
         }
 
         public async Task<long> EnsureUsuarioExistsAsync(string username, string? identificacion = null, CancellationToken ct = default)
@@ -272,9 +404,10 @@ namespace Datos.Gestion
                     cmdInsert.CommandText = @"
 INSERT INTO ctr_usuarios (id_usuario, username, identificacion, bloqueado, grad_alfabetico, apellidos, nombres, funcionario, unde_laborando, codigocargo, usuario_creacion, maquina_creacion)
 VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0, :pGrad, :pApellidos, :pNombres, :pFuncStr, :pUnde, :pCargo, 1, 'SETUP')";
+                    long pIdentNum = long.TryParse(identificacion, out var idVal) && idVal > 0 ? idVal : 0L;
                     cmdInsert.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = nextId;
                     cmdInsert.Parameters.Add(":pUsername", OracleDbType.Varchar2).Value = username;
-                    cmdInsert.Parameters.Add(":pIdentificacion", OracleDbType.Varchar2).Value = identificacion;
+                    cmdInsert.Parameters.Add(":pIdentificacion", OracleDbType.Int64).Value = pIdentNum;
                     cmdInsert.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = pGrad;
                     cmdInsert.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = pApellidos;
                     cmdInsert.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = pNombres;
@@ -310,25 +443,29 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0, :pGrad, :pApellidos, :pNom
                     await conn.OpenAsync(ct);
 
                     using var cmd = conn.CreateCommand();
-                    cmd.CommandText = @"
+                    string mysqlWhere = "WHERE COALESCE(u.bloqueado, 0) = 0";
+                    if (!string.IsNullOrWhiteSpace(nombreFiltro))
+                    {
+                        mysqlWhere += @" AND (LOWER(u.username) LIKE CONCAT('%', LOWER(@pNombre), '%')
+                                           OR CAST(u.identificacion AS CHAR) LIKE CONCAT('%', LOWER(@pNombre), '%')
+                                           OR LOWER(CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, ''))) LIKE CONCAT('%', LOWER(@pNombre), '%'))";
+                        cmd.Parameters.AddWithValue("@pNombre", nombreFiltro);
+                    }
+
+                    cmd.CommandText = $@"
                         SELECT 
                             u.id_usuario,
-                            COALESCE(u.identificacion, '') AS identificacion,
+                            COALESCE(CAST(u.identificacion AS CHAR), '') AS identificacion,
                             COALESCE(u.username, '') AS username,
                             TRIM(CONCAT(COALESCE(u.grad_alfabetico, ''), ' ', COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, ''))) AS nombre_completo,
-                            COALESCE(GROUP_CONCAT(DISTINCT COALESCE(r.descripcion, 'Sin rol') SEPARATOR ', '), 'Sin rol') AS roles,
+                            COALESCE(GROUP_CONCAT(DISTINCT COALESCE(r.nombre_rol, r.descripcion, 'Sin rol') SEPARATOR ', '), 'Sin rol') AS roles,
                             MAX(rua.fecha_fin) AS fecha_fin_rol
                         FROM CTR_USUARIOS u
                         LEFT JOIN CTR_ROLES_USER_ADMIN rua ON rua.id_usuario = u.id_usuario AND COALESCE(rua.vigente, 1) = 1
                         LEFT JOIN CTR_ROLES r ON r.id_rol = rua.id_rol
-                        WHERE (@pNombre IS NULL OR @pNombre = '' 
-                           OR LOWER(u.username) LIKE CONCAT('%', LOWER(@pNombre), '%')
-                           OR LOWER(u.identificacion) LIKE CONCAT('%', LOWER(@pNombre), '%')
-                           OR LOWER(CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, ''))) LIKE CONCAT('%', LOWER(@pNombre), '%'))
+                        {mysqlWhere}
                         GROUP BY u.id_usuario, u.identificacion, u.username, u.grad_alfabetico, u.nombres, u.apellidos
                         ORDER BY u.username;";
-
-                    cmd.Parameters.AddWithValue("@pNombre", string.IsNullOrWhiteSpace(nombreFiltro) ? (object)DBNull.Value : nombreFiltro);
 
                     using var reader = await cmd.ExecuteReaderAsync(ct);
                     while (await reader.ReadAsync(ct))
@@ -367,51 +504,30 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0, :pGrad, :pApellidos, :pNom
                     using var conn = new Npgsql.NpgsqlConnection(_cs);
                     await conn.OpenAsync(ct);
 
-                    // Asegurar tablas auxiliares
-                    using (var cmdDdl1 = conn.CreateCommand())
+                    using var cmd = conn.CreateCommand();
+                    string pgWhere = "WHERE COALESCE(u.bloqueado, 0) = 0";
+                    if (!string.IsNullOrWhiteSpace(nombreFiltro))
                     {
-                        cmdDdl1.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS CTR_ROLES (
-                                id_rol SERIAL PRIMARY KEY,
-                                descripcion VARCHAR(200),
-                                vigente INT DEFAULT 1
-                            );";
-                        await cmdDdl1.ExecuteNonQueryAsync(ct);
-                    }
-                    using (var cmdDdl2 = conn.CreateCommand())
-                    {
-                        cmdDdl2.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS CTR_ROLES_USER_ADMIN (
-                                id_usuario BIGINT NOT NULL,
-                                id_rol INT NOT NULL,
-                                justificacion VARCHAR(1000),
-                                fecha_fin DATE,
-                                vigente INT DEFAULT 1,
-                                PRIMARY KEY (id_usuario, id_rol)
-                            );";
-                        await cmdDdl2.ExecuteNonQueryAsync(ct);
+                        pgWhere += @" AND (LOWER(u.username) LIKE LOWER('%' || @pNombre || '%')
+                                         OR LOWER(u.identificacion::text) LIKE LOWER('%' || @pNombre || '%')
+                                         OR LOWER(CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, ''))) LIKE LOWER('%' || @pNombre || '%'))";
+                        cmd.Parameters.AddWithValue("@pNombre", nombreFiltro);
                     }
 
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = @"
+                    cmd.CommandText = $@"
                         SELECT 
                             u.id_usuario,
                             COALESCE(u.identificacion::text, '') AS identificacion,
                             COALESCE(u.username, '') AS username,
                             TRIM(CONCAT(COALESCE(u.grad_alfabetico, ''), ' ', COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, ''))) AS nombre_completo,
-                            COALESCE(STRING_AGG(DISTINCT COALESCE(r.descripcion, 'Sin rol'), ', '), 'Sin rol') AS roles,
+                            COALESCE(STRING_AGG(DISTINCT COALESCE(r.nombre_rol, r.descripcion, 'Sin rol'), ', '), 'Sin rol') AS roles,
                             MAX(rua.fecha_fin) AS fecha_fin_rol
                         FROM ctr_usuarios u
                         LEFT JOIN CTR_ROLES_USER_ADMIN rua ON rua.id_usuario = u.id_usuario AND COALESCE(rua.vigente, 1) = 1
                         LEFT JOIN CTR_ROLES r ON r.id_rol = rua.id_rol
-                        WHERE (@pNombre IS NULL OR @pNombre = '' 
-                           OR LOWER(u.username) LIKE LOWER('%' || @pNombre || '%')
-                           OR LOWER(u.identificacion::text) LIKE LOWER('%' || @pNombre || '%')
-                           OR LOWER(CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, ''))) LIKE LOWER('%' || @pNombre || '%'))
+                        {pgWhere}
                         GROUP BY u.id_usuario, u.identificacion, u.username, u.grad_alfabetico, u.nombres, u.apellidos
                         ORDER BY u.username;";
-
-                    cmd.Parameters.AddWithValue("@pNombre", string.IsNullOrWhiteSpace(nombreFiltro) ? (object)DBNull.Value : nombreFiltro);
 
                     using var reader = await cmd.ExecuteReaderAsync(ct);
                     while (await reader.ReadAsync(ct))
@@ -448,7 +564,20 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0, :pGrad, :pApellidos, :pNom
                 await using var conn = new OracleConnection(_cs);
                 await conn.OpenAsync(ct);
 
-                const string sqlConGrado = @"
+                await using var cmd = conn.CreateCommand();
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.Text;
+
+                string oraWhere = "WHERE NVL(u.bloqueado, 0) = 0";
+                if (!string.IsNullOrWhiteSpace(nombreFiltro))
+                {
+                    oraWhere += @" AND (UPPER(u.username) LIKE '%' || UPPER(:pNombre) || '%'
+                                     OR TO_CHAR(u.identificacion) LIKE '%' || :pNombre || '%'
+                                     OR UPPER(REGEXP_REPLACE(TRIM(NVL(u.grad_alfabetico, '') || ' ' || NVL(u.nombres, '') || ' ' || NVL(u.apellidos, '')), '[[:space:]]+', ' ')) LIKE '%' || UPPER(:pNombre) || '%')";
+                    cmd.Parameters.Add(":pNombre", OracleDbType.Varchar2).Value = nombreFiltro;
+                }
+
+                cmd.CommandText = $@"
 WITH roles_agg AS (
     SELECT
         x.id_usuario,
@@ -457,12 +586,11 @@ WITH roles_agg AS (
     FROM (
         SELECT DISTINCT
             rua.id_usuario,
-            NVL(r.descripcion, 'Sin rol') AS rol_desc,
+            NVL(r.nombre_rol, NVL(r.descripcion, 'Sin rol')) AS rol_desc,
             CASE WHEN rua.fecha_fin IS NOT NULL THEN TO_CHAR(rua.fecha_fin, 'YYYY-MM-DD') END AS fecha_fin_txt
         FROM CTR_ROLES_USER_ADMIN rua
         LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
         WHERE NVL(rua.vigente, 0) = 1
-          AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
     ) x
     GROUP BY x.id_usuario
 )
@@ -479,40 +607,21 @@ SELECT
     ra.fecha_fin_rol
 FROM ctr_usuarios u
 LEFT JOIN roles_agg ra ON ra.id_usuario = u.id_usuario
-WHERE (:pNombre IS NULL
-   OR UPPER(u.username) LIKE '%' || UPPER(:pNombre) || '%'
-   OR UPPER(
-       REGEXP_REPLACE(
-           TRIM(NVL(u.grad_alfabetico, '') || ' ' || NVL(u.nombres, '') || ' ' || NVL(u.apellidos, '')),
-           '[[:space:]]+',
-           ' '
-       )
-   ) LIKE '%' || UPPER(:pNombre) || '%')
+{oraWhere}
 ORDER BY UPPER(u.username)";
 
-                OracleDataReader reader;
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandType = CommandType.Text;
-                cmd.CommandText = sqlConGrado;
-                cmd.Parameters.Add(":pNombre", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(nombreFiltro)
-                    ? DBNull.Value
-                    : nombreFiltro;
-                reader = await cmd.ExecuteReaderAsync(ct);
-
-                await using (reader)
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
-                    while (await reader.ReadAsync(ct))
+                    result.Add(new DtoUsuarioListadoItem
                     {
-                        result.Add(new DtoUsuarioListadoItem
-                        {
-                            idUsuario = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetDecimal(0)),
-                            identificacion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
-                            username = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-                            nombreCompleto = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-                            rol = reader.IsDBNull(4) ? "Sin rol" : reader.GetString(4),
-                            fechaFinRol = reader.IsDBNull(5) ? null : reader.GetString(5)
-                        });
-                    }
+                        idUsuario = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                        identificacion = reader.IsDBNull(1) ? string.Empty : Convert.ToString(reader.GetValue(1)) ?? string.Empty,
+                        username = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                        nombreCompleto = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                        rol = reader.IsDBNull(4) ? "Sin rol" : reader.GetString(4),
+                        fechaFinRol = reader.IsDBNull(5) ? null : reader.GetString(5)
+                    });
                 }
             }
             catch (Exception ex)
@@ -1366,16 +1475,22 @@ ORDER BY id_rol";
                 await oracleConn.OpenAsync(ct);
 
                 await using var cmd = oracleConn.CreateCommand();
+                cmd.BindByName = true;
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = @"
                     MERGE INTO CTR_ROLES_USER_ADMIN target
-                    USING (SELECT :pIdUser AS id_usuario, :pIdRol AS id_rol FROM dual) src
+                    USING (
+                        SELECT :pIdUser AS id_usuario, 
+                               :pIdRol AS id_rol,
+                               (SELECT NVL(MAX(id_user_rol), 0) + 1 FROM CTR_ROLES_USER_ADMIN) AS next_id 
+                        FROM dual
+                    ) src
                     ON (target.id_usuario = src.id_usuario AND target.id_rol = src.id_rol)
                     WHEN MATCHED THEN
                       UPDATE SET target.justificacion = :pJust, target.fecha_fin = :pFechaFin, target.vigente = 1
                     WHEN NOT MATCHED THEN
-                      INSERT (id_usuario, id_rol, justificacion, fecha_fin, vigente)
-                      VALUES (:pIdUser, :pIdRol, :pJust, :pFechaFin, 1)";
+                      INSERT (id_user_rol, id_usuario, id_rol, justificacion, fecha_fin, vigente, fecha_creacion, usuario_creacion, maquina_creacion)
+                      VALUES (src.next_id, src.id_usuario, src.id_rol, :pJust, :pFechaFin, 1, SYSDATE, 'ADMIN', 'LOCAL')";
 
                 cmd.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
                 cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = request.rolId;
@@ -1392,363 +1507,23 @@ ORDER BY id_rol";
             }
         }
 
-        public async Task<List<DtoRolAdmin>> GetRolesAdminAsync(CancellationToken ct)
-        {
-            var result = new List<DtoRolAdmin>();
-            var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
+        public Task<List<DtoRolAdmin>> GetRolesAdminAsync(CancellationToken ct)
+            => _rolRepo.GetRolesAdminAsync(ct);
 
-            // ── MySQL ────────────────────────────────────────────────────────
-            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) ||
-                provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var conn = new MySqlConnector.MySqlConnection(_cs);
-                    await conn.OpenAsync(ct);
-
-                    // Asegurar que la tabla exista
-                    using (var cmdDdl = conn.CreateCommand())
-                    {
-                        cmdDdl.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles (
-                                id_rol INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                                descripcion VARCHAR(200),
-                                vigente INT DEFAULT 1
-                            );";
-                        await cmdDdl.ExecuteNonQueryAsync(ct);
-                    }
-
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "SELECT id_rol, descripcion, COALESCE(vigente, 1) AS vigente FROM ctr_roles ORDER BY descripcion";
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                    {
-                        result.Add(new DtoRolAdmin
-                        {
-                            id = reader.GetInt32(0),
-                            nombre = reader.IsDBNull(1) ? null : reader.GetString(1),
-                            vigente = reader.IsDBNull(2) ? 1 : reader.GetInt32(2)
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error MySQL leyendo CTR_ROLES");
-                }
-                return result;
-            }
-
-            // ── PostgreSQL ───────────────────────────────────────────────────
-            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) ||
-                provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var conn = new Npgsql.NpgsqlConnection(_cs);
-                    await conn.OpenAsync(ct);
-
-                    using (var cmdDdl = conn.CreateCommand())
-                    {
-                        cmdDdl.CommandText = @"
-                            CREATE TABLE IF NOT EXISTS ctr_roles (
-                                id_rol SERIAL PRIMARY KEY,
-                                descripcion VARCHAR(200),
-                                vigente INT DEFAULT 1
-                            );";
-                        await cmdDdl.ExecuteNonQueryAsync(ct);
-                    }
-
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "SELECT id_rol, descripcion, COALESCE(vigente, 1) AS vigente FROM ctr_roles ORDER BY descripcion";
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                    {
-                        result.Add(new DtoRolAdmin
-                        {
-                            id = reader.GetInt32(0),
-                            nombre = reader.IsDBNull(1) ? null : reader.GetString(1),
-                            vigente = reader.IsDBNull(2) ? 1 : reader.GetInt32(2)
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error PostgreSQL leyendo CTR_ROLES");
-                }
-                return result;
-            }
-
-            // ── Oracle (default) ─────────────────────────────────────────────
-            try
-            {
-                await using var conn = new OracleConnection(_cs);
-                await conn.OpenAsync(ct);
-
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandType = CommandType.Text;
-                cmd.CommandText = "SELECT id_rol, descripcion, NVL(vigente, 1) AS vigente FROM ctr_roles ORDER BY descripcion";
-
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                while (await reader.ReadAsync(ct))
-                {
-                    result.Add(new DtoRolAdmin
-                    {
-                        id = Convert.ToInt32(reader.GetInt64(0)),
-                        nombre = reader.IsDBNull(1) ? null : reader.GetString(1),
-                        vigente = reader.IsDBNull(2) ? 1 : Convert.ToInt32(reader.GetDecimal(2))
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error Oracle leyendo CTR_ROLES");
-            }
-
-            return result;
-        }
-
-        public async Task<DtoSaveRolResult> SaveRolAdminAsync(
+        public Task<DtoSaveRolResult> SaveRolAdminAsync(
             DtoSaveRolRequest request,
             string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct)
-        {
-            var nombre = (request.nombre ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(nombre))
-            {
-                return new DtoSaveRolResult { idRol = 0, message = "La descripción del rol es obligatoria." };
-            }
+            => _rolRepo.SaveRolAdminAsync(request, usuarioAuditoria, maquinaAuditoria, ct);
 
-            var vigente = request.vigente == 0 ? 0 : 1;
-            var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
-
-            // ── MySQL ────────────────────────────────────────────────────────
-            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) ||
-                provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var conn = new MySqlConnector.MySqlConnection(_cs);
-                    await conn.OpenAsync(ct);
-
-                    var idRol = request.id.GetValueOrDefault();
-                    if (idRol > 0)
-                    {
-                        using var cmd = conn.CreateCommand();
-                        cmd.CommandText = @"UPDATE ctr_roles
-   SET descripcion = @pNombre, vigente = @pVigente
- WHERE id_rol = @pId";
-                        cmd.Parameters.AddWithValue("@pNombre", nombre);
-                        cmd.Parameters.AddWithValue("@pVigente", vigente);
-                        cmd.Parameters.AddWithValue("@pId", idRol);
-                        var affected = await cmd.ExecuteNonQueryAsync(ct);
-                        if (affected <= 0) return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." };
-                        return new DtoSaveRolResult { idRol = idRol, message = "Rol actualizado correctamente." };
-                    }
-                    else
-                    {
-                        using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "INSERT INTO ctr_roles (descripcion, vigente) VALUES (@pNombre, @pVigente); SELECT LAST_INSERT_ID();";
-                        cmd.Parameters.AddWithValue("@pNombre", nombre);
-                        cmd.Parameters.AddWithValue("@pVigente", vigente);
-                        var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
-                        return new DtoSaveRolResult { idRol = newId, message = "Rol creado correctamente." };
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error MySQL guardando rol");
-                    return new DtoSaveRolResult { idRol = 0, message = $"Error MySQL: {ex.Message}" };
-                }
-            }
-
-            // ── PostgreSQL ───────────────────────────────────────────────────
-            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) ||
-                provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var conn = new Npgsql.NpgsqlConnection(_cs);
-                    await conn.OpenAsync(ct);
-
-                    var idRol = request.id.GetValueOrDefault();
-                    if (idRol > 0)
-                    {
-                        using var cmd = conn.CreateCommand();
-                        cmd.CommandText = @"UPDATE ctr_roles
-   SET descripcion = @pNombre, vigente = @pVigente
- WHERE id_rol = @pId";
-                        cmd.Parameters.AddWithValue("@pNombre", nombre);
-                        cmd.Parameters.AddWithValue("@pVigente", vigente);
-                        cmd.Parameters.AddWithValue("@pId", idRol);
-                        var affected = await cmd.ExecuteNonQueryAsync(ct);
-                        if (affected <= 0) return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." };
-                        return new DtoSaveRolResult { idRol = idRol, message = "Rol actualizado correctamente." };
-                    }
-                    else
-                    {
-                        using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "INSERT INTO ctr_roles (descripcion, vigente) VALUES (@pNombre, @pVigente) RETURNING id_rol";
-                        cmd.Parameters.AddWithValue("@pNombre", nombre);
-                        cmd.Parameters.AddWithValue("@pVigente", vigente);
-                        var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
-                        return new DtoSaveRolResult { idRol = newId, message = "Rol creado correctamente." };
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error PostgreSQL guardando rol");
-                    return new DtoSaveRolResult { idRol = 0, message = $"Error PostgreSQL: {ex.Message}" };
-                }
-            }
-
-            // ── Oracle (default) ─────────────────────────────────────────────
-            try
-            {
-                await using var conn = new OracleConnection(_cs);
-                await conn.OpenAsync(ct);
-                await using var tx = conn.BeginTransaction();
-
-                var idRol2 = request.id.GetValueOrDefault();
-                if (idRol2 > 0)
-                {
-                    await using var cmdU = conn.CreateCommand();
-                    cmdU.Transaction = tx;
-                    cmdU.BindByName = true;
-                    cmdU.CommandText = @"UPDATE ctr_roles
-   SET descripcion = :pNombre, vigente = :pVigente,
-       usuario_modifica = :pUsr, fecha_modifica = SYSDATE, maquina_modifica = :pMaq
- WHERE id_rol = :pId";
-                    cmdU.Parameters.Add(":pNombre", OracleDbType.Varchar2).Value = nombre;
-                    cmdU.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente;
-                    cmdU.Parameters.Add(":pUsr", OracleDbType.Int64).Value = AsLongOrZero(usuarioAuditoria);
-                    cmdU.Parameters.Add(":pMaq", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
-                    cmdU.Parameters.Add(":pId", OracleDbType.Int64).Value = idRol2;
-                    var affected = await cmdU.ExecuteNonQueryAsync(ct);
-                    if (affected <= 0) { await tx.RollbackAsync(ct); return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." }; }
-                    await tx.CommitAsync(ct);
-                    return new DtoSaveRolResult { idRol = idRol2, message = "Rol actualizado correctamente." };
-                }
-
-                long nextId;
-                await using (var cmdN = conn.CreateCommand())
-                {
-                    cmdN.Transaction = tx;
-                    cmdN.CommandText = "SELECT NVL(MAX(id_rol), 0) + 1 FROM ctr_roles";
-                    nextId = Convert.ToInt64(await cmdN.ExecuteScalarAsync(ct));
-                }
-
-                await using (var cmdI = conn.CreateCommand())
-                {
-                    cmdI.Transaction = tx;
-                    cmdI.BindByName = true;
-                    cmdI.CommandText = @"INSERT INTO ctr_roles
-    (id_rol, descripcion, vigente, usuario_creacion, fecha_creacion, maquina_creacion)
-VALUES (:pId, :pNombre, :pVigente, :pUsr, SYSDATE, :pMaq)";
-                    cmdI.Parameters.Add(":pId", OracleDbType.Int64).Value = nextId;
-                    cmdI.Parameters.Add(":pNombre", OracleDbType.Varchar2).Value = nombre;
-                    cmdI.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente;
-                    cmdI.Parameters.Add(":pUsr", OracleDbType.Int64).Value = AsLongOrZero(usuarioAuditoria);
-                    cmdI.Parameters.Add(":pMaq", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
-                    var inserted = await cmdI.ExecuteNonQueryAsync(ct);
-                    if (inserted <= 0) { await tx.RollbackAsync(ct); return new DtoSaveRolResult { idRol = 0, message = "No fue posible crear el rol." }; }
-                }
-
-                await tx.CommitAsync(ct);
-                return new DtoSaveRolResult { idRol = nextId, message = "Rol creado correctamente." };
-            }
-            catch (OracleException ex)
-            {
-                _logger.LogError(ex, "Error Oracle guardando rol en CTR_ROLES");
-                throw new InvalidOperationException($"Oracle: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<DtoSaveRolResult> SetRolEstadoAsync(
+        public Task<DtoSaveRolResult> SetRolEstadoAsync(
             long idRol,
             int vigente,
             string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct)
-        {
-            var v = vigente == 0 ? 0 : 1;
-            var msg = v == 0 ? "Rol inactivado correctamente." : "Rol activado correctamente.";
-            var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
-
-            // ── MySQL ────────────────────────────────────────────────────────
-            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) ||
-                provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var conn = new MySqlConnector.MySqlConnection(_cs);
-                    await conn.OpenAsync(ct);
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "UPDATE ctr_roles SET vigente = @pV WHERE id_rol = @pId";
-                    cmd.Parameters.AddWithValue("@pV", v);
-                    cmd.Parameters.AddWithValue("@pId", idRol);
-                    var affected = await cmd.ExecuteNonQueryAsync(ct);
-                    return affected <= 0
-                        ? new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol." }
-                        : new DtoSaveRolResult { idRol = idRol, message = msg };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error MySQL SetRolEstado");
-                    return new DtoSaveRolResult { idRol = 0, message = $"Error MySQL: {ex.Message}" };
-                }
-            }
-
-            // ── PostgreSQL ───────────────────────────────────────────────────
-            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) ||
-                provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var conn = new Npgsql.NpgsqlConnection(_cs);
-                    await conn.OpenAsync(ct);
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "UPDATE ctr_roles SET vigente = @pV WHERE id_rol = @pId";
-                    cmd.Parameters.AddWithValue("@pV", v);
-                    cmd.Parameters.AddWithValue("@pId", idRol);
-                    var affected = await cmd.ExecuteNonQueryAsync(ct);
-                    return affected <= 0
-                        ? new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol." }
-                        : new DtoSaveRolResult { idRol = idRol, message = msg };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error PostgreSQL SetRolEstado");
-                    return new DtoSaveRolResult { idRol = 0, message = $"Error PostgreSQL: {ex.Message}" };
-                }
-            }
-
-            // ── Oracle (default) ─────────────────────────────────────────────
-            try
-            {
-                await using var conn = new OracleConnection(_cs);
-                await conn.OpenAsync(ct);
-                await using var cmd = conn.CreateCommand();
-                cmd.BindByName = true;
-                cmd.CommandText = @"UPDATE ctr_roles
-   SET vigente = :pVigente, usuario_modifica = :pUsr,
-       fecha_modifica = SYSDATE, maquina_modifica = :pMaq
- WHERE id_rol = :pId";
-                cmd.Parameters.Add(":pVigente", OracleDbType.Int32).Value = v;
-                cmd.Parameters.Add(":pUsr", OracleDbType.Int64).Value = AsLongOrZero(usuarioAuditoria);
-                cmd.Parameters.Add(":pMaq", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
-                cmd.Parameters.Add(":pId", OracleDbType.Int64).Value = idRol;
-                var affected = await cmd.ExecuteNonQueryAsync(ct);
-                return affected <= 0
-                    ? new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol." }
-                    : new DtoSaveRolResult { idRol = idRol, message = msg };
-            }
-            catch (OracleException ex)
-            {
-                _logger.LogError(ex, "Error Oracle SetRolEstado");
-                throw new InvalidOperationException($"Oracle: {ex.Message}", ex);
-            }
-        }
+            => _rolRepo.SetRolEstadoAsync(idRol, vigente, usuarioAuditoria, maquinaAuditoria, ct);
 
         private static object AsDbValue(string? value, int? maxLen = null)
         {

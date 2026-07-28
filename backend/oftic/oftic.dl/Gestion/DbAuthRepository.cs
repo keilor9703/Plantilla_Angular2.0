@@ -113,9 +113,11 @@ namespace Datos.Gestion
 
                 await using (var cmd = oracleConn.CreateCommand())
                 {
+                    long pIdentNum = long.TryParse(usuario, out var idVal) ? idVal : 0L;
                     cmd.CommandType = CommandType.Text;
-                    cmd.CommandText = @"SELECT id_usuario FROM CTR_USUARIOS WHERE (UPPER(username) = UPPER(:pUsuario) OR identificacion = :pUsuario) AND bloqueado = 0";
+                    cmd.CommandText = @"SELECT id_usuario FROM CTR_USUARIOS WHERE (UPPER(username) = UPPER(:pUsuario) OR (identificacion > 0 AND identificacion = :pIdent)) AND bloqueado = 0";
                     cmd.Parameters.Add(":pUsuario", OracleDbType.Varchar2).Value = usuario;
+                    cmd.Parameters.Add(":pIdent", OracleDbType.Int64).Value = pIdentNum;
 
                     var obj = await cmd.ExecuteScalarAsync(ct);
                     if (obj != null && obj != DBNull.Value) idUserOracle = Convert.ToInt64(obj);

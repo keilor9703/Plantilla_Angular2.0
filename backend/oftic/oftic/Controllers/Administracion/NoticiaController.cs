@@ -46,8 +46,8 @@ namespace ofic.Controllers.Administracion
 
                 var request = new DtoConsultaSliderPublicoRequest
                 {
-                    FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "SISGE",
-                    SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "Sistema de Gestión Especializada - SISGE",
+                FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "GUSOF",
+                SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "OFTIC",
                     IP_MAQUINA = ip,
                     USUARIO = usuario
                 };
@@ -103,8 +103,8 @@ namespace ofic.Controllers.Administracion
 
                 var request = new DtoLikeNoticiaRequest
                 {
-                    FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "SISGE",
-                    SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "Sistema de Gestión Especializada - SISGE",
+                FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "GUSOF",
+                SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "OFTIC",
                     IP_MAQUINA = ip,
                     USUARIO = usuario,
                     ID_NOTICIA = id
@@ -131,8 +131,8 @@ namespace ofic.Controllers.Administracion
             var ip = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
             var request = new DtoConsultaSliderPublicoRequest
             {
-                FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "SISGE",
-                SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "Sistema de Gestión Especializada - SISGE",
+                FUENTE_TRANSACCION = _configuration["ApiSettings:SiglaSistema"] ?? "GUSOF",
+                SISTEMA_INFORMACION = _configuration["ApiSettings:NombreSistema"] ?? "OFTIC",
                 IP_MAQUINA = ip,
                 USUARIO = usuario
             };

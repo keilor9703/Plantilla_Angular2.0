@@ -1358,8 +1358,8 @@ namespace Servicios.Api
 
                 var url = _cfg["ApiSettings:ConsultaEmisorasAll"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Consulta_Emisoras_All";
                 var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvdockergusof.policia.gov.co/sicoe/";
-                var siglaSistema = _cfg["ApiSettings:SiglaSistema"] ?? "SISGE";
-                var nombreSistema = _cfg["ApiSettings:NombreSistema"] ?? "Sistema de Gestión Especializada - SISGE";
+                var siglaSistema = _cfg["ApiSettings:SiglaSistema"] ?? "GUSOF";
+                var nombreSistema = _cfg["ApiSettings:NombreSistema"] ?? "OFTIC";
 
                 var auditPayload = new
                 {

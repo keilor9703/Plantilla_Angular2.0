@@ -28,6 +28,8 @@ export class SetupComponent implements OnInit {
     databaseOrService: '',
     user: '',
     password: '',
+    tablespaceData: 'DEVELOPER_DATA',
+    tablespaceIndexes: 'DEVELOPER_INDEX',
     connectionStringRaw: '',
     pipUser: '',
     pipPassword: '',
@@ -241,9 +243,22 @@ export class SetupComponent implements OnInit {
 
   confirmDevUser(): void {
     if (this.devUserValidationResult?.success) {
-      this.devUserValidated = true;
-      this.showDevUserModal = false;
-      this.step++;
+      this.testing = true;
+      const payload = this.preparePayload();
+      this.setupService.confirmDevUser(payload).subscribe({
+        next: (res) => {
+          this.testing = false;
+          this.devUserValidated = true;
+          this.showDevUserModal = false;
+          this.step++;
+        },
+        error: (err) => {
+          this.testing = false;
+          this.devUserValidated = true;
+          this.showDevUserModal = false;
+          this.step++;
+        }
+      });
     }
   }
 

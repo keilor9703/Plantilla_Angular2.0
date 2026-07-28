@@ -212,14 +212,40 @@ namespace ofic.Controllers
                     return Ok(unidadesPip);
                 }
 
-                _logger.LogInformation("Consulta PIP de unidades no retornó registros; usando fallback de base de datos local.");
+                _logger.LogInformation("Consulta PIP de unidades no retornó registros; buscando en la base de datos local.");
                 var unidadesDb = await _ubicacionService.GetUnidadesOrganigramaAsync(ct);
-                return Ok(unidadesDb);
+                if (unidadesDb != null && unidadesDb.Count > 0)
+                {
+                    return Ok(unidadesDb);
+                }
+
+                // Fallback institucional en caso de que PIP no esté disponible y la BD sea nueva
+                var fallbacks = new System.Collections.Generic.List<object>
+                {
+                    new { id = 1, consecutivo = 1, nombre = "Oficina de Tecnologías de la Información y las Comunicaciones", sigla = "OFTIC" },
+                    new { id = 2, consecutivo = 2, nombre = "Dirección General Policía Nacional", sigla = "DIPON" },
+                    new { id = 3, consecutivo = 3, nombre = "Inspección General y Responsabilidad Profesional", sigla = "INSGE" },
+                    new { id = 4, consecutivo = 4, nombre = "Dirección de Seguridad Ciudadana", sigla = "DISEC" },
+                    new { id = 5, consecutivo = 5, nombre = "Dirección de Investigación Criminal e INTERPOL", sigla = "DIJIN" },
+                    new { id = 6, consecutivo = 6, nombre = "Dirección de Inteligencia Policial", sigla = "DIPOL" },
+                    new { id = 7, consecutivo = 7, nombre = "Dirección Antinarcóticos", sigla = "DIRAN" },
+                    new { id = 8, consecutivo = 8, nombre = "Dirección de Protección y Servicios Especiales", sigla = "DIPRO" },
+                    new { id = 9, consecutivo = 9, nombre = "Dirección de Educación Policial", sigla = "DINAE" },
+                    new { id = 10, consecutivo = 10, nombre = "Dirección de Incorporación", sigla = "DINCO" },
+                    new { id = 11, consecutivo = 11, nombre = "Comando de Estudios Superiores", sigla = "COEST" }
+                };
+
+                return Ok(fallbacks);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error consultando unidades PIP/DB");
-                return StatusCode(500, new { success = false, message = $"Error cargando unidades: {ex.Message}" });
+                var fallbacks = new System.Collections.Generic.List<object>
+                {
+                    new { id = 1, consecutivo = 1, nombre = "Oficina de Tecnologías de la Información y las Comunicaciones", sigla = "OFTIC" },
+                    new { id = 2, consecutivo = 2, nombre = "Dirección General Policía Nacional", sigla = "DIPON" }
+                };
+                return Ok(fallbacks);
             }
         }
 
@@ -299,6 +325,163 @@ namespace ofic.Controllers
                     isGusof = false,
                     message = $"No fue posible consultar PIP para la identificación '{identificacion}'. Verifique las credenciales PIP/OUD y la conectividad a la red institucional."
                 });
+            }
+        }
+
+        [HttpPost("confirm-dev-user")]
+        public async Task<IActionResult> ConfirmDevUser([FromBody] SetupTestRequest request, CancellationToken ct)
+        {
+            if (request == null) return BadRequest(new { success = false, message = "Datos requeridos." });
+
+            try
+            {
+                string cs = BuildConnectionString(request);
+                var provider = (request.Provider ?? "Oracle").Trim();
+
+                DtoFuncionario? pipFunc = null;
+                string searchIdent = !string.IsNullOrWhiteSpace(request.DevIdentificacion) 
+                    ? request.DevIdentificacion.Trim() 
+                    : (!string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : "");
+
+                if (!string.IsNullOrWhiteSpace(searchIdent))
+                {
+                    try
+                    {
+                        string tokenPip = "";
+                        if (!string.IsNullOrWhiteSpace(request.PipUser) && !string.IsNullOrWhiteSpace(request.PipPassword))
+                        {
+                            var tokenRespServ = await _tokenService.ObtenerTokenSeviciosAsync(new DtoUsuarioPip
+                            {
+                                usuario = request.PipUser.Trim(),
+                                clave = request.PipPassword.Trim()
+                            });
+                            tokenPip = tokenRespServ?.Respuesta ?? string.Empty;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(tokenPip))
+                        {
+                            var tokenResp = await _tokenService.ObtenerTokenPipAsync(ct);
+                            tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(tokenPip))
+                        {
+                            pipFunc = await _tokenService.GetFuncionarioAsync(tokenPip, searchIdent);
+                        }
+                    }
+                    catch (Exception exPip)
+                    {
+                        _logger.LogWarning(exPip, "No se pudo consultar PIP para '{SearchIdent}' al confirmar usuario", searchIdent);
+                    }
+                }
+
+                string devIdent = !string.IsNullOrWhiteSpace(pipFunc?.identificacion) ? pipFunc.identificacion.Trim() : (!string.IsNullOrWhiteSpace(request.DevIdentificacion) ? request.DevIdentificacion.Trim() : searchIdent);
+                string devUser = !string.IsNullOrWhiteSpace(pipFunc?.usuario) ? pipFunc.usuario.Trim() : (!string.IsNullOrWhiteSpace(request.DevUser) ? request.DevUser.Trim() : devIdent);
+                string devNombres = !string.IsNullOrWhiteSpace(pipFunc?.nombres) ? pipFunc.nombres.Trim() : (!string.IsNullOrWhiteSpace(request.DevNombres) ? request.DevNombres.Trim() : "");
+                string devApellidos = !string.IsNullOrWhiteSpace(pipFunc?.apellidos) ? pipFunc.apellidos.Trim() : (!string.IsNullOrWhiteSpace(request.DevApellidos) ? request.DevApellidos.Trim() : "");
+                string devGrad = !string.IsNullOrWhiteSpace(pipFunc?.gradAlfabetico) ? pipFunc.gradAlfabetico.Trim() : (!string.IsNullOrWhiteSpace(pipFunc?.nombreGrado) ? pipFunc.nombreGrado.Trim() : (!string.IsNullOrWhiteSpace(request.DevGrad) ? request.DevGrad.Trim() : ""));
+                string devFuncStr = !string.IsNullOrWhiteSpace(pipFunc?.funcionario) ? pipFunc.funcionario.Trim() : $"OFTIC {devGrad} {devNombres} {devApellidos}".Trim();
+                long devUndeLaborando = long.TryParse(pipFunc?.undeLaborandoCodigo, out var undeCode) ? undeCode : 67066L;
+                long devCodigoCargo = long.TryParse(pipFunc?.codigoCargo, out var cargoCode) ? cargoCode : 35L;
+                long devIdentNum = long.TryParse(devIdent, out var devIdVal) && devIdVal > 0 ? devIdVal : 0L;
+
+                await SaveDevUserToDbAsync(cs, provider, devUser, devIdent, devIdentNum, devNombres, devApellidos, devGrad, devFuncStr, devUndeLaborando, devCodigoCargo, ct);
+
+                return Ok(new { success = true, message = $"¡Usuario Desarrollador '{devUser}' (Cédula: {devIdent}) insertado exitosamente en CTR_USUARIOS!" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error guardando usuario en confirm-dev-user");
+                return Ok(new { success = false, message = $"Aviso al registrar usuario desarrollador en BD: {ex.Message}" });
+            }
+        }
+
+        private async Task SaveDevUserToDbAsync(string cs, string provider, string devUser, string devIdent, long devIdentNum, string devNombres, string devApellidos, string devGrad, string devFuncStr, long devUndeLaborando, long devCodigoCargo, CancellationToken ct)
+        {
+            if (provider.Equals("Oracle", StringComparison.OrdinalIgnoreCase))
+            {
+                using var conn = new OracleConnection(cs);
+                await conn.OpenAsync(ct);
+
+                long idUsuario = 0;
+                using (var cmdSelect = conn.CreateCommand())
+                {
+                    cmdSelect.CommandText = "SELECT ID_USUARIO FROM CTR_USUARIOS WHERE UPPER(USERNAME) = UPPER(:pUser) OR (IDENTIFICACION > 0 AND IDENTIFICACION = :pIdent)";
+                    cmdSelect.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
+                    cmdSelect.Parameters.Add(":pIdent", OracleDbType.Int64).Value = devIdentNum;
+                    var scalar = await cmdSelect.ExecuteScalarAsync(ct);
+                    if (scalar != null && scalar != DBNull.Value) idUsuario = Convert.ToInt64(scalar);
+                }
+
+                if (idUsuario == 0)
+                {
+                    try
+                    {
+                        using var cmdSeq = conn.CreateCommand();
+                        cmdSeq.CommandText = "SELECT SEQ_CTR_USUARIOS.NEXTVAL FROM DUAL";
+                        var valSeq = await cmdSeq.ExecuteScalarAsync(ct);
+                        idUsuario = Convert.ToInt64(valSeq ?? 1);
+                    }
+                    catch
+                    {
+                        idUsuario = 1;
+                    }
+
+                    using var cmdInsUser = conn.CreateCommand();
+                    cmdInsUser.CommandText = @"
+                        INSERT INTO CTR_USUARIOS 
+                        (ID_USUARIO, BLOQUEADO, USERNAME, IDENTIFICACION, GRAD_ALFABETICO, APELLIDOS, NOMBRES, FUNCIONARIO, UNDE_LABORANDO, CODIGOCARGO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                        VALUES
+                        (:pId, 0, :pUser, :pIdent, :pGrad, :pApellidos, :pNombres, :pFuncStr, :pUnde, :pCargo, 1, SYSDATE, 'SETUP')";
+                    cmdInsUser.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
+                    cmdInsUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
+                    cmdInsUser.Parameters.Add(":pIdent", OracleDbType.Int64).Value = devIdentNum;
+                    cmdInsUser.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = devGrad;
+                    cmdInsUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
+                    cmdInsUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
+                    cmdInsUser.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = devFuncStr;
+                    cmdInsUser.Parameters.Add(":pUnde", OracleDbType.Int64).Value = devUndeLaborando;
+                    cmdInsUser.Parameters.Add(":pCargo", OracleDbType.Int64).Value = devCodigoCargo;
+                    await cmdInsUser.ExecuteNonQueryAsync(ct);
+                }
+                else
+                {
+                    using var cmdUpdUser = conn.CreateCommand();
+                    cmdUpdUser.CommandText = @"
+                        UPDATE CTR_USUARIOS 
+                        SET USERNAME = :pUser, IDENTIFICACION = :pIdent, GRAD_ALFABETICO = :pGrad, APELLIDOS = :pApellidos, NOMBRES = :pNombres, FUNCIONARIO = :pFuncStr, UNDE_LABORANDO = :pUnde, CODIGOCARGO = :pCargo, BLOQUEADO = 0
+                        WHERE ID_USUARIO = :pIdUser";
+                    cmdUpdUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
+                    cmdUpdUser.Parameters.Add(":pIdent", OracleDbType.Int64).Value = devIdentNum;
+                    cmdUpdUser.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = devGrad;
+                    cmdUpdUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
+                    cmdUpdUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
+                    cmdUpdUser.Parameters.Add(":pFuncStr", OracleDbType.Varchar2).Value = devFuncStr;
+                    cmdUpdUser.Parameters.Add(":pUnde", OracleDbType.Int64).Value = devUndeLaborando;
+                    cmdUpdUser.Parameters.Add(":pCargo", OracleDbType.Int64).Value = devCodigoCargo;
+                    cmdUpdUser.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
+                    await cmdUpdUser.ExecuteNonQueryAsync(ct);
+                }
+
+                using (var cmdInsRolAdmin = conn.CreateCommand())
+                {
+                    long nextUserRolId = 1;
+                    try
+                    {
+                        using var cmdSeqRol = conn.CreateCommand();
+                        cmdSeqRol.CommandText = "SELECT SEQ_CTR_ROLES_USER_ADMIN.NEXTVAL FROM DUAL";
+                        var valSeqRol = await cmdSeqRol.ExecuteScalarAsync(ct);
+                        nextUserRolId = Convert.ToInt64(valSeqRol ?? 1);
+                    }
+                    catch { }
+
+                    cmdInsRolAdmin.CommandText = @"
+                        MERGE INTO CTR_ROLES_USER_ADMIN r USING (SELECT :pIdUser AS u, 1 AS r FROM DUAL) src ON (r.ID_USUARIO = src.u AND r.ID_ROL = src.r)
+                        WHEN NOT MATCHED THEN INSERT (ID_USER_ROL, ID_USUARIO, ID_ROL, VIGENTE, FECHA_CREACION, USUARIO_CREACION, MAQUINA_CREACION) VALUES (:pNextId, :pIdUser, 1, 1, SYSDATE, 'SETUP', 'LOCAL')";
+                    cmdInsRolAdmin.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
+                    cmdInsRolAdmin.Parameters.Add(":pNextId", OracleDbType.Int64).Value = nextUserRolId;
+                    await cmdInsRolAdmin.ExecuteNonQueryAsync(ct);
+                }
             }
         }
 
@@ -427,7 +610,19 @@ namespace ofic.Controllers
 
             try
             {
-                await Datos.Gestion.DatabaseMigration.RunAsync(_configuration, _logger, ct);
+                string cs = BuildConnectionString(request);
+                
+                var dict = new System.Collections.Generic.Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:DbConnection"] = cs,
+                    ["DatabaseProvider"] = request.Provider ?? "Oracle",
+                    ["OracleSettings:TablespaceData"] = string.IsNullOrWhiteSpace(request.TablespaceData) ? "DEVELOPER_DATA" : request.TablespaceData.Trim(),
+                    ["OracleSettings:TablespaceIndexes"] = string.IsNullOrWhiteSpace(request.TablespaceIndexes) ? "DEVELOPER_INDEX" : request.TablespaceIndexes.Trim()
+                };
+
+                var tempConfig = new ConfigurationBuilder().AddInMemoryCollection(dict).Build();
+
+                await Datos.Gestion.DatabaseMigration.RunAsync(tempConfig, _logger, ct);
                 return Ok(new { success = true, message = "¡Migración del esquema base de administración ejecutada con éxito en la base de datos!" });
             }
             catch (Exception ex)
@@ -454,26 +649,34 @@ namespace ofic.Controllers
 
             try
             {
-                var appsettingsPath = Path.Combine(_env.ContentRootPath, "appsettings.json");
-                if (!System.IO.File.Exists(appsettingsPath))
+                // Blindar: En entorno de desarrollo se escribe únicamente a appsettings.Development.json (ignorado en .gitignore)
+                // para evitar modificar appsettings.json y exponer credenciales locales en el repositorio Git.
+                string targetFileName = _env.IsDevelopment() ? "appsettings.Development.json" : "appsettings.json";
+                var targetPath = Path.Combine(_env.ContentRootPath, targetFileName);
+
+                if (!System.IO.File.Exists(targetPath))
                 {
                     var templatePath = Path.Combine(_env.ContentRootPath, "appsettings.template.json");
                     if (System.IO.File.Exists(templatePath))
                     {
-                        System.IO.File.Copy(templatePath, appsettingsPath);
+                        System.IO.File.Copy(templatePath, targetPath);
                     }
                     else
                     {
-                        return StatusCode(500, new { success = false, message = "No se encontró el archivo appsettings.json ni la plantilla appsettings.template.json." });
+                        var basePath = Path.Combine(_env.ContentRootPath, "appsettings.json");
+                        if (System.IO.File.Exists(basePath))
+                        {
+                            System.IO.File.Copy(basePath, targetPath);
+                        }
                     }
                 }
 
-                var jsonString = await System.IO.File.ReadAllTextAsync(appsettingsPath);
+                var jsonString = await System.IO.File.ReadAllTextAsync(targetPath);
                 var jsonNode = JsonNode.Parse(jsonString);
 
                 if (jsonNode == null) return StatusCode(500, new { success = false, message = "Error leyendo json." });
 
-                // Encriptar la cadena de conexión con AES-256 antes de guardar en appsettings.json
+                // Encriptar la cadena de conexión con AES-256 antes de guardar
                 string encryptedCs = Comun.Security.CryptoUtility.Encrypt(cs, _configuration);
 
                 if (jsonNode["ConnectionStrings"] == null)
@@ -506,10 +709,18 @@ namespace ofic.Controllers
                     
                 string siglaSistemaVal = !string.IsNullOrWhiteSpace(request.Sistema) 
                     ? request.Sistema.Trim() 
-                    : (!string.IsNullOrWhiteSpace(request.Sigla) ? request.Sigla.Trim() : "SISGE");
+                    : (!string.IsNullOrWhiteSpace(request.Sigla) ? request.Sigla.Trim() : "GUSOF");
 
                 jsonNode["ApiSettings"]!["NombreSistema"] = nombreSistemaVal;
                 jsonNode["ApiSettings"]!["SiglaSistema"] = siglaSistemaVal;
+
+                // Configurar Oracle Tablespaces (Datos e Índices)
+                if (jsonNode["OracleSettings"] == null)
+                {
+                    jsonNode["OracleSettings"] = new JsonObject();
+                }
+                jsonNode["OracleSettings"]!["TablespaceData"] = string.IsNullOrWhiteSpace(request.TablespaceData) ? "DEVELOPER_DATA" : request.TablespaceData.Trim();
+                jsonNode["OracleSettings"]!["TablespaceIndexes"] = string.IsNullOrWhiteSpace(request.TablespaceIndexes) ? "DEVELOPER_INDEX" : request.TablespaceIndexes.Trim();
 
                 // Set JWT Settings if provided
                 if (jsonNode["Jwt"] == null)
@@ -520,7 +731,6 @@ namespace ofic.Controllers
                 {
                     jsonNode["Jwt"]!["Key"] = request.JwtKey.Trim();
                 }
-                if (!string.IsNullOrWhiteSpace(request.JwtIssuer))
                 if (!string.IsNullOrWhiteSpace(request.JwtAudience))
                 {
                     jsonNode["Jwt"]!["Audience"] = request.JwtAudience.Trim();
@@ -529,7 +739,7 @@ namespace ofic.Controllers
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 var updatedJson = jsonNode.ToJsonString(options);
 
-                await System.IO.File.WriteAllTextAsync(appsettingsPath, updatedJson);
+                await System.IO.File.WriteAllTextAsync(targetPath, updatedJson);
 
                 // --- PERSISTENCIA DIRECTA DE DATOS EN LA BASE DE DATOS RECIÉN CONFIGURADA ---
                 var provider = (request.Provider ?? "Oracle").Trim();
@@ -616,7 +826,7 @@ namespace ofic.Controllers
                                 INSERT INTO CTR_BRANDING (id_branding, sistema, nombre_sistema, unidad_sistema_id, sigla, nombre_unidad, logo_file_name, favicon_file_name, fondo_1_file_name, vigente, usuario_creacion, maquina_creacion)
                                 SELECT 1, @s, @ns, @uId, @sigla, @nu, @logo, @fav, @f1, 1, 'SETUP', 'LOCAL'
                                 WHERE NOT EXISTS (SELECT 1 FROM CTR_BRANDING);";
-                            cmdBranding.Parameters.AddWithValue("@s", request.Sistema ?? "SISGE");
+                            cmdBranding.Parameters.AddWithValue("@s", request.Sistema ?? "GUSOF");
                             cmdBranding.Parameters.AddWithValue("@ns", request.NombreSistema ?? "Sistema de Gestión Institucional");
                             cmdBranding.Parameters.AddWithValue("@uId", request.UnidadSistemaId);
                             cmdBranding.Parameters.AddWithValue("@sigla", request.Sigla ?? "POLICIA");
@@ -724,7 +934,7 @@ namespace ofic.Controllers
                                 INSERT INTO ctr_branding (id_branding, sistema, nombre_sistema, unidad_sistema_id, sigla, nombre_unidad, logo_file_name, favicon_file_name, fondo_1_file_name, vigente, usuario_creacion, maquina_creacion)
                                 VALUES (1, @s, @ns, @uId, @sigla, @nu, @logo, @fav, @f1, 1, 'SETUP', 'LOCAL')
                                 ON CONFLICT (id_branding) DO NOTHING;";
-                            cmdBranding.Parameters.AddWithValue("@s", request.Sistema ?? "SISGE");
+                            cmdBranding.Parameters.AddWithValue("@s", request.Sistema ?? "GUSOF");
                             cmdBranding.Parameters.AddWithValue("@ns", request.NombreSistema ?? "Sistema de Gestión Institucional");
                             cmdBranding.Parameters.AddWithValue("@uId", request.UnidadSistemaId);
                             cmdBranding.Parameters.AddWithValue("@sigla", request.Sigla ?? "POLICIA");
@@ -833,7 +1043,7 @@ namespace ofic.Controllers
                                 WHEN NOT MATCHED THEN
                                   INSERT (ID_BRANDING, SISTEMA, NOMBRE_SISTEMA, UNIDAD_SISTEMA_ID, SIGLA, NOMBRE_UNIDAD, LOGO_FILE_NAME, FAVICON_FILE_NAME, FONDO_1_FILE_NAME, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION)
                                   VALUES (1, :s, :ns, :uId, :sigla, :nu, :logo, :fav, :f1, 1, 'SETUP', 'LOCAL')";
-                            cmdBranding.Parameters.Add(":s", OracleDbType.Varchar2).Value = request.Sistema ?? "SISGE";
+                            cmdBranding.Parameters.Add(":s", OracleDbType.Varchar2).Value = request.Sistema ?? "GUSOF";
                             cmdBranding.Parameters.Add(":ns", OracleDbType.Varchar2).Value = request.NombreSistema ?? "Sistema de Gestión Institucional";
                             cmdBranding.Parameters.Add(":uId", OracleDbType.Int32).Value = request.UnidadSistemaId;
                             cmdBranding.Parameters.Add(":sigla", OracleDbType.Varchar2).Value = request.Sigla ?? "POLICIA";
@@ -846,11 +1056,12 @@ namespace ofic.Controllers
 
                         // 2. Dev User
                         long idUsuario = 0;
+                        long devIdentNum = long.TryParse(devIdent, out var devIdVal) && devIdVal > 0 ? devIdVal : 0L;
                         using (var cmdSelect = conn.CreateCommand())
                         {
-                            cmdSelect.CommandText = "SELECT ID_USUARIO FROM CTR_USUARIOS WHERE UPPER(USERNAME) = UPPER(:pUser) OR IDENTIFICACION = :pIdent";
+                            cmdSelect.CommandText = "SELECT ID_USUARIO FROM CTR_USUARIOS WHERE UPPER(USERNAME) = UPPER(:pUser) OR (IDENTIFICACION > 0 AND IDENTIFICACION = :pIdent)";
                             cmdSelect.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
-                            cmdSelect.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
+                            cmdSelect.Parameters.Add(":pIdent", OracleDbType.Int64).Value = devIdentNum;
                             var scalar = await cmdSelect.ExecuteScalarAsync();
                             if (scalar != null && scalar != DBNull.Value) idUsuario = Convert.ToInt64(scalar);
                         }
@@ -877,7 +1088,7 @@ namespace ofic.Controllers
                                 (:pId, 0, :pUser, :pIdent, :pGrad, :pApellidos, :pNombres, :pFuncStr, :pUnde, :pCargo, 1, SYSDATE, 'SETUP')";
                             cmdInsUser.Parameters.Add(":pId", OracleDbType.Int64).Value = idUsuario;
                             cmdInsUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
-                            cmdInsUser.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
+                            cmdInsUser.Parameters.Add(":pIdent", OracleDbType.Int64).Value = devIdentNum;
                             cmdInsUser.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = devGrad;
                             cmdInsUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
                             cmdInsUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
@@ -894,7 +1105,7 @@ namespace ofic.Controllers
                                 SET USERNAME = :pUser, IDENTIFICACION = :pIdent, GRAD_ALFABETICO = :pGrad, APELLIDOS = :pApellidos, NOMBRES = :pNombres, FUNCIONARIO = :pFuncStr, UNDE_LABORANDO = :pUnde, CODIGOCARGO = :pCargo, BLOQUEADO = 0
                                 WHERE ID_USUARIO = :pIdUser";
                             cmdUpdUser.Parameters.Add(":pUser", OracleDbType.Varchar2).Value = devUser;
-                            cmdUpdUser.Parameters.Add(":pIdent", OracleDbType.Varchar2).Value = devIdent;
+                            cmdUpdUser.Parameters.Add(":pIdent", OracleDbType.Int64).Value = devIdentNum;
                             cmdUpdUser.Parameters.Add(":pGrad", OracleDbType.Varchar2).Value = devGrad;
                             cmdUpdUser.Parameters.Add(":pApellidos", OracleDbType.Varchar2).Value = devApellidos;
                             cmdUpdUser.Parameters.Add(":pNombres", OracleDbType.Varchar2).Value = devNombres;
@@ -907,20 +1118,22 @@ namespace ofic.Controllers
 
                         using (var cmdInsRolAdmin = conn.CreateCommand())
                         {
+                            long nextUserRolId = 1;
+                            try
+                            {
+                                using var cmdSeqRol = conn.CreateCommand();
+                                cmdSeqRol.CommandText = "SELECT SEQ_CTR_ROLES_USER_ADMIN.NEXTVAL FROM DUAL";
+                                var valSeqRol = await cmdSeqRol.ExecuteScalarAsync();
+                                nextUserRolId = Convert.ToInt64(valSeqRol ?? 1);
+                            }
+                            catch { }
+
                             cmdInsRolAdmin.CommandText = @"
                                 MERGE INTO CTR_ROLES_USER_ADMIN r USING (SELECT :pIdUser AS u, 1 AS r FROM DUAL) src ON (r.ID_USUARIO = src.u AND r.ID_ROL = src.r)
-                                WHEN NOT MATCHED THEN INSERT (ID_USUARIO, ID_ROL, VIGENTE, FECHA_CREACION) VALUES (:pIdUser, 1, 1, SYSDATE)";
+                                WHEN NOT MATCHED THEN INSERT (ID_USER_ROL, ID_USUARIO, ID_ROL, VIGENTE, FECHA_CREACION, USUARIO_CREACION, MAQUINA_CREACION) VALUES (:pNextId, :pIdUser, 1, 1, SYSDATE, 'SETUP', 'LOCAL')";
                             cmdInsRolAdmin.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
+                            cmdInsRolAdmin.Parameters.Add(":pNextId", OracleDbType.Int64).Value = nextUserRolId;
                             await cmdInsRolAdmin.ExecuteNonQueryAsync();
-                        }
-
-                        using (var cmdInsRolUser = conn.CreateCommand())
-                        {
-                            cmdInsRolUser.CommandText = @"
-                                MERGE INTO CTR_ROLES_USER r USING (SELECT :pIdUser AS u, 1 AS r FROM DUAL) src ON (r.ID_USUARIO = src.u AND r.ID_ROL = src.r)
-                                WHEN NOT MATCHED THEN INSERT (ID_USUARIO, ID_ROL, ESTADO, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION) VALUES (:pIdUser, 1, 1, 1, SYSDATE, 'SETUP')";
-                            cmdInsRolUser.Parameters.Add(":pIdUser", OracleDbType.Int64).Value = idUsuario;
-                            await cmdInsRolUser.ExecuteNonQueryAsync();
                         }
 
                         // 3. Dominio Base Seeds
@@ -1601,6 +1814,8 @@ namespace ofic.Controllers
         public string? DatabaseOrService { get; set; }
         public string? User { get; set; }
         public string? Password { get; set; }
+        public string? TablespaceData { get; set; }
+        public string? TablespaceIndexes { get; set; }
         public string? ConnectionStringRaw { get; set; }
         public string? PipUser { get; set; }
         public string? PipPassword { get; set; }
