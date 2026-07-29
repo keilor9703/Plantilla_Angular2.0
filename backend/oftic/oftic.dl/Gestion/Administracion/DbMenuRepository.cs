@@ -122,7 +122,7 @@ namespace Datos.Gestion
                 await using var cmd = oracleConn.CreateCommand();
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = sqlMenuPorRoles;
-                cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario;
+                cmd.Parameters.Add("pIdUsuario", OracleDbType.Int64).Value = idUsuario;
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -268,13 +268,12 @@ namespace Datos.Gestion
                     cmdUpdate.CommandType = CommandType.Text;
                     cmdUpdate.CommandText = @"
                         UPDATE ctr_menu
-                           SET descripcion      = :pDescripcion,
-                               idpadre          = :pIdPadre,
-                               posicion         = :pPosicion,
-                               tipo             = :pTipo,
+                           SET titulo           = :pDescripcion,
+                               id_padre         = :pIdPadre,
+                               orden            = :pPosicion,
                                icono            = :pIcono,
-                               vigente          = :pVigente,
-                               detalle          = :pDetalle,
+                               estado           = :pVigente,
+                               ruta             = :pDetalle,
                                usuario_modifica = :pUsuarioModifica,
                                fecha_modifica   = SYSDATE,
                                maquina_modifica = :pMaquinaModifica
@@ -308,22 +307,21 @@ namespace Datos.Gestion
                     cmdInsert.CommandType = CommandType.Text;
                     cmdInsert.CommandText = @"
                         INSERT INTO ctr_menu
-                          (id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle,
+                          (id_menu, titulo, id_padre, orden, icono, estado, ruta,
                            usuario_creacion, fecha_creacion, maquina_creacion)
                         VALUES
-                          (:pIdMenu, :pDescripcion, :pIdPadre, :pPosicion, :pTipo, :pIcono, :pVigente, :pDetalle,
+                          (:pIdMenu, :pDescripcion, :pIdPadre, :pPosicion, :pIcono, :pVigente, :pDetalle,
                            :pUsuarioCreacion, SYSDATE, :pMaquinaCreacion)";
 
-                    cmdInsert.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
-                    cmdInsert.Parameters.Add(":pDescripcion", OracleDbType.Varchar2).Value = request.Descripcion!.Trim();
-                    cmdInsert.Parameters.Add(":pIdPadre", OracleDbType.Int64).Value = idPadre;
-                    cmdInsert.Parameters.Add(":pPosicion", OracleDbType.Int32).Value = request.Posicion;
-                    cmdInsert.Parameters.Add(":pTipo", OracleDbType.Varchar2).Value = request.Tipo!.Trim();
-                    cmdInsert.Parameters.Add(":pIcono", OracleDbType.Varchar2).Value = AsDbValue(request.Icono);
-                    cmdInsert.Parameters.Add(":pVigente", OracleDbType.Int32).Value = request.Vigente is 0 ? 0 : 1;
-                    cmdInsert.Parameters.Add(":pDetalle", OracleDbType.Varchar2).Value = AsDbValue(request.Detalle);
-                    cmdInsert.Parameters.Add(":pUsuarioCreacion", OracleDbType.Int64).Value = usuarioAuditoria;
-                    cmdInsert.Parameters.Add(":pMaquinaCreacion", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
+                    cmdInsert.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                    cmdInsert.Parameters.Add("pDescripcion", OracleDbType.Varchar2).Value = request.Descripcion!.Trim();
+                    cmdInsert.Parameters.Add("pIdPadre", OracleDbType.Int64).Value = idPadre;
+                    cmdInsert.Parameters.Add("pPosicion", OracleDbType.Int32).Value = request.Posicion;
+                    cmdInsert.Parameters.Add("pIcono", OracleDbType.Varchar2).Value = AsDbValue(request.Icono);
+                    cmdInsert.Parameters.Add("pVigente", OracleDbType.Int32).Value = request.Vigente is 0 ? 0 : 1;
+                    cmdInsert.Parameters.Add("pDetalle", OracleDbType.Varchar2).Value = AsDbValue(request.Detalle);
+                    cmdInsert.Parameters.Add("pUsuarioCreacion", OracleDbType.Int64).Value = usuarioAuditoria;
+                    cmdInsert.Parameters.Add("pMaquinaCreacion", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
                     await cmdInsert.ExecuteNonQueryAsync(ct);
                 }
@@ -353,10 +351,10 @@ namespace Datos.Gestion
                        maquina_modifica = :pMaquinaModifica
                  WHERE id_menu = :pIdMenu";
 
-            cmd.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente is 0 ? 0 : 1;
-            cmd.Parameters.Add(":pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
-            cmd.Parameters.Add(":pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
-            cmd.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
+            cmd.Parameters.Add("pVigente", OracleDbType.Int32).Value = vigente is 0 ? 0 : 1;
+            cmd.Parameters.Add("pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
+            cmd.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
 
             var rows = await cmd.ExecuteNonQueryAsync(ct);
             if (rows <= 0)
@@ -434,7 +432,7 @@ SELECT mr.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, 'Rol ' || mr.id_rol)) AS 
   LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
  WHERE mr.id_menu = :pIdMenu
  ORDER BY descripcion_rol";
-            cmd.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
+            cmd.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
 
             try
             {
@@ -492,8 +490,8 @@ SELECT COUNT(1)
   FROM ctr_menu_roles
  WHERE id_menu = :pIdMenu
    AND id_rol = :pIdRol";
-                    cmdExists.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
-                    cmdExists.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
+                    cmdExists.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                    cmdExists.Parameters.Add("pIdRol", OracleDbType.Int32).Value = idRol;
 
                     var count = ToInt32Safe(await cmdExists.ExecuteScalarAsync(ct));
                     if (count > 0)
@@ -546,10 +544,10 @@ SELECT COUNT(1)
                         cmdInsert.BindByName = true;
                         cmdInsert.CommandType = CommandType.Text;
                         cmdInsert.CommandText = sql;
-                        if (sql.Contains(":pIdMenuRol")) cmdInsert.Parameters.Add(":pIdMenuRol", OracleDbType.Int64).Value = nextId;
-                        if (sql.Contains(":pIdRol")) cmdInsert.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
-                        if (sql.Contains(":pIdMenu")) cmdInsert.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
-                        if (sql.Contains(":pUsr")) cmdInsert.Parameters.Add(":pUsr", OracleDbType.Varchar2).Value = usrVal;
+                        if (sql.Contains(":pIdMenuRol")) cmdInsert.Parameters.Add("pIdMenuRol", OracleDbType.Int64).Value = nextId;
+                        if (sql.Contains(":pIdRol")) cmdInsert.Parameters.Add("pIdRol", OracleDbType.Int32).Value = idRol;
+                        if (sql.Contains(":pIdMenu")) cmdInsert.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                        if (sql.Contains(":pUsr")) cmdInsert.Parameters.Add("pUsr", OracleDbType.Varchar2).Value = usrVal;
 
                         await cmdInsert.ExecuteNonQueryAsync(ct);
                         inserted = true;
@@ -592,8 +590,8 @@ SELECT COUNT(1)
 DELETE FROM ctr_menu_roles
  WHERE id_menu = :pIdMenu
    AND id_rol = :pIdRol";
-                cmdDelete.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
-                cmdDelete.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
+                cmdDelete.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                cmdDelete.Parameters.Add("pIdRol", OracleDbType.Int32).Value = idRol;
 
                 var rows = await cmdDelete.ExecuteNonQueryAsync(ct);
                 if (rows <= 0)
@@ -632,7 +630,7 @@ SELECT m.id_menu,
   JOIN ctr_menu m ON m.id_menu = mr.id_menu
  WHERE mr.id_rol = :pIdRol
  ORDER BY m.id_padre, m.orden, m.id_menu";
-            cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = idRol;
+            cmd.Parameters.Add("pIdRol", OracleDbType.Int32).Value = idRol;
 
             try
             {
@@ -689,15 +687,14 @@ SELECT m.id_menu,
 
         private static void BindSaveParams(OracleCommand cmd, DtoMenuSaveRequest request, long idPadre, long usuarioAuditoria, string maquinaAuditoria)
         {
-            cmd.Parameters.Add(":pDescripcion", OracleDbType.Varchar2).Value = request.Descripcion!.Trim();
-            cmd.Parameters.Add(":pIdPadre", OracleDbType.Int64).Value = idPadre;
-            cmd.Parameters.Add(":pPosicion", OracleDbType.Int32).Value = request.Posicion;
-            cmd.Parameters.Add(":pTipo", OracleDbType.Varchar2).Value = request.Tipo!.Trim();
-            cmd.Parameters.Add(":pIcono", OracleDbType.Varchar2).Value = AsDbValue(request.Icono);
-            cmd.Parameters.Add(":pVigente", OracleDbType.Int32).Value = request.Vigente is 0 ? 0 : 1;
-            cmd.Parameters.Add(":pDetalle", OracleDbType.Varchar2).Value = AsDbValue(request.Detalle);
-            cmd.Parameters.Add(":pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
-            cmd.Parameters.Add(":pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
+            cmd.Parameters.Add("pDescripcion", OracleDbType.Varchar2).Value = request.Descripcion!.Trim();
+            cmd.Parameters.Add("pIdPadre", OracleDbType.Int64).Value = idPadre;
+            cmd.Parameters.Add("pPosicion", OracleDbType.Int32).Value = request.Posicion;
+            cmd.Parameters.Add("pIcono", OracleDbType.Varchar2).Value = AsDbValue(request.Icono);
+            cmd.Parameters.Add("pVigente", OracleDbType.Int32).Value = request.Vigente is 0 ? 0 : 1;
+            cmd.Parameters.Add("pDetalle", OracleDbType.Varchar2).Value = AsDbValue(request.Detalle);
+            cmd.Parameters.Add("pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
         }
 
         private static object AsDbValue(string? value)
