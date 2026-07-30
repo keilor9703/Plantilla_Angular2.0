@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -24,9 +24,12 @@ export class DominioAdminComponent implements OnInit {
   dominiosTree: { item: DtoDominio; children: { item: DtoDominio; children: DtoDominio[]; expanded: boolean }[]; expanded: boolean }[] = [];
   editingId: number | null = null;
 
+  dropdownPadreOpen = false;
+  searchPadreFilter = '';
+
   form: any = {
     Descripcion: '',
-    IdPadre: 0,
+    IdPadre: 1,
     Vigente: 1,
     Abreviatura: '',
     Observacion: ''
@@ -39,6 +42,47 @@ export class DominioAdminComponent implements OnInit {
     private dominioService: DominioService
     ,private alert: AlertService
   ) {}
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.dropdownPadreOpen) {
+      this.dropdownPadreOpen = false;
+      this.searchPadreFilter = '';
+    }
+  }
+
+  get filteredDominioOptions(): { id: number; descripcion: string }[] {
+    const query = (this.searchPadreFilter || '').trim().toLowerCase();
+    const all: { id: number; descripcion: string }[] = [
+      { id: 1, descripcion: 'Dominio Raíz' },
+      ...this.dominioOptions
+    ];
+    if (!query) return all;
+    return all.filter(opt => opt.descripcion.toLowerCase().includes(query));
+  }
+
+  get selectedPadreNombre(): string {
+    const idPadre = Number(this.form?.IdPadre ?? 1);
+    if (!idPadre || idPadre === 1) {
+      return 'Dominio Raíz';
+    }
+    const found = this.listaDominios.find(d => d.idDominio === idPadre);
+    return found?.descripcion || 'Dominio Raíz';
+  }
+
+  selectPadreOption(opt: { id: number; descripcion: string }): void {
+    this.form.IdPadre = opt.id;
+    this.dropdownPadreOpen = false;
+    this.searchPadreFilter = '';
+  }
+
+  toggleDropdownPadre(event?: Event): void {
+    if (event) event.stopPropagation();
+    this.dropdownPadreOpen = !this.dropdownPadreOpen;
+    if (!this.dropdownPadreOpen) {
+      this.searchPadreFilter = '';
+    }
+  }
 
   ngOnInit(): void {
     this.cargarDominios();
@@ -65,6 +109,8 @@ export class DominioAdminComponent implements OnInit {
       .filter(
         d =>
           d.idDominio !== 0 &&
+          d.idDominio !== 1 &&
+          d.descripcion?.trim().toUpperCase() !== 'RAIZ' &&
           d.idDominio !== (this.editingId ?? 0)
       )
       .map(d => ({
@@ -86,10 +132,19 @@ export class DominioAdminComponent implements OnInit {
   }
 
   private buildTree(): void {
-    const noRaiz = this.listaDominios.filter(d => d.idDominio !== 0);
-    const raiz = noRaiz.filter(d => !d.idPadre || d.idPadre === 0);
-    
-    this.dominiosTree = this.getRecursiveNodes(raiz, noRaiz);
+    // Excluimos la Raíz (ID 0, ID 1 o con descripción 'RAIZ') de mostrarse como un nodo contenedor principal
+    const dominiosFiltrados = this.listaDominios.filter(d => 
+      d.idDominio !== 0 && 
+      d.idDominio !== 1 && 
+      d.descripcion?.trim().toUpperCase() !== 'RAIZ'
+    );
+
+    // Los padres de nivel superior son aquellos cuyos padres son 0, 1 o vacíos (hijos directos de la Raíz)
+    const padresSuperiores = dominiosFiltrados.filter(d => 
+      !d.idPadre || d.idPadre === 0 || d.idPadre === 1
+    );
+
+    this.dominiosTree = this.getRecursiveNodes(padresSuperiores, dominiosFiltrados);
   }
 
   private getRecursiveNodes(parents: DtoDominio[], all: DtoDominio[]): any[] {
@@ -120,7 +175,7 @@ export class DominioAdminComponent implements OnInit {
     this.editingId = null;
     this.form = {
       Descripcion: '',
-      IdPadre: 0,
+      IdPadre: 1,
       Vigente: 1,
       Abreviatura: '',
       Observacion: ''
