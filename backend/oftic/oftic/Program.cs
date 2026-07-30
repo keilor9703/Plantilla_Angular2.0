@@ -16,13 +16,16 @@ using Negocio.Gestion.GestionDocumental;
 using Negocio.Gestion.Administracion;
 using Datos.Interfaz.GestionDocumental;
 using Datos.Gestion.GestionDocumental;
+using Microsoft.EntityFrameworkCore;
+using Comun.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Kestrel: aumentar límite de tamaño de request para videos (150MB)
+// Kestrel: aumentar límite de tamaño de request para videos (150MB) y permitir I/O síncrono
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 150 * 1024 * 1024; // 150MB
+    options.AllowSynchronousIO = true;
 });
 
 builder.Services.AddControllers(options =>
@@ -37,6 +40,25 @@ builder.Services.AddControllers(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
+
+// Personalizar la respuesta automática de validación del modelo
+// para que loguee los errores y devuelva nuestro formato estándar
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(e => e.Value?.Errors.Count > 0)
+            .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(err => err.ErrorMessage).ToArray());
+
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("ModelValidation");
+        logger.LogWarning("Validación de modelo fallida en {Action}: {@Errors}",
+            context.ActionDescriptor.DisplayName, errors);
+
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new { success = false, message = "Datos del formulario inválidos", errors });
+    };
+});
 
 // CORS - Políticas separadas para desarrollo y producción
 builder.Services.AddCors(options =>
@@ -137,7 +159,7 @@ builder.Services.AddOpenApi(options =>
         if (document != null)
         {
             document.Info ??= new OpenApiInfo();
-            document.Info.Title = "OFTIC / DOC API";
+            document.Info.Title = "OFTIC / DOCS API";
             document.Info.Version = "v1";
 
             document.Components ??= new OpenApiComponents();
@@ -157,6 +179,25 @@ builder.Services.AddOpenApi(options =>
 
         return Task.CompletedTask;
     });
+});
+
+builder.Services.AddDbContext<OfticDbContext>(options =>
+{
+    var cs = builder.Configuration.GetDecryptedConnectionString();
+    var p = (builder.Configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+    if (p.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || p.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseMySql(cs, ServerVersion.AutoDetect(cs));
+    }
+    else if (p.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || p.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseNpgsql(cs);
+    }
+    else
+    {
+        options.UseOracle(cs);
+    }
 });
 
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();

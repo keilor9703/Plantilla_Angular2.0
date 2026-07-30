@@ -40,9 +40,9 @@ public static class SecurityGuards
         return SafeTextRegex.IsMatch(trimmed);
     }
 
-    public static bool HasValidImageSignature(IFormFile file, string extension)
+    public static async Task<bool> HasValidImageSignatureAsync(IFormFile file, string extension, CancellationToken cancellationToken = default)
     {
-        var header = ReadHeader(file, 32);
+        var header = await ReadHeaderAsync(file, 32, cancellationToken);
         if (header.Length == 0)
         {
             return false;
@@ -81,9 +81,14 @@ public static class SecurityGuards
         };
     }
 
-    public static bool HasValidVideoSignature(IFormFile file, string extension)
+    public static bool HasValidImageSignature(IFormFile file, string extension)
     {
-        var header = ReadHeader(file, 64);
+        return HasValidImageSignatureAsync(file, extension).GetAwaiter().GetResult();
+    }
+
+    public static async Task<bool> HasValidVideoSignatureAsync(IFormFile file, string extension, CancellationToken cancellationToken = default)
+    {
+        var header = await ReadHeaderAsync(file, 64, cancellationToken);
         if (header.Length == 0)
         {
             return false;
@@ -106,6 +111,11 @@ public static class SecurityGuards
         };
     }
 
+    public static bool HasValidVideoSignature(IFormFile file, string extension)
+    {
+        return HasValidVideoSignatureAsync(file, extension).GetAwaiter().GetResult();
+    }
+
     private static bool HasMp4Ftyp(byte[] header)
     {
         if (header.Length < 12)
@@ -120,11 +130,11 @@ public static class SecurityGuards
                header[7] == 0x70;
     }
 
-    private static byte[] ReadHeader(IFormFile file, int maxBytes)
+    private static async Task<byte[]> ReadHeaderAsync(IFormFile file, int maxBytes, CancellationToken cancellationToken = default)
     {
-        using var stream = file.OpenReadStream();
+        await using var stream = file.OpenReadStream();
         var buffer = new byte[maxBytes];
-        var read = stream.Read(buffer, 0, buffer.Length);
+        var read = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
         if (read <= 0)
         {
             return Array.Empty<byte>();

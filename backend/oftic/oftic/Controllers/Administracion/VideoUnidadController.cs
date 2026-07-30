@@ -172,11 +172,11 @@ namespace ofic.Controllers.Administracion
                 var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? string.Empty;
                 if (!AllowedExtensions.Contains(extension))
                 {
-                    return BadRequest(new { success = false, message = "Formato invÃ¡lido. Use MP4, WEBM, OGG o MOV." });
+                    return BadRequest(new { success = false, message = "Formato inválido. Use MP4, WEBM, OGG o MOV." });
                 }
-                if (!SecurityGuards.HasValidVideoSignature(file, extension))
+                if (!await SecurityGuards.HasValidVideoSignatureAsync(file, extension))
                 {
-                    return BadRequest(new { success = false, message = "Firma de archivo invÃ¡lida para video." });
+                    return BadRequest(new { success = false, message = "Firma de archivo inválida para video." });
                 }
 
                 Directory.CreateDirectory(_videoRootPath);

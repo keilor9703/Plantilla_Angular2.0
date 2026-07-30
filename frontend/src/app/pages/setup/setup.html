@@ -48,7 +48,8 @@
 
     <!-- Mensaje si ya está configurado -->
     <div *ngIf="isAlreadyConfigured" class="setup-body text-center p-4">
-      <div class="alert-box success mb-3" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 16px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+      <div class="alert-box success mb-3"
+        style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 16px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px;">
         <i class="fa-solid fa-lock" style="font-size: 1.4rem;"></i>
         <span style="font-weight: 700;">El sistema ya se encuentra instalado y parametrizado.</span>
       </div>
@@ -79,8 +80,8 @@
             <p>Base de datos relacional de código abierto</p>
           </div>
 
-          <div class="provider-card" [class.selected]="formData.provider === 'MySQL'" 
-            (click)="onProviderClick('MySQL')" (dblclick)="nextStep()">
+          <div class="provider-card" [class.selected]="formData.provider === 'MySQL'" (click)="onProviderClick('MySQL')"
+            (dblclick)="nextStep()">
             <div class="provider-icon mysql">
               <i class="fa-solid fa-cubes"></i>
             </div>
@@ -140,11 +141,13 @@
           <ng-container *ngIf="formData.provider === 'Oracle'">
             <div class="ui-field ui-col-6">
               <label class="ui-label"><i class="fa-solid fa-database"></i> Tablespace de Datos (Tablas)</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.tablespaceData" placeholder="Ej: DEVELOPER_DATA">
+              <input class="ui-control" type="text" [(ngModel)]="formData.tablespaceData"
+                placeholder="Ej: DEVELOPER_DATA">
             </div>
             <div class="ui-field ui-col-6">
               <label class="ui-label"><i class="fa-solid fa-list-ol"></i> Tablespace de Índices (Índices / Keys)</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.tablespaceIndexes" placeholder="Ej: DEVELOPER_INDEX">
+              <input class="ui-control" type="text" [(ngModel)]="formData.tablespaceIndexes"
+                placeholder="Ej: DEVELOPER_INDEX">
             </div>
           </ng-container>
         </div>
@@ -308,10 +311,10 @@
           registrará directamente en la base de datos:</p>
 
         <div class="ui-grid">
-          <div class="ui-field ui-col-6">
+          <!-- <div class="ui-field ui-col-6">
             <label class="ui-label">Sigla del Sistema</label>
             <input class="ui-control" type="text" [(ngModel)]="formData.sistema" placeholder="Ej: SISGE o SICOE">
-          </div>
+          </div> -->
 
           <div class="ui-field ui-col-6">
             <label class="ui-label">Nombre Completo del Sistema</label>
@@ -320,7 +323,7 @@
           </div>
 
           <div class="ui-field ui-col-6 searchable-unit-container">
-            <label class="ui-label">Unidad Policial (Organigrama)</label>
+            <label class="ui-label">Unidad dueña del sistema</label>
             <div class="searchable-control-wrapper">
               <input class="ui-control" type="text" placeholder="🔍 Buscar unidad por nombre o sigla..."
                 [(ngModel)]="unidadSearchText" (focus)="showUnidadDropdown = true" (input)="showUnidadDropdown = true">
@@ -346,249 +349,270 @@
             <input class="ui-control" type="text" [(ngModel)]="formData.sigla" placeholder="Ej: OFTIC">
           </div>
 
-          <div class="ui-field ui-col-6">
+          <!-- <div class="ui-field ui-col-6">
             <label class="ui-label">Logo del Sistema (PNG, JPG, WEBP)</label>
             <input class="ui-control" type="file" accept="image/*" (change)="onLogoSelected($event)">
             <div *ngIf="logoPreview" class="asset-preview mt-2">
               <img [src]="logoPreview" alt="Logo preview" style="max-height: 48px; border-radius: 4px;">
             </div>
-          </div>
+          </div> -->
 
-          <div class="ui-field ui-col-6">
+          <!-- <div class="ui-field ui-col-6">
             <label class="ui-label">Favicon del Sistema (.ICO, PNG)</label>
             <input class="ui-control" type="file" accept="image/*,.ico" (change)="onFaviconSelected($event)">
             <div *ngIf="faviconPreview" class="asset-preview mt-2">
               <img [src]="faviconPreview" alt="Favicon preview" style="max-height: 32px; border-radius: 4px;">
             </div>
           </div>
-        </div>
+        </div> -->
 
-        <div *ngIf="saveResult" class="alert-box mt-3" [class.success]="saveResult.success"
-          [class.error]="!saveResult.success">
-          <i class="fa-solid" [class.fa-circle-check]="saveResult.success"
-            [class.fa-circle-xmark]="!saveResult.success"></i>
-          <span>{{ saveResult.message }}</span>
-        </div>
+          <div *ngIf="saveResult" class="alert-box mt-3" [class.success]="saveResult.success"
+            [class.error]="!saveResult.success">
+            <i class="fa-solid" [class.fa-circle-check]="saveResult.success"
+              [class.fa-circle-xmark]="!saveResult.success"></i>
+            <span>{{ saveResult.message }}</span>
+          </div>
 
-        <div class="step-actions justify-between mt-4">
-          <button class="ui-btn outline" type="button" (click)="prevStep()">
-            <i class="fa-solid fa-arrow-left"></i> Atrás
+          <div class="step-actions justify-between mt-4">
+            <button class="ui-btn outline" type="button" (click)="prevStep()">
+              <i class="fa-solid fa-arrow-left"></i> Atrás
+            </button>
+            <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="saving" (click)="onSaveConfig()">
+              <i class="fa-solid" [class.fa-floppy-disk]="!saving" [class.fa-spinner]="saving"
+                [class.fa-spin]="saving"></i>
+              {{ saving ? 'Guardando en BD y Finalizando...' : 'Guardar y Finalizar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Confirmación de Migración -->
+    <div *ngIf="showMigrationModal" class="ui-modal-backdrop"
+      style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+      <div class="ui-modal-card"
+        style="background: var(--surface-card, #ffffff); border-radius: 12px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);">
+        <div class="modal-header flex-between align-center mb-3">
+          <h4 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-database" style="color: #0284c7;"></i>
+            Migración del Esquema Requerida
+          </h4>
+          <button class="ui-btn icon border-none" (click)="closeMigrationModal()" type="button"
+            style="background: none; border: none; cursor: pointer;">
+            <i class="fa-solid fa-xmark"></i>
           </button>
-          <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="saving" (click)="onSaveConfig()">
-            <i class="fa-solid" [class.fa-floppy-disk]="!saving" [class.fa-spinner]="saving"
-              [class.fa-spin]="saving"></i>
-            {{ saving ? 'Guardando en BD y Finalizando...' : 'Guardar y Finalizar' }}
+        </div>
+
+        <div class="modal-body mb-4">
+          <p style="margin-bottom: 12px; color: #475569;">
+            Se estableció conexión con el servidor de base de datos correctamente, pero <strong>no se encontraron las
+              tablas base del sistema de administración</strong> (como <code>CTR_USUARIOS</code>,
+            <code>CTR_ROLES</code>,
+            <code>CTR_MENU</code>, etc.).
+          </p>
+          <p style="margin: 0; font-weight: 600; color: #1e293b;">
+            ¿Deseas ejecutar ahora la migración para crear automáticamente la estructura básica de tablas y roles?
+          </p>
+
+          <div *ngIf="migrationResult" class="alert-box mt-3" [class.success]="migrationResult.success"
+            [class.error]="!migrationResult.success">
+            <i class="fa-solid" [class.fa-circle-check]="migrationResult.success"
+              [class.fa-circle-xmark]="!migrationResult.success"></i>
+            <span>{{ migrationResult.message }}</span>
+          </div>
+        </div>
+
+        <div class="modal-footer flex-between align-center"
+          style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button class="ui-btn outline" type="button" [disabled]="migrating" (click)="closeMigrationModal()">
+            Cancelar
+          </button>
+          <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="migrating" (click)="runMigration()">
+            <i class="fa-solid" [class.fa-gears]="!migrating" [class.fa-spinner]="migrating"
+              [class.fa-spin]="migrating"></i>
+            {{ migrating ? 'Ejecutando Migración...' : 'Ejecutar Migración' }}
           </button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal Confirmación de Migración -->
-  <div *ngIf="showMigrationModal" class="ui-modal-backdrop"
-    style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-    <div class="ui-modal-card"
-      style="background: var(--surface-card, #ffffff); border-radius: 12px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);">
-      <div class="modal-header flex-between align-center mb-3">
-        <h4 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-database" style="color: #0284c7;"></i>
-          Migración del Esquema Requerida
-        </h4>
-        <button class="ui-btn icon border-none" (click)="closeMigrationModal()" type="button"
-          style="background: none; border: none; cursor: pointer;">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
+    <!-- Modal Resumen de Instalación / Finalización del Setup -->
+    <div *ngIf="showFinishModal" class="setup-finish-backdrop">
+      <div class="setup-finish-card">
 
-      <div class="modal-body mb-4">
-        <p style="margin-bottom: 12px; color: #475569;">
-          Se estableció conexión con el servidor de base de datos correctamente, pero <strong>no se encontraron las
-            tablas base del sistema de administración</strong> (como <code>CTR_USUARIOS</code>, <code>CTR_ROLES</code>,
-          <code>CTR_MENU</code>, etc.).
-        </p>
-        <p style="margin: 0; font-weight: 600; color: #1e293b;">
-          ¿Deseas ejecutar ahora la migración para crear automáticamente la estructura básica de tablas y roles?
-        </p>
-
-        <div *ngIf="migrationResult" class="alert-box mt-3" [class.success]="migrationResult.success"
-          [class.error]="!migrationResult.success">
-          <i class="fa-solid" [class.fa-circle-check]="migrationResult.success"
-            [class.fa-circle-xmark]="!migrationResult.success"></i>
-          <span>{{ migrationResult.message }}</span>
+        <!-- Icono de éxito y Encabezado -->
+        <div class="finish-header text-center">
+          <div class="finish-icon-badge">
+            <i class="fa-solid" [class.fa-lock]="isAlreadyConfigured"
+              [class.fa-circle-check]="!isAlreadyConfigured"></i>
+          </div>
+          <h3 class="finish-title">{{ isAlreadyConfigured ? '¡Sistema Ya Instalado!' : '¡Configuración e Instalación
+            Exitosa!' }}</h3>
+          <p class="finish-subtitle">{{ isAlreadyConfigured ? 'El sistema se encuentra parametrizado y activo en este
+            entorno. Datos registrados:' : 'El sistema ha sido parametrizado y guardado correctamente' }}</p>
         </div>
-      </div>
 
-      <div class="modal-footer flex-between align-center" style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button class="ui-btn outline" type="button" [disabled]="migrating" (click)="closeMigrationModal()">
-          Cancelar
-        </button>
-        <button class="ui-btn primary ui-btn--fx" type="button" [disabled]="migrating" (click)="runMigration()">
-          <i class="fa-solid" [class.fa-gears]="!migrating" [class.fa-spinner]="migrating"
-            [class.fa-spin]="migrating"></i>
-          {{ migrating ? 'Ejecutando Migración...' : 'Ejecutar Migración' }}
-        </button>
+        <!-- Cuerpo con Datos de Instalación -->
+        <div class="finish-body">
+          <div class="summary-grid">
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-database text-cyan"></i> Tipo de Base de Datos</span>
+              <span class="summary-value highlight">{{ formData.provider || 'Oracle' }}</span>
+            </div>
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-server text-cyan"></i> Esquema / Base de Datos</span>
+              <span class="summary-value">{{ formData.databaseOrService || (formData.host ? formData.host + ':' +
+                formData.port : 'Configurado en appsettings') }}</span>
+            </div>
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-shield-halved text-cyan"></i> Usuario PIP / OUD</span>
+              <span class="summary-value">{{ formData.pipUser || 'USRSW.NEWUPD' }}</span>
+            </div>
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-user-gear text-cyan"></i> Usuario Semilla /
+                Developer</span>
+              <span class="summary-value">
+                <ng-container *ngIf="devFuncionario">
+                  <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico || formData.devGrad }} {{
+                    devFuncionario.nombres || formData.devNombres }} {{ devFuncionario.apellidos ||
+                    formData.devApellidos
+                    }}</strong>
+                  <br>
+                  <small class="text-sub">C.C. {{ formData.devIdentificacion }} | Usuario: {{ formData.devUser
+                    }}</small>
+                </ng-container>
+                <ng-container *ngIf="!devFuncionario">
+                  <strong>{{ formData.devGrad || 'ING' }} {{ formData.devNombres || 'DESARROLLADOR' }} {{
+                    formData.devApellidos || '' }}</strong>
+                  <br>
+                  <small class="text-sub">C.C. {{ formData.devIdentificacion }} | Usuario: {{ formData.devUser
+                    }}</small>
+                </ng-container>
+              </span>
+            </div>
+
+          </div>
+
+          <!-- Banner de Advertencia para reiniciar el Backend (Sólo en instalación fresca) -->
+          <div class="warning-banner mt-4" *ngIf="!isAlreadyConfigured">
+            <div class="warning-icon">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="warning-details">
+              <strong class="warning-title">ADVERTENCIA: RECARGAR BACKEND</strong>
+              <p class="warning-desc">
+                Debe <strong>reiniciar o recargar el backend (ASP.NET Core)</strong> para que aplique los cambios de
+                <code>appsettings.json</code> (cadena de conexión y proveedor de base de datos).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pie de Modal: Créditos y Botón Aceptar -->
+        <div class="finish-footer">
+          <div class="credits-box">
+            <i class="fa-solid fa-code text-cyan me-1"></i>
+            <span>Desarrollada por grupo de Desarrollo de sofftware Ij. Dyck Lopez - It Franklin Puentes - Pt Wilson
+              Lopez</span>
+          </div>
+
+          <button class="ui-btn primary ui-btn--fx btn-accept mt-3" type="button" (click)="closeFinishModal()">
+            <i class="fa-solid" [class.fa-right-to-bracket]="isAlreadyConfigured"
+              [class.fa-check]="!isAlreadyConfigured"></i>
+            {{ isAlreadyConfigured ? 'Ir al Inicio de Sesión' : 'Aceptar' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MODAL DE VERIFICACIÓN DE USUARIO PIP (GUSOF) -->
+    <div *ngIf="showDevUserModal" class="setup-finish-backdrop">
+      <div class="setup-finish-card">
+
+        <div class="finish-header">
+          <div class="finish-badge">
+            <i class="fa-solid fa-id-card"></i>
+          </div>
+          <h2>Verificación de Funcionario PIP</h2>
+          <p class="finish-subtitle">Resultado de la consulta institucional en la API PIP</p>
+        </div>
+
+        <div class="finish-body mt-3" *ngIf="devFuncionario">
+          <div class="summary-grid">
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-user-check text-cyan me-1"></i> Nombre Completo</span>
+              <span class="summary-value">
+                <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico }} {{ devFuncionario.nombres }}
+                  {{
+                  devFuncionario.apellidos }}</strong>
+              </span>
+            </div>
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-address-card text-cyan me-1"></i> Cédula</span>
+              <span class="summary-value">{{ devFuncionario.identificacion }}</span>
+            </div>
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-at text-cyan me-1"></i> Usuario Empresarial</span>
+              <span class="summary-value">{{ devFuncionario.usuario || devFuncionario.usuarioEmpresarial ||
+                formData.devUser }}</span>
+            </div>
+
+            <div class="summary-card">
+              <span class="summary-label"><i class="fa-solid fa-briefcase text-cyan me-1"></i> Cargo</span>
+              <span class="summary-value">{{ devFuncionario.cargo || 'DESARROLLADOR DE SOFTWARE' }}</span>
+            </div>
+
+            <div class="summary-card" style="grid-column: span 2;">
+              <span class="summary-label"><i class="fa-solid fa-building text-cyan me-1"></i> Dependencia / Sigla</span>
+              <span class="summary-value">
+                {{ devFuncionario.descripcionDependencia || devFuncionario.dependencia }}
+                <strong class="unit-badge ms-2" [class.badge-gusof]="devUserValidationResult?.success"
+                  [class.badge-non-gusof]="!devUserValidationResult?.success">
+                  ({{ devFuncionario.siglaDependencia || devFuncionario.siglaLaborando || devFuncionario.siglaFisica ||
+                  'N/A' }})
+                </strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- ALERTA SI PERTENECE A GUSOF -->
+          <div *ngIf="devUserValidationResult?.success" class="alert-box success mt-4"
+            style="background: rgba(34, 197, 94, 0.15); border: 1.5px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            <span>Funcionario verificado exitosamente como integrante del <strong>Grupo de Desarrollo de Software
+                (GUSOF)</strong>. Puede proceder a la instalación.</span>
+          </div>
+
+          <!-- ALERTA SI NO PERTENECE A GUSOF (BLOQUEO) -->
+          <div *ngIf="!devUserValidationResult?.success" class="alert-box error mt-4"
+            style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid rgba(239, 68, 68, 0.5); color: #fca5a5;">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            <span>{{ devUserValidationResult?.message }}</span>
+          </div>
+        </div>
+
+        <div class="finish-footer mt-4" style="border-top: none;">
+          <!-- Botón Aceptar (Sólo si es GUSOF) -->
+          <button *ngIf="devUserValidationResult?.success" class="ui-btn primary ui-btn--fx" type="button"
+            (click)="confirmDevUser()">
+            <i class="fa-solid fa-arrow-right me-2"></i> Aceptar y Continuar a Instalación
+          </button>
+
+          <!-- Botón Cerrar (Si NO es GUSOF) -->
+          <button *ngIf="!devUserValidationResult?.success" class="ui-btn secondary ui-btn--fx" type="button"
+            (click)="closeDevUserModal()"
+            style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5;">
+            <i class="fa-solid fa-xmark me-2"></i> Cerrar (Instalación No Permitida)
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
-
-  <!-- Modal Resumen de Instalación / Finalización del Setup -->
-  <div *ngIf="showFinishModal" class="setup-finish-backdrop">
-    <div class="setup-finish-card">
-
-      <!-- Icono de éxito y Encabezado -->
-      <div class="finish-header text-center">
-        <div class="finish-icon-badge">
-          <i class="fa-solid" [class.fa-lock]="isAlreadyConfigured" [class.fa-circle-check]="!isAlreadyConfigured"></i>
-        </div>
-        <h3 class="finish-title">{{ isAlreadyConfigured ? '¡Sistema Ya Instalado!' : '¡Configuración e Instalación Exitosa!' }}</h3>
-        <p class="finish-subtitle">{{ isAlreadyConfigured ? 'El sistema se encuentra parametrizado y activo en este entorno. Datos registrados:' : 'El sistema ha sido parametrizado y guardado correctamente' }}</p>
-      </div>
-
-      <!-- Cuerpo con Datos de Instalación -->
-      <div class="finish-body">
-        <div class="summary-grid">
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-database text-cyan"></i> Tipo de Base de Datos</span>
-            <span class="summary-value highlight">{{ formData.provider || 'Oracle' }}</span>
-          </div>
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-server text-cyan"></i> Esquema / Base de Datos</span>
-            <span class="summary-value">{{ formData.databaseOrService || (formData.host ? formData.host + ':' +
-              formData.port : 'Configurado en appsettings') }}</span>
-          </div>
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-shield-halved text-cyan"></i> Usuario PIP / OUD</span>
-            <span class="summary-value">{{ formData.pipUser || 'USRSW.NEWUPD' }}</span>
-          </div>
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-user-gear text-cyan"></i> Usuario Semilla /
-              Developer</span>
-            <span class="summary-value">
-              <ng-container *ngIf="devFuncionario">
-                <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico || formData.devGrad }} {{
-                  devFuncionario.nombres || formData.devNombres }} {{ devFuncionario.apellidos || formData.devApellidos
-                  }}</strong>
-                <br>
-                <small class="text-sub">C.C. {{ formData.devIdentificacion }} | Usuario: {{ formData.devUser }}</small>
-              </ng-container>
-              <ng-container *ngIf="!devFuncionario">
-                <strong>{{ formData.devGrad || 'ING' }} {{ formData.devNombres || 'DESARROLLADOR' }} {{
-                  formData.devApellidos || '' }}</strong>
-                <br>
-                <small class="text-sub">C.C. {{ formData.devIdentificacion }} | Usuario: {{ formData.devUser }}</small>
-              </ng-container>
-            </span>
-          </div>
-
-        </div>
-
-        <!-- Banner de Advertencia para reiniciar el Backend (Sólo en instalación fresca) -->
-        <div class="warning-banner mt-4" *ngIf="!isAlreadyConfigured">
-          <div class="warning-icon">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-          </div>
-          <div class="warning-details">
-            <strong class="warning-title">ADVERTENCIA: RECARGAR BACKEND</strong>
-            <p class="warning-desc">
-              Debe <strong>reiniciar o recargar el backend (ASP.NET Core)</strong> para que aplique los cambios de
-              <code>appsettings.json</code> (cadena de conexión y proveedor de base de datos).
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pie de Modal: Créditos y Botón Aceptar -->
-      <div class="finish-footer">
-        <div class="credits-box">
-          <i class="fa-solid fa-code text-cyan me-1"></i>
-          <span>Desarrollada por grupo de Desarrollo de sofftware Ij. Dyck Lopez - Pt Wilson Lopez</span>
-        </div>
-
-        <button class="ui-btn primary ui-btn--fx btn-accept mt-3" type="button" (click)="closeFinishModal()">
-          <i class="fa-solid" [class.fa-right-to-bracket]="isAlreadyConfigured" [class.fa-check]="!isAlreadyConfigured"></i>
-          {{ isAlreadyConfigured ? 'Ir al Inicio de Sesión' : 'Aceptar' }}
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- MODAL DE VERIFICACIÓN DE USUARIO PIP (GUSOF) -->
-  <div *ngIf="showDevUserModal" class="setup-finish-backdrop">
-    <div class="setup-finish-card">
-      
-      <div class="finish-header">
-        <div class="finish-badge">
-          <i class="fa-solid fa-id-card"></i>
-        </div>
-        <h2>Verificación de Funcionario PIP</h2>
-        <p class="finish-subtitle">Resultado de la consulta institucional en la API PIP</p>
-      </div>
-
-      <div class="finish-body mt-3" *ngIf="devFuncionario">
-        <div class="summary-grid">
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-user-check text-cyan me-1"></i> Nombre Completo</span>
-            <span class="summary-value">
-              <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico }} {{ devFuncionario.nombres }} {{ devFuncionario.apellidos }}</strong>
-            </span>
-          </div>
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-address-card text-cyan me-1"></i> Cédula</span>
-            <span class="summary-value">{{ devFuncionario.identificacion }}</span>
-          </div>
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-at text-cyan me-1"></i> Usuario Empresarial</span>
-            <span class="summary-value">{{ devFuncionario.usuario || devFuncionario.usuarioEmpresarial || formData.devUser }}</span>
-          </div>
-
-          <div class="summary-card">
-            <span class="summary-label"><i class="fa-solid fa-briefcase text-cyan me-1"></i> Cargo</span>
-            <span class="summary-value">{{ devFuncionario.cargo || 'DESARROLLADOR DE SOFTWARE' }}</span>
-          </div>
-
-          <div class="summary-card" style="grid-column: span 2;">
-            <span class="summary-label"><i class="fa-solid fa-building text-cyan me-1"></i> Dependencia / Sigla</span>
-            <span class="summary-value">
-              {{ devFuncionario.descripcionDependencia || devFuncionario.dependencia }} 
-              <strong class="unit-badge ms-2" [class.badge-gusof]="devUserValidationResult?.success" [class.badge-non-gusof]="!devUserValidationResult?.success">
-                ({{ devFuncionario.siglaDependencia || devFuncionario.siglaLaborando || devFuncionario.siglaFisica || 'N/A' }})
-              </strong>
-            </span>
-          </div>
-        </div>
-
-        <!-- ALERTA SI PERTENECE A GUSOF -->
-        <div *ngIf="devUserValidationResult?.success" class="alert-box success mt-4" style="background: rgba(34, 197, 94, 0.15); border: 1.5px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
-          <i class="fa-solid fa-circle-check me-2"></i>
-          <span>Funcionario verificado exitosamente como integrante del <strong>Grupo de Desarrollo de Software (GUSOF)</strong>. Puede proceder a la instalación.</span>
-        </div>
-
-        <!-- ALERTA SI NO PERTENECE A GUSOF (BLOQUEO) -->
-        <div *ngIf="!devUserValidationResult?.success" class="alert-box error mt-4" style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid rgba(239, 68, 68, 0.5); color: #fca5a5;">
-          <i class="fa-solid fa-triangle-exclamation me-2"></i>
-          <span>{{ devUserValidationResult?.message }}</span>
-        </div>
-      </div>
-
-      <div class="finish-footer mt-4" style="border-top: none;">
-        <!-- Botón Aceptar (Sólo si es GUSOF) -->
-        <button *ngIf="devUserValidationResult?.success" class="ui-btn primary ui-btn--fx" type="button" (click)="confirmDevUser()">
-          <i class="fa-solid fa-arrow-right me-2"></i> Aceptar y Continuar a Instalación
-        </button>
-
-        <!-- Botón Cerrar (Si NO es GUSOF) -->
-        <button *ngIf="!devUserValidationResult?.success" class="ui-btn secondary ui-btn--fx" type="button" (click)="closeDevUserModal()" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5;">
-          <i class="fa-solid fa-xmark me-2"></i> Cerrar (Instalación No Permitida)
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>

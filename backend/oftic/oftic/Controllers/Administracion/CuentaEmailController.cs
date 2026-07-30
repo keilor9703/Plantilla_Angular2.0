@@ -18,10 +18,7 @@ namespace ofic.Controllers.Administracion
         public CuentaEmailController(IDbCuentaEmailRepository repository, IConfiguration configuration)
         {
             _repository = repository;
-            var keyStr = configuration["Crypto:Key"] ?? string.Empty;
-            if (keyStr.Length < 32)
-                throw new InvalidOperationException("Crypto:Key debe tener al menos 32 caracteres.");
-            _cryptoKey = System.Text.Encoding.UTF8.GetBytes(keyStr[..32]);
+            _cryptoKey = CryptoUtility.GetEncryptionKey(configuration);
         }
 
         [HttpGet]
@@ -82,19 +79,29 @@ namespace ofic.Controllers.Administracion
         {
             try
             {
+                if (request == null)
+                    return BadRequest(new { success = false, message = "El cuerpo de la solicitud no puede estar vacío." });
+
+                if (request.IdDominioGrupo <= 0)
+                    return BadRequest(new { success = false, message = "Debe seleccionar un Grupo o Área válido para la cuenta." });
+
                 request.IdCuenta = 0; 
                 request.UsuarioAuditoria = User.Identity?.Name ?? "SISTEMA";
                 request.IpAuditoria = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
                 
-                // Cifrar la contraseña antes de guardar
-                request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp, _cryptoKey);
+                // Cifrar la contraseña antes de guardar si viene informada
+                if (!string.IsNullOrEmpty(request.ClaveSmtp))
+                {
+                    request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp, _cryptoKey);
+                }
                 
                 var success = _repository.GestionarCuenta(request);
                 return Ok(new { success, message = "Cuenta creada correctamente y protegida" });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new { success = false, message = msg });
             }
         }
 
@@ -103,19 +110,29 @@ namespace ofic.Controllers.Administracion
         {
             try
             {
+                if (request == null)
+                    return BadRequest(new { success = false, message = "El cuerpo de la solicitud no puede estar vacío." });
+
+                if (request.IdDominioGrupo <= 0)
+                    return BadRequest(new { success = false, message = "Debe seleccionar un Grupo o Área válido para la cuenta." });
+
                 request.IdCuenta = id;
                 request.UsuarioAuditoria = User.Identity?.Name ?? "SISTEMA";
                 request.IpAuditoria = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
                 
-                // Cifrar la contraseña antes de actualizar
-                request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp, _cryptoKey);
+                // Cifrar la contraseña antes de actualizar si viene informada
+                if (!string.IsNullOrEmpty(request.ClaveSmtp))
+                {
+                    request.ClaveSmtp = CryptoUtility.Encrypt(request.ClaveSmtp, _cryptoKey);
+                }
                 
                 var success = _repository.GestionarCuenta(request);
-                return Ok(new { success, message = "Cuenta actualizada y protegida" });
+                return Ok(new { success, message = "Cuenta actualizada correctamente" });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new { success = false, message = msg });
             }
         }
 
@@ -143,7 +160,8 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new { success = false, message = msg });
             }
         }
 
@@ -159,7 +177,8 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new { success = false, message = msg });
             }
         }
 
@@ -176,7 +195,8 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new { success = false, message = msg });
             }
         }
 
@@ -196,7 +216,8 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new { success = false, message = msg });
             }
         }
     }

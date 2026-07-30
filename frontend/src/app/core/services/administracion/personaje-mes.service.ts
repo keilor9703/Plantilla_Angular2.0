@@ -183,10 +183,12 @@ export function getGradoOrdenEnCategoria(grado: string, claveCategoria: string):
   return idx >= 0 ? idx : 999;
 }
 
-export function sortPersonajesMes(lista: DtoPersonajeMes[], categorias: { idDominio: number; descripcion: string }[]): DtoPersonajeMes[] {
+export function sortPersonajesMes(lista: DtoPersonajeMes[], categorias: any[]): DtoPersonajeMes[] {
   const mapaCategorias = new Map<number, string>();
   for (const cat of categorias) {
-    mapaCategorias.set(Number(cat.idDominio), cat.descripcion ?? '');
+    const id = Number(cat?.idDominio ?? cat?.IdDominio ?? cat?.id_dominio ?? 0);
+    const desc = cat?.descripcion ?? cat?.Descripcion ?? '';
+    mapaCategorias.set(id, desc);
   }
 
   return lista.slice().sort((a, b) => {

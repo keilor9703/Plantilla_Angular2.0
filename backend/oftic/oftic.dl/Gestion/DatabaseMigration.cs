@@ -371,7 +371,27 @@ namespace Datos.Gestion
                   (11, 406, 1, 1), (12, 407, 1, 1), (13, 408, 1, 1), (14, 409, 1, 1), (15, 410, 1, 1),
                   (16, 1, 2, 1), (17, 2, 2, 1), (18, 3, 2, 1), (19, 31, 2, 1), (20, 4, 2, 1),
                   (21, 401, 2, 1), (22, 402, 2, 1), (23, 403, 2, 1), (24, 404, 2, 1), (25, 405, 2, 1),
-                  (26, 406, 2, 1), (27, 407, 2, 1), (28, 408, 2, 1), (29, 409, 2, 1), (30, 410, 2, 1);"
+                  (26, 406, 2, 1), (27, 407, 2, 1), (28, 408, 2, 1), (29, 409, 2, 1), (30, 410, 2, 1);",
+
+                @"INSERT IGNORE INTO CTR_DOMINIO (id_dominio, descripcion, id_padre, vigente, abreviatura, observacion, usuario_creacion, maquina_creacion) VALUES
+                  (1, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ Principal', 1143458803, 'LOCAL'),
+                  (2, 'Personaje del mes', 1, 1, 'PERS_MES', 'Categorías y opciones de Personaje del mes', 1143458803, 'LOCAL'),
+                  (3, 'Categoría oficiales', 2, 1, 'PEROF', 'Personajes del mes en la categoría de oficial', 1143458803, 'LOCAL'),
+                  (4, 'Categoría Mando de nivel ejecutivo', 2, 1, 'CATNIVEL', 'Personajes del mes en la categoría de mando de nivel ejecutivo', 1143458803, 'LOCAL'),
+                  (5, 'Categoría patrulleros', 2, 1, 'CATPT', 'Personajes del mes en la categoría de patrulleros', 1143458803, 'LOCAL'),
+                  (6, 'Personaje de mes ámbito operativo', 2, 1, 'PERAMOP', 'Personaje de mes ámbito operativo', 1143458803, 'LOCAL'),
+                  (7, 'Categoría no uniformados', 2, 1, 'CATNU', 'Categoría no uniformados', 1143458803, 'LOCAL'),
+                  (8, 'Equipo o grupo de alto rendimiento', 2, 1, 'EQUGP', 'Equipo o grupo de alto rendimiento', 1143458803, 'LOCAL'),
+                  (9, 'Categoría estudiantes', 2, 1, 'CATEST', 'Categoría estudiantes', 1143458803, 'LOCAL'),
+                  (10, 'Categoría suboficial', 2, 1, 'CATSUBOF', 'Categoría suboficial', 1143458803, 'LOCAL'),
+                  (11, 'Categoria agentes', 2, 1, 'CATAG', 'Categoria para agrupar agentes de policía', 1143458803, 'LOCAL'),
+                  (12, 'Categoría Auxiliares de Policia', 2, 1, 'CAUXPO', 'Categoria para Auxiliares De Policia', 1143458803, 'LOCAL'),
+                  (13, 'Privacidad de Documentos', 1, 1, 'PRIV_DOC', 'Privacidad de Documentos', 1143458803, 'LOCAL'),
+                  (14, 'INFORMACIÓN PÚBLICA', 13, 1, 'INFPUB', 'Es toda información que un sujeto obligado genere, obtenga o controle', 1143458803, 'LOCAL'),
+                  (15, 'INFORMACIÓN PÚBLICA CLASIFICADA', 13, 1, 'INFPUBCLA', 'Es aquella información que estando en poder o custodia de un sujeto obligado es clasificada', 1143458803, 'LOCAL'),
+                  (16, 'INFORMACIÓN PÚBLICA RESERVADA', 13, 1, 'PUBRES', 'Es aquella información que estando en poder o custodia de un sujeto obligado es reservada', 1143458803, 'LOCAL'),
+                  (17, 'GRUPOS O AREAS', 1, 1, 'GRUPOS_AREAS', 'Dominio Padre Semilla para Grupos o Áreas responsables de cuentas de correo', 1143458803, 'LOCAL'),
+                  (18, 'Grupo Desarrollo de Software', 17, 1, 'GDS', 'Grupo Desarrollo de Software ejemplo responsable de correo', 1143458803, 'LOCAL');"
             };
 
             foreach (var stmt in ddlStatements)
@@ -483,6 +503,67 @@ namespace Datos.Gestion
                 @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
                   VALUES (1, 'DOMINIO PRINCIPAL / RAÍZ', 0, 'RAIZ', 'Dominio Semilla Raíz Principal', 1)
                   ON CONFLICT (id_dominio) DO NOTHING;",
+                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, vigente, abreviatura, observacion, usuario_creacion, maquina_creacion) VALUES
+                  (1, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ Principal', 1143458803, 'LOCAL'),
+                  (2, 'Personaje del mes', 1, 1, 'PERS_MES', 'Categorías y opciones de Personaje del mes', 1143458803, 'LOCAL'),
+                  (3, 'Categoría oficiales', 2, 1, 'PEROF', 'Personajes del mes en la categoría de oficial', 1143458803, 'LOCAL'),
+                  (4, 'Categoría Mando de nivel ejecutivo', 2, 1, 'CATNIVEL', 'Personajes del mes en la categoría de mando de nivel ejecutivo', 1143458803, 'LOCAL'),
+                  (5, 'Categoría patrulleros', 2, 1, 'CATPT', 'Personajes del mes en la categoría de patrulleros', 1143458803, 'LOCAL'),
+                  (6, 'Personaje de mes ámbito operativo', 2, 1, 'PERAMOP', 'Personaje de mes ámbito operativo', 1143458803, 'LOCAL'),
+                  (7, 'Categoría no uniformados', 2, 1, 'CATNU', 'Categoría no uniformados', 1143458803, 'LOCAL'),
+                  (8, 'Equipo o grupo de alto rendimiento', 2, 1, 'EQUGP', 'Equipo o grupo de alto rendimiento', 1143458803, 'LOCAL'),
+                  (9, 'Categoría estudiantes', 2, 1, 'CATEST', 'Categoría estudiantes', 1143458803, 'LOCAL'),
+                  (10, 'Categoría suboficial', 2, 1, 'CATSUBOF', 'Categoría suboficial', 1143458803, 'LOCAL'),
+                  (11, 'Categoria agentes', 2, 1, 'CATAG', 'Categoria para agrupar agentes de policía', 1143458803, 'LOCAL'),
+                  (12, 'Categoría Auxiliares de Policia', 2, 1, 'CAUXPO', 'Categoria para Auxiliares De Policia', 1143458803, 'LOCAL'),
+                  (13, 'Privacidad de Documentos', 1, 1, 'PRIV_DOC', 'Privacidad de Documentos', 1143458803, 'LOCAL'),
+                  (14, 'INFORMACIÓN PÚBLICA', 13, 1, 'INFPUB', 'Es toda información que un sujeto obligado genere, obtenga o controle', 1143458803, 'LOCAL'),
+                  (15, 'INFORMACIÓN PÚBLICA CLASIFICADA', 13, 1, 'INFPUBCLA', 'Es aquella información que estando en poder o custodia de un sujeto obligado es clasificada', 1143458803, 'LOCAL'),
+                  (16, 'INFORMACIÓN PÚBLICA RESERVADA', 13, 1, 'PUBRES', 'Es aquella información que estando en poder o custodia de un sujeto obligado es reservada', 1143458803, 'LOCAL'),
+                  (17, 'GRUPOS O AREAS', 1, 1, 'GRUPOS_AREAS', 'Dominio Padre Semilla para Grupos o Áreas responsables de cuentas de correo', 1143458803, 'LOCAL'),
+                  (18, 'Grupo Desarrollo de Software', 17, 1, 'GDS', 'Grupo Desarrollo de Software ejemplo responsable de correo', 1143458803, 'LOCAL')
+                  ON CONFLICT (id_dominio) DO NOTHING;",
+
+                // 13. ctr_personaje_grupo
+                @"CREATE TABLE IF NOT EXISTS ctr_personaje_grupo (
+                    id_personaje_grupo SERIAL PRIMARY KEY,
+                    nombre_grupo VARCHAR(100),
+                    numero_acta VARCHAR(50),
+                    mes INT,
+                    vigente INT DEFAULT 1,
+                    usuario_crea VARCHAR(50),
+                    fecha_crea TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    maquina_crea VARCHAR(100),
+                    usuario_mod VARCHAR(50),
+                    fecha_mod TIMESTAMP,
+                    maquina_mod VARCHAR(50),
+                    foto_grupo VARCHAR(200),
+                    anio INT
+                );",
+
+                // 14. ctr_personaje_mes
+                @"CREATE TABLE IF NOT EXISTS ctr_personaje_mes (
+                    id_personaje_mes SERIAL PRIMARY KEY,
+                    identificacion VARCHAR(20),
+                    nombres VARCHAR(100),
+                    apellidos VARCHAR(100),
+                    grado VARCHAR(50),
+                    cargo VARCHAR(100),
+                    unidad VARCHAR(200),
+                    id_categoria INT,
+                    numero_acta VARCHAR(50),
+                    vigente INT DEFAULT 1,
+                    usuario_crea VARCHAR(50),
+                    fecha_crea TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    maquina_crea VARCHAR(100),
+                    usuario_mod VARCHAR(50),
+                    fecha_mod TIMESTAMP,
+                    maquina_mod VARCHAR(100),
+                    foto_modificada VARCHAR(200),
+                    mes INT,
+                    anio INT,
+                    id_personaje_grupo INT
+                );",
 
                 // Seed Data - Roles
                 @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, estado, usuario_creacion, maquina_creacion)
@@ -785,10 +866,27 @@ namespace Datos.Gestion
                       VIGENTE          NUMBER(1) DEFAULT 1 NOT NULL,
                       USUARIO_CREA     VARCHAR2(100 CHAR) DEFAULT ''SETUP'' NOT NULL,
                       FECHA_CREA       DATE DEFAULT SYSDATE NOT NULL,
+                      FIRMA_HTML       CLOB,
+                      IMAGEN_ENCABEZADO VARCHAR2(500 CHAR),
+                      USUARIO_MODIFICA VARCHAR2(100 CHAR),
+                      FECHA_MODIFICA   DATE,
+                      IP_REGISTRO      VARCHAR2(50 CHAR),
+                      PRIORIDAD_ALTA   NUMBER(1) DEFAULT 0,
+                      ACUSE_RECIBIDO   NUMBER(1) DEFAULT 0,
+                      COPIA_PRIVADA    NUMBER(1) DEFAULT 0,
                       CONSTRAINT CTR_CUENTA_EMAIL_PK PRIMARY KEY (ID_CUENTA){usingIndexClause}
                     ){tsDataClause}';
                   EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
                   END;",
+
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD FIRMA_HTML CLOB'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD IMAGEN_ENCABEZADO VARCHAR2(500 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD USUARIO_MODIFICA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD FECHA_MODIFICA DATE'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD IP_REGISTRO VARCHAR2(50 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD PRIORIDAD_ALTA NUMBER(1) DEFAULT 0'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD ACUSE_RECIBIDO NUMBER(1) DEFAULT 0'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL ADD COPIA_PRIVADA NUMBER(1) DEFAULT 0'; EXCEPTION WHEN OTHERS THEN NULL; END;",
 
                 $@"BEGIN
                     EXECUTE IMMEDIATE '
@@ -807,6 +905,12 @@ namespace Datos.Gestion
                   EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
                   END;",
 
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL_USUARIO ADD USUARIO_CREA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL_USUARIO ADD FECHA_CREA DATE'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL_USUARIO ADD USUARIO_MODIFICA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL_USUARIO ADD FECHA_MODIFICA DATE'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_CUENTA_EMAIL_USUARIO ADD IP_REGISTRO VARCHAR2(50 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+
                 $@"BEGIN
                     EXECUTE IMMEDIATE '
                     CREATE TABLE CTR_ENVIO_CORREO (
@@ -824,6 +928,10 @@ namespace Datos.Gestion
                     ){tsDataClause}';
                   EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
                   END;",
+
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_CUENTA_EMAIL START WITH 1 INCREMENT BY 1 NOCACHE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN NULL; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_CUENTA_EMAIL_USUARIOS START WITH 1 INCREMENT BY 1 NOCACHE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN NULL; END IF; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE SEQ_CTR_ENVIO_CORREO START WITH 1 INCREMENT BY 1 NOCACHE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN NULL; END IF; END;",
 
                 $@"BEGIN
                     EXECUTE IMMEDIATE '
@@ -1026,10 +1134,83 @@ namespace Datos.Gestion
                   END;",
 
                 @"BEGIN
-                    MERGE INTO CTR_DOMINIOS d USING (SELECT 17 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
-                    WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
-                    VALUES (17, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ', 1143458803, SYSDATE, '::1');
-                  END;"
+                     -- 1. RAIZ
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 1 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (1, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ Principal', 1143458803, SYSDATE, '::1');
+
+                     -- 2. Padre Personaje del mes
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 2 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (2, 'Personaje del mes', 1, 1, 'PERS_MES', 'Categorías y opciones de Personaje del mes', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 3 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (3, 'Categoría oficiales', 2, 1, 'PEROF', 'Personajes del mes en la categoría de oficial', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 4 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (4, 'Categoría Mando de nivel ejecutivo', 2, 1, 'CATNIVEL', 'Personajes del mes en la categoría de mando de nivel ejecutivo', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 5 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (5, 'Categoría patrulleros', 2, 1, 'CATPT', 'Personajes del mes en la categoría de patrulleros', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 6 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (6, 'Personaje de mes ámbito operativo', 2, 1, 'PERAMOP', 'Personaje de mes ámbito operativo', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 7 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (7, 'Categoría no uniformados', 2, 1, 'CATNU', 'Categoría no uniformados', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 8 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (8, 'Equipo o grupo de alto rendimiento', 2, 1, 'EQUGP', 'Equipo o grupo de alto rendimiento', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 9 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (9, 'Categoría estudiantes', 2, 1, 'CATEST', 'Categoría estudiantes', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 10 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (10, 'Categoría suboficial', 2, 1, 'CATSUBOF', 'Categoría suboficial', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 11 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (11, 'Categoria agentes', 2, 1, 'CATAG', 'Categoria para agrupar agentes de policía', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 12 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (12, 'Categoría Auxiliares de Policia', 2, 1, 'CAUXPO', 'Categoria para Auxiliares De Policia', 1143458803, SYSDATE, '::1');
+
+                     -- 13. Padre Privacidad de Documentos
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 13 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (13, 'Privacidad de Documentos', 1, 1, 'PRIV_DOC', 'Privacidad de Documentos', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 14 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (14, 'INFORMACIÓN PÚBLICA', 13, 1, 'INFPUB', 'Toda información que un sujeto obligado genere, obtenga o controle', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 15 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (15, 'INFORMACIÓN PÚBLICA CLASIFICADA', 13, 1, 'INFPUBCLA', 'Es aquella información que estando en poder o custodia de un sujeto obligado es clasificada', 1143458803, SYSDATE, '::1');
+
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 16 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (16, 'INFORMACIÓN PÚBLICA RESERVADA', 13, 1, 'PUBRES', 'Es aquella información que estando en poder o custodia de un sujeto obligado es reservada', 1143458803, SYSDATE, '::1');
+
+                     -- 17. Padre Grupos o Áreas
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 17 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (17, 'GRUPOS O AREAS', 1, 1, 'GRUPOS_AREAS', 'Dominio Padre Semilla para Grupos o Áreas responsables de cuentas de correo', 1143458803, SYSDATE, '::1');
+
+                     -- 18. Hijo Ejemplo Grupo Desarrollo de Software
+                     MERGE INTO CTR_DOMINIOS d USING (SELECT 18 AS id FROM DUAL) src ON (d.ID_DOMINIO = src.id)
+                     WHEN NOT MATCHED THEN INSERT (ID_DOMINIO, DESCRIPCION, ID_PADRE, VIGENTE, ABREVIATURA, OBSERVACION, USUARIO_CREACION, FECHA_CREACION, MAQUINA_CREACION)
+                     VALUES (18, 'Grupo Desarrollo de Software', 17, 1, 'GDS', 'Grupo Desarrollo de Software ejemplo responsable de correo', 1143458803, SYSDATE, '::1');
+                   END;"
             };
 
             foreach (var block in blocks)

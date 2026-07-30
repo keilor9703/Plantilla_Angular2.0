@@ -57,8 +57,8 @@ export class PersonajeMesAdminComponent implements OnInit {
         // Devuelve la descripción de la categoría según el idCategoria
         getCategoriaDescripcion(idCategoria: number | string | null | undefined): string {
           const id = Number(idCategoria ?? 0);
-          const cat = this.categorias.find(c => Number(c.idDominio) === id);
-          return cat?.descripcion ?? 'Sin categoría';
+          const cat = this.categorias.find(c => Number(c.idDominio ?? (c as any).IdDominio ?? (c as any).id_dominio ?? 0) === id);
+          return cat ? (cat.descripcion ?? (cat as any).Descripcion ?? '') : 'Sin categoría';
         }
 
         // Getter para mostrar la descripción de la categoría seleccionada en el formulario
@@ -99,7 +99,10 @@ export class PersonajeMesAdminComponent implements OnInit {
         }
 
           private buscarCategoriaPorKeyword(keyword: string): DtoDominio | null {
-      return this.categorias.find((item) => this.normalizarTexto(item.descripcion).includes(keyword)) ?? null;
+      return this.categorias.find((item) => {
+        const desc = this.normalizarTexto(item.descripcion ?? (item as any).Descripcion ?? '');
+        return desc.includes(keyword);
+      }) ?? null;
     }
 
     private normalizarTexto(value: string | null | undefined): string {
@@ -398,8 +401,16 @@ loading = false;
     this.dominioService.getAll().subscribe({
       next: (data) => {
         this.categorias = (data ?? [])
-          .filter((item) => Number(item.idPadre) === 153 && Number(item.vigente) === 1)
-          .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
+          .filter((item) => {
+            const padre = Number(item.idPadre ?? (item as any).IdPadre ?? (item as any).id_padre ?? 0);
+            const vig = Number(item.vigente ?? (item as any).Vigente ?? (item as any).estado ?? 1);
+            return (padre === 2 || padre === 153) && vig === 1;
+          })
+          .sort((a, b) => {
+            const descA = a.descripcion ?? (a as any).Descripcion ?? '';
+            const descB = b.descripcion ?? (b as any).Descripcion ?? '';
+            return descA.localeCompare(descB);
+          });
         this.cargarPersonajes();
         this.cargarEquipos();
       },
@@ -635,8 +646,16 @@ loading = false;
     this.dominioService.getAll().subscribe({
       next: (data) => {
         this.categorias = (data ?? [])
-          .filter((item) => Number(item.idPadre) === 1 && Number(item.vigente) === 1)
-          .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
+          .filter((item) => {
+            const padre = Number(item.idPadre ?? (item as any).IdPadre ?? (item as any).id_padre ?? 0);
+            const vig = Number(item.vigente ?? (item as any).Vigente ?? (item as any).estado ?? 1);
+            return (padre === 2 || padre === 153) && vig === 1;
+          })
+          .sort((a, b) => {
+            const descA = a.descripcion ?? (a as any).Descripcion ?? '';
+            const descB = b.descripcion ?? (b as any).Descripcion ?? '';
+            return descA.localeCompare(descB);
+          });
         if (this.personajes.length > 0) {
           this.personajes = sortPersonajesMes(this.personajes, this.categorias);
         }
@@ -651,8 +670,16 @@ loading = false;
     this.dominioService.getAll().subscribe({
       next: (data) => {
         this.categorias = (data ?? [])
-          .filter((item) => Number(item.idPadre) === 1 && Number(item.vigente) === 1)
-          .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
+          .filter((item) => {
+            const padre = Number(item.idPadre ?? (item as any).IdPadre ?? (item as any).id_padre ?? 0);
+            const vig = Number(item.vigente ?? (item as any).Vigente ?? (item as any).estado ?? 1);
+            return (padre === 2 || padre === 153) && vig === 1;
+          })
+          .sort((a, b) => {
+            const descA = a.descripcion ?? (a as any).Descripcion ?? '';
+            const descB = b.descripcion ?? (b as any).Descripcion ?? '';
+            return descA.localeCompare(descB);
+          });
         this.cargarPersonajes();
       },
       error: (err) => {

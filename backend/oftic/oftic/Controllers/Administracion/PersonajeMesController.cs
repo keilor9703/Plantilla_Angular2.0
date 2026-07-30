@@ -1,4 +1,4 @@
-﻿using Comun.Dtos.PersonajeMes;
+using Comun.Dtos.PersonajeMes;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
@@ -32,12 +32,29 @@ namespace Api.Controllers.Administracion
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] DtoPersonajeMesRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(err => err.ErrorMessage).ToArray());
+                _logger.LogWarning("PersonajeMes Create - ModelState inválido: {@Errors}", errors);
+                return BadRequest(new { success = false, message = "Datos del formulario inválidos", errors });
+            }
             try
             {
                 _logger.LogInformation(
-                    "PersonajeMes Create - Identificacion={Identificacion}, Nombre={Nombre}, FotoLen={FotoLen}",
+                    "PersonajeMes Create - Identificacion={Identificacion}, Nombre={Nombre}, Apellidos={Apellidos}, Grado={Grado}, Cargo={Cargo}, Unidad={Unidad}, IdCategoria={IdCategoria}, NumeroActa={NumeroActa}, Mes={Mes}, Anio={Anio}, IdPersonajeGrupo={IdPersonajeGrupo}, FotoLen={FotoLen}",
                     request?.Identificacion,
                     request?.Nombres,
+                    request?.Apellidos,
+                    request?.Grado,
+                    request?.Cargo,
+                    request?.Unidad,
+                    request?.IdCategoria,
+                    request?.NumeroActa,
+                    request?.Mes,
+                    request?.Anio,
+                    request?.IdPersonajeGrupo,
                     request?.FotoModificada?.Length ?? 0
                 );
 

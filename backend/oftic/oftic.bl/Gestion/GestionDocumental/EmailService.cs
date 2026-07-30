@@ -37,10 +37,7 @@ namespace Negocio.Gestion.GestionDocumental
             _gestionRepo = gestionRepo;
             _logger = logger;
 
-            var keyStr = configuration["Crypto:Key"] ?? string.Empty;
-            if (keyStr.Length < 32)
-                throw new InvalidOperationException("Crypto:Key debe tener al menos 32 caracteres.");
-            _cryptoKey = System.Text.Encoding.UTF8.GetBytes(keyStr[..32]);
+            _cryptoKey = CryptoUtility.GetEncryptionKey(configuration);
 
             var configured = configuration["AppSettings:UploadsPath"];
             _uploadsBase = string.IsNullOrWhiteSpace(configured)

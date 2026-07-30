@@ -1,4 +1,4 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -249,14 +249,14 @@ export class MenuAdminComponent implements OnInit {
 
   private buildMenuTree(): void {
     const all = this.menuItems.filter(item => !this.isRaiz(item));
-    const roots = all.filter(item => item.idPadre === 1);
+    const roots = all.filter(item => item.idPadre === 1 || item.idPadre === 0 || item.idPadre === item.idMenu);
     this.menuTree = this.getMenuNodes(roots, all);
   }
 
   private getMenuNodes(parents: DbMenuItem[], all: DbMenuItem[]): any[] {
     return parents
       .map(p => {
-        const children = all.filter(h => h.idPadre === p.idMenu);
+        const children = all.filter(h => h.idPadre === p.idMenu && h.idMenu !== p.idMenu);
         return {
           item: p,
           expanded: false,
@@ -272,7 +272,7 @@ export class MenuAdminComponent implements OnInit {
 
   get parentMenuItems(): DbMenuItem[] {
     return this.menuItems
-      .filter((item) => item.idPadre === 1 && !this.isRaiz(item))
+      .filter((item) => (item.idPadre === 1 || item.idPadre === 0 || item.idPadre === item.idMenu) && !this.isRaiz(item))
       .sort((a, b) => a.posicion - b.posicion || a.idMenu - b.idMenu);
   }
 

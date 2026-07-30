@@ -68,7 +68,7 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Formato inválido. Use JPG, JPEG, PNG o WEBP." });
                 }
 
-                if (!SecurityGuards.HasValidImageSignature(file, extension))
+                if (!await SecurityGuards.HasValidImageSignatureAsync(file, extension))
                 {
                     return BadRequest(new { success = false, message = "Firma de archivo inválida para imagen." });
                 }

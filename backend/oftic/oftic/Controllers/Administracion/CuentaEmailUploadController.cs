@@ -53,7 +53,7 @@ namespace ofic.Controllers.Administracion
             if (!AllowedExtensions.Contains(extension))
                 return BadRequest(new { success = false, message = "Formato inválido. Use JPG, PNG o WEBP." });
 
-            if (!SecurityGuards.HasValidImageSignature(file, extension))
+            if (!await SecurityGuards.HasValidImageSignatureAsync(file, extension))
                 return BadRequest(new { success = false, message = "Firma de archivo inválida." });
 
             Directory.CreateDirectory(_uploadsPath);

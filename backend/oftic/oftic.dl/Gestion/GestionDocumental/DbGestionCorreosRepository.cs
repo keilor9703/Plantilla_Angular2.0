@@ -85,7 +85,7 @@ namespace Datos.Gestion.GestionDocumental
                             command.Parameters.Add("p_para", OracleDbType.Varchar2).Value = destinatario;
                             command.Parameters.Add("p_asunto", OracleDbType.Varchar2).Value = request.Asunto;
                             command.Parameters.Add("p_cuerpo", OracleDbType.Clob).Value = request.Cuerpo;
-                            command.Parameters.Add("p_id_clasificacion", OracleDbType.Int32).Value = request.IdClasificacion;
+                            command.Parameters.Add("p_id_clasificacion", OracleDbType.Int32).Value = (object?)request.IdClasificacion ?? DBNull.Value;
                             command.Parameters.Add("p_usuario", OracleDbType.Varchar2).Value = usuario;
                             command.Parameters.Add("p_maquina", OracleDbType.Varchar2).Value = maquina;
                             command.Parameters.Add("p_resultado", OracleDbType.Int32).Direction = ParameterDirection.Output;
@@ -95,19 +95,20 @@ namespace Datos.Gestion.GestionDocumental
                             return res >= 0;
                         }
                     }
-                    catch
+                    catch (Exception exProc)
                     {
+                        _logger.LogWarning(exProc, "El Stored Procedure P_REGISTRAR_ENVIO_CORREO falló. Ejecutando INSERT directo con secuencia Oracle.");
                         using (var command = connection.CreateCommand())
                         {
                             command.CommandText = @"
-                                INSERT INTO CTR_ENVIO_CORREO (ID_CUENTA_EMAIL, RADICADO, DESTINATARIO, ASUNTO, CUERPO, ID_CLASIFICACION, USUARIO_CREA, MAQUINA_CREA, FECHA_CREA)
-                                VALUES (:c, :r, :d, :a, :b, :cat, :u, :m, SYSDATE)";
+                                INSERT INTO CTR_ENVIO_CORREO (ID_ENVIO, ID_CUENTA_EMAIL, RADICADO, DESTINATARIO, ASUNTO, CUERPO, ID_CLASIFICACION, USUARIO_CREA, MAQUINA_CREA, FECHA_CREA)
+                                VALUES (SEQ_CTR_ENVIO_CORREO.NEXTVAL, :c, :r, :d, :a, :b, :cat, :u, :m, SYSDATE)";
                             command.Parameters.Add(":c", OracleDbType.Int32).Value = request.IdCuentaEmail;
                             command.Parameters.Add(":r", OracleDbType.Varchar2).Value = radicado ?? "";
                             command.Parameters.Add(":d", OracleDbType.Varchar2).Value = destinatario;
                             command.Parameters.Add(":a", OracleDbType.Varchar2).Value = request.Asunto ?? "";
                             command.Parameters.Add(":b", OracleDbType.Clob).Value = request.Cuerpo ?? "";
-                            command.Parameters.Add(":cat", OracleDbType.Int32).Value = request.IdClasificacion;
+                            command.Parameters.Add(":cat", OracleDbType.Int32).Value = (object?)request.IdClasificacion ?? DBNull.Value;
                             command.Parameters.Add(":u", OracleDbType.Varchar2).Value = usuario ?? "SISTEMA";
                             command.Parameters.Add(":m", OracleDbType.Varchar2).Value = maquina ?? "LOCAL";
                             command.ExecuteNonQuery();
@@ -131,9 +132,10 @@ namespace Datos.Gestion.GestionDocumental
             const string selectSql = @"
                 SELECT e.id_envio AS ID_ENVIO, e.radicado AS RADICADO, e.destinatario AS DESTINATARIO, e.asunto AS ASUNTO,
                        e.cuerpo AS CUERPO, e.fecha_crea AS FECHA, c.email AS DE_EMAIL, c.nombre_cuenta AS NOMBRE_CUENTA,
-                       e.usuario_crea AS USERNAME
-                FROM ctr_envio_correo e
-                LEFT JOIN ctr_cuenta_email c ON e.id_cuenta_email = c.id_cuenta
+                       e.usuario_crea AS USERNAME, d.descripcion AS CLASIFICACION
+                FROM CTR_ENVIO_CORREO e
+                LEFT JOIN CTR_CUENTA_EMAIL c ON e.id_cuenta_email = c.id_cuenta
+                LEFT JOIN CTR_DOMINIOS d ON e.id_clasificacion = d.id_dominio
                 ORDER BY e.id_envio DESC";
 
             try
@@ -157,7 +159,8 @@ namespace Datos.Gestion.GestionDocumental
                             Fecha = reader.IsDBNull(5) ? DateTime.Now : Convert.ToDateTime(reader.GetValue(5)),
                             DeEmail = reader.IsDBNull(6) ? "" : reader.GetString(6),
                             NombreCuenta = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                            Username = reader.IsDBNull(8) ? "" : reader.GetString(8)
+                            Username = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                            Clasificacion = reader.IsDBNull(9) ? "" : reader.GetString(9)
                         });
                     }
                     return lista;
@@ -182,7 +185,8 @@ namespace Datos.Gestion.GestionDocumental
                             Fecha = reader.IsDBNull(5) ? DateTime.Now : Convert.ToDateTime(reader.GetValue(5)),
                             DeEmail = reader.IsDBNull(6) ? "" : reader.GetString(6),
                             NombreCuenta = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                            Username = reader.IsDBNull(8) ? "" : reader.GetString(8)
+                            Username = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                            Clasificacion = reader.IsDBNull(9) ? "" : reader.GetString(9)
                         });
                     }
                     return lista;
@@ -240,7 +244,8 @@ namespace Datos.Gestion.GestionDocumental
                                         Fecha = reader.IsDBNull(5) ? DateTime.Now : Convert.ToDateTime(reader.GetValue(5)),
                                         DeEmail = reader.IsDBNull(6) ? "" : reader.GetString(6),
                                         NombreCuenta = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                                        Username = reader.IsDBNull(8) ? "" : reader.GetString(8)
+                                        Username = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                                        Clasificacion = reader.IsDBNull(9) ? "" : reader.GetString(9)
                                     });
                                 }
                             }

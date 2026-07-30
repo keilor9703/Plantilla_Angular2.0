@@ -1,104 +1,126 @@
 using Comun.Dtos.Administracion;
-using Comun.Extensions;
+using Datos.Entities;
 using Datos.Interfaz;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;
-using System.Data;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Datos.Gestion
 {
     public class DbCuentaEmailRepository : IDbCuentaEmailRepository
     {
-        private readonly string _cs;
+        private readonly OfticDbContext _context;
         private readonly ILogger<DbCuentaEmailRepository> _logger;
 
-        public DbCuentaEmailRepository(IConfiguration configuration, ILogger<DbCuentaEmailRepository> logger)
+        public DbCuentaEmailRepository(OfticDbContext context, ILogger<DbCuentaEmailRepository> logger)
         {
-            _cs = configuration.GetDecryptedConnectionString();
+            _context = context;
             _logger = logger;
         }
 
         public List<DtoCuentaEmail> ConsultarCuentas(int idCuenta)
         {
-            var lista = new List<DtoCuentaEmail>();
             try
             {
-                using (var connection = new OracleConnection(_cs))
+                var query = _context.CuentasEmail.AsNoTracking();
+                if (idCuenta > 0)
                 {
-                    connection.Open();
-                    using (var command = new OracleCommand("PK_ADMINISTRACION.PR_CONSULTAR_CUENTAS_EMAIL", connection))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = idCuenta;
-                        command.Parameters.Add("P_RESULTADO", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                lista.Add(new DtoCuentaEmail
-                                {
-                                    IdCuenta = GetInt(reader, "ID_CUENTA"),
-                                    IdDominioGrupo = GetInt(reader, "ID_DOMINIO_GRUPO"),
-                                    NombreCuenta = GetString(reader, "NOMBRE_CUENTA"),
-                                    Email = GetString(reader, "EMAIL"),
-                                    ServidorSmtp = GetString(reader, "SERVIDOR_SMTP"),
-                                    Puerto = GetInt(reader, "PUERTO"),
-                                    UsuarioSmtp = GetString(reader, "USUARIO_SMTP"),
-                                    ClaveSmtp = GetString(reader, "CLAVE_SMTP"),
-                                    UsarSsl = GetInt(reader, "USAR_SSL"),
-                                    Vigente = GetInt(reader, "VIGENTE"),
-                                    NombreGrupo = GetString(reader, "NOMBRE_GRUPO"),
-                                    FirmaHtml = GetString(reader, "FIRMA_HTML"),
-                                    ImagenEncabezado = GetString(reader, "IMAGEN_ENCABEZADO")
-                                });
-                            }
-                        }
-                    }
+                    query = query.Where(c => c.IdCuenta == idCuenta);
                 }
+
+                var lista = (from c in query
+                             join d in _context.Dominios.AsNoTracking() on c.IdDominioGrupo equals d.IdDominio into doms
+                             from d in doms.DefaultIfEmpty()
+                             orderby c.NombreCuenta
+                             select new DtoCuentaEmail
+                             {
+                                 IdCuenta = (int)c.IdCuenta,
+                                 IdDominioGrupo = c.IdDominioGrupo ?? 0,
+                                 NombreCuenta = c.NombreCuenta ?? "",
+                                 Email = c.Email ?? "",
+                                 ServidorSmtp = c.ServidorSmtp ?? "",
+                                 Puerto = c.Puerto,
+                                 UsuarioSmtp = c.UsuarioSmtp ?? "",
+                                 ClaveSmtp = c.ClaveSmtp ?? "",
+                                 UsarSsl = c.UsarSsl,
+                                 Vigente = c.Vigente,
+                                 NombreGrupo = d != null ? d.Descripcion ?? "" : "",
+                                 FirmaHtml = c.FirmaHtml,
+                                 ImagenEncabezado = c.ImagenEncabezado
+                             }).ToList();
+
+                return lista;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al consultar cuentas de email");
                 throw;
             }
-            return lista;
         }
 
         public bool GestionarCuenta(DtoCuentaEmailRequest request)
         {
             try
             {
-                using (var connection = new OracleConnection(_cs))
+                if (request.IdCuenta <= 0)
                 {
-                    connection.Open();
-                    using (var command = new OracleCommand("PK_ADMINISTRACION.PR_GESTIONAR_CUENTA_EMAIL", connection))
+                    var entity = new CuentaEmailEntity
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.BindByName = true;
+                        IdDominioGrupo = request.IdDominioGrupo,
+                        NombreCuenta = request.NombreCuenta,
+                        Email = request.Email,
+                        ServidorSmtp = string.IsNullOrWhiteSpace(request.ServidorSmtp) ? "smtp.office365.com" : request.ServidorSmtp,
+                        Puerto = request.Puerto > 0 ? request.Puerto : 587,
+                        UsuarioSmtp = string.IsNullOrWhiteSpace(request.UsuarioSmtp) ? request.Email : request.UsuarioSmtp,
+                        ClaveSmtp = request.ClaveSmtp,
+                        UsarSsl = request.UsarSsl,
+                        Vigente = request.Vigente,
+                        FirmaHtml = request.FirmaHtml,
+                        ImagenEncabezado = request.ImagenEncabezado,
+                        PrioridadAlta = 0,
+                        AcuseRecibido = 0,
+                        CopiaPrivada = 0,
+                        UsuarioCrea = request.UsuarioAuditoria ?? "SISTEMA",
+                        FechaCrea = DateTime.Now,
+                        IpRegistro = request.IpAuditoria
+                    };
 
-                        command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = request.IdCuenta;
-                        command.Parameters.Add("P_ID_DOMINIO_GRUPO", OracleDbType.Int32).Value = request.IdDominioGrupo;
-                        command.Parameters.Add("P_NOMBRE_CUENTA", OracleDbType.Varchar2).Value = request.NombreCuenta;
-                        command.Parameters.Add("P_EMAIL", OracleDbType.Varchar2).Value = request.Email;
-                        command.Parameters.Add("P_SERVIDOR_SMTP", OracleDbType.Varchar2).Value = request.ServidorSmtp;
-                        command.Parameters.Add("P_PUERTO", OracleDbType.Int32).Value = request.Puerto;
-                        command.Parameters.Add("P_USUARIO_SMTP", OracleDbType.Varchar2).Value = request.UsuarioSmtp;
-                        command.Parameters.Add("P_CLAVE_SMTP", OracleDbType.Varchar2).Value = request.ClaveSmtp;
-                        command.Parameters.Add("P_USAR_SSL", OracleDbType.Int32).Value = request.UsarSsl;
-                        command.Parameters.Add("P_VIGENTE", OracleDbType.Int32).Value = request.Vigente;
-                        command.Parameters.Add("P_USUARIO_AUD", OracleDbType.Varchar2).Value = request.UsuarioAuditoria;
-                        command.Parameters.Add("P_IP_AUD", OracleDbType.Varchar2).Value = request.IpAuditoria;
-                        command.Parameters.Add("P_FIRMA_HTML", OracleDbType.Clob).Value = request.FirmaHtml;
-                        command.Parameters.Add("P_IMAGEN_ENCABEZADO", OracleDbType.Varchar2).Value = (object?)request.ImagenEncabezado ?? DBNull.Value;
-                        command.Parameters.Add("P_ID_OUT", OracleDbType.Int32).Direction = ParameterDirection.Output;
-
-                        command.ExecuteNonQuery();
-                        return true;
-                    }
+                    _context.CuentasEmail.Add(entity);
+                    _context.SaveChanges();
+                    request.IdCuenta = (int)entity.IdCuenta;
                 }
+                else
+                {
+                    var entity = _context.CuentasEmail.FirstOrDefault(c => c.IdCuenta == request.IdCuenta);
+                    if (entity == null) return false;
+
+                    entity.IdDominioGrupo = request.IdDominioGrupo;
+                    entity.NombreCuenta = request.NombreCuenta;
+                    entity.Email = request.Email;
+                    entity.ServidorSmtp = request.ServidorSmtp;
+                    entity.Puerto = request.Puerto;
+                    entity.UsuarioSmtp = request.UsuarioSmtp;
+                    if (!string.IsNullOrEmpty(request.ClaveSmtp))
+                    {
+                        entity.ClaveSmtp = request.ClaveSmtp;
+                    }
+                    entity.UsarSsl = request.UsarSsl;
+                    entity.Vigente = request.Vigente;
+                    entity.FirmaHtml = request.FirmaHtml;
+                    if (request.ImagenEncabezado != null)
+                    {
+                        entity.ImagenEncabezado = request.ImagenEncabezado;
+                    }
+                    entity.UsuarioModifica = request.UsuarioAuditoria ?? "SISTEMA";
+                    entity.FechaModifica = DateTime.Now;
+                    entity.IpRegistro = request.IpAuditoria;
+
+                    _context.SaveChanges();
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -111,18 +133,13 @@ namespace Datos.Gestion
         {
             try
             {
-                using (var connection = new OracleConnection(_cs))
-                {
-                    connection.Open();
-                    using (var command = new OracleCommand("PK_ADMINISTRACION.PR_ELIMINAR_CUENTA_EMAIL", connection))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = idCuenta;
+                var entity = _context.CuentasEmail.FirstOrDefault(c => c.IdCuenta == idCuenta);
+                if (entity == null) return false;
 
-                        command.ExecuteNonQuery();
-                        return true;
-                    }
-                }
+                entity.Vigente = 0;
+                entity.FechaModifica = DateTime.Now;
+                _context.SaveChanges();
+                return true;
             }
             catch (Exception ex)
             {
@@ -133,102 +150,112 @@ namespace Datos.Gestion
 
         public List<DtoCuentaEmail> ConsultarCuentasPorUsuario(int idUsuario)
         {
-            var lista = new List<DtoCuentaEmail>();
             try
             {
-                using var connection = new OracleConnection(_cs);
-                connection.Open();
-                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_CUENTAS_X_USUARIO", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = idUsuario;
-                command.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+                var lista = (from c in _context.CuentasEmail.AsNoTracking()
+                             join ceu in _context.CuentasEmailUsuarios.AsNoTracking() on c.IdCuenta equals ceu.IdCuenta
+                             where ceu.IdUsuario == idUsuario && ceu.Vigente == 1 && c.Vigente == 1
+                             orderby c.NombreCuenta
+                             select new DtoCuentaEmail
+                             {
+                                 IdCuenta = (int)c.IdCuenta,
+                                 NombreCuenta = c.NombreCuenta ?? "",
+                                 Email = c.Email ?? "",
+                                 Vigente = 1
+                             }).ToList();
 
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
-                {
-                    lista.Add(new DtoCuentaEmail
-                    {
-                        IdCuenta = GetInt(reader, "ID_CUENTA"),
-                        NombreCuenta = GetString(reader, "NOMBRE_CUENTA"),
-                        Email = GetString(reader, "EMAIL"),
-                        Vigente = 1
-                    });
-                }
+                return lista;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al consultar cuentas autorizadas por usuario {IdUsuario}", idUsuario);
                 throw;
             }
-
-            return lista;
         }
 
         public List<DtoCuentaEmailUsuario> ConsultarAutorizaciones(int? idCuenta, int? idUsuario, int? vigente)
         {
-            var lista = new List<DtoCuentaEmailUsuario>();
             try
             {
-                using var connection = new OracleConnection(_cs);
-                connection.Open();
-                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_CONSULTAR", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.BindByName = true;
-                command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = (object?)idCuenta ?? DBNull.Value;
-                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = (object?)idUsuario ?? DBNull.Value;
-                command.Parameters.Add("P_VIGENTE", OracleDbType.Int32).Value = (object?)vigente ?? DBNull.Value;
-                command.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+                var query = _context.CuentasEmailUsuarios.AsNoTracking();
 
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
+                if (idCuenta.HasValue) query = query.Where(ceu => ceu.IdCuenta == idCuenta.Value);
+                if (idUsuario.HasValue) query = query.Where(ceu => ceu.IdUsuario == idUsuario.Value);
+                if (vigente.HasValue) query = query.Where(ceu => ceu.Vigente == vigente.Value);
+
+                var rawList = (from ceu in query
+                               join c in _context.CuentasEmail.AsNoTracking() on ceu.IdCuenta equals c.IdCuenta
+                               join u in _context.Usuarios.AsNoTracking() on ceu.IdUsuario equals u.IdUsuario into us
+                               from u in us.DefaultIfEmpty()
+                               orderby ceu.IdCuentaUsuario descending
+                               select new
+                               {
+                                   Ceu = ceu,
+                                   NombreCuenta = c.NombreCuenta,
+                                   Email = c.Email,
+                                   Username = u != null ? u.Username : null,
+                                   Nombres = u != null ? u.Nombres : null,
+                                   Apellidos = u != null ? u.Apellidos : null,
+                                   Identificacion = u != null ? (long?)u.Identificacion : null
+                               }).ToList();
+
+                var lista = rawList.Select(x => new DtoCuentaEmailUsuario
                 {
-                    lista.Add(new DtoCuentaEmailUsuario
-                    {
-                        IdCuentaUsuario = GetInt(reader, "ID_CUENTA_USUARIO"),
-                        IdCuenta = GetInt(reader, "ID_CUENTA"),
-                        NombreCuenta = GetString(reader, "NOMBRE_CUENTA"),
-                        Email = GetString(reader, "EMAIL"),
-                        IdUsuario = GetInt(reader, "ID_USUARIO"),
-                        UsuarioLogin = GetString(reader, "USUARIO_LOGIN"),
-                        NombreCompleto = GetString(reader, "NOMBRE_COMPLETO"),
-                        Identificacion = GetString(reader, "IDENTIFICACION"),
-                        Vigente = GetInt(reader, "VIGENTE"),
-                        UsuarioCrea = GetString(reader, "USUARIO_CREA"),
-                        FechaCrea = GetDateTime(reader, "FECHA_CREA"),
-                        UsuarioModifica = GetString(reader, "USUARIO_MODIFICA"),
-                        FechaModifica = GetDateTime(reader, "FECHA_MODIFICA"),
-                        IpRegistro = GetString(reader, "IP_REGISTRO")
-                    });
-                }
+                    IdCuentaUsuario = (int)x.Ceu.IdCuentaUsuario,
+                    IdCuenta = (int)x.Ceu.IdCuenta,
+                    NombreCuenta = x.NombreCuenta ?? "",
+                    Email = x.Email ?? "",
+                    IdUsuario = (int)x.Ceu.IdUsuario,
+                    UsuarioLogin = x.Username ?? "",
+                    NombreCompleto = $"{x.Nombres} {x.Apellidos}".Trim(),
+                    Identificacion = x.Identificacion.HasValue ? x.Identificacion.Value.ToString() : "",
+                    Vigente = x.Ceu.Vigente,
+                    UsuarioCrea = x.Ceu.UsuarioCrea ?? "",
+                    FechaCrea = x.Ceu.FechaCrea,
+                    UsuarioModifica = x.Ceu.UsuarioModifica ?? "",
+                    FechaModifica = x.Ceu.FechaModifica,
+                    IpRegistro = x.Ceu.IpRegistro ?? ""
+                }).ToList();
+
+                return lista;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al consultar autorizaciones de cuenta-email por usuario");
                 throw;
             }
-
-            return lista;
         }
 
         public bool GuardarAutorizacion(DtoCuentaEmailUsuarioRequest request)
         {
             try
             {
-                using var connection = new OracleConnection(_cs);
-                connection.Open();
-                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_GUARDAR", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.BindByName = true;
+                var existing = _context.CuentasEmailUsuarios
+                    .FirstOrDefault(ceu => ceu.IdCuenta == request.IdCuenta && ceu.IdUsuario == request.IdUsuario);
 
-                command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = request.IdCuenta;
-                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = request.IdUsuario;
-                command.Parameters.Add("P_USUARIO_CREA", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SISTEMA";
-                command.Parameters.Add("P_IP_REGISTRO", OracleDbType.Varchar2).Value = request.IpAuditoria ?? "127.0.0.1";
-                var output = command.Parameters.Add("P_RESULTADO", OracleDbType.Int32);
-                output.Direction = ParameterDirection.Output;
+                if (existing != null)
+                {
+                    existing.Vigente = 1;
+                    existing.UsuarioModifica = request.UsuarioAuditoria ?? "SISTEMA";
+                    existing.FechaModifica = DateTime.Now;
+                    existing.IpRegistro = request.IpAuditoria ?? "127.0.0.1";
+                }
+                else
+                {
+                    var newEntity = new CuentaEmailUsuarioEntity
+                    {
+                        IdCuenta = request.IdCuenta,
+                        IdUsuario = request.IdUsuario,
+                        Vigente = 1,
+                        UsuarioCrea = request.UsuarioAuditoria ?? "SISTEMA",
+                        FechaCrea = DateTime.Now,
+                        IpRegistro = request.IpAuditoria ?? "127.0.0.1"
+                    };
+                    _context.CuentasEmailUsuarios.Add(newEntity);
+                }
 
-                command.ExecuteNonQuery();
-                return GetOutputInt(output) > 0;
+                _context.SaveChanges();
+                return true;
             }
             catch (Exception ex)
             {
@@ -241,21 +268,18 @@ namespace Datos.Gestion
         {
             try
             {
-                using var connection = new OracleConnection(_cs);
-                connection.Open();
-                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ACTUALIZAR", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.BindByName = true;
+                var entity = _context.CuentasEmailUsuarios
+                    .FirstOrDefault(ceu => ceu.IdCuentaUsuario == request.IdCuentaUsuario);
 
-                command.Parameters.Add("P_ID_CUENTA_USUARIO", OracleDbType.Int32).Value = request.IdCuentaUsuario;
-                command.Parameters.Add("P_VIGENTE", OracleDbType.Int32).Value = request.Vigente;
-                command.Parameters.Add("P_USUARIO_MODIFICA", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SISTEMA";
-                command.Parameters.Add("P_IP_REGISTRO", OracleDbType.Varchar2).Value = request.IpAuditoria ?? "127.0.0.1";
-                var output = command.Parameters.Add("P_RESULTADO", OracleDbType.Int32);
-                output.Direction = ParameterDirection.Output;
+                if (entity == null) return false;
 
-                command.ExecuteNonQuery();
-                return GetOutputInt(output) > 0;
+                entity.Vigente = request.Vigente;
+                entity.UsuarioModifica = request.UsuarioAuditoria ?? "SISTEMA";
+                entity.FechaModifica = DateTime.Now;
+                entity.IpRegistro = request.IpAuditoria ?? "127.0.0.1";
+
+                _context.SaveChanges();
+                return true;
             }
             catch (Exception ex)
             {
@@ -268,20 +292,18 @@ namespace Datos.Gestion
         {
             try
             {
-                using var connection = new OracleConnection(_cs);
-                connection.Open();
-                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_ELIMINAR", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.BindByName = true;
+                var entity = _context.CuentasEmailUsuarios
+                    .FirstOrDefault(ceu => ceu.IdCuentaUsuario == request.IdCuentaUsuario);
 
-                command.Parameters.Add("P_ID_CUENTA_USUARIO", OracleDbType.Int32).Value = request.IdCuentaUsuario;
-                command.Parameters.Add("P_USUARIO_MODIFICA", OracleDbType.Varchar2).Value = request.UsuarioAuditoria ?? "SISTEMA";
-                command.Parameters.Add("P_IP_REGISTRO", OracleDbType.Varchar2).Value = request.IpAuditoria ?? "127.0.0.1";
-                var output = command.Parameters.Add("P_RESULTADO", OracleDbType.Int32);
-                output.Direction = ParameterDirection.Output;
+                if (entity == null) return false;
 
-                command.ExecuteNonQuery();
-                return GetOutputInt(output) > 0;
+                entity.Vigente = 0;
+                entity.UsuarioModifica = request.UsuarioAuditoria ?? "SISTEMA";
+                entity.FechaModifica = DateTime.Now;
+                entity.IpRegistro = request.IpAuditoria ?? "127.0.0.1";
+
+                _context.SaveChanges();
+                return true;
             }
             catch (Exception ex)
             {
@@ -294,19 +316,12 @@ namespace Datos.Gestion
         {
             try
             {
-                using var connection = new OracleConnection(_cs);
-                connection.Open();
-                using var command = new OracleCommand("PK_ADMINISTRACION_CORREOS.PA_CE_USUARIO_VALIDAR_ENVIO", connection);
-                command.CommandType = CommandType.StoredProcedure;
-                command.BindByName = true;
+                var count = (from ceu in _context.CuentasEmailUsuarios.AsNoTracking()
+                             join c in _context.CuentasEmail.AsNoTracking() on ceu.IdCuenta equals c.IdCuenta
+                             where ceu.IdCuenta == idCuenta && ceu.IdUsuario == idUsuario && ceu.Vigente == 1 && c.Vigente == 1
+                             select ceu).Count();
 
-                command.Parameters.Add("P_ID_CUENTA", OracleDbType.Int32).Value = idCuenta;
-                command.Parameters.Add("P_ID_USUARIO", OracleDbType.Int32).Value = idUsuario;
-                var output = command.Parameters.Add("P_AUTORIZADO", OracleDbType.Int32);
-                output.Direction = ParameterDirection.Output;
-
-                command.ExecuteNonQuery();
-                return GetOutputInt(output) == 1;
+                return count > 0;
             }
             catch (Exception ex)
             {
@@ -319,24 +334,80 @@ namespace Datos.Gestion
         {
             try
             {
-                using (var connection = new OracleConnection(_cs))
-                {
-                    connection.Open();
-                    using (var command = new OracleCommand("PK_ADMINISTRACION.P_GENERAR_RADICADO_CORREO", connection))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.Add("p_id_cuenta_email", OracleDbType.Int32).Value = idCuentaEmail;
-                        command.Parameters.Add("p_radicado", OracleDbType.Varchar2, 200).Direction = ParameterDirection.Output;
+                int anioActual = DateTime.Now.Year;
 
-                        command.ExecuteNonQuery();
-                        return command.Parameters["p_radicado"].Value.ToString() ?? string.Empty;
+                // 1. Unidad / Sigla desde Branding (CTR_BRANDING)
+                string siglaBranding = "OFTIC";
+                try
+                {
+                    var branding = _context.Brandings.AsNoTracking()
+                        .Where(b => b.Vigente == 1 && !string.IsNullOrEmpty(b.Sigla))
+                        .OrderByDescending(b => b.IdBranding)
+                        .FirstOrDefault();
+
+                    if (branding != null && !string.IsNullOrWhiteSpace(branding.Sigla))
+                    {
+                        siglaBranding = branding.Sigla.Trim().ToUpper();
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudo obtener la sigla de Branding para el radicado. Se usará fallback.");
+                }
+
+                // 2. Abreviatura del Grupo / Área desde la tabla de Dominios (CTR_DOMINIOS)
+                string abrevGrupo = "GEN";
+                try
+                {
+                    var cuenta = _context.CuentasEmail.AsNoTracking()
+                        .FirstOrDefault(c => c.IdCuenta == idCuentaEmail);
+
+                    if (cuenta != null && cuenta.IdDominioGrupo.HasValue && cuenta.IdDominioGrupo.Value > 0)
+                    {
+                        var dominio = _context.Dominios.AsNoTracking()
+                            .FirstOrDefault(d => d.IdDominio == cuenta.IdDominioGrupo.Value);
+
+                        if (dominio != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(dominio.Abreviatura))
+                            {
+                                abrevGrupo = dominio.Abreviatura.Trim().ToUpper();
+                            }
+                            else if (!string.IsNullOrWhiteSpace(dominio.Descripcion))
+                            {
+                                var limpia = dominio.Descripcion.Trim().ToUpper();
+                                var palabras = limpia.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                                abrevGrupo = palabras.Length > 0 ? palabras[0] : "GEN";
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudo obtener la abreviatura del grupo para el radicado. Se usará fallback.");
+                }
+
+                // 3. Consecutivo Anual (Se reinicia a 1 con cada cambio de año)
+                int count = 0;
+                try
+                {
+                    count = _context.EnviosCorreo.AsNoTracking()
+                        .Count(e => e.FechaCrea.HasValue && e.FechaCrea.Value.Year == anioActual);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudo obtener el conteo de envíos para el año {Anio}.", anioActual);
+                }
+
+                int consecutivo = count + 1;
+
+                // Estructura: [SIGLA_BRANDING]-[ABREVIATURA_DOMINIO]-[CONSECUTIVO]-[AÑO]
+                return $"{siglaBranding}-{abrevGrupo}-{consecutivo:D6}-{anioActual}";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al generar radicado para cuenta {Id}", idCuentaEmail);
-                throw;
+                return $"OFTIC-GEN-000001-{DateTime.Now.Year}";
             }
         }
 
@@ -344,84 +415,25 @@ namespace Datos.Gestion
         {
             try
             {
-                using (var connection = new OracleConnection(_cs))
+                var branding = _context.Brandings.AsNoTracking()
+                    .Where(b => b.Vigente == 1 && (!string.IsNullOrEmpty(b.Sistema) || !string.IsNullOrEmpty(b.Sigla)))
+                    .OrderByDescending(b => b.IdBranding)
+                    .FirstOrDefault();
+
+                if (branding != null)
                 {
-                    connection.Open();
-                    using (var command = new OracleCommand("SELECT SIGLA FROM CTR_BRANDING WHERE ROWNUM = 1", connection))
-                    {
-                        var result = command.ExecuteScalar();
-                        return result?.ToString() ?? "SICOE";
-                    }
+                    if (!string.IsNullOrWhiteSpace(branding.Sistema))
+                        return branding.Sistema.Trim().ToUpper();
+                    if (!string.IsNullOrWhiteSpace(branding.Sigla))
+                        return branding.Sigla.Trim().ToUpper();
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return "SICOE";
-            }
-        }
-
-        // Métodos de Ayuda (Helper Methods)
-        private static string GetString(OracleDataReader reader, string column)
-        {
-            var index = GetOrdinalSafe(reader, column);
-            if (index < 0 || reader.IsDBNull(index)) return string.Empty;
-            
-            // Usamos GetValue().ToString() para que funcione tanto con VARCHAR2 como con CLOB
-            return reader.GetValue(index).ToString() ?? string.Empty;
-        }
-
-        private static int GetInt(OracleDataReader reader, string column, int defaultValue = 0)
-        {
-            var index = GetOrdinalSafe(reader, column);
-            if (index < 0 || reader.IsDBNull(index)) return defaultValue;
-            var value = reader.GetValue(index);
-            return value switch
-            {
-                int i => i,
-                long l => Convert.ToInt32(l),
-                decimal d => Convert.ToInt32(d),
-                OracleDecimal od when !od.IsNull => od.ToInt32(),
-                _ => int.TryParse(value.ToString(), out var parsed) ? parsed : defaultValue
-            };
-        }
-
-        private static int GetOrdinalSafe(OracleDataReader reader, string column)
-        {
-            try { return reader.GetOrdinal(column); }
-            catch { return -1; }
-        }
-
-        private static DateTime? GetDateTime(OracleDataReader reader, string column)
-        {
-            var index = GetOrdinalSafe(reader, column);
-            if (index < 0 || reader.IsDBNull(index)) return null;
-            var value = reader.GetValue(index);
-            return value switch
-            {
-                DateTime dt => dt,
-                OracleDate od when !od.IsNull => od.Value,
-                _ => DateTime.TryParse(value.ToString(), out var parsed) ? parsed : null
-            };
-        }
-
-        private static int GetOutputInt(OracleParameter param)
-        {
-            if (param.Value == null || param.Value == DBNull.Value) return 0;
-            
-            string? sVal = param.Value.ToString();
-            if (int.TryParse(sVal, out int result))
-            {
-                return result;
+                _logger.LogWarning(ex, "No se pudo obtener la sigla del sistema desde Branding. Se usará fallback.");
             }
 
-            try 
-            {
-                return Convert.ToInt32(param.Value);
-            }
-            catch 
-            {
-                return 0;
-            }
+            return "DYCK";
         }
     }
 }

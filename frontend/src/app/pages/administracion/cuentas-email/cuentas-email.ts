@@ -70,16 +70,20 @@ export class CuentasEmailComponent implements OnInit {
           idPadre: d.idPadre ?? (d as any).IdPadre
         } as DtoDominio));
 
-        // 1. Buscamos el ID de "ORGANIGRAMA COEST"
-        const organigrama = todos.find(d => 
-          d.descripcion.toUpperCase() === 'ORGANIGRAMA COEST'
-        );
-        
-        if (organigrama) {
-          const idOrganigrama = organigrama.idDominio;
-          this.gruposCOEST = [];
-          // 2. Obtenemos toda la descendencia de forma recursiva
-          this.obtenerDescendencia(idOrganigrama, todos, 0);
+        // 1. Buscamos el dominio padre semilla ("GRUPOS O AREAS", "GRUPOS O ÁREAS" u "ORGANIGRAMA COEST")
+        const padre = todos.find(d => {
+          const desc = (d.descripcion || '').toUpperCase();
+          return desc.includes('GRUPOS O AREAS') || desc.includes('GRUPOS O ÁREAS') || desc === 'ORGANIGRAMA COEST';
+        });
+
+        this.gruposCOEST = [];
+        if (padre) {
+          this.obtenerDescendencia(padre.idDominio, todos, 0);
+        }
+
+        // Si no existen hijos bajo el padre aún, mostrar los dominios secundarios disponibles
+        if (this.gruposCOEST.length === 0) {
+          this.gruposCOEST = todos.filter(d => d.idPadre !== 0);
         }
       }
     });
@@ -195,7 +199,10 @@ export class CuentasEmailComponent implements OnInit {
             this.nuevo();
             this.cargarCuentas();
           },
-          error: () => this.toast.error('Error', 'No se pudo actualizar la cuenta')
+          error: (err) => {
+            const msg = err?.error?.message || 'No se pudo actualizar la cuenta';
+            this.toast.error('Error', msg);
+          }
         });
     } else {
       // Forzar valores de Outlook 365
@@ -212,7 +219,10 @@ export class CuentasEmailComponent implements OnInit {
             this.nuevo();
             this.cargarCuentas();
           },
-          error: () => this.toast.error('Error', 'No se pudo crear la cuenta')
+          error: (err) => {
+            const msg = err?.error?.message || 'No se pudo crear la cuenta';
+            this.toast.error('Error', msg);
+          }
         });
     }
   }
@@ -256,7 +266,10 @@ export class CuentasEmailComponent implements OnInit {
       .pipe(finalize(() => this.loadingAutorizados = false))
       .subscribe({
         next: (data) => this.listaAutorizados = data ?? [],
-        error: () => this.toast.error('Error', 'No se pudieron cargar los usuarios autorizados')
+        error: (err) => {
+          const msg = err?.error?.message || 'No se pudieron cargar los usuarios autorizados';
+          this.toast.error('Error', msg);
+        }
       });
   }
 

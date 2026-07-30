@@ -19,7 +19,7 @@
 
           <div class="ui-grid">
             <div class="ui-field ui-col-12">
-              <label class="ui-label">Grupo Dueño (Organigrama COEST) *</label>
+              <label class="ui-label">Grupo responsable del correo </label>
               <select class="ui-control" [(ngModel)]="form.IdDominioGrupo">
                 <option [ngValue]="0">-- Seleccione el grupo --</option>
                 <option *ngFor="let g of gruposCOEST" [ngValue]="g.idDominio">{{ g.descripcion }}</option>
@@ -54,16 +54,20 @@
               <div class="encabezado-upload-area">
                 <ng-container *ngIf="!imagenEncabezadoPreview">
                   <label class="encabezado-upload-btn" [class.loading]="subiendoImagenEncabezado">
-                    <input type="file" accept=".jpg,.jpeg,.png,.webp" (change)="onChangeImagenEncabezado($event)" style="display:none">
-                    <i class="fa-solid" [class.fa-image]="!subiendoImagenEncabezado" [class.fa-spinner]="subiendoImagenEncabezado" [class.fa-spin]="subiendoImagenEncabezado"></i>
+                    <input type="file" accept=".jpg,.jpeg,.png,.webp" (change)="onChangeImagenEncabezado($event)"
+                      style="display:none">
+                    <i class="fa-solid" [class.fa-image]="!subiendoImagenEncabezado"
+                      [class.fa-spinner]="subiendoImagenEncabezado" [class.fa-spin]="subiendoImagenEncabezado"></i>
                     {{ subiendoImagenEncabezado ? 'Subiendo...' : 'Seleccionar imagen' }}
                   </label>
-                  <span class="encabezado-hint">JPG, PNG o WEBP · máx. 3 MB · Se mostrará en la parte superior de cada correo enviado.</span>
+                  <span class="encabezado-hint">JPG, PNG o WEBP · máx. 3 MB · Se mostrará en la parte superior de cada
+                    correo enviado.</span>
                 </ng-container>
                 <ng-container *ngIf="imagenEncabezadoPreview">
                   <div class="encabezado-preview">
                     <img [src]="imagenEncabezadoPreview" alt="Encabezado" />
-                    <button class="ui-btn icon-only danger" type="button" title="Quitar imagen" (click)="quitarImagenEncabezado()">
+                    <button class="ui-btn icon-only danger" type="button" title="Quitar imagen"
+                      (click)="quitarImagenEncabezado()">
                       <i class="fa-solid fa-trash"></i>
                     </button>
                   </div>
@@ -143,20 +147,12 @@
           <div class="ui-field ui-col-12">
             <label class="ui-label search-label">Buscar usuario (username, identificación o nombre)</label>
             <div class="search-input-wrap">
-              <input
-                class="ui-control search-input"
-                type="text"
-                [(ngModel)]="buscadorUsuarios"
-                (keyup.enter)="buscarUsuarios()"
-                placeholder="Ej: jlopez o 12345678"
-              >
-              <button
-                class="search-icon-btn"
-                type="button"
-                title="Buscar"
-                (click)="buscarUsuarios()"
+              <input class="ui-control search-input" type="text" [(ngModel)]="buscadorUsuarios"
+                (keyup.enter)="buscarUsuarios()" placeholder="Ej: jlopez o 12345678">
+              <button class="search-icon-btn" type="button" title="Buscar" (click)="buscarUsuarios()"
                 [disabled]="loadingBusquedaUsuarios || savingAutorizacion">
-                <i class="fa-solid" [class.fa-spinner]="loadingBusquedaUsuarios" [class.fa-spin]="loadingBusquedaUsuarios" [class.fa-magnifying-glass]="!loadingBusquedaUsuarios"></i>
+                <i class="fa-solid" [class.fa-spinner]="loadingBusquedaUsuarios"
+                  [class.fa-spin]="loadingBusquedaUsuarios" [class.fa-magnifying-glass]="!loadingBusquedaUsuarios"></i>
               </button>
             </div>
           </div>
@@ -182,7 +178,8 @@
                 <td>{{ u.nombreCompleto }}</td>
                 <td>{{ u.rol }}</td>
                 <td>
-                  <button class="ui-btn-icon" title="Autorizar" (click)="agregarAutorizado(u)" [disabled]="savingAutorizacion">
+                  <button class="ui-btn-icon" title="Autorizar" (click)="agregarAutorizado(u)"
+                    [disabled]="savingAutorizacion">
                     <i class="fa-solid fa-user-plus"></i>
                   </button>
                 </td>
@@ -213,7 +210,8 @@
                   <span class="ui-badge success">Activo</span>
                 </td>
                 <td>
-                  <button class="ui-btn-icon danger" title="Quitar" (click)="solicitarQuitarAutorizado(a)" [disabled]="savingAutorizacion">
+                  <button class="ui-btn-icon danger" title="Quitar" (click)="solicitarQuitarAutorizado(a)"
+                    [disabled]="savingAutorizacion">
                     <i class="fa-solid fa-user-minus"></i>
                   </button>
                 </td>
@@ -239,7 +237,8 @@
       Se quitará el acceso de <strong>{{ autorizadoPendienteEliminar.usuarioLogin }}</strong> a esta cuenta de correo.
     </p>
     <div class="ui-alert__foot warning">
-      <button class="ui-btn secondary" type="button" (click)="cancelarQuitarAutorizado()" [disabled]="savingAutorizacion">Cancelar</button>
+      <button class="ui-btn secondary" type="button" (click)="cancelarQuitarAutorizado()"
+        [disabled]="savingAutorizacion">Cancelar</button>
       <button class="ui-btn danger" type="button" (click)="confirmarQuitarAutorizado()" [disabled]="savingAutorizacion">
         {{ savingAutorizacion ? 'Procesando...' : 'Sí, quitar autorización' }}
       </button>

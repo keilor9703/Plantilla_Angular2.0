@@ -153,10 +153,36 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   }
 
   cargarClasificaciones(): void {
-    // Usamos el endpoint de Dominios y filtramos por padre 198
+    // Obtenemos los dominios y filtramos los hijos del padre "Privacidad de Documentos" (ID 13 o 198)
     this.http.get<any[]>(`${this.apiUrl}/Dominio`).subscribe({
       next: (data) => {
-        this.clasificaciones = data.filter(d => d.idPadre === 198 && d.vigente === 1);
+        const todos = data ?? [];
+
+        // 1. Buscamos por ID (13 o legacy 198)
+        let filtrados = todos.filter(d => {
+          const p = Number(d.idPadre ?? (d as any).IdPadre ?? 0);
+          const v = Number(d.vigente ?? (d as any).Vigente ?? 1);
+          return (p === 13 || p === 198) && v === 1;
+        });
+
+        // 2. Si no se encuentran por ID estático, buscamos el dominio padre "Privacidad de Documentos"
+        if (filtrados.length === 0) {
+          const padre = todos.find(d => {
+            const desc = (d.descripcion || '').toUpperCase();
+            const abrev = (d.abreviatura || '').toUpperCase();
+            return desc.includes('PRIVACIDAD DE DOCUMENTOS') || abrev === 'PRIV_DOC';
+          });
+          if (padre) {
+            const idPadre = Number(padre.idDominio ?? (padre as any).IdDominio ?? 0);
+            filtrados = todos.filter(d => {
+              const p = Number(d.idPadre ?? (d as any).IdPadre ?? 0);
+              const v = Number(d.vigente ?? (d as any).Vigente ?? 1);
+              return p === idPadre && v === 1;
+            });
+          }
+        }
+
+        this.clasificaciones = filtrados;
       },
       error: (err) => console.error('Error cargando clasificaciones', err)
     });
