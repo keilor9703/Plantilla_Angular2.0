@@ -1,4 +1,5 @@
 using Comun.Dtos;
+using Comun.Dtos.Auditoria;
 using Comun.Extensions;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
@@ -18,12 +19,14 @@ namespace Datos.Gestion
         private readonly string _cs;
         private readonly IConfiguration _cfg;
         private readonly ILogger<DbRolRepository> _logger;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbRolRepository(IConfiguration cfg, ILogger<DbRolRepository> logger)
+        public DbRolRepository(IConfiguration cfg, ILogger<DbRolRepository> logger, IDbAuditoriaRepository auditoriaRepo)
         {
             _cs = cfg.GetDecryptedConnectionString();
             _cfg = cfg;
             _logger = logger;
+            _auditoriaRepo = auditoriaRepo;
         }
 
         public async Task<List<DtoRolAdmin>> GetRolesAdminAsync(CancellationToken ct)
@@ -179,6 +182,7 @@ namespace Datos.Gestion
                         cmd.Parameters.AddWithValue("@pId", idRol);
                         var affected = await cmd.ExecuteNonQueryAsync(ct);
                         if (affected <= 0) return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." };
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = "ACTUALIZAR", Registro = $"Rol ID {idRol}: {nombre}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                         return new DtoSaveRolResult { idRol = idRol, message = "Rol actualizado correctamente." };
                     }
                     else
@@ -189,6 +193,7 @@ namespace Datos.Gestion
                         cmd.Parameters.AddWithValue("@pNombre", nombre);
                         cmd.Parameters.AddWithValue("@pVigente", vigente);
                         var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = "CREAR", Registro = $"Rol ID {newId}: {nombre}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                         return new DtoSaveRolResult { idRol = newId, message = "Rol creado correctamente." };
                     }
                 }
@@ -220,6 +225,7 @@ namespace Datos.Gestion
                         cmd.Parameters.AddWithValue("@pId", idRol);
                         var affected = await cmd.ExecuteNonQueryAsync(ct);
                         if (affected <= 0) return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." };
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = "ACTUALIZAR", Registro = $"Rol ID {idRol}: {nombre}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                         return new DtoSaveRolResult { idRol = idRol, message = "Rol actualizado correctamente." };
                     }
                     else
@@ -230,6 +236,7 @@ namespace Datos.Gestion
                         cmd.Parameters.AddWithValue("@pNombre", nombre);
                         cmd.Parameters.AddWithValue("@pVigente", vigente);
                         var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = "CREAR", Registro = $"Rol ID {newId}: {nombre}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                         return new DtoSaveRolResult { idRol = newId, message = "Rol creado correctamente." };
                     }
                 }
@@ -279,6 +286,7 @@ namespace Datos.Gestion
 
                     if (affected <= 0) { await tx.RollbackAsync(ct); return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." }; }
                     await tx.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = "ACTUALIZAR", Registro = $"Rol ID {idRol2}: {nombre}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoSaveRolResult { idRol = idRol2, message = "Rol actualizado correctamente." };
                 }
 
@@ -321,6 +329,7 @@ VALUES (:pId, :pCodigo, :pNombre, :pNombre, :pVigente, SYSDATE, :pUsr, :pMaq)";
                 }
 
                 await tx.CommitAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = "CREAR", Registro = $"Rol ID {nextId}: {nombre}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                 return new DtoSaveRolResult { idRol = nextId, message = "Rol creado correctamente." };
             }
             catch (OracleException ex)
@@ -340,7 +349,8 @@ VALUES (:pId, :pCodigo, :pNombre, :pNombre, :pVigente, SYSDATE, :pUsr, :pMaq)";
             int vigente,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct)
+            string? observaciones = null,
+            CancellationToken ct = default)
         {
             var v = vigente == 0 ? 0 : 1;
             var msg = v == 0 ? "Rol inactivado correctamente." : "Rol activado correctamente.";
@@ -359,6 +369,10 @@ VALUES (:pId, :pCodigo, :pNombre, :pNombre, :pVigente, SYSDATE, :pUsr, :pMaq)";
                     cmd.Parameters.AddWithValue("@pV", v);
                     cmd.Parameters.AddWithValue("@pId", idRol);
                     var affected = await cmd.ExecuteNonQueryAsync(ct);
+                    if (affected > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = v == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Rol ID {idRol}: vigente={v}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
+                    }
                     return affected <= 0
                         ? new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol." }
                         : new DtoSaveRolResult { idRol = idRol, message = msg };
@@ -383,6 +397,10 @@ VALUES (:pId, :pCodigo, :pNombre, :pNombre, :pVigente, SYSDATE, :pUsr, :pMaq)";
                     cmd.Parameters.AddWithValue("@pV", v);
                     cmd.Parameters.AddWithValue("@pId", idRol);
                     var affected = await cmd.ExecuteNonQueryAsync(ct);
+                    if (affected > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = v == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Rol ID {idRol}: vigente={v}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
+                    }
                     return affected <= 0
                         ? new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol." }
                         : new DtoSaveRolResult { idRol = idRol, message = msg };
@@ -399,29 +417,42 @@ VALUES (:pId, :pCodigo, :pNombre, :pNombre, :pVigente, SYSDATE, :pUsr, :pMaq)";
             {
                 await using var conn = new OracleConnection(_cs);
                 await conn.OpenAsync(ct);
-                await using var cmd = conn.CreateCommand();
-                cmd.BindByName = true;
-                cmd.CommandText = @"UPDATE ctr_roles
-   SET estado = :pVigente, usuario_modifica = :pUsr,
-       fecha_modifica = SYSDATE, maquina_modifica = :pMaq
- WHERE id_rol = :pId";
-                cmd.Parameters.Add(":pVigente", OracleDbType.Int32).Value = v;
-                cmd.Parameters.Add(":pUsr", OracleDbType.Varchar2).Value = AsRequiredDbValue(usuarioAuditoria, "ADMIN", 100);
-                cmd.Parameters.Add(":pMaq", OracleDbType.Varchar2).Value = AsRequiredDbValue(maquinaAuditoria, "LOCAL", 100);
-                cmd.Parameters.Add(":pId", OracleDbType.Int64).Value = idRol;
 
-                int affected;
+                int affected = 0;
                 try
                 {
-                    affected = await cmd.ExecuteNonQueryAsync(ct);
+                    await using var cmd1 = conn.CreateCommand();
+                    cmd1.BindByName = true;
+                    cmd1.CommandText = @"UPDATE CTR_ROLES SET ESTADO = :pV, VIGENTE = :pV WHERE ID_ROL = :pId";
+                    cmd1.Parameters.Add(":pV", OracleDbType.Int32).Value = v;
+                    cmd1.Parameters.Add(":pId", OracleDbType.Int64).Value = idRol;
+                    affected = await cmd1.ExecuteNonQueryAsync(ct);
                 }
-                catch (OracleException ex) when (ex.Number == 904)
+                catch
                 {
-                    cmd.CommandText = @"UPDATE ctr_roles
-   SET vigente = :pVigente, usuario_modifica = :pUsr,
-       fecha_modifica = SYSDATE, maquina_modifica = :pMaq
- WHERE id_rol = :pId";
-                    affected = await cmd.ExecuteNonQueryAsync(ct);
+                    try
+                    {
+                        await using var cmd2 = conn.CreateCommand();
+                        cmd2.BindByName = true;
+                        cmd2.CommandText = @"UPDATE CTR_ROLES SET VIGENTE = :pV WHERE ID_ROL = :pId";
+                        cmd2.Parameters.Add(":pV", OracleDbType.Int32).Value = v;
+                        cmd2.Parameters.Add(":pId", OracleDbType.Int64).Value = idRol;
+                        affected = await cmd2.ExecuteNonQueryAsync(ct);
+                    }
+                    catch
+                    {
+                        await using var cmd3 = conn.CreateCommand();
+                        cmd3.BindByName = true;
+                        cmd3.CommandText = @"UPDATE CTR_ROLES SET ESTADO = :pV WHERE ID_ROL = :pId";
+                        cmd3.Parameters.Add(":pV", OracleDbType.Int32).Value = v;
+                        cmd3.Parameters.Add(":pId", OracleDbType.Int64).Value = idRol;
+                        affected = await cmd3.ExecuteNonQueryAsync(ct);
+                    }
+                }
+
+                if (affected > 0)
+                {
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "ROLES", Accion = v == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Rol ID {idRol}: vigente={v}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
                 }
 
                 return affected <= 0

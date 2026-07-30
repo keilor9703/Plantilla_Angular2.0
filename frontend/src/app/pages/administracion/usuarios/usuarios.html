@@ -415,7 +415,10 @@
         <strong>ELIMINAR</strong>.
       </p>
 
-      <input class="ui-control" type="text" [(ngModel)]="deleteConfirmText" placeholder="Escribe ELIMINAR">
+      <input class="ui-control" type="text" [(ngModel)]="deleteConfirmText" placeholder="Escribe ELIMINAR" style="margin-bottom: 12px;">
+
+      <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ui-text, #333);">Motivo de la eliminación:</label>
+      <textarea class="ui-control" rows="3" [(ngModel)]="deleteReason" placeholder="Ingrese la justificación u observación..."></textarea>
 
       <div class="tab-actions">
         <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">

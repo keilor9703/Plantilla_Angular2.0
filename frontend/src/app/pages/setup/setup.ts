@@ -53,6 +53,33 @@ export class SetupComponent implements OnInit {
   saveResult: { success: boolean; message: string } | null = null;
 
   showMigrationModal = false;
+  showPipRolesModal = false;
+
+  pipRolesRequeridos = [
+    { id: 1, nombre: 'IcahuFuncionarioPonalPorIdentificacion' },
+    { id: 2, nombre: 'IcahuListaUnidades' },
+    { id: 3, nombre: 'OudLoginOud' },
+    { id: 4, nombre: 'IcahuObtenerImagenFuncionario' },
+    { id: 5, nombre: 'PsiImagenesCarruselInstitucional' },
+    { id: 6, nombre: 'SW_COEST_Consulta_Redes_Sociales' },
+    { id: 7, nombre: 'SW_COEST_Like_Noticia' },
+    { id: 8, nombre: 'SW_COEST_Consulta_Modal_Vigente' },
+    { id: 9, nombre: 'SW_COEST_Consulta_Noticia_Interna' },
+    { id: 10, nombre: 'SW_COEST_Consulta_Sliders_Admin' },
+    { id: 11, nombre: 'SW_COEST_Consulta_Sliders_Publicos' },
+    { id: 12, nombre: 'SW_COEST_ConsultaEmisoraById' },
+    { id: 13, nombre: 'SW_COEST_ConsultaEmisorasAll' },
+    { id: 14, nombre: 'AgenteIAPol' }
+  ];
+
+  closePipRolesModal(): void {
+    this.showPipRolesModal = false;
+  }
+
+  confirmPipRolesModal(): void {
+    this.showPipRolesModal = false;
+    this.step = 4;
+  }
   migrating = false;
   migrationResult: { success: boolean; message: string } | null = null;
 
@@ -212,18 +239,6 @@ export class SetupComponent implements OnInit {
 
   onProviderClick(provider: string): void {
     this.selectProvider(provider);
-
-    if (this.lastProviderClicked === provider) {
-      this.providerClickCount++;
-    } else {
-      this.lastProviderClicked = provider;
-      this.providerClickCount = 1;
-    }
-
-    if (this.providerClickCount >= 3) {
-      this.providerClickCount = 0;
-      this.step++;
-    }
   }
 
   generateRandomJwtKey(): void {
@@ -297,7 +312,7 @@ export class SetupComponent implements OnInit {
             if (res.requiresMigration) {
               this.showMigrationModal = true;
             } else {
-              this.step++;
+              this.step = 3;
             }
           }
         },
@@ -330,7 +345,7 @@ export class SetupComponent implements OnInit {
           this.testing = false;
           this.testResult = res;
           if (res.success) {
-            this.step++;
+            this.showPipRolesModal = true;
           }
         },
         error: (err: any) => {
@@ -442,7 +457,7 @@ export class SetupComponent implements OnInit {
         if (res.success) {
           setTimeout(() => {
             this.showMigrationModal = false;
-            this.step++;
+            this.step = 3;
           }, 1500);
         }
       },
@@ -481,7 +496,18 @@ export class SetupComponent implements OnInit {
 
   closeFinishModal(): void {
     this.showFinishModal = false;
-    this.router.navigate(['/login']);
+    if (!this.isAlreadyConfigured) {
+      this.setupService.shutdownBackend().subscribe({
+        next: () => {
+          this.router.navigate(['/login']);
+        },
+        error: () => {
+          this.router.navigate(['/login']);
+        }
+      });
+    } else {
+      this.router.navigate(['/login']);
+    }
   }
 
   private preparePayload(): SetupTestRequest {

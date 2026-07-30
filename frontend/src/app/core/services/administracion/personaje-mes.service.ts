@@ -265,8 +265,10 @@ export class PersonajeMesService {
     return this.http.put<DtoPersonajeMesResult>(`${this.baseUrl}/${id}`, payload);
   }
 
-  delete(id: number): Observable<DtoPersonajeMesResult> {
-    return this.http.delete<DtoPersonajeMesResult>(`${this.baseUrl}/${id}`);
+  delete(id: number, observaciones?: string): Observable<DtoPersonajeMesResult> {
+    const params: any = {};
+    if (observaciones) params.observaciones = observaciones;
+    return this.http.delete<DtoPersonajeMesResult>(`${this.baseUrl}/${id}`, { params });
   }
 
   setVigente(id: number, vigente: number): Observable<DtoPersonajeMesResult> {

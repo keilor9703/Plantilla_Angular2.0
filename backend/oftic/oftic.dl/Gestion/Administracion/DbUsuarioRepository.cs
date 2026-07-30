@@ -1,4 +1,5 @@
 using Comun.Dtos;
+using Comun.Dtos.Auditoria;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -15,13 +16,15 @@ namespace Datos.Gestion
         private readonly IConfiguration _cfg;
         private readonly ILogger<DbUsuarioRepository> _logger;
         private readonly IDbRolRepository _rolRepo;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbUsuarioRepository(IConfiguration cfg, ILogger<DbUsuarioRepository> logger, IDbRolRepository rolRepo)
+        public DbUsuarioRepository(IConfiguration cfg, ILogger<DbUsuarioRepository> logger, IDbRolRepository rolRepo, IDbAuditoriaRepository auditoriaRepo)
         {
             _cs = Comun.Extensions.ConfigurationExtensions.GetDecryptedConnectionString(cfg);
             _cfg = cfg;
             _logger = logger;
             _rolRepo = rolRepo;
+            _auditoriaRepo = auditoriaRepo;
         }
 
         public async Task<long?> GetUsuarioIdByUsernameAsync(string username, CancellationToken ct)
@@ -797,7 +800,8 @@ ORDER BY UPPER(u.username)";
             int rolId,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct)
+            string? observaciones = null,
+            CancellationToken ct = default)
         {
             var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
 
@@ -814,6 +818,10 @@ ORDER BY UPPER(u.username)";
                     cmd.Parameters.AddWithValue("@pIdRol", rolId);
 
                     var affected = await cmd.ExecuteNonQueryAsync(ct);
+                    if (affected > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ELIMINAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {rolId} retirado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
+                    }
                     return new DtoGuardarUsuarioResult
                     {
                         idUsuario = affected > 0 ? idUsuario : 0,
@@ -840,6 +848,10 @@ ORDER BY UPPER(u.username)";
                     cmd.Parameters.AddWithValue("@pIdRol", rolId);
 
                     var affected = await cmd.ExecuteNonQueryAsync(ct);
+                    if (affected > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ELIMINAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {rolId} retirado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
+                    }
                     return new DtoGuardarUsuarioResult
                     {
                         idUsuario = affected > 0 ? idUsuario : 0,
@@ -873,6 +885,10 @@ UPDATE CTR_ROLES_USER_ADMIN
                 cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = rolId;
 
                 var affected = await cmd.ExecuteNonQueryAsync(ct);
+                if (affected > 0)
+                {
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ELIMINAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {rolId} retirado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
+                }
                 return new DtoGuardarUsuarioResult
                 {
                     idUsuario = affected > 0 ? idUsuario : 0,
@@ -915,6 +931,7 @@ UPDATE CTR_ROLES_USER_ADMIN
                     cmd.Parameters.AddWithValue("@pFechaFin", fechaFin.Date);
 
                     await cmd.ExecuteNonQueryAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "EDITAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {rolId} actualizado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol actualizado correctamente." };
                 }
                 catch (Exception ex)
@@ -942,6 +959,7 @@ UPDATE CTR_ROLES_USER_ADMIN
                     cmd.Parameters.AddWithValue("@pFechaFin", fechaFin.Date);
 
                     await cmd.ExecuteNonQueryAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "EDITAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {rolId} actualizado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol actualizado correctamente." };
                 }
                 catch (Exception ex)
@@ -969,6 +987,7 @@ UPDATE CTR_ROLES_USER_ADMIN
                 cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = rolId;
 
                 await cmd.ExecuteNonQueryAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "EDITAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {rolId} actualizado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                 return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol actualizado correctamente." };
             }
             catch (Exception ex)
@@ -1125,6 +1144,7 @@ ORDER BY id_rol";
                     var res = await cmd.ExecuteScalarAsync(ct);
                     var idUsuario = (res is null || res == DBNull.Value) ? 0L : Convert.ToInt64(res);
 
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "GUARDAR", Registro = $"Usuario: {username} ({identificacion})", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult
                     {
                         idUsuario = idUsuario > 0 ? idUsuario : 1L,
@@ -1177,6 +1197,7 @@ ORDER BY id_rol";
                     var res = await cmd.ExecuteScalarAsync(ct);
                     var idUsuario = (res is null || res == DBNull.Value) ? 0L : Convert.ToInt64(res);
 
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "GUARDAR", Registro = $"Usuario: {username} ({identificacion})", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult
                     {
                         idUsuario = idUsuario > 0 ? idUsuario : 1L,
@@ -1230,6 +1251,7 @@ ORDER BY id_rol";
                 cmd.Parameters.Add(":pBloqueado", OracleDbType.Int32).Value = bloqueado;
 
                 await cmd.ExecuteNonQueryAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "GUARDAR", Registro = $"Usuario: {username} ({identificacion})", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                 return new DtoGuardarUsuarioResult { idUsuario = 1, message = "Usuario guardado correctamente." };
             }
             catch (Exception ex)
@@ -1243,7 +1265,8 @@ ORDER BY id_rol";
             long idUsuario,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct)
+            string? observaciones = null,
+            CancellationToken ct = default)
         {
             var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
 
@@ -1281,6 +1304,7 @@ ORDER BY id_rol";
                     }
 
                     await tx.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ELIMINAR", Registro = $"Usuario ID {idUsuario} bloqueado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Usuario eliminado correctamente." };
                 }
                 catch (Exception ex)
@@ -1324,6 +1348,7 @@ ORDER BY id_rol";
                     }
 
                     await tx.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ELIMINAR", Registro = $"Usuario ID {idUsuario} bloqueado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Usuario eliminado correctamente." };
                 }
                 catch (Exception ex)
@@ -1366,6 +1391,7 @@ ORDER BY id_rol";
                 }
 
                 await oraTx.CommitAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ELIMINAR", Registro = $"Usuario ID {idUsuario} bloqueado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
                 return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Usuario eliminado correctamente." };
             }
             catch (OracleException ex)
@@ -1405,6 +1431,7 @@ ORDER BY id_rol";
                     cmd.Parameters.AddWithValue("@pFechaFin", DateTime.TryParse(request.fechaFin, out var ff) ? ff.Date : (object)DBNull.Value);
 
                     await cmd.ExecuteNonQueryAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ASIGNAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {request.rolId} asignado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol asignado correctamente." };
                 }
                 catch (Exception ex)
@@ -1460,6 +1487,7 @@ ORDER BY id_rol";
                     cmd.Parameters.AddWithValue("@pFechaFin", DateTime.TryParse(request.fechaFin, out var ff2) ? ff2.Date : (object)DBNull.Value);
 
                     await cmd.ExecuteNonQueryAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ASIGNAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {request.rolId} asignado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                     return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol asignado correctamente." };
                 }
                 catch (Exception ex)
@@ -1498,6 +1526,7 @@ ORDER BY id_rol";
                 cmd.Parameters.Add(":pFechaFin", OracleDbType.Date).Value = DateTime.TryParse(request.fechaFin, out var ff3) ? ff3.Date : (object)DBNull.Value;
 
                 await cmd.ExecuteNonQueryAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "USUARIOS", Accion = "ASIGNAR ROL", Registro = $"Usuario ID {idUsuario}: Rol {request.rolId} asignado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                 return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol asignado correctamente." };
             }
             catch (Exception ex)
@@ -1522,8 +1551,9 @@ ORDER BY id_rol";
             int vigente,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct)
-            => _rolRepo.SetRolEstadoAsync(idRol, vigente, usuarioAuditoria, maquinaAuditoria, ct);
+            string? observaciones = null,
+            CancellationToken ct = default)
+            => _rolRepo.SetRolEstadoAsync(idRol, vigente, usuarioAuditoria, maquinaAuditoria, observaciones, ct);
 
         private static object AsDbValue(string? value, int? maxLen = null)
         {

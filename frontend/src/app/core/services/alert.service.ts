@@ -10,6 +10,9 @@ export interface AlertMessage {
   okText?: string;
   cancelText?: string;
   isConfirm?: boolean;
+  isPrompt?: boolean;
+  promptLabel?: string;
+  promptPlaceholder?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -17,6 +20,7 @@ export class AlertService {
   private subject = new Subject<AlertMessage>();
   alert$ = this.subject.asObservable();
   private confirmResolver?: (value: boolean) => void;
+  private promptResolver?: (value: string | null) => void;
 
   show(type: AlertType, title: string, message: string, okText = 'OK'): void {
     this.subject.next({ type, title, message, okText });
@@ -33,11 +37,48 @@ export class AlertService {
     });
   }
 
+  /**
+   * Muestra un diálogo de confirmación con campo de texto (motivo / observación).
+   * Devuelve el texto ingresado si el usuario confirma, o null si cancela/cierra.
+   */
+  prompt(
+    title: string,
+    message: string,
+    promptLabel: string = 'Motivo de la eliminación:',
+    promptPlaceholder: string = 'Escriba la justificación u observación...',
+    okText: string = 'Eliminar',
+    cancelText: string = 'Cancelar',
+    type: AlertType = 'warning'
+  ): Promise<string | null> {
+    this.subject.next({
+      type,
+      title,
+      message,
+      okText,
+      cancelText,
+      isConfirm: true,
+      isPrompt: true,
+      promptLabel,
+      promptPlaceholder
+    });
+    return new Promise<string | null>(resolve => {
+      this.promptResolver = resolve;
+    });
+  }
+
   /** Responde al diálogo de confirmación (invocado por el componente que muestra la alerta). */
   respond(result: boolean): void {
     if (this.confirmResolver) {
       this.confirmResolver(result);
       this.confirmResolver = undefined;
+    }
+  }
+
+  /** Responde al diálogo prompt de texto. */
+  respondPrompt(result: string | null): void {
+    if (this.promptResolver) {
+      this.promptResolver(result);
+      this.promptResolver = undefined;
     }
   }
 

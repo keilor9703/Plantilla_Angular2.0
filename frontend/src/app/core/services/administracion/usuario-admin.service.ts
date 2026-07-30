@@ -185,8 +185,10 @@ export class UsuarioAdminService {
     return this.http.put<EditarRolResponse>(`${this.baseUrl}/Roles/${rolId}`, payload);
   }
 
-  eliminarUsuario(idUsuario: number): Observable<EliminarUsuarioResponse> {
-    return this.http.delete<EliminarUsuarioResponse>(`${this.baseUrl}/${idUsuario}`);
+  eliminarUsuario(idUsuario: number, observaciones?: string): Observable<EliminarUsuarioResponse> {
+    const params: any = {};
+    if (observaciones) params.observaciones = observaciones;
+    return this.http.delete<EliminarUsuarioResponse>(`${this.baseUrl}/${idUsuario}`, { params });
   }
 
   cambiarEstadoUsuario(identificacion: string, activo: boolean): Observable<{ success: boolean; message: string }> {

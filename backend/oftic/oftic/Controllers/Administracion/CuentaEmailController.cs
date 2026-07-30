@@ -137,11 +137,12 @@ namespace ofic.Controllers.Administracion
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public IActionResult Delete(int id, [FromQuery] string? observaciones = null, [FromQuery] string? motivo = null)
         {
             try
             {
-                var success = _repository.EliminarCuenta(id);
+                var obsFinal = !string.IsNullOrWhiteSpace(observaciones) ? observaciones : motivo;
+                var success = _repository.EliminarCuenta(id, obsFinal);
                 return Ok(new { success, message = "Cuenta eliminada correctamente" });
             }
             catch (Exception ex)

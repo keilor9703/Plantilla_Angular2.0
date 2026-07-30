@@ -228,15 +228,17 @@ export class CuentasEmailComponent implements OnInit {
   }
 
   async eliminar(item: DtoCuentaEmail): Promise<void> {
-    const confirmed = await this.alert.confirm(
+    const motivo = await this.alert.prompt(
       'Eliminar cuenta',
       `¿Está seguro de eliminar la cuenta "${item.nombreCuenta}"?`,
+      'Motivo de la eliminación:',
+      'Ingrese la justificación u observación...',
       'Eliminar',
       'Cancelar'
     );
-    if (!confirmed) return;
+    if (motivo === null) return;
 
-    this.cuentaEmailService.delete(item.idCuenta).subscribe({
+    this.cuentaEmailService.delete(item.idCuenta, motivo).subscribe({
       next: () => {
         this.toast.success('Éxito', 'Cuenta eliminada');
         this.cargarCuentas();

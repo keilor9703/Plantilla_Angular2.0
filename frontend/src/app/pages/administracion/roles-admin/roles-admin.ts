@@ -1,4 +1,4 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -8,6 +8,8 @@ import {
 } from '../../../core/services/administracion/roles-admin.service';
 import { DbMenuItem, MenuService, RoleMenuItem } from '../../../core/services/administracion/menu.service';
 import { ToastService } from '../../../core/services/toast.service';
+
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-roles-admin',
@@ -38,7 +40,8 @@ export class RolesAdminComponent implements OnInit {
   constructor(
     private readonly rolesService: RolesAdminService,
     private readonly menuService: MenuService,
-    private readonly toast: ToastService
+    private readonly toast: ToastService,
+    private readonly alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -182,9 +185,20 @@ export class RolesAdminComponent implements OnInit {
       });
   }
 
-  cambiarEstado(item: RolAdminItem): void {
+  async cambiarEstado(item: RolAdminItem): Promise<void> {
     const nuevoEstado = item.vigente === 1 ? 0 : 1;
-    this.rolesService.setEstado(item.id, { vigente: nuevoEstado }).subscribe({
+    const accion = nuevoEstado === 1 ? 'activar' : 'inactivar';
+    const motivo = await this.alert.prompt(
+      'Cambiar estado de rol',
+      `¿Está seguro de ${accion} el rol "${item.nombre}"?`,
+      'Motivo de la acción:',
+      'Ingrese la justificación u observación...',
+      'Confirmar',
+      'Cancelar'
+    );
+    if (motivo === null) return;
+
+    this.rolesService.setEstado(item.id, { vigente: nuevoEstado, observaciones: motivo }).subscribe({
       next: (resp) => {
         if (!resp?.success) {
           this.toast.warning('Roles', resp?.message || 'No fue posible actualizar estado.');

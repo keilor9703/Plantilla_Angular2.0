@@ -11,6 +11,7 @@ export interface AuditoriaItem {
   registro: string;
   resultado: string;
   maquina: string;
+  observaciones?: string;
 }
 
 export interface AuditoriaPageResult {

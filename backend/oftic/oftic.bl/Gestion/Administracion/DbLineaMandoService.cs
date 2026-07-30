@@ -162,18 +162,18 @@ namespace Negocio.Gestion
             }
         }
 
-        public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             if (id <= 0)
             {
                 return new DtoLineaMandoResult
                 {
                     Success = false,
-                    Message = "ID inválido"
+                    Message = "ID de línea de mando no válido."
                 };
             }
 
-            return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
+            return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, observaciones, ct);
         }
 
         public async Task<DtoLineaMandoResult> SetVigenteAsync(long id, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
@@ -189,7 +189,7 @@ namespace Negocio.Gestion
 
             if (vigente == 0)
             {
-                return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
+                return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, null, ct);
             }
 
             return await _repository.SetVigenteAsync(id, vigente, usuarioAuditoria, maquinaAuditoria, ct);

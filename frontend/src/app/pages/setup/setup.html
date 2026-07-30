@@ -349,23 +349,6 @@
             <input class="ui-control" type="text" [(ngModel)]="formData.sigla" placeholder="Ej: OFTIC">
           </div>
 
-          <!-- <div class="ui-field ui-col-6">
-            <label class="ui-label">Logo del Sistema (PNG, JPG, WEBP)</label>
-            <input class="ui-control" type="file" accept="image/*" (change)="onLogoSelected($event)">
-            <div *ngIf="logoPreview" class="asset-preview mt-2">
-              <img [src]="logoPreview" alt="Logo preview" style="max-height: 48px; border-radius: 4px;">
-            </div>
-          </div> -->
-
-          <!-- <div class="ui-field ui-col-6">
-            <label class="ui-label">Favicon del Sistema (.ICO, PNG)</label>
-            <input class="ui-control" type="file" accept="image/*,.ico" (change)="onFaviconSelected($event)">
-            <div *ngIf="faviconPreview" class="asset-preview mt-2">
-              <img [src]="faviconPreview" alt="Favicon preview" style="max-height: 32px; border-radius: 4px;">
-            </div>
-          </div>
-        </div> -->
-
           <div *ngIf="saveResult" class="alert-box mt-3" [class.success]="saveResult.success"
             [class.error]="!saveResult.success">
             <i class="fa-solid" [class.fa-circle-check]="saveResult.success"
@@ -473,8 +456,7 @@
             </div>
 
             <div class="summary-card">
-              <span class="summary-label"><i class="fa-solid fa-user-gear text-cyan"></i> Usuario Semilla /
-                Developer</span>
+              <span class="summary-label"><i class="fa-solid fa-user-gear text-cyan"></i> Usuario Developer</span>
               <span class="summary-value">
                 <ng-container *ngIf="devFuncionario">
                   <strong>{{ devFuncionario.nombreGrado || devFuncionario.gradAlfabetico || formData.devGrad }} {{
@@ -513,14 +495,17 @@
         </div>
 
         <!-- Pie de Modal: Créditos y Botón Aceptar -->
-        <div class="finish-footer">
-          <div class="credits-box">
-            <i class="fa-solid fa-code text-cyan me-1"></i>
-            <span>Desarrollada por grupo de Desarrollo de sofftware Ij. Dyck Lopez - It Franklin Puentes - Pt Wilson
-              Lopez</span>
+        <div class="finish-footer"
+          style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+          <div class="credits-box"
+            style="display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; margin-bottom: 12px;">
+            <i class="fa-solid fa-file-pen text-cyan"
+              style="font-size: 1.2rem; color: var(--policia-cielo, #0284c7);"></i>
+            <span style="font-weight: 500;">Desarrollada por grupo de Desarrollo de sofftware Ij. Dyck Lopez - It
+              Franklin Puentes - Pt Wilson Lopez</span>
           </div>
 
-          <button class="ui-btn primary ui-btn--fx btn-accept mt-3" type="button" (click)="closeFinishModal()">
+          <button class="ui-btn primary ui-btn--fx btn-accept mt-2" type="button" (click)="closeFinishModal()">
             <i class="fa-solid" [class.fa-right-to-bracket]="isAlreadyConfigured"
               [class.fa-check]="!isAlreadyConfigured"></i>
             {{ isAlreadyConfigured ? 'Ir al Inicio de Sesión' : 'Aceptar' }}
@@ -582,15 +567,15 @@
             </div>
           </div>
 
-          <!-- ALERTA SI PERTENECE A GUSOF -->
+          <!-- ALERTA SI PERTENECE A OFTIC -->
           <div *ngIf="devUserValidationResult?.success" class="alert-box success mt-4"
             style="background: rgba(34, 197, 94, 0.15); border: 1.5px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
             <i class="fa-solid fa-circle-check me-2"></i>
-            <span>Funcionario verificado exitosamente como integrante del <strong>Grupo de Desarrollo de Software
-                (GUSOF)</strong>. Puede proceder a la instalación.</span>
+            <span>Funcionario verificado exitosamente como integrante de <strong>OFTIC</strong>. Puede proceder a la
+              instalación.</span>
           </div>
 
-          <!-- ALERTA SI NO PERTENECE A GUSOF (BLOQUEO) -->
+          <!-- ALERTA SI NO PERTENECE A OFTIC (BLOQUEO) -->
           <div *ngIf="!devUserValidationResult?.success" class="alert-box error mt-4"
             style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid rgba(239, 68, 68, 0.5); color: #fca5a5;">
             <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -599,13 +584,13 @@
         </div>
 
         <div class="finish-footer mt-4" style="border-top: none;">
-          <!-- Botón Aceptar (Sólo si es GUSOF) -->
+          <!-- Botón Aceptar (Sólo si pertenece a OFTIC) -->
           <button *ngIf="devUserValidationResult?.success" class="ui-btn primary ui-btn--fx" type="button"
             (click)="confirmDevUser()">
             <i class="fa-solid fa-arrow-right me-2"></i> Aceptar y Continuar a Instalación
           </button>
 
-          <!-- Botón Cerrar (Si NO es GUSOF) -->
+          <!-- Botón Cerrar (Si NO pertenece a OFTIC) -->
           <button *ngIf="!devUserValidationResult?.success" class="ui-btn secondary ui-btn--fx" type="button"
             (click)="closeDevUserModal()"
             style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5;">
@@ -615,4 +600,63 @@
 
       </div>
     </div>
-  </div>
+
+    <!-- MODAL EMERGENTE DE PERMISOS REQUERIDOS EN PIP -->
+    <div class="setup-modal-overlay" *ngIf="showPipRolesModal">
+      <div class="setup-modal setup-modal--lg">
+        <div class="setup-modal__header">
+          <div class="setup-modal__title">
+            <i class="fa-solid fa-shield-halved text-warning me-2"></i>
+            <span>Permisos Mínimos Requeridos para Usuario PIP</span>
+          </div>
+          <button type="button" class="setup-modal__close" (click)="closePipRolesModal()">&times;</button>
+        </div>
+
+        <div class="setup-modal__body">
+          <div class="alert-box info mb-3"
+            style="background: rgba(2, 132, 199, 0.12); border: 1px solid rgba(2, 132, 199, 0.3); padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-circle-info text-cyan" style="font-size: 1.3rem;"></i>
+            <span style="font-size: 0.9rem;">
+              Asegúrese de que el usuario PIP configurado <strong>({{ formData.pipUser }})</strong> cuente como mínimo
+              con los siguientes <strong>14 roles asignados en la plataforma PIP</strong> para garantizar el
+              funcionamiento del sistema:
+            </span>
+          </div>
+
+          <div class="pip-roles-table-container mb-3"
+            style="max-height: 280px; overflow-y: auto; border: 1px solid var(--ui-border, #cbd5e1); border-radius: 8px;">
+            <table class="ui-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+              <thead>
+                <tr
+                  style="background: rgba(2, 132, 199, 0.12); color: var(--policia-cielo, #0284c7); border-bottom: 1px solid var(--ui-border, #cbd5e1);">
+                  <th style="padding: 8px 12px; width: 60px; text-align: center;">N°</th>
+                  <th style="padding: 8px 12px; text-align: left;">Nombre del Rol en PIP</th>
+                  <th style="padding: 8px 12px; width: 110px; text-align: center;">Requisito</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let rol of pipRolesRequeridos" style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                  <td style="padding: 6px 12px; text-align: center; font-weight: 700;">{{ rol.id }}</td>
+                  <td
+                    style="padding: 6px 12px; font-family: monospace; font-weight: 600; color: var(--ui-text, #0f172a);">
+                    {{ rol.nombre }}</td>
+                  <td style="padding: 6px 12px; text-align: center;">
+                    <span
+                      style="background: rgba(34, 197, 94, 0.15); color: #16a34a; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">
+                      <i class="fa-solid fa-check me-1"></i>Requerido
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="finish-footer"
+          style="border-top: 1px solid var(--ui-border, #cbd5e1); padding-top: 12px; display: flex; justify-content: flex-end;">
+          <button class="ui-btn primary ui-btn--fx" type="button" (click)="confirmPipRolesModal()">
+            <i class="fa-solid fa-check-double me-2"></i> Entendido y Continuar
+          </button>
+        </div>
+      </div>
+    </div>

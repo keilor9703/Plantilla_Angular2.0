@@ -1,3 +1,4 @@
+using Comun.Dtos.Auditoria;
 using Comun.Dtos.LineasMando;
 using Comun.Extensions;
 using Datos.Interfaz;
@@ -18,12 +19,14 @@ namespace Datos.Gestion
         private readonly string _cs;
         private readonly IConfiguration _configuration;
         private readonly ILogger<DbLineaMandoRepository> _logger;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbLineaMandoRepository(IConfiguration configuration, ILogger<DbLineaMandoRepository> logger)
+        public DbLineaMandoRepository(IConfiguration configuration, ILogger<DbLineaMandoRepository> logger, IDbAuditoriaRepository auditoriaRepo)
         {
             _cs = configuration.GetDecryptedConnectionString();
             _configuration = configuration;
             _logger = logger;
+            _auditoriaRepo = auditoriaRepo;
         }
 
         public async Task<List<DtoLineaMando>> GetAllAsync(CancellationToken ct)
@@ -245,6 +248,7 @@ namespace Datos.Gestion
 
                 await transaction.CommitAsync(ct);
                 _logger.LogInformation("Línea de mando creada exitosamente con ID: {Id}", result.Id);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "CREAR", Registro = $"Línea ID {idNew}: {request.Nombre} {request.Apellidos} - {request.Cargo}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
             }
             catch (OracleException ex)
             {
@@ -357,6 +361,7 @@ namespace Datos.Gestion
                     result.Success = true;
                     result.Message = "Línea de mando actualizada exitosamente.";
                     await transaction.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "ACTUALIZAR", Registro = $"Línea ID {id}: {request.Nombre} {request.Apellidos} - {request.Cargo}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                 }
                 else
                 {
@@ -384,7 +389,7 @@ namespace Datos.Gestion
             return result;
         }
 
-        public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             var result = new DtoLineaMandoResult();
 
@@ -405,6 +410,7 @@ namespace Datos.Gestion
                     result.Success = true;
                     result.Message = "Línea de mando eliminada correctamente.";
                     await transaction.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "ELIMINAR", Registro = $"Línea ID {id} eliminada", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
                 }
                 else
                 {
@@ -464,6 +470,7 @@ namespace Datos.Gestion
                     result.Success = true;
                     result.Message = "Estado actualizado correctamente.";
                     await transaction.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = vigente == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Línea ID {id}: vigente={vigente}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
                 }
                 else
                 {
@@ -487,7 +494,7 @@ namespace Datos.Gestion
                         
                         if (previousInactive != null)
                         {
-                            await DeleteAsync(previousInactive.IdLineaMando, usuarioAuditoria, maquinaAuditoria, ct);
+                            await DeleteAsync(previousInactive.IdLineaMando, usuarioAuditoria, maquinaAuditoria, null, ct);
                             return await SetVigenteAsync(id, vigente, usuarioAuditoria, maquinaAuditoria, ct);
                         }
                     }

@@ -23,7 +23,8 @@ namespace Datos.Interfaz
             long idUsuario,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct);
+            string? observaciones = null,
+            CancellationToken ct = default);
         Task<DtoGuardarUsuarioResult> AsignarRolAsync(
             long idUsuario,
             DtoAsignarRolRequest request,
@@ -35,7 +36,8 @@ namespace Datos.Interfaz
             int rolId,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct);
+            string? observaciones = null,
+            CancellationToken ct = default);
         Task<DtoGuardarUsuarioResult> EditarRolAsync(
             long idUsuario,
             int rolId,
@@ -55,6 +57,7 @@ namespace Datos.Interfaz
             int vigente,
             string usuarioAuditoria,
             string maquinaAuditoria,
-            CancellationToken ct);
+            string? observaciones = null,
+            CancellationToken ct = default);
     }
 }

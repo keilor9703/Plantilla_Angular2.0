@@ -139,6 +139,7 @@ namespace Comun.Dtos
     public class DtoSetRolEstadoRequest
     {
         public int vigente { get; set; }
+        public string? observaciones { get; set; }
     }
 
     public class DtoSaveRolResult

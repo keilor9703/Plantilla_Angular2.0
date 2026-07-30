@@ -7,7 +7,7 @@ namespace Datos.Interfaz
         List<DtoCuentaEmail> ConsultarCuentas(int idCuenta);
         List<DtoCuentaEmail> ConsultarCuentasPorUsuario(int idUsuario);
         bool GestionarCuenta(DtoCuentaEmailRequest request);
-        bool EliminarCuenta(int idCuenta);
+        bool EliminarCuenta(int idCuenta, string? observaciones = null);
         List<DtoCuentaEmailUsuario> ConsultarAutorizaciones(int? idCuenta, int? idUsuario, int? vigente);
         bool GuardarAutorizacion(DtoCuentaEmailUsuarioRequest request);
         bool ActualizarAutorizacion(DtoCuentaEmailUsuarioEstadoRequest request);

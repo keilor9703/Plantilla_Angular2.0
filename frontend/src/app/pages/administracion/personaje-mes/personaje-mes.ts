@@ -896,15 +896,17 @@ loading = false;
   }
 
   async eliminar(item: DtoPersonajeMes): Promise<void> {
-    const confirmed = await this.alert.confirm(
+    const motivo = await this.alert.prompt(
       'Eliminar registro',
       `¿Está seguro de eliminar el registro de ${this.getNombreCompleto(item)}?`,
+      'Motivo de la eliminación:',
+      'Ingrese la justificación u observación...',
       'Eliminar',
       'Cancelar'
     );
-    if (!confirmed) return;
+    if (motivo === null) return;
 
-    this.personajeMesService.delete(item.idPersonajeMes).subscribe({
+    this.personajeMesService.delete(item.idPersonajeMes, motivo).subscribe({
       next: (resp) => {
         if (!resp.success) {
           this.toast.warning('Personaje del mes', resp.message ?? 'No fue posible eliminar el registro.');

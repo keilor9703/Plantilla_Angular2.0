@@ -16,11 +16,13 @@ namespace Datos.Gestion
     {
         private readonly string _cs;
         private readonly IConfiguration _configuration;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbMenuRepository(IConfiguration configuration)
+        public DbMenuRepository(IConfiguration configuration, IDbAuditoriaRepository auditoriaRepo)
         {
             _cs = Comun.Extensions.ConfigurationExtensions.GetDecryptedConnectionString(configuration);
             _configuration = configuration;
+            _auditoriaRepo = auditoriaRepo;
         }
 
 
@@ -247,7 +249,7 @@ namespace Datos.Gestion
 
 
 
-        public async Task<DtoMenuResult> SaveMenuAsync(DtoMenuSaveRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoMenuResult> SaveMenuAsync(DtoMenuSaveRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -289,6 +291,7 @@ namespace Datos.Gestion
                     }
 
                     await tx.CommitAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ACTUALIZAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
                     return new DtoMenuResult { Id = idMenu, Message = "Menú actualizado correctamente." };
                 }
 
@@ -320,13 +323,14 @@ namespace Datos.Gestion
                     cmdInsert.Parameters.Add("pIcono", OracleDbType.Varchar2).Value = AsDbValue(request.Icono);
                     cmdInsert.Parameters.Add("pVigente", OracleDbType.Int32).Value = request.Vigente is 0 ? 0 : 1;
                     cmdInsert.Parameters.Add("pDetalle", OracleDbType.Varchar2).Value = AsDbValue(request.Detalle);
-                    cmdInsert.Parameters.Add("pUsuarioCreacion", OracleDbType.Int64).Value = usuarioAuditoria;
+                    cmdInsert.Parameters.Add("pUsuarioCreacion", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
                     cmdInsert.Parameters.Add("pMaquinaCreacion", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
 
                     await cmdInsert.ExecuteNonQueryAsync(ct);
                 }
 
                 await tx.CommitAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "CREAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
                 return new DtoMenuResult { Id = idMenu, Message = "Menú creado correctamente." };
             }
             catch
@@ -336,36 +340,79 @@ namespace Datos.Gestion
             }
         }
 
-        public async Task<DtoMenuResult> SetEstadoMenuAsync(long idMenu, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoMenuResult> SetEstadoMenuAsync(long idMenu, int vigente, string usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = @"
-                UPDATE ctr_menu
-                   SET vigente          = :pVigente,
-                       usuario_modifica = :pUsuarioModifica,
-                       fecha_modifica   = SYSDATE,
-                       maquina_modifica = :pMaquinaModifica
-                 WHERE id_menu = :pIdMenu";
+            int rows = 0;
+            var v = vigente == 0 ? 0 : 1;
+            try
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandText = @"
+                    UPDATE ctr_menu
+                       SET estado           = :pVigente,
+                           vigente          = :pVigente,
+                           usuario_modifica = :pUsuarioModifica,
+                           fecha_modifica   = SYSDATE,
+                           maquina_modifica = :pMaquinaModifica
+                     WHERE id_menu = :pIdMenu";
 
-            cmd.Parameters.Add("pVigente", OracleDbType.Int32).Value = vigente is 0 ? 0 : 1;
-            cmd.Parameters.Add("pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
-            cmd.Parameters.Add("pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
-            cmd.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                cmd.Parameters.Add("pVigente", OracleDbType.Int32).Value = v;
+                cmd.Parameters.Add("pUsuarioModifica", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
+                cmd.Parameters.Add("pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
+                cmd.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
 
-            var rows = await cmd.ExecuteNonQueryAsync(ct);
+                rows = await cmd.ExecuteNonQueryAsync(ct);
+            }
+            catch
+            {
+                try
+                {
+                    await using var cmdFallback = conn.CreateCommand();
+                    cmdFallback.CommandType = CommandType.Text;
+                    cmdFallback.CommandText = @"UPDATE ctr_menu SET estado = :pVigente WHERE id_menu = :pIdMenu";
+                    cmdFallback.Parameters.Add("pVigente", OracleDbType.Int32).Value = v;
+                    cmdFallback.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                    rows = await cmdFallback.ExecuteNonQueryAsync(ct);
+                }
+                catch
+                {
+                    await using var cmdFallback2 = conn.CreateCommand();
+                    cmdFallback2.CommandType = CommandType.Text;
+                    cmdFallback2.CommandText = @"UPDATE ctr_menu SET vigente = :pVigente WHERE id_menu = :pIdMenu";
+                    cmdFallback2.Parameters.Add("pVigente", OracleDbType.Int32).Value = v;
+                    cmdFallback2.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+                    rows = await cmdFallback2.ExecuteNonQueryAsync(ct);
+                }
+            }
+
             if (rows <= 0)
             {
                 return new DtoMenuResult { Id = 0, Message = "No se encontró el menú." };
             }
 
+            try
+            {
+                await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                {
+                    Usuario = usuarioAuditoria,
+                    Modulo = "MENU",
+                    Accion = v == 1 ? "ACTIVAR" : "DESACTIVAR",
+                    Registro = $"Menú ID {idMenu}: vigente={v}",
+                    Resultado = "EXITOSO",
+                    Maquina = maquinaAuditoria ?? "LOCAL",
+                    Observaciones = observaciones
+                }, ct);
+            }
+            catch { }
+
             return new DtoMenuResult
             {
                 Id = idMenu,
-                Message = vigente == 1 ? "Menú activado." : "Menú desactivado."
+                Message = v == 1 ? "Menú activado." : "Menú desactivado."
             };
         }
 
@@ -472,7 +519,7 @@ SELECT mr.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, 'Rol ' || mr.id_rol)) AS 
             return result;
         }
 
-        public async Task<DtoMenuResult> AssignRolToMenuAsync(long idMenu, int idRol, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoMenuResult> AssignRolToMenuAsync(long idMenu, int idRol, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -523,7 +570,7 @@ SELECT COUNT(1)
                     catch { nextId = 1; }
                 }
 
-                var usrVal = usuarioAuditoria > 0 ? usuarioAuditoria.ToString() : "ADMIN";
+                var usrVal = !string.IsNullOrWhiteSpace(usuarioAuditoria) ? usuarioAuditoria : "ADMIN";
                 var inserted = false;
                 string[] insertSqls = new[]
                 {
@@ -566,6 +613,7 @@ SELECT COUNT(1)
                 }
 
                 await tx.CommitAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ASIGNAR ROL", Registro = $"Menú ID {idMenu}: Rol {idRol} asignado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
                 return new DtoMenuResult { Id = nextId, Message = "Rol asignado al menú correctamente." };
             }
             catch (Exception ex)
@@ -575,7 +623,7 @@ SELECT COUNT(1)
             }
         }
 
-        public async Task<DtoMenuResult> RemoveRolFromMenuAsync(long idMenu, int idRol, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoMenuResult> RemoveRolFromMenuAsync(long idMenu, int idRol, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -601,6 +649,7 @@ DELETE FROM ctr_menu_roles
                 }
 
                 await tx.CommitAsync(ct);
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ELIMINAR ROL", Registro = $"Menú ID {idMenu}: Rol {idRol} retirado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
                 return new DtoMenuResult { Id = idMenu, Message = "Asignación menú-rol eliminada." };
             }
             catch (Exception ex)
@@ -679,13 +728,13 @@ SELECT m.id_menu,
             return result;
         }
 
-        public Task<DtoMenuResult> AssignMenuToRolAsync(int idRol, long idMenu, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public Task<DtoMenuResult> AssignMenuToRolAsync(int idRol, long idMenu, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         => AssignRolToMenuAsync(idMenu, idRol, usuarioAuditoria, maquinaAuditoria, ct);
 
-        public Task<DtoMenuResult> RemoveMenuFromRolAsync(int idRol, long idMenu, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public Task<DtoMenuResult> RemoveMenuFromRolAsync(int idRol, long idMenu, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         => RemoveRolFromMenuAsync(idMenu, idRol, usuarioAuditoria, maquinaAuditoria, ct);
 
-        private static void BindSaveParams(OracleCommand cmd, DtoMenuSaveRequest request, long idPadre, long usuarioAuditoria, string maquinaAuditoria)
+        private static void BindSaveParams(OracleCommand cmd, DtoMenuSaveRequest request, long idPadre, string usuarioAuditoria, string maquinaAuditoria)
         {
             cmd.Parameters.Add("pDescripcion", OracleDbType.Varchar2).Value = request.Descripcion!.Trim();
             cmd.Parameters.Add("pIdPadre", OracleDbType.Int64).Value = idPadre;
@@ -693,7 +742,7 @@ SELECT m.id_menu,
             cmd.Parameters.Add("pIcono", OracleDbType.Varchar2).Value = AsDbValue(request.Icono);
             cmd.Parameters.Add("pVigente", OracleDbType.Int32).Value = request.Vigente is 0 ? 0 : 1;
             cmd.Parameters.Add("pDetalle", OracleDbType.Varchar2).Value = AsDbValue(request.Detalle);
-            cmd.Parameters.Add("pUsuarioModifica", OracleDbType.Int64).Value = usuarioAuditoria;
+            cmd.Parameters.Add("pUsuarioModifica", OracleDbType.Varchar2).Value = AsDbValue(usuarioAuditoria);
             cmd.Parameters.Add("pMaquinaModifica", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria);
         }
 

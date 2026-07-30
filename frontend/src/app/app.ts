@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnDestroy } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 
@@ -12,7 +13,7 @@ import { BrandingService } from './core/services/administracion/branding.service
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule]
+  imports: [RouterOutlet, CommonModule, FormsModule]
 })
 export class AppComponent implements OnDestroy {
 
@@ -35,7 +36,11 @@ export class AppComponent implements OnDestroy {
     message: '',
     okText: 'OK',
     cancelText: '',
-    isConfirm: false
+    isConfirm: false,
+    isPrompt: false,
+    promptLabel: '',
+    promptPlaceholder: '',
+    promptValue: ''
   };
 
   private alertSub: Subscription;
@@ -67,7 +72,11 @@ export class AppComponent implements OnDestroy {
         message: a.message,
         okText: a.okText ?? 'OK',
         cancelText: a.cancelText ?? '',
-        isConfirm: a.isConfirm ?? false
+        isConfirm: a.isConfirm ?? false,
+        isPrompt: a.isPrompt ?? false,
+        promptLabel: a.promptLabel ?? 'Motivo de la eliminación:',
+        promptPlaceholder: a.promptPlaceholder ?? 'Escriba la justificación u observación...',
+        promptValue: ''
       };
 
       // Bloquear scroll del fondo mientras esté la alerta
@@ -90,7 +99,7 @@ export class AppComponent implements OnDestroy {
 
   private applyFavicon(faviconUrl: string | null): void {
     if (!faviconUrl) return;
-    const link = document.querySelector<HTMLLinkElement>('link[rel=\"icon\"]');
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (link) {
       link.href = faviconUrl;
       return;
@@ -109,8 +118,9 @@ export class AppComponent implements OnDestroy {
 
   // ===== ALERT API =====
   closeAlert(): void {
-    // Si era un confirm pendiente, responder false al cerrarlo
-    if (this.alert.isConfirm) {
+    if (this.alert.isPrompt) {
+      this.alertService.respondPrompt(null);
+    } else if (this.alert.isConfirm) {
       this.alertService.respond(false);
     }
 
@@ -120,18 +130,25 @@ export class AppComponent implements OnDestroy {
 
   // Confirmación explícita (OK)
   confirmAlert(): void {
-    if (this.alert.isConfirm) {
+    if (this.alert.isPrompt) {
+      const val = (this.alert.promptValue || '').trim() || 'Sin observación';
+      this.alertService.respondPrompt(val);
+    } else if (this.alert.isConfirm) {
       this.alertService.respond(true);
     }
-    this.closeAlert();
+    this.alert.open = false;
+    document.body.classList.remove('ui-modal-open');
   }
 
   // Cancelar (Cancelar)
   cancelAlert(): void {
-    if (this.alert.isConfirm) {
+    if (this.alert.isPrompt) {
+      this.alertService.respondPrompt(null);
+    } else if (this.alert.isConfirm) {
       this.alertService.respond(false);
     }
-    this.closeAlert();
+    this.alert.open = false;
+    document.body.classList.remove('ui-modal-open');
   }
 
   // Cerrar con ESC (prioridad: alerta)

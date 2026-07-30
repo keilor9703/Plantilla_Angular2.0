@@ -1,3 +1,4 @@
+using Comun.Dtos.Auditoria;
 using Comun.Dtos.PersonajeMes;
 using Datos.Entities;
 using Datos.Interfaz;
@@ -15,11 +16,13 @@ namespace Datos.Gestion
     {
         private readonly OfticDbContext _context;
         private readonly ILogger<DbPersonajeMesRepository> _logger;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbPersonajeMesRepository(OfticDbContext context, ILogger<DbPersonajeMesRepository> logger)
+        public DbPersonajeMesRepository(OfticDbContext context, ILogger<DbPersonajeMesRepository> logger, IDbAuditoriaRepository auditoriaRepo)
         {
             _context = context;
             _logger = logger;
+            _auditoriaRepo = auditoriaRepo;
         }
 
         public async Task<List<DtoPersonajeMes>> GetAllAsync(CancellationToken ct)
@@ -125,6 +128,7 @@ namespace Datos.Gestion
                 result.Id = entity.IdPersonajeMes;
                 result.Success = true;
                 result.Message = "Registro creado exitosamente";
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "PERSONAJE DEL MES", Accion = "CREAR", Registro = $"Personaje ID {entity.IdPersonajeMes}: {request.Nombres} {request.Apellidos}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
             }
             catch (Exception ex)
             {
@@ -175,6 +179,7 @@ namespace Datos.Gestion
 
                 result.Success = true;
                 result.Message = "Registro actualizado exitosamente";
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "PERSONAJE DEL MES", Accion = "ACTUALIZAR", Registro = $"Personaje ID {id}: {request.Nombres} {request.Apellidos}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
             }
             catch (Exception ex)
             {
@@ -185,7 +190,7 @@ namespace Datos.Gestion
             return result;
         }
 
-        public async Task<DtoPersonajeMesResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoPersonajeMesResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             var result = new DtoPersonajeMesResult();
             try
@@ -207,6 +212,7 @@ namespace Datos.Gestion
 
                 result.Success = true;
                 result.Message = "Registro eliminado exitosamente";
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "PERSONAJE DEL MES", Accion = "ELIMINAR", Registro = $"Personaje ID {id} desactivado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { /* no bloquear */ }
             }
             catch (Exception ex)
             {
@@ -239,6 +245,7 @@ namespace Datos.Gestion
 
                 result.Success = true;
                 result.Message = "Registro actualizado correctamente";
+                try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "PERSONAJE DEL MES", Accion = vigente == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Personaje ID {id}: vigente={vigente}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { /* no bloquear */ }
             }
             catch (Exception ex)
             {

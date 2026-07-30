@@ -105,11 +105,12 @@ namespace Api.Controllers.Administracion
         }
 
         [HttpDelete("{id:long}")]
-        public async Task<ActionResult> Delete(long id)
+        public async Task<ActionResult> Delete(long id, [FromQuery] string? observaciones = null, [FromQuery] string? motivo = null)
         {
             var (usuario, maquina) = ObtenerAuditoria();
+            var obsFinal = !string.IsNullOrWhiteSpace(observaciones) ? observaciones : motivo;
 
-            var result = await _service.DeletelogicalAsync(id, usuario, maquina, CancellationToken.None);
+            var result = await _service.DeletelogicalAsync(id, usuario, maquina, obsFinal, CancellationToken.None);
 
             if (!result.Success)
             {

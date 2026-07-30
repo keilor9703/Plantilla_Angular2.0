@@ -96,6 +96,10 @@ export class SetupService {
     return this.http.post<SetupResponse>(`${this.apiBase}/save-config`, request);
   }
 
+  shutdownBackend(): Observable<SetupResponse> {
+    return this.http.post<SetupResponse>(`${this.apiBase}/shutdown`, {});
+  }
+
   uploadLogo(file: File): Observable<any> {
     const fd = new FormData();
     fd.append('file', file);

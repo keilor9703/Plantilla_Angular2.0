@@ -347,9 +347,10 @@ namespace Datos.Gestion
                   VALUES (2, 'ADMINISTRADOR', 'Administrador', 'Rol administrador del sistema', 1, 'SETUP', 'LOCAL');",
 
                 // Seed Data - Menús Base
+                @"DELETE FROM CTR_MENU_ROLES WHERE id_menu = 2;",
+                @"DELETE FROM CTR_MENU WHERE id_menu = 2 OR ruta = '/noticias';",
                 @"INSERT IGNORE INTO CTR_MENU (id_menu, id_padre, titulo, ruta, icono, orden, estado, usuario_creacion) VALUES
                   (1, 0, 'Inicio', '/home', 'fa-solid fa-house', 1, 1, 'SETUP'),
-                  (2, 0, 'Noticias', '/noticias', 'fa-solid fa-newspaper', 2, 1, 'SETUP'),
                   (3, 0, 'Gestión Documental', NULL, 'fa-solid fa-folder-open', 3, 1, 'SETUP'),
                   (31, 3, 'Gestión Correos Electrónicos', '/gestion-documental/gestion-correos-electronicos', 'fa-solid fa-envelope', 1, 1, 'SETUP'),
                   (4, 0, 'Administración', NULL, 'fa-solid fa-gears', 4, 1, 'SETUP'),
@@ -840,6 +841,7 @@ namespace Datos.Gestion
                       REGISTRO         VARCHAR2(500 CHAR),
                       RESULTADO        VARCHAR2(100 CHAR),
                       MAQUINA          VARCHAR2(100 CHAR),
+                      OBSERVACIONES    VARCHAR2(500 CHAR),
                       CONSTRAINT CTR_AUDITORIA_PK PRIMARY KEY (ID_AUDITORIA){usingIndexClause}
                     ){tsDataClause}';
                   EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
@@ -850,6 +852,12 @@ namespace Datos.Gestion
                 @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD REGISTRO VARCHAR2(500 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
                 @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD RESULTADO VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
                 @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD MAQUINA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_AUDITORIA ADD OBSERVACIONES VARCHAR2(500 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES ADD VIGENTE NUMBER(1) DEFAULT 1'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES ADD ESTADO NUMBER(1) DEFAULT 1'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES ADD FECHA_MODIFICA DATE'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES ADD USUARIO_MODIFICA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
+                @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE CTR_ROLES ADD MAQUINA_MODIFICA VARCHAR2(100 CHAR)'; EXCEPTION WHEN OTHERS THEN NULL; END;",
 
                 $@"BEGIN
                     EXECUTE IMMEDIATE '
@@ -1054,19 +1062,14 @@ namespace Datos.Gestion
                   END;",
 
                 @"BEGIN
-                    MERGE INTO CTR_BRANDING b USING (SELECT 1 AS id FROM DUAL) src ON (b.ID_BRANDING = src.id)
-                    WHEN NOT MATCHED THEN INSERT (ID_BRANDING, SISTEMA, NOMBRE_SISTEMA, SIGLA, NOMBRE_UNIDAD, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION)
-                    VALUES (1, 'GUSOF', 'OFTIC', 'OFTIC', 'Oficina de Tecnologías de la Información y las Comunicaciones', 1, 'SETUP', 'LOCAL');
+                    DELETE FROM CTR_MENU_ROLES WHERE ID_MENU = 2;
+                    DELETE FROM CTR_MENU WHERE ID_MENU = 2 OR RUTA = '/noticias';
                   END;",
 
                 @"BEGIN
                     MERGE INTO CTR_MENU m USING (SELECT 1 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
                     WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
                     VALUES (1, 0, 'Inicio', '/home', 'fa-solid fa-house', 1, 1, 'SETUP');
-
-                    MERGE INTO CTR_MENU m USING (SELECT 2 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
-                    WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)
-                    VALUES (2, 0, 'Noticias', '/noticias', 'fa-solid fa-newspaper', 2, 1, 'SETUP');
 
                     MERGE INTO CTR_MENU m USING (SELECT 3 AS id FROM DUAL) src ON (m.ID_MENU = src.id)
                     WHEN NOT MATCHED THEN INSERT (ID_MENU, ID_PADRE, TITULO, RUTA, ICONO, ORDEN, ESTADO, USUARIO_CREACION)

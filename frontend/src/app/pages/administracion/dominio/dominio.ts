@@ -248,15 +248,17 @@ export class DominioAdminComponent implements OnInit {
   }
 
   async eliminar(item: DtoDominio): Promise<void> {
-    const confirmed = await this.alert.confirm(
+    const motivo = await this.alert.prompt(
       'Eliminar dominio',
       `¿Está seguro de eliminar el dominio "${item.descripcion}"?`,
+      'Motivo de la eliminación:',
+      'Ingrese la justificación u observación...',
       'Eliminar',
       'Cancelar'
     );
-    if (!confirmed) return;
+    if (motivo === null) return;
 
-    this.dominioService.delete(item.idDominio).subscribe({
+    this.dominioService.delete(item.idDominio, motivo).subscribe({
       next: (resp) => {
         if (resp.success) {
           this.toast.success('Eliminar', resp.message);

@@ -9,6 +9,7 @@ namespace Comun.Dtos.Auditoria
         public string Registro { get; set; } = string.Empty;
         public string Resultado { get; set; } = string.Empty;
         public string Maquina { get; set; } = string.Empty;
+        public string? Observaciones { get; set; }
     }
 
     public class DtoAuditoriaFiltroRequest
@@ -28,6 +29,17 @@ namespace Comun.Dtos.Auditoria
         public int Total { get; set; }
         public int Page { get; set; }
         public int PageSize { get; set; }
+    }
+
+    public class DtoAuditoriaRegistrarRequest
+    {
+        public string Usuario { get; set; } = "SISTEMA";
+        public string Modulo { get; set; } = string.Empty;
+        public string Accion { get; set; } = string.Empty;
+        public string Registro { get; set; } = string.Empty;
+        public string Resultado { get; set; } = "EXITOSO";
+        public string Maquina { get; set; } = "LOCAL";
+        public string? Observaciones { get; set; }
     }
 }
 

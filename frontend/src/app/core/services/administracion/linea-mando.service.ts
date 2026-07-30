@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -61,8 +61,10 @@ export class LineaMandoService {
     return this.http.put<DtoLineaMandoResult>(`${this.baseUrl}/${id}`, request);
   }
 
-  delete(id: number): Observable<DtoLineaMandoResult> {
-    return this.http.delete<DtoLineaMandoResult>(`${this.baseUrl}/${id}`);
+  delete(id: number, observaciones?: string): Observable<DtoLineaMandoResult> {
+    const params: any = {};
+    if (observaciones) params.observaciones = observaciones;
+    return this.http.delete<DtoLineaMandoResult>(`${this.baseUrl}/${id}`, { params });
   }
 
   setVigente(id: number, vigente: number): Observable<DtoLineaMandoResult> {

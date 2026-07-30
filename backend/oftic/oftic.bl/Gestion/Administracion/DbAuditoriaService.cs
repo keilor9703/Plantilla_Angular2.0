@@ -21,6 +21,12 @@ namespace Negocio.Gestion
             if (filtro.PageSize > 100) filtro.PageSize = 100;
             return await _repository.GetBitacoraAsync(filtro, ct);
         }
+
+        public Task<bool> RegistrarAuditoriaAsync(DtoAuditoriaRegistrarRequest request, CancellationToken ct = default)
+            => _repository.RegistrarAuditoriaAsync(request, ct);
+
+        public bool RegistrarAuditoria(DtoAuditoriaRegistrarRequest request)
+            => _repository.RegistrarAuditoria(request);
     }
 }
 

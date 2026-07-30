@@ -1,4 +1,4 @@
-﻿using Comun.Dtos.Menu;
+using Comun.Dtos.Menu;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Datos.Interfaz;
@@ -95,13 +95,8 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Vigente debe ser 0 o 1." });
                 }
 
-                var userId = await ResolveUsuarioAuditoriaAsync(ct);
-                if (userId <= 0)
-                {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
-                }
-                var machine = ResolveMachine();
-                var result = await _service.SaveMenuAsync(request, userId, machine, ct);
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.SaveMenuAsync(request, usuario, maquina, ct);
 
                 if (result.Id <= 0)
                 {
@@ -175,13 +170,8 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Id de rol invÃ¡lido." });
                 }
 
-                var userId = await ResolveUsuarioAuditoriaAsync(ct);
-                if (userId <= 0)
-                {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
-                }
-                var machine = ResolveMachine();
-                var result = await _service.AssignRolToMenuAsync(idMenu, request.IdRol, userId, machine, ct);
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.AssignRolToMenuAsync(idMenu, request.IdRol, usuario, maquina, ct);
 
                 if (result.Id <= 0)
                 {
@@ -208,13 +198,8 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "ParÃ¡metros invÃ¡lidos." });
                 }
 
-                var userId = await ResolveUsuarioAuditoriaAsync(ct);
-                if (userId <= 0)
-                {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
-                }
-                var machine = ResolveMachine();
-                var result = await _service.RemoveRolFromMenuAsync(idMenu, idRol, userId, machine, ct);
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.RemoveRolFromMenuAsync(idMenu, idRol, usuario, maquina, ct);
 
                 if (result.Id <= 0)
                 {
@@ -267,13 +252,8 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Id de menÃº invÃ¡lido." });
                 }
 
-                var userId = await ResolveUsuarioAuditoriaAsync(ct);
-                if (userId <= 0)
-                {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
-                }
-                var machine = ResolveMachine();
-                var result = await _service.AssignMenuToRolAsync(idRol, request.IdMenu, userId, machine, ct);
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.AssignMenuToRolAsync(idRol, request.IdMenu, usuario, maquina, ct);
 
                 if (result.Id <= 0)
                 {
@@ -300,13 +280,8 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Parámetros inválidos." });
                 }
 
-                var userId = await ResolveUsuarioAuditoriaAsync(ct);
-                if (userId <= 0)
-                {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
-                }
-                var machine = ResolveMachine();
-                var result = await _service.RemoveMenuFromRolAsync(idRol, idMenu, userId, machine, ct);
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.RemoveMenuFromRolAsync(idRol, idMenu, usuario, maquina, ct);
 
                 if (result.Id <= 0)
                 {
@@ -338,13 +313,8 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Vigente debe ser 0 o 1." });
                 }
 
-                var userId = await ResolveUsuarioAuditoriaAsync(ct);
-                if (userId <= 0)
-                {
-                    return Unauthorized(new { success = false, message = "No se pudo resolver cédula del usuario autenticado." });
-                }
-                var machine = ResolveMachine();
-                var result = await _service.SetEstadoMenuAsync(idMenu, request.Vigente, userId, machine, ct);
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.SetEstadoMenuAsync(idMenu, request.Vigente, usuario, maquina, request.Observaciones, ct);
 
                 if (result.Id <= 0)
                 {
@@ -360,39 +330,22 @@ namespace Api.Controllers.Administracion
             }
         }
 
-        private async Task<long> ResolveUsuarioAuditoriaAsync(CancellationToken ct)
+        private (string usuario, string maquina) ObtenerAuditoria()
         {
-            var rawCedula = User.FindFirstValue("identificacion")
+            var usuario = User.Identity?.Name
+                ?? User.FindFirstValue("username")
+                ?? User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue("sub")
+                ?? User.FindFirstValue("identificacion")
                 ?? User.FindFirstValue("cedula")
-                ?? User.FindFirstValue("numeroDocumento")
-                ?? User.FindFirstValue("documento");
-            if (long.TryParse(rawCedula, out var cedulaClaim) && cedulaClaim > 0)
-            {
-                return cedulaClaim;
-            }
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "SISTEMA";
 
-            var username =
-                User?.Identity?.Name
-                ?? User?.FindFirstValue(ClaimTypes.Name)
-                ?? User?.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name");
-
-            if (!string.IsNullOrWhiteSpace(username))
-            {
-                var cedulaDb = await _dbUsuarioRepository.GetIdentificacionByUsernameAsync(username.Trim(), ct);
-                if (long.TryParse(cedulaDb, out var cedula) && cedula > 0)
-                {
-                    return cedula;
-                }
-            }
-
-            return 0;
-        }
-
-        private string ResolveMachine()
-        {
-            return HttpContext.Connection.RemoteIpAddress?.ToString()
+            var maquina = HttpContext.Connection.RemoteIpAddress?.ToString()
                 ?? Environment.MachineName
                 ?? "N/A";
+
+            return (usuario, maquina);
         }
 
         private async Task<List<DtoMenuItem>> GetMenuForUserAsync(long idUsuario, CancellationToken ct)

@@ -20,12 +20,14 @@ namespace Datos.Gestion
         private readonly string _cs;
         private readonly IConfiguration _configuration;
         private readonly ILogger<DbDominioRepository> _logger;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger)
+        public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger, IDbAuditoriaRepository auditoriaRepo)
         {
             _cs = configuration.GetDecryptedConnectionString();
             _configuration = configuration;
             _logger = logger;
+            _auditoriaRepo = auditoriaRepo;
         }
 
         public async Task<List<DtoDominio>> GetAllAsync(CancellationToken ct)
@@ -228,6 +230,15 @@ namespace Datos.Gestion
                     cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "N/A");
 
                     var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+                    await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = usuarioAuditoria.ToString(),
+                        Modulo = "DOMINIOS",
+                        Accion = "CREAR",
+                        Registro = $"Dominio ID {newId}: {desc}",
+                        Resultado = "EXITOSO",
+                        Maquina = maquinaAuditoria ?? "LOCAL"
+                    }, ct);
                     return new DtoDominioResult { Id = newId, Success = true, Message = "Dominio creado exitosamente." };
                 }
                 catch (Exception ex)
@@ -256,6 +267,15 @@ namespace Datos.Gestion
                     cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "N/A");
 
                     var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+                    await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = usuarioAuditoria.ToString(),
+                        Modulo = "DOMINIOS",
+                        Accion = "CREAR",
+                        Registro = $"Dominio ID {newId}: {desc}",
+                        Resultado = "EXITOSO",
+                        Maquina = maquinaAuditoria ?? "LOCAL"
+                    }, ct);
                     return new DtoDominioResult { Id = newId, Success = true, Message = "Dominio creado exitosamente." };
                 }
                 catch (Exception ex)
@@ -290,6 +310,15 @@ namespace Datos.Gestion
                 cmdDirect.Parameters.Add(":pMaq", OracleDbType.Varchar2).Value = maquinaAuditoria ?? "N/A";
 
                 await cmdDirect.ExecuteNonQueryAsync(ct);
+                await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                {
+                    Usuario = usuarioAuditoria.ToString(),
+                    Modulo = "DOMINIOS",
+                    Accion = "CREAR",
+                    Registro = $"Dominio ID {newId}: {desc}",
+                    Resultado = "EXITOSO",
+                    Maquina = maquinaAuditoria ?? "LOCAL"
+                }, ct);
                 return new DtoDominioResult { Id = newId, Success = true, Message = "Dominio creado exitosamente." };
             }
             catch (Exception exDirect)
@@ -330,6 +359,15 @@ namespace Datos.Gestion
                     cmd.Parameters.AddWithValue("@pId", id);
 
                     await cmd.ExecuteNonQueryAsync(ct);
+                    await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = usuarioAuditoria.ToString(),
+                        Modulo = "DOMINIOS",
+                        Accion = "ACTUALIZAR",
+                        Registro = $"Dominio ID {id}: {desc}",
+                        Resultado = "EXITOSO",
+                        Maquina = maquinaAuditoria ?? "LOCAL"
+                    }, ct);
                     return new DtoDominioResult { Id = id, Success = true, Message = "Dominio actualizado correctamente." };
                 }
                 catch (Exception ex)
@@ -361,6 +399,15 @@ namespace Datos.Gestion
                     cmd.Parameters.AddWithValue("@pId", id);
 
                     await cmd.ExecuteNonQueryAsync(ct);
+                    await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = usuarioAuditoria.ToString(),
+                        Modulo = "DOMINIOS",
+                        Accion = "ACTUALIZAR",
+                        Registro = $"Dominio ID {id}: {desc}",
+                        Resultado = "EXITOSO",
+                        Maquina = maquinaAuditoria ?? "LOCAL"
+                    }, ct);
                     return new DtoDominioResult { Id = id, Success = true, Message = "Dominio actualizado correctamente." };
                 }
                 catch (Exception ex)
@@ -392,6 +439,18 @@ namespace Datos.Gestion
                 cmdDirect.Parameters.Add(":pId", OracleDbType.Int64).Value = id;
 
                 var affected = await cmdDirect.ExecuteNonQueryAsync(ct);
+                if (affected > 0)
+                {
+                    await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = usuarioAuditoria.ToString(),
+                        Modulo = "DOMINIOS",
+                        Accion = "ACTUALIZAR",
+                        Registro = $"Dominio ID {id}: {desc}",
+                        Resultado = "EXITOSO",
+                        Maquina = maquinaAuditoria ?? "LOCAL"
+                    }, ct);
+                }
                 return new DtoDominioResult { Id = id, Success = affected > 0, Message = affected > 0 ? "Dominio actualizado correctamente." : "No se encontró el dominio." };
             }
             catch (Exception exDirect)
@@ -401,7 +460,7 @@ namespace Datos.Gestion
             }
         }
 
-        public async Task<DtoDominioResult> DeletelogicalAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoDominioResult> DeletelogicalAsync(long id, long usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
@@ -418,6 +477,19 @@ namespace Datos.Gestion
                     cmd.Parameters.AddWithValue("@pId", id);
 
                     var affected = await cmd.ExecuteNonQueryAsync(ct);
+                    if (affected > 0)
+                    {
+                        await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                        {
+                            Usuario = usuarioAuditoria.ToString(),
+                            Modulo = "DOMINIOS",
+                            Accion = "ELIMINAR",
+                            Registro = $"Dominio ID {id} inhabilitado",
+                            Resultado = "EXITOSO",
+                            Maquina = maquinaAuditoria ?? "LOCAL",
+                            Observaciones = observaciones
+                        }, ct);
+                    }
                     return new DtoDominioResult { Id = id, Success = affected > 0, Message = affected > 0 ? "Dominio retirado exitosamente." : "No se encontró el dominio." };
                 }
                 catch (Exception ex)
@@ -440,6 +512,19 @@ namespace Datos.Gestion
                     cmd.Parameters.AddWithValue("@pId", id);
 
                     var affected = await cmd.ExecuteNonQueryAsync(ct);
+                    if (affected > 0)
+                    {
+                        await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                        {
+                            Usuario = usuarioAuditoria.ToString(),
+                            Modulo = "DOMINIOS",
+                            Accion = "ELIMINAR",
+                            Registro = $"Dominio ID {id} inhabilitado",
+                            Resultado = "EXITOSO",
+                            Maquina = maquinaAuditoria ?? "LOCAL",
+                            Observaciones = observaciones
+                        }, ct);
+                    }
                     return new DtoDominioResult { Id = id, Success = affected > 0, Message = affected > 0 ? "Dominio retirado exitosamente." : "No se encontró el dominio." };
                 }
                 catch (Exception ex)
@@ -465,6 +550,19 @@ namespace Datos.Gestion
                 cmdDirect.Parameters.Add(":pId", OracleDbType.Int64).Value = id;
 
                 var affected = await cmdDirect.ExecuteNonQueryAsync(ct);
+                if (affected > 0)
+                {
+                    await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = usuarioAuditoria.ToString(),
+                        Modulo = "DOMINIOS",
+                        Accion = "ELIMINAR",
+                        Registro = $"Dominio ID {id} inhabilitado",
+                        Resultado = "EXITOSO",
+                        Maquina = maquinaAuditoria ?? "LOCAL",
+                        Observaciones = observaciones
+                    }, ct);
+                }
                 return new DtoDominioResult { Id = id, Success = affected > 0, Message = affected > 0 ? "Dominio retirado exitosamente." : "No se encontró el dominio." };
             }
             catch (Exception exDirect)

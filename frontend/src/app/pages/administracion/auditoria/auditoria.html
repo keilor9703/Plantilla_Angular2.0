@@ -51,24 +51,26 @@
               <th>Módulo</th>
               <th>Acción</th>
               <th>Registro</th>
+              <th>Observaciones</th>
               <th>Resultado</th>
               <th>Máquina</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let row of items">
-              <td>{{ row.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ row.fecha | date:'dd/MM/yyyy HH:mm':'-0500' }}</td>
               <td>{{ row.usuario }}</td>
               <td>{{ row.modulo }}</td>
               <td>{{ row.accion }}</td>
               <td>{{ row.registro }}</td>
+              <td>{{ row.observaciones || '-' }}</td>
               <td>
                 <span class="result-badge" [class.error]="row.resultado === 'ERROR'">{{ row.resultado }}</span>
               </td>
               <td>{{ row.maquina }}</td>
             </tr>
             <tr *ngIf="!loading && items.length === 0">
-              <td colspan="7" class="empty-row">Sin registros para los filtros aplicados.</td>
+              <td colspan="8" class="empty-row">Sin registros para los filtros aplicados.</td>
             </tr>
           </tbody>
         </table>

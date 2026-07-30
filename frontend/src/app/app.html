@@ -45,6 +45,18 @@
     <h3 class="ui-alert__title">{{ alert.title }}</h3>
     <p class="ui-alert__text">{{ alert.message }}</p>
 
+    <div *ngIf="alert.isPrompt" class="ui-alert__prompt-wrap" style="margin: 15px 0; text-align: left;">
+      <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ui-text, #333);">
+        {{ alert.promptLabel || 'Motivo de la eliminación:' }}
+      </label>
+      <textarea
+        [(ngModel)]="alert.promptValue"
+        [placeholder]="alert.promptPlaceholder || 'Ingrese una observación o motivo...'"
+        rows="3"
+        style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; resize: vertical; box-sizing: border-box;"
+      ></textarea>
+    </div>
+
     <div class="ui-alert__foot" [ngClass]="alert.type">
       <button *ngIf="alert.isConfirm" class="ui-btn secondary" type="button" (click)="cancelAlert()">
         {{ alert.cancelText || 'Cancelar' }}

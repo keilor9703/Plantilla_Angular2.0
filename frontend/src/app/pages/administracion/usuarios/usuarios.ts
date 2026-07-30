@@ -450,19 +450,23 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     });
   }
 
+  deleteReason = '';
+
   async eliminarRol(rol: UserRole): Promise<void> {
     if (!this.user) {
       this.toast.warning('Roles', 'Consulta un usuario primero.');
       return;
     }
 
-    const confirmed = await this.alert.confirm(
+    const motivo = await this.alert.prompt(
       'Retirar rol',
       `¿Deseas retirar el rol "${rol.nombre}" del usuario?`,
+      'Motivo del retiro de rol:',
+      'Ingrese la observación o justificación...',
       'Retirar',
       'Cancelar'
     );
-    if (!confirmed) {
+    if (motivo === null) {
       return;
     }
 
@@ -650,6 +654,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   abrirModalEliminarUsuario(item: UsuarioListadoItem): void {
     this.deletingTarget = item;
     this.deleteConfirmText = '';
+    this.deleteReason = '';
     this.showDeleteUserModal = true;
   }
 
@@ -659,6 +664,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     }
     this.showDeleteUserModal = false;
     this.deleteConfirmText = '';
+    this.deleteReason = '';
     this.deletingTarget = null;
   }
 
@@ -673,7 +679,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     }
 
     this.deletingUser = true;
-    this.usuarioAdminService.eliminarUsuario(this.deletingTarget.idUsuario).subscribe({
+    this.usuarioAdminService.eliminarUsuario(this.deletingTarget.idUsuario, this.deleteReason.trim()).subscribe({
       next: (resp) => {
         this.deletingUser = false;
         if (!resp?.success) {

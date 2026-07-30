@@ -54,8 +54,10 @@ export class DominioService {
     return this.http.put<DtoDominioResult>(`${this.baseUrl}/${id}`, request);
   }
 
-  delete(id: number): Observable<DtoDominioResult> {
-    return this.http.delete<DtoDominioResult>(`${this.baseUrl}/${id}`);
+  delete(id: number, observaciones?: string): Observable<DtoDominioResult> {
+    const params: any = {};
+    if (observaciones) params.observaciones = observaciones;
+    return this.http.delete<DtoDominioResult>(`${this.baseUrl}/${id}`, { params });
   }
  
 }

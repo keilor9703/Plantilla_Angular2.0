@@ -21,8 +21,8 @@ namespace Negocio.Gestion
         public Task<DtoSaveRolResult> SaveRolAdminAsync(DtoSaveRolRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
             => _repo.SaveRolAdminAsync(request, usuarioAuditoria, maquinaAuditoria, ct);
 
-        public Task<DtoSaveRolResult> SetRolEstadoAsync(long idRol, int vigente, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
-            => _repo.SetRolEstadoAsync(idRol, vigente, usuarioAuditoria, maquinaAuditoria, ct);
+        public Task<DtoSaveRolResult> SetRolEstadoAsync(long idRol, int vigente, string usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
+            => _repo.SetRolEstadoAsync(idRol, vigente, usuarioAuditoria, maquinaAuditoria, observaciones, ct);
 
         public Task<List<DtoRol>> GetRolesAsync(CancellationToken ct) => _repo.GetRolesAsync(ct);
 

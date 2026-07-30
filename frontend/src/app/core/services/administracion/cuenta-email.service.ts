@@ -78,8 +78,10 @@ export class CuentaEmailService {
     return this.http.put(`${this.baseUrl}/${id}`, request);
   }
 
-  delete(id: number): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/${id}`);
+  delete(id: number, observaciones?: string): Observable<any> {
+    const params: any = {};
+    if (observaciones) params.observaciones = observaciones;
+    return this.http.delete(`${this.baseUrl}/${id}`, { params });
   }
 
   getMisCuentas(): Observable<DtoCuentaEmail[]> {

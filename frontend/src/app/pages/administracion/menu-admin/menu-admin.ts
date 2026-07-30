@@ -9,6 +9,7 @@ import {
   MenuService
 } from '../../../core/services/administracion/menu.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-menu-admin',
@@ -40,7 +41,8 @@ export class MenuAdminComponent implements OnInit {
 
   constructor(
     private menuService: MenuService,
-    private toast: ToastService
+    private toast: ToastService,
+    private alert: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -132,9 +134,20 @@ export class MenuAdminComponent implements OnInit {
     });
   }
 
-  cambiarEstado(item: DbMenuItem): void {
+  async cambiarEstado(item: DbMenuItem): Promise<void> {
     const nuevoEstado = item.vigente === 1 ? 0 : 1;
-    this.menuService.setEstadoAdminMenu(item.idMenu, { vigente: nuevoEstado }).subscribe({
+    const accion = nuevoEstado === 1 ? 'activar' : 'inactivar';
+    const motivo = await this.alert.prompt(
+      'Cambiar estado de menú',
+      `¿Está seguro de ${accion} el ítem de menú "${item.descripcion}"?`,
+      'Motivo de la acción:',
+      'Ingrese la justificación u observación...',
+      'Confirmar',
+      'Cancelar'
+    );
+    if (motivo === null) return;
+
+    this.menuService.setEstadoAdminMenu(item.idMenu, { vigente: nuevoEstado, observaciones: motivo }).subscribe({
       next: (resp) => {
         if (!resp?.success) {
           this.toast.warning('Menú', resp?.message || 'No fue posible actualizar estado.');

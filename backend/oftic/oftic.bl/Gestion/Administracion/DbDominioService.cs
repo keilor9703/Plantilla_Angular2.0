@@ -1,4 +1,4 @@
-﻿using DtoUnidad = Comun.Dtos.DtoUnidad;
+using DtoUnidad = Comun.Dtos.DtoUnidad;
 using Comun.Dtos.Dominio;
 using Comun.Dtos.LineasMando;
 using Datos.Interfaz;
@@ -82,7 +82,7 @@ namespace Negocio.Gestion
 
             return await _repository.UpdateAsync(id, request, usuarioAuditoria, maquinaAuditoria, ct);
         }
-        public async Task<DtoDominioResult> DeletelogicalAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoDominioResult> DeletelogicalAsync(long id, long usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             if (id <= 0)
             {
@@ -93,7 +93,7 @@ namespace Negocio.Gestion
                 };
             }
 
-            return await _repository.DeletelogicalAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
+            return await _repository.DeletelogicalAsync(id, usuarioAuditoria, maquinaAuditoria, observaciones, ct);
         }
     }
 }

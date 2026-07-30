@@ -339,15 +339,17 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   async eliminar(item: DtoLineaMando): Promise<void> {
-    const confirmed = await this.alert.confirm(
+    const motivo = await this.alert.prompt(
       'Eliminar',
       `¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`,
+      'Motivo de la eliminación:',
+      'Ingrese la justificación u observación...',
       'Eliminar',
       'Cancelar'
     );
-    if (!confirmed) return;
+    if (motivo === null) return;
 
-    this.lineaMandoService.setVigente(item.idLineaMando, 0).subscribe({
+    this.lineaMandoService.delete(item.idLineaMando, motivo).subscribe({
       next: (resp) => {
         if (resp.success) {
           this.toast.success('Eliminar', resp.message);

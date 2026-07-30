@@ -26,6 +26,7 @@ namespace ofic.Controllers
         private readonly IDbBrandingService _brandingService;
         private readonly Servicios.ApiInterfaz.IApiWebOud _oudService;
         private readonly Servicios.ApiInterfaz.IApiWebToken _tokenService;
+        private readonly Microsoft.Extensions.Hosting.IHostApplicationLifetime _appLifetime;
         private readonly Microsoft.Extensions.Logging.ILogger<SetupController> _logger;
 
         public SetupController(
@@ -35,6 +36,7 @@ namespace ofic.Controllers
             IDbBrandingService brandingService,
             Servicios.ApiInterfaz.IApiWebOud oudService,
             Servicios.ApiInterfaz.IApiWebToken tokenService,
+            Microsoft.Extensions.Hosting.IHostApplicationLifetime appLifetime,
             Microsoft.Extensions.Logging.ILogger<SetupController> logger)
         {
             _configuration = configuration;
@@ -43,6 +45,7 @@ namespace ofic.Controllers
             _brandingService = brandingService;
             _oudService = oudService;
             _tokenService = tokenService;
+            _appLifetime = appLifetime;
             _logger = logger;
         }
 
@@ -286,16 +289,17 @@ namespace ofic.Controllers
 
                 if (funcionario != null && (!string.IsNullOrWhiteSpace(funcionario.identificacion) || !string.IsNullOrWhiteSpace(funcionario.nombres)))
                 {
-                    string siglaDep = (funcionario.siglaDependencia ?? funcionario.siglaLaborando ?? funcionario.siglaFisica ?? "").Trim();
-                    bool isGusof = siglaDep.Equals("GUSOF", StringComparison.OrdinalIgnoreCase);
+                    string siglaFisica = (funcionario.siglaFisica ?? funcionario.siglaDependencia ?? funcionario.siglaLaborando ?? "").Trim();
+                    bool isOftic = siglaFisica.Contains("OFTIC", StringComparison.OrdinalIgnoreCase) ||
+                                   siglaFisica.Equals("OFTIC", StringComparison.OrdinalIgnoreCase);
 
-                    if (!isGusof)
+                    if (!isOftic)
                     {
                         return Ok(new
                         {
                             success = false,
                             isGusof = false,
-                            message = $"El funcionario ({(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}) pertenece a la dependencia '{(!string.IsNullOrWhiteSpace(siglaDep) ? siglaDep : funcionario.dependencia ?? "DESCONOCIDA")}', no al Grupo de Desarrollo de Software (GUSOF). Por favor contáctese con el administrador del sistema.",
+                            message = $"El funcionario ({(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}) pertenece a la sigla física '{(!string.IsNullOrWhiteSpace(siglaFisica) ? siglaFisica : funcionario.dependencia ?? "DESCONOCIDA")}', la cual no corresponde a OFTIC. Por favor contáctese con el administrador del sistema.",
                             funcionario
                         });
                     }
@@ -304,7 +308,7 @@ namespace ofic.Controllers
                     {
                         success = true,
                         isGusof = true,
-                        message = $"Funcionario '{(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}' verificado exitosamente como integrante del Grupo de Desarrollo de Software (GUSOF).",
+                        message = $"Funcionario '{(!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : funcionario.gradAlfabetico)} {funcionario.nombres} {funcionario.apellidos}' verificado exitosamente como integrante de OFTIC.",
                         funcionario
                     });
                 }
@@ -1167,6 +1171,29 @@ namespace ofic.Controllers
             {
                 return StatusCode(500, new { success = false, message = $"Error al guardar configuración: {ex.Message}" });
             }
+        }
+
+        [HttpPost("shutdown")]
+        public IActionResult ShutdownBackend()
+        {
+            _logger.LogWarning("DETENCIÓN DE BACKEND SOLICITADA DESDE ASISTENTE DE SETUP. El servidor ASP.NET Core se detendrá en 1 segundo...");
+            Console.WriteLine("=========================================================");
+            Console.WriteLine(" [SETUP] REINICIO DE SERVIDOR BACKEND REQUERIDO");
+            Console.WriteLine(" El backend se ha detenido exitosamente tras guardar la configuración.");
+            Console.WriteLine(" Por favor ejecute 'dotnet run' o inicie de nuevo la solución.");
+            Console.WriteLine("=========================================================");
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(1000);
+                _appLifetime.StopApplication();
+            });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Orden de detención enviada al servidor backend exitosamente."
+            });
         }
 
         private static string BuildConnectionString(SetupTestRequest r)

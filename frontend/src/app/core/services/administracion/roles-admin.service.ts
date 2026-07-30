@@ -17,6 +17,7 @@ export interface SaveRolAdminRequest {
 
 export interface SetRolEstadoRequest {
   vigente: number;
+  observaciones?: string;
 }
 
 export interface RolAdminApiResponse {

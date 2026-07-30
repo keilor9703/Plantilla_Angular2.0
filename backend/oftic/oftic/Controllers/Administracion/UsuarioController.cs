@@ -478,7 +478,7 @@ namespace ofic.Controllers.Administracion
         }
 
         [HttpDelete("{idUsuario:long}")]
-        public async Task<IActionResult> EliminarUsuario(long idUsuario)
+        public async Task<IActionResult> EliminarUsuario(long idUsuario, [FromQuery] string? observaciones = null, [FromQuery] string? motivo = null)
         {
             try
             {
@@ -486,6 +486,8 @@ namespace ofic.Controllers.Administracion
                 {
                     return BadRequest(new { success = false, message = "Id de usuario inválido." });
                 }
+
+                var obsFinal = !string.IsNullOrWhiteSpace(observaciones) ? observaciones : motivo;
 
                 var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
                     User,
@@ -501,6 +503,7 @@ namespace ofic.Controllers.Administracion
                     idUsuario,
                     usuarioAuditoria,
                     maquinaAuditoria,
+                    obsFinal,
                     HttpContext.RequestAborted);
 
                 if (result.idUsuario <= 0)
@@ -798,6 +801,7 @@ namespace ofic.Controllers.Administracion
                     rolId,
                     usuarioAuditoria,
                     maquinaAuditoria,
+                    null,
                     HttpContext.RequestAborted);
 
                 if (result.idUsuario <= 0)

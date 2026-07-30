@@ -25,8 +25,8 @@ export class AuditoriaAdminComponent {
   pageSize = 10;
   total = 0;
 
-  readonly acciones = ['CREAR', 'ACTUALIZAR', 'ELIMINAR', 'INACTIVAR', 'ACTIVAR', 'LOGIN', 'CONSULTAR'];
-  readonly modulos = ['Noticias', 'Modales', 'Radio', 'Usuarios', 'Menú'];
+  readonly acciones = ['CREAR', 'ACTUALIZAR', 'GUARDAR', 'ELIMINAR', 'INACTIVAR', 'ACTIVAR', 'ASIGNAR ROL', 'ELIMINAR ROL', 'EDITAR ROL', 'DESACTIVAR', 'LOGIN', 'CONSULTAR'];
+  readonly modulos = ['USUARIOS', 'ROLES', 'MENU', 'DOMINIO', 'PERSONAJE DEL MES', 'LINEA DE MANDO', 'CUENTAS CORREO'];
 
   items: AuditoriaItem[] = [];
 

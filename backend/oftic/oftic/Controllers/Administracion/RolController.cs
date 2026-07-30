@@ -86,7 +86,7 @@ namespace Api.Controllers.Administracion
                 }
 
                 var (usuario, maquina) = ObtenerAuditoria();
-                var result = await _rolService.SetRolEstadoAsync(idRol, request.vigente, usuario, maquina, HttpContext.RequestAborted);
+                var result = await _rolService.SetRolEstadoAsync(idRol, request.vigente, usuario, maquina, request.observaciones, HttpContext.RequestAborted);
 
                 if (result.idRol <= 0)
                 {
@@ -113,10 +113,11 @@ namespace Api.Controllers.Administracion
 
         private (string usuario, string maquina) ObtenerAuditoria()
         {
-            var usuario = User.FindFirstValue("id_usuario")
+            var usuario = User.Identity?.Name
+                ?? User.FindFirstValue("username")
+                ?? User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue("id_usuario")
                 ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue("nameid")
-                ?? User.Identity?.Name
                 ?? "ADMIN";
 
             var maquina = HttpContext.Connection.RemoteIpAddress?.ToString()

@@ -1,4 +1,4 @@
-﻿using Comun.Dtos.LineasMando;
+using Comun.Dtos.LineasMando;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -112,11 +112,12 @@ namespace Api.Controllers.Administracion
             return Ok(new { success = true, message = result.Message });
         }
         [HttpDelete("{id:long}")]
-        public async Task<ActionResult> Delete(long id)
+        public async Task<ActionResult> Delete(long id, [FromQuery] string? observaciones = null, [FromQuery] string? motivo = null)
         {
             var (usuario, maquina) = ObtenerAuditoria();
+            var obsFinal = !string.IsNullOrWhiteSpace(observaciones) ? observaciones : motivo;
 
-            var result = await _service.DeleteAsync(id, usuario, maquina, CancellationToken.None);
+            var result = await _service.DeleteAsync(id, usuario, maquina, obsFinal, CancellationToken.None);
 
             if (!result.Success)
             {

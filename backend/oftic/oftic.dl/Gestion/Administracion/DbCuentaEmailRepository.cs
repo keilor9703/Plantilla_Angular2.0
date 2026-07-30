@@ -1,4 +1,5 @@
 using Comun.Dtos.Administracion;
+using Comun.Dtos.Auditoria;
 using Datos.Entities;
 using Datos.Interfaz;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,13 @@ namespace Datos.Gestion
     {
         private readonly OfticDbContext _context;
         private readonly ILogger<DbCuentaEmailRepository> _logger;
+        private readonly IDbAuditoriaRepository _auditoriaRepo;
 
-        public DbCuentaEmailRepository(OfticDbContext context, ILogger<DbCuentaEmailRepository> logger)
+        public DbCuentaEmailRepository(OfticDbContext context, ILogger<DbCuentaEmailRepository> logger, IDbAuditoriaRepository auditoriaRepo)
         {
             _context = context;
             _logger = logger;
+            _auditoriaRepo = auditoriaRepo;
         }
 
         public List<DtoCuentaEmail> ConsultarCuentas(int idCuenta)
@@ -120,6 +123,21 @@ namespace Datos.Gestion
                     _context.SaveChanges();
                 }
 
+                var accion = request.IdCuenta <= 0 ? "CREAR" : "ACTUALIZAR";
+                try
+                {
+                    _auditoriaRepo.RegistrarAuditoria(new DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = request.UsuarioAuditoria ?? "SISTEMA",
+                        Modulo = "CUENTAS EMAIL",
+                        Accion = accion,
+                        Registro = $"Cuenta ID {request.IdCuenta}: {request.NombreCuenta} ({request.Email})",
+                        Resultado = "EXITOSO",
+                        Maquina = request.IpAuditoria ?? "LOCAL"
+                    });
+                }
+                catch { /* no bloquear */ }
+
                 return true;
             }
             catch (Exception ex)
@@ -129,7 +147,7 @@ namespace Datos.Gestion
             }
         }
 
-        public bool EliminarCuenta(int idCuenta)
+        public bool EliminarCuenta(int idCuenta, string? observaciones = null)
         {
             try
             {
@@ -139,6 +157,20 @@ namespace Datos.Gestion
                 entity.Vigente = 0;
                 entity.FechaModifica = DateTime.Now;
                 _context.SaveChanges();
+                try
+                {
+                    _auditoriaRepo.RegistrarAuditoria(new DtoAuditoriaRegistrarRequest
+                    {
+                        Usuario = "SISTEMA",
+                        Modulo = "CUENTAS EMAIL",
+                        Accion = "ELIMINAR",
+                        Registro = $"Cuenta ID {idCuenta}: {entity.NombreCuenta} desactivada",
+                        Resultado = "EXITOSO",
+                        Maquina = "LOCAL",
+                        Observaciones = observaciones
+                    });
+                }
+                catch { /* no bloquear */ }
                 return true;
             }
             catch (Exception ex)
