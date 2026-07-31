@@ -620,8 +620,8 @@ namespace ofic.Controllers
                 {
                     ["ConnectionStrings:DbConnection"] = cs,
                     ["DatabaseProvider"] = request.Provider ?? "Oracle",
-                    ["OracleSettings:TablespaceData"] = string.IsNullOrWhiteSpace(request.TablespaceData) ? "DEVELOPER_DATA" : request.TablespaceData.Trim(),
-                    ["OracleSettings:TablespaceIndexes"] = string.IsNullOrWhiteSpace(request.TablespaceIndexes) ? "DEVELOPER_INDEX" : request.TablespaceIndexes.Trim()
+                    ["OracleSettings:TablespaceData"] = request.TablespaceData?.Trim() ?? "",
+                    ["OracleSettings:TablespaceIndexes"] = request.TablespaceIndexes?.Trim() ?? ""
                 };
 
                 var tempConfig = new ConfigurationBuilder().AddInMemoryCollection(dict).Build();
@@ -727,8 +727,8 @@ namespace ofic.Controllers
                 {
                     jsonNode["OracleSettings"] = new JsonObject();
                 }
-                jsonNode["OracleSettings"]!["TablespaceData"] = string.IsNullOrWhiteSpace(request.TablespaceData) ? "DEVELOPER_DATA" : request.TablespaceData.Trim();
-                jsonNode["OracleSettings"]!["TablespaceIndexes"] = string.IsNullOrWhiteSpace(request.TablespaceIndexes) ? "DEVELOPER_INDEX" : request.TablespaceIndexes.Trim();
+                jsonNode["OracleSettings"]!["TablespaceData"] = request.TablespaceData?.Trim() ?? "";
+                jsonNode["OracleSettings"]!["TablespaceIndexes"] = request.TablespaceIndexes?.Trim() ?? "";
 
                 // Set JWT Settings if provided
                 if (jsonNode["Jwt"] == null)

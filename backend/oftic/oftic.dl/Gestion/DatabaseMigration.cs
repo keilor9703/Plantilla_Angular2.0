@@ -895,8 +895,8 @@ namespace Datos.Gestion
 
         private static async Task<DtoMigrationResult> MigrateOracleAsync(string cs, ILogger logger, CancellationToken ct, IConfiguration? cfg = null)
         {
-            var tsDataName = (cfg?["OracleSettings:TablespaceData"] ?? "DEVELOPER_DATA").Trim();
-            var tsIndName = (cfg?["OracleSettings:TablespaceIndexes"] ?? "DEVELOPER_INDEX").Trim();
+            var tsDataName = (cfg?["OracleSettings:TablespaceData"] ?? "").Trim();
+            var tsIndName = (cfg?["OracleSettings:TablespaceIndexes"] ?? "").Trim();
 
             await using var conn = new Oracle.ManagedDataAccess.Client.OracleConnection(cs);
             await conn.OpenAsync(ct);
@@ -906,29 +906,43 @@ namespace Datos.Gestion
 
             try
             {
-                await using var cmdData = conn.CreateCommand();
-                cmdData.CommandText = "SELECT COUNT(*) FROM ALL_TABLESPACES WHERE TABLESPACE_NAME = UPPER(:ts)";
-                cmdData.Parameters.Add(":ts", Oracle.ManagedDataAccess.Client.OracleDbType.Varchar2).Value = tsDataName;
-                var countData = Convert.ToInt32(await cmdData.ExecuteScalarAsync(ct));
-                if (countData > 0)
+                if (!string.IsNullOrWhiteSpace(tsDataName))
                 {
-                    tsDataClause = $" TABLESPACE {tsDataName}";
+                    await using var cmdData = conn.CreateCommand();
+                    cmdData.CommandText = "SELECT COUNT(*) FROM ALL_TABLESPACES WHERE TABLESPACE_NAME = UPPER(:ts)";
+                    cmdData.Parameters.Add(":ts", Oracle.ManagedDataAccess.Client.OracleDbType.Varchar2).Value = tsDataName;
+                    var countData = Convert.ToInt32(await cmdData.ExecuteScalarAsync(ct));
+                    if (countData > 0)
+                    {
+                        tsDataClause = $" TABLESPACE {tsDataName}";
+                    }
+                    else
+                    {
+                        logger.LogWarning("El tablespace de datos '{TsData}' no existe en la BD Oracle. Se usará el tablespace por defecto del usuario.", tsDataName);
+                    }
                 }
 
-                await using var cmdInd = conn.CreateCommand();
-                cmdInd.CommandText = "SELECT COUNT(*) FROM ALL_TABLESPACES WHERE TABLESPACE_NAME = UPPER(:ts)";
-                cmdInd.Parameters.Add(":ts", Oracle.ManagedDataAccess.Client.OracleDbType.Varchar2).Value = tsIndName;
-                var countInd = Convert.ToInt32(await cmdInd.ExecuteScalarAsync(ct));
-                if (countInd > 0)
+                if (!string.IsNullOrWhiteSpace(tsIndName))
                 {
-                    tsIndClause = $" TABLESPACE {tsIndName}";
+                    await using var cmdInd = conn.CreateCommand();
+                    cmdInd.CommandText = "SELECT COUNT(*) FROM ALL_TABLESPACES WHERE TABLESPACE_NAME = UPPER(:ts)";
+                    cmdInd.Parameters.Add(":ts", Oracle.ManagedDataAccess.Client.OracleDbType.Varchar2).Value = tsIndName;
+                    var countInd = Convert.ToInt32(await cmdInd.ExecuteScalarAsync(ct));
+                    if (countInd > 0)
+                    {
+                        tsIndClause = $" TABLESPACE {tsIndName}";
+                    }
+                    else
+                    {
+                        logger.LogWarning("El tablespace de índices '{TsInd}' no existe en la BD Oracle. Se usará el tablespace por defecto del usuario.", tsIndName);
+                    }
                 }
             }
             catch (Exception exCheck)
             {
-                logger.LogWarning(exCheck, "Aviso verificando ALL_TABLESPACES. Usando cláusulas especificadas por el usuario.");
-                tsDataClause = $" TABLESPACE {tsDataName}";
-                tsIndClause = $" TABLESPACE {tsIndName}";
+                logger.LogWarning(exCheck, "Aviso verificando ALL_TABLESPACES en Oracle.");
+                if (!string.IsNullOrWhiteSpace(tsDataName)) tsDataClause = $" TABLESPACE {tsDataName}";
+                if (!string.IsNullOrWhiteSpace(tsIndName)) tsIndClause = $" TABLESPACE {tsIndName}";
             }
 
             string usingIndexClause = string.IsNullOrWhiteSpace(tsIndClause) ? "" : $" USING INDEX{tsIndClause}";
