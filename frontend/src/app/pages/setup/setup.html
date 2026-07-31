@@ -398,10 +398,16 @@
           </p>
 
           <div *ngIf="migrationResult" class="alert-box mt-3" [class.success]="migrationResult.success"
-            [class.error]="!migrationResult.success">
-            <i class="fa-solid" [class.fa-circle-check]="migrationResult.success"
-              [class.fa-circle-xmark]="!migrationResult.success"></i>
-            <span>{{ migrationResult.message }}</span>
+            [class.error]="!migrationResult.success" style="flex-direction: column; align-items: flex-start;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid" [class.fa-circle-check]="migrationResult.success"
+                [class.fa-circle-xmark]="!migrationResult.success"></i>
+              <strong>{{ migrationResult.message }}</strong>
+            </div>
+            <ul *ngIf="migrationResult.errors && migrationResult.errors.length > 0"
+                style="margin-top: 10px; padding-left: 20px; font-size: 0.85rem; max-height: 180px; overflow-y: auto; text-align: left; width: 100%;">
+              <li *ngFor="let err of migrationResult.errors" style="margin-bottom: 4px; word-break: break-word;">{{ err }}</li>
+            </ul>
           </div>
         </div>
 

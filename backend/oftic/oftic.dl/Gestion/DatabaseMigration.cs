@@ -7,15 +7,25 @@ using Microsoft.Extensions.Logging;
 
 namespace Datos.Gestion
 {
+    public class DtoMigrationResult
+    {
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
+        public System.Collections.Generic.List<string> Errors { get; set; } = new System.Collections.Generic.List<string>();
+    }
+
     public static class DatabaseMigration
     {
-        public static async Task RunAsync(IConfiguration cfg, ILogger logger, CancellationToken ct = default)
+        public static async Task<DtoMigrationResult> RunAsync(IConfiguration cfg, ILogger logger, CancellationToken ct = default)
         {
+            var result = new DtoMigrationResult();
             var connectionString = Comun.Extensions.ConfigurationExtensions.GetDecryptedConnectionString(cfg);
             if (string.IsNullOrWhiteSpace(connectionString))
             {
-                logger.LogWarning("No se pudo obtener la cadena de conexión para ejecutar la migración de base de datos.");
-                return;
+                result.Success = false;
+                result.Message = "No se pudo obtener la cadena de conexión para ejecutar la migración de base de datos.";
+                logger.LogWarning(result.Message);
+                return result;
             }
 
             var provider = (cfg["DatabaseProvider"] ?? "Oracle").Trim();
@@ -24,25 +34,30 @@ namespace Datos.Gestion
             {
                 if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
                 {
-                    await MigrateMySqlAsync(connectionString, logger, ct);
+                    return await MigrateMySqlAsync(connectionString, logger, ct);
                 }
                 else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
                 {
-                    await MigratePostgreSqlAsync(connectionString, logger, ct);
+                    return await MigratePostgreSqlAsync(connectionString, logger, ct);
                 }
                 else
                 {
-                    await MigrateOracleAsync(connectionString, logger, ct, cfg);
+                    return await MigrateOracleAsync(connectionString, logger, ct, cfg);
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error ejecutando la migración automática de base de datos ({Provider})", provider);
+                result.Success = false;
+                result.Message = $"Error ejecutando la migración ({provider}): {ex.Message}";
+                result.Errors.Add(ex.Message);
+                return result;
             }
         }
 
-        private static async Task MigrateMySqlAsync(string cs, ILogger logger, CancellationToken ct)
+        private static async Task<DtoMigrationResult> MigrateMySqlAsync(string cs, ILogger logger, CancellationToken ct)
         {
+            var result = new DtoMigrationResult();
             await using var conn = new MySqlConnector.MySqlConnection(cs);
             await conn.OpenAsync(ct);
 
@@ -406,14 +421,27 @@ namespace Datos.Gestion
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Error ejecutando DDL MySQL: {Sql}", stmt.Length > 100 ? stmt.Substring(0, 100) + "..." : stmt);
+                    result.Errors.Add(ex.Message);
                 }
             }
 
-            logger.LogInformation("Migración de base de datos MySQL completada exitosamente.");
+            if (result.Errors.Count > 0)
+            {
+                result.Success = false;
+                result.Message = $"Migración MySQL completada con {result.Errors.Count} advertencia(s): {string.Join(" | ", result.Errors)}";
+            }
+            else
+            {
+                result.Success = true;
+                result.Message = "Migración de base de datos MySQL completada exitosamente.";
+            }
+
+            return result;
         }
 
-        private static async Task MigratePostgreSqlAsync(string cs, ILogger logger, CancellationToken ct)
+        private static async Task<DtoMigrationResult> MigratePostgreSqlAsync(string cs, ILogger logger, CancellationToken ct)
         {
+            var result = new DtoMigrationResult();
             await using var conn = new Npgsql.NpgsqlConnection(cs);
             await conn.OpenAsync(ct);
 
@@ -847,13 +875,25 @@ namespace Datos.Gestion
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Error ejecutando DDL PostgreSQL: {Sql}", stmt.Length > 100 ? stmt.Substring(0, 100) + "..." : stmt);
+                    result.Errors.Add(ex.Message);
                 }
             }
 
-            logger.LogInformation("Migración de base de datos PostgreSQL completada exitosamente.");
+            if (result.Errors.Count > 0)
+            {
+                result.Success = false;
+                result.Message = $"Migración PostgreSQL completada con {result.Errors.Count} advertencia(s): {string.Join(" | ", result.Errors)}";
+            }
+            else
+            {
+                result.Success = true;
+                result.Message = "Migración de base de datos PostgreSQL completada exitosamente.";
+            }
+
+            return result;
         }
 
-        private static async Task MigrateOracleAsync(string cs, ILogger logger, CancellationToken ct, IConfiguration? cfg = null)
+        private static async Task<DtoMigrationResult> MigrateOracleAsync(string cs, ILogger logger, CancellationToken ct, IConfiguration? cfg = null)
         {
             var tsDataName = (cfg?["OracleSettings:TablespaceData"] ?? "DEVELOPER_DATA").Trim();
             var tsIndName = (cfg?["OracleSettings:TablespaceIndexes"] ?? "DEVELOPER_INDEX").Trim();
@@ -1447,6 +1487,8 @@ namespace Datos.Gestion
                    END;"
             };
 
+            var result = new DtoMigrationResult();
+
             foreach (var block in blocks)
             {
                 try
@@ -1455,13 +1497,63 @@ namespace Datos.Gestion
                     cmd.CommandText = block;
                     await cmd.ExecuteNonQueryAsync(ct);
                 }
+                catch (Oracle.ManagedDataAccess.Client.OracleException oraEx)
+                {
+                    // ORA-00955: name is already used by an existing object
+                    // ORA-01408: such column list already indexed
+                    // ORA-01430: column being added already exists in table
+                    // ORA-00904: invalid identifier (used when column already exists in alter)
+                    if (oraEx.Number == 955 || oraEx.Number == 1408 || oraEx.Number == 1430 || oraEx.Number == 904)
+                    {
+                        continue;
+                    }
+
+                    // Reintento sin tablespace especifico si es problema de cuota (ORA-01950) o inexistencia de tablespace (ORA-00959)
+                    if ((oraEx.Number == 1950 || oraEx.Number == 959) && (block.Contains("TABLESPACE") || block.Contains("USING INDEX")))
+                    {
+                        try
+                        {
+                            string fallbackBlock = block.Replace(tsDataClause, "").Replace(tsIndClause, "").Replace(usingIndexClause, "");
+                            await using var cmdFb = conn.CreateCommand();
+                            cmdFb.CommandText = fallbackBlock;
+                            await cmdFb.ExecuteNonQueryAsync(ct);
+                            logger.LogInformation("Bloque Oracle ejecutado con éxito en tablespace por defecto tras aviso ORA-{Code}", oraEx.Number);
+                            continue;
+                        }
+                        catch (Exception exFb)
+                        {
+                            string errFallback = $"Error Oracle (ORA-{oraEx.Number}): {oraEx.Message}. Reintento en tablespace por defecto: {exFb.Message}";
+                            logger.LogWarning(errFallback);
+                            result.Errors.Add(errFallback);
+                        }
+                    }
+                    else
+                    {
+                        string errStr = $"Error Oracle (ORA-{oraEx.Number}): {oraEx.Message}";
+                        logger.LogWarning(oraEx, errStr);
+                        result.Errors.Add(errStr);
+                    }
+                }
                 catch (Exception exBlock)
                 {
-                    logger.LogWarning(exBlock, "Error al ejecutar bloque DDL Oracle. Mensaje: {Msg}", exBlock.Message);
+                    string errStr = $"Error al ejecutar bloque DDL Oracle: {exBlock.Message}";
+                    logger.LogWarning(exBlock, errStr);
+                    result.Errors.Add(errStr);
                 }
             }
 
-            logger.LogInformation("Migración automática de esquema Oracle completada exitosamente.");
+            if (result.Errors.Count > 0)
+            {
+                result.Success = false;
+                result.Message = $"Se presentaron {result.Errors.Count} error(es) en el esquema de Oracle durante la migración: {string.Join(" | ", result.Errors)}";
+            }
+            else
+            {
+                result.Success = true;
+                result.Message = "Migración automática de esquema Oracle completada exitosamente.";
+            }
+
+            return result;
         }
     }
 }

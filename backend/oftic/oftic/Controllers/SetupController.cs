@@ -626,12 +626,16 @@ namespace ofic.Controllers
 
                 var tempConfig = new ConfigurationBuilder().AddInMemoryCollection(dict).Build();
 
-                await Datos.Gestion.DatabaseMigration.RunAsync(tempConfig, _logger, ct);
-                return Ok(new { success = true, message = "¡Migración del esquema base de administración ejecutada con éxito en la base de datos!" });
+                var migrationRes = await Datos.Gestion.DatabaseMigration.RunAsync(tempConfig, _logger, ct);
+                return Ok(new { 
+                    success = migrationRes.Success, 
+                    message = migrationRes.Message, 
+                    errors = migrationRes.Errors 
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { success = false, message = $"Error ejecutando migración: {ex.Message}" });
+                return Ok(new { success = false, message = $"Error ejecutando migración: {ex.Message}", errors = new[] { ex.Message } });
             }
         }
 
