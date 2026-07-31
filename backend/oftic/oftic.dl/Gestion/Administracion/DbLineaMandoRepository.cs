@@ -100,6 +100,40 @@ namespace Datos.Gestion
 
         public async Task<DtoLineaMando?> GetByIdAsync(long id, CancellationToken ct)
         {
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT id_linea_mando, identificacion, nombre, apellidos, grado, cargo, unidad, foto_base64, orden, vigente, peso FROM ctr_linea_mando WHERE id_linea_mando = @pId";
+                    cmd.Parameters.AddWithValue("@pId", id);
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    if (await reader.ReadAsync(ct)) return MapLineaMandoGeneric(reader);
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error consultando línea de mando en MySQL id={Id}", id); }
+                return null;
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT id_linea_mando, identificacion, nombre, apellidos, grado, cargo, unidad, foto_base64, orden, vigente, peso FROM ctr_linea_mando WHERE id_linea_mando = @pId";
+                    cmd.Parameters.AddWithValue("@pId", id);
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    if (await reader.ReadAsync(ct)) return MapLineaMandoGeneric(reader);
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error consultando línea de mando en PostgreSQL id={Id}", id); }
+                return null;
+            }
+
             try
             {
                 await using var conn = new OracleConnection(_cs);
@@ -128,6 +162,40 @@ namespace Datos.Gestion
 
         public async Task<DtoLineaMando?> GetByIdentificacionAsync(string identificacion, CancellationToken ct)
         {
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT id_linea_mando, identificacion, nombre, apellidos, grado, cargo, unidad, foto_base64, orden, vigente, peso FROM ctr_linea_mando WHERE identificacion = @pId";
+                    cmd.Parameters.AddWithValue("@pId", identificacion);
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    if (await reader.ReadAsync(ct)) return MapLineaMandoGeneric(reader);
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error consultando línea de mando por identificación en MySQL"); }
+                return null;
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT id_linea_mando, identificacion, nombre, apellidos, grado, cargo, unidad, foto_base64, orden, vigente, peso FROM ctr_linea_mando WHERE identificacion = @pId";
+                    cmd.Parameters.AddWithValue("@pId", identificacion);
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    if (await reader.ReadAsync(ct)) return MapLineaMandoGeneric(reader);
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error consultando línea de mando por identificación en PostgreSQL"); }
+                return null;
+            }
+
             try
             {
                 await using var conn = new OracleConnection(_cs);
@@ -157,6 +225,7 @@ namespace Datos.Gestion
         public async Task<DtoLineaMandoResult> CreateAsync(DtoLineaMandoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoLineaMandoResult();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
             // Buscar duplicados activos (Mismo Peso)
             var all = await GetAllAsync(ct);
@@ -166,16 +235,104 @@ namespace Datos.Gestion
                 request.Peso.Trim().StartsWith(x.Peso.Trim(), StringComparison.OrdinalIgnoreCase) 
                 && x.Vigente == 1);
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
+                    {
+                        using var cmdInac = conn.CreateCommand();
+                        cmdInac.CommandText = "UPDATE ctr_linea_mando SET vigente = 0, usuario_mod = @u, fecha_mod = NOW(), maquina_mod = @m WHERE id_linea_mando = @id";
+                        cmdInac.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                        cmdInac.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                        cmdInac.Parameters.AddWithValue("@id", duplicated.IdLineaMando);
+                        await cmdInac.ExecuteNonQueryAsync(ct);
+                    }
 
-            await using var transaction = await conn.BeginTransactionAsync(ct);
+                    using var cmdIns = conn.CreateCommand();
+                    cmdIns.CommandText = @"INSERT INTO ctr_linea_mando (identificacion, nombre, apellidos, grado, cargo, orden, vigente, peso, unidad, foto_base64, usuario_crea, fecha_crea, maquina_crea)
+                                            VALUES (@ident, @nom, @ape, @gra, @car, @ord, 1, @peso, @uni, @foto, @u, NOW(), @m);
+                                            SELECT LAST_INSERT_ID();";
+                    cmdIns.Parameters.AddWithValue("@ident", (request.Identificacion ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@nom", (request.Nombre ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@ape", (request.Apellidos ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@gra", (request.Grado ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@car", (request.Cargo ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@ord", request.Orden);
+                    cmdIns.Parameters.AddWithValue("@peso", (request.Peso ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@uni", (request.Unidad ?? string.Empty).Trim());
+                    var fotoNorm = NormalizeBase64(request.FotoBase64);
+                    cmdIns.Parameters.AddWithValue("@foto", (object?)fotoNorm ?? DBNull.Value);
+                    cmdIns.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                    cmdIns.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                    var newId = Convert.ToInt64(await cmdIns.ExecuteScalarAsync(ct));
+
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "CREAR", Registro = $"Línea ID {newId}: {request.Nombre} {request.Apellidos} - {request.Cargo}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                    return new DtoLineaMandoResult { Id = newId, Success = true, Message = "Línea de mando creada exitosamente." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error creando línea de mando en MySQL");
+                    return new DtoLineaMandoResult { Id = 0, Success = false, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
+                    {
+                        using var cmdInac = conn.CreateCommand();
+                        cmdInac.CommandText = "UPDATE ctr_linea_mando SET vigente = 0, usuario_mod = @u, fecha_mod = CURRENT_TIMESTAMP, maquina_mod = @m WHERE id_linea_mando = @id";
+                        cmdInac.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                        cmdInac.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                        cmdInac.Parameters.AddWithValue("@id", duplicated.IdLineaMando);
+                        await cmdInac.ExecuteNonQueryAsync(ct);
+                    }
+
+                    using var cmdIns = conn.CreateCommand();
+                    cmdIns.CommandText = @"INSERT INTO ctr_linea_mando (identificacion, nombre, apellidos, grado, cargo, orden, vigente, peso, unidad, foto_base64, usuario_crea, fecha_crea, maquina_crea)
+                                            VALUES (@ident, @nom, @ape, @gra, @car, @ord, 1, @peso, @uni, @foto, @u, CURRENT_TIMESTAMP, @m)
+                                            RETURNING id_linea_mando";
+                    cmdIns.Parameters.AddWithValue("@ident", (request.Identificacion ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@nom", (request.Nombre ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@ape", (request.Apellidos ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@gra", (request.Grado ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@car", (request.Cargo ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@ord", request.Orden);
+                    cmdIns.Parameters.AddWithValue("@peso", (request.Peso ?? string.Empty).Trim());
+                    cmdIns.Parameters.AddWithValue("@uni", (request.Unidad ?? string.Empty).Trim());
+                    var fotoNorm = NormalizeBase64(request.FotoBase64);
+                    cmdIns.Parameters.AddWithValue("@foto", (object?)fotoNorm ?? DBNull.Value);
+                    cmdIns.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                    cmdIns.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                    var newId = Convert.ToInt64(await cmdIns.ExecuteScalarAsync(ct));
+
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "CREAR", Registro = $"Línea ID {newId}: {request.Nombre} {request.Apellidos} - {request.Cargo}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                    return new DtoLineaMandoResult { Id = newId, Success = true, Message = "Línea de mando creada exitosamente." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error creando línea de mando en PostgreSQL");
+                    return new DtoLineaMandoResult { Id = 0, Success = false, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var transaction = await connOracle.BeginTransactionAsync(ct);
             try
             {
                 if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
                 {
                     _logger.LogInformation("Desactivando registro anterior ID {Id} para el peso {Peso}", duplicated.IdLineaMando, request.Peso);
-                    await using var cmdDesactivar = conn.CreateCommand();
+                    await using var cmdDesactivar = connOracle.CreateCommand();
                     cmdDesactivar.Transaction = (OracleTransaction)transaction;
                     cmdDesactivar.CommandText = @"
                         UPDATE ctr_linea_mando
@@ -198,7 +355,7 @@ namespace Datos.Gestion
                     request.Identificacion, request.Nombre, request.Cargo);
 
                 long idNew = 1;
-                await using (var cmdGetId = conn.CreateCommand())
+                await using (var cmdGetId = connOracle.CreateCommand())
                 {
                     cmdGetId.Transaction = (OracleTransaction)transaction;
                     cmdGetId.CommandText = "SELECT NVL(MAX(id_linea_mando), 0) + 1 FROM ctr_linea_mando";
@@ -209,7 +366,7 @@ namespace Datos.Gestion
                     }
                 }
 
-                await using var cmd = conn.CreateCommand();
+                await using var cmd = connOracle.CreateCommand();
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.CommandText = @"
                     INSERT INTO ctr_linea_mando (
@@ -275,6 +432,7 @@ namespace Datos.Gestion
             _logger.LogInformation("UpdateAsync llamado - ID: {Id}, FotoBase64 length: {Length}", id, request.FotoBase64?.Length ?? 0);
 
             var result = new DtoLineaMandoResult();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
             // Buscar duplicados activos (Mismo Peso) pero excluyendo el que estamos editando
             var all = await GetAllAsync(ct);
@@ -285,16 +443,110 @@ namespace Datos.Gestion
                 request.Peso.Trim().StartsWith(x.Peso.Trim(), StringComparison.OrdinalIgnoreCase) 
                 && x.Vigente == 1);
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
+                    {
+                        using var cmdInac = conn.CreateCommand();
+                        cmdInac.CommandText = "UPDATE ctr_linea_mando SET vigente = 0, usuario_mod = @u, fecha_mod = NOW(), maquina_mod = @m WHERE id_linea_mando = @id";
+                        cmdInac.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                        cmdInac.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                        cmdInac.Parameters.AddWithValue("@id", duplicated.IdLineaMando);
+                        await cmdInac.ExecuteNonQueryAsync(ct);
+                    }
 
-            await using var transaction = await conn.BeginTransactionAsync(ct);
+                    using var cmdUpd = conn.CreateCommand();
+                    cmdUpd.CommandText = @"UPDATE ctr_linea_mando SET identificacion = @ident, nombre = @nom, apellidos = @ape, grado = @gra, cargo = @car, orden = @ord, peso = @peso, unidad = @uni, foto_base64 = @foto, usuario_mod = @u, fecha_mod = NOW(), maquina_mod = @m WHERE id_linea_mando = @id";
+                    cmdUpd.Parameters.AddWithValue("@ident", (request.Identificacion ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@nom", (request.Nombre ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@ape", (request.Apellidos ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@gra", (request.Grado ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@car", (request.Cargo ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@ord", request.Orden);
+                    cmdUpd.Parameters.AddWithValue("@peso", (request.Peso ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@uni", (request.Unidad ?? string.Empty).Trim());
+                    var fotoNorm = NormalizeBase64(request.FotoBase64);
+                    cmdUpd.Parameters.AddWithValue("@foto", (object?)fotoNorm ?? DBNull.Value);
+                    cmdUpd.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                    cmdUpd.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                    cmdUpd.Parameters.AddWithValue("@id", id);
+                    var rows = await cmdUpd.ExecuteNonQueryAsync(ct);
+
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "ACTUALIZAR", Registro = $"Línea ID {id}: {request.Nombre} {request.Apellidos} - {request.Cargo}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoLineaMandoResult { Id = id, Success = true, Message = "Línea de mando actualizada exitosamente." };
+                    }
+                    return new DtoLineaMandoResult { Id = 0, Success = false, Message = "No se encontró el registro para actualizar." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error actualizando línea de mando en MySQL");
+                    return new DtoLineaMandoResult { Id = 0, Success = false, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
+                    {
+                        using var cmdInac = conn.CreateCommand();
+                        cmdInac.CommandText = "UPDATE ctr_linea_mando SET vigente = 0, usuario_mod = @u, fecha_mod = CURRENT_TIMESTAMP, maquina_mod = @m WHERE id_linea_mando = @id";
+                        cmdInac.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                        cmdInac.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                        cmdInac.Parameters.AddWithValue("@id", duplicated.IdLineaMando);
+                        await cmdInac.ExecuteNonQueryAsync(ct);
+                    }
+
+                    using var cmdUpd = conn.CreateCommand();
+                    cmdUpd.CommandText = @"UPDATE ctr_linea_mando SET identificacion = @ident, nombre = @nom, apellidos = @ape, grado = @gra, cargo = @car, orden = @ord, peso = @peso, unidad = @uni, foto_base64 = @foto, usuario_mod = @u, fecha_mod = CURRENT_TIMESTAMP, maquina_mod = @m WHERE id_linea_mando = @id";
+                    cmdUpd.Parameters.AddWithValue("@ident", (request.Identificacion ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@nom", (request.Nombre ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@ape", (request.Apellidos ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@gra", (request.Grado ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@car", (request.Cargo ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@ord", request.Orden);
+                    cmdUpd.Parameters.AddWithValue("@peso", (request.Peso ?? string.Empty).Trim());
+                    cmdUpd.Parameters.AddWithValue("@uni", (request.Unidad ?? string.Empty).Trim());
+                    var fotoNorm = NormalizeBase64(request.FotoBase64);
+                    cmdUpd.Parameters.AddWithValue("@foto", (object?)fotoNorm ?? DBNull.Value);
+                    cmdUpd.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                    cmdUpd.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                    cmdUpd.Parameters.AddWithValue("@id", id);
+                    var rows = await cmdUpd.ExecuteNonQueryAsync(ct);
+
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "ACTUALIZAR", Registro = $"Línea ID {id}: {request.Nombre} {request.Apellidos} - {request.Cargo}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoLineaMandoResult { Id = id, Success = true, Message = "Línea de mando actualizada exitosamente." };
+                    }
+                    return new DtoLineaMandoResult { Id = 0, Success = false, Message = "No se encontró el registro para actualizar." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error actualizando línea de mando en PostgreSQL");
+                    return new DtoLineaMandoResult { Id = 0, Success = false, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var transaction = await connOracle.BeginTransactionAsync(ct);
             try
             {
                 if (duplicated != null && !string.IsNullOrEmpty(request.Peso))
                 {
                     _logger.LogInformation("Desactivando registro anterior ID {Id} para el peso {Peso}", duplicated.IdLineaMando, request.Peso);
-                    await using var cmdDesactivar = conn.CreateCommand();
+                    await using var cmdDesactivar = connOracle.CreateCommand();
                     cmdDesactivar.Transaction = (OracleTransaction)transaction;
                     cmdDesactivar.CommandText = @"
                         UPDATE ctr_linea_mando
@@ -313,7 +565,7 @@ namespace Datos.Gestion
                     await cmdDesactivar.ExecuteNonQueryAsync(ct);
                 }
 
-                await using var cmd = conn.CreateCommand();
+                await using var cmd = connOracle.CreateCommand();
                 cmd.CommandTimeout = 60;
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.CommandText = @"
@@ -392,14 +644,63 @@ namespace Datos.Gestion
         public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
             var result = new DtoLineaMandoResult();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    using var cmd = connMySql.CreateCommand();
+                    cmd.CommandText = "DELETE FROM ctr_linea_mando WHERE id_linea_mando = @id";
+                    cmd.Parameters.AddWithValue("@id", id);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "ELIMINAR", Registro = $"Línea ID {id} eliminada", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { }
+                        return new DtoLineaMandoResult { Success = true, Message = "Línea de mando eliminada correctamente." };
+                    }
+                    return new DtoLineaMandoResult { Success = false, Message = "No se encontró el registro para eliminar." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error eliminando línea de mando en MySQL");
+                    return new DtoLineaMandoResult { Success = false, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
 
-            await using var transaction = await conn.BeginTransactionAsync(ct);
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    using var cmd = connPg.CreateCommand();
+                    cmd.CommandText = "DELETE FROM ctr_linea_mando WHERE id_linea_mando = @id";
+                    cmd.Parameters.AddWithValue("@id", id);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = "ELIMINAR", Registro = $"Línea ID {id} eliminada", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { }
+                        return new DtoLineaMandoResult { Success = true, Message = "Línea de mando eliminada correctamente." };
+                    }
+                    return new DtoLineaMandoResult { Success = false, Message = "No se encontró el registro para eliminar." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error eliminando línea de mando en PostgreSQL");
+                    return new DtoLineaMandoResult { Success = false, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var transaction = await connOracle.BeginTransactionAsync(ct);
             try
             {
-                await using var cmd = conn.CreateCommand();
+                await using var cmd = connOracle.CreateCommand();
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.CommandText = "DELETE FROM ctr_linea_mando WHERE id_linea_mando = :pIdLineaMando";
                 cmd.Parameters.Add("pIdLineaMando", OracleDbType.Int64).Value = id;
@@ -438,6 +739,61 @@ namespace Datos.Gestion
         public async Task<DtoLineaMandoResult> SetVigenteAsync(long id, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoLineaMandoResult();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    using var cmd = connMySql.CreateCommand();
+                    cmd.CommandText = "UPDATE ctr_linea_mando SET vigente = @v, usuario_mod = @u, fecha_mod = NOW(), maquina_mod = @m WHERE id_linea_mando = @id";
+                    cmd.Parameters.AddWithValue("@v", vigente);
+                    cmd.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                    cmd.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                    cmd.Parameters.AddWithValue("@id", id);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = vigente == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Línea ID {id}: vigente={vigente}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoLineaMandoResult { Success = true, Message = "Estado actualizado correctamente." };
+                    }
+                    return new DtoLineaMandoResult { Success = false, Message = "No se encontró el registro para actualizar." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error cambiando vigente línea de mando en MySQL");
+                    return new DtoLineaMandoResult { Success = false, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    using var cmd = connPg.CreateCommand();
+                    cmd.CommandText = "UPDATE ctr_linea_mando SET vigente = @v, usuario_mod = @u, fecha_mod = CURRENT_TIMESTAMP, maquina_mod = @m WHERE id_linea_mando = @id";
+                    cmd.Parameters.AddWithValue("@v", vigente);
+                    cmd.Parameters.AddWithValue("@u", usuarioAuditoria.ToString());
+                    cmd.Parameters.AddWithValue("@m", maquinaAuditoria ?? "LOCAL");
+                    cmd.Parameters.AddWithValue("@id", id);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria.ToString(), Modulo = "LINEA DE MANDO", Accion = vigente == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Línea ID {id}: vigente={vigente}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoLineaMandoResult { Success = true, Message = "Estado actualizado correctamente." };
+                    }
+                    return new DtoLineaMandoResult { Success = false, Message = "No se encontró el registro para actualizar." };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error cambiando vigente línea de mando en PostgreSQL");
+                    return new DtoLineaMandoResult { Success = false, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);

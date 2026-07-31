@@ -72,7 +72,7 @@ namespace Datos.Gestion
                     using var conn = new Npgsql.NpgsqlConnection(_cs);
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "SELECT id_dominio, descripcion, COALESCE(id_padre, 0), abreviatura, observacion, COALESCE(vigente, 1) FROM ctr_dominios WHERE COALESCE(vigente, 1) = 1 ORDER BY id_dominio";
+                    cmd.CommandText = "SELECT id_dominio, descripcion, COALESCE(id_padre, 0), abreviatura, observacion, COALESCE(vigente, 1) FROM ctr_dominio WHERE COALESCE(vigente, 1) = 1 ORDER BY id_dominio";
                     using var reader = await cmd.ExecuteReaderAsync(ct);
                     while (await reader.ReadAsync(ct))
                     {
@@ -156,7 +156,7 @@ namespace Datos.Gestion
                     using var conn = new Npgsql.NpgsqlConnection(_cs);
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "SELECT id_dominio, descripcion, observacion FROM ctr_dominios WHERE COALESCE(id_padre, 0) = 0 AND COALESCE(vigente, 1) = 1 ORDER BY descripcion";
+                    cmd.CommandText = "SELECT id_dominio, descripcion, observacion FROM ctr_dominio WHERE COALESCE(id_padre, 0) = 0 AND COALESCE(vigente, 1) = 1 ORDER BY descripcion";
                     using var reader = await cmd.ExecuteReaderAsync(ct);
                     while (await reader.ReadAsync(ct))
                     {
@@ -256,7 +256,7 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
-                        INSERT INTO ctr_dominios (descripcion, id_padre, abreviatura, observacion, vigente, fecha_creacion, usuario_creacion, maquina_creacion)
+                        INSERT INTO ctr_dominio (descripcion, id_padre, abreviatura, observacion, vigente, fecha_creacion, usuario_creacion, maquina_creacion)
                         VALUES (@pDesc, @pIdPadre, @pAbrev, @pObs, 1, CURRENT_TIMESTAMP, @pUser, @pMaq)
                         RETURNING id_dominio;";
                     cmd.Parameters.AddWithValue("@pDesc", desc);
@@ -385,7 +385,7 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
-                        UPDATE ctr_dominios 
+                        UPDATE ctr_dominio 
                            SET descripcion = @pDesc, id_padre = @pIdPadre, abreviatura = @pAbrev, observacion = @pObs, vigente = @pVigente,
                                fecha_modifica = CURRENT_TIMESTAMP, usuario_modifica = @pUser, maquina_modifica = @pMaq
                          WHERE id_dominio = @pId;";
@@ -506,7 +506,7 @@ namespace Datos.Gestion
                     using var conn = new Npgsql.NpgsqlConnection(_cs);
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "UPDATE ctr_dominios SET vigente = 0, fecha_modifica = CURRENT_TIMESTAMP, usuario_modifica = @pUser, maquina_modifica = @pMaq WHERE id_dominio = @pId;";
+                    cmd.CommandText = "UPDATE ctr_dominio SET vigente = 0, fecha_modifica = CURRENT_TIMESTAMP, usuario_modifica = @pUser, maquina_modifica = @pMaq WHERE id_dominio = @pId;";
                     cmd.Parameters.AddWithValue("@pUser", usuarioAuditoria);
                     cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "N/A");
                     cmd.Parameters.AddWithValue("@pId", id);

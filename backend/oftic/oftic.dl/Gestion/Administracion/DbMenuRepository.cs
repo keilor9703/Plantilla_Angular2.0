@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using Oracle.ManagedDataAccess.Client;
@@ -17,12 +18,14 @@ namespace Datos.Gestion
         private readonly string _cs;
         private readonly IConfiguration _configuration;
         private readonly IDbAuditoriaRepository _auditoriaRepo;
+        private readonly Microsoft.Extensions.Logging.ILogger<DbMenuRepository>? _logger;
 
-        public DbMenuRepository(IConfiguration configuration, IDbAuditoriaRepository auditoriaRepo)
+        public DbMenuRepository(IConfiguration configuration, IDbAuditoriaRepository auditoriaRepo, Microsoft.Extensions.Logging.ILogger<DbMenuRepository>? logger = null)
         {
             _cs = Comun.Extensions.ConfigurationExtensions.GetDecryptedConnectionString(configuration);
             _configuration = configuration;
             _auditoriaRepo = auditoriaRepo;
+            _logger = logger;
         }
 
 
@@ -247,10 +250,120 @@ namespace Datos.Gestion
             };
         }
 
-
-
         public async Task<DtoMenuResult> SaveMenuAsync(DtoMenuSaveRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    var isUpdate = request.IdMenu.HasValue && request.IdMenu.Value > 0;
+                    if (isUpdate)
+                    {
+                        var idMenu = request.IdMenu!.Value;
+                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        using var cmd = connMySql.CreateCommand();
+                        cmd.CommandText = @"UPDATE ctr_menu SET titulo = @pDesc, id_padre = @pIdPadre, orden = @pOrden, icono = @pIcono, estado = @pVigente, vigente = @pVigente, ruta = @pRuta, usuario_modifica = @pUser, fecha_modifica = NOW(), maquina_modifica = @pMaq WHERE id_menu = @pId";
+                        cmd.Parameters.AddWithValue("@pDesc", request.Descripcion?.Trim() ?? "");
+                        cmd.Parameters.AddWithValue("@pIdPadre", idPadre);
+                        cmd.Parameters.AddWithValue("@pOrden", request.Posicion);
+                        cmd.Parameters.AddWithValue("@pIcono", (object?)request.Icono ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@pVigente", request.Vigente is 0 ? 0 : 1);
+                        cmd.Parameters.AddWithValue("@pRuta", (object?)request.Detalle ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@pUser", usuarioAuditoria);
+                        cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "LOCAL");
+                        cmd.Parameters.AddWithValue("@pId", idMenu);
+                        await cmd.ExecuteNonQueryAsync(ct);
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ACTUALIZAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = "Menú actualizado correctamente." };
+                    }
+                    else
+                    {
+                        using var cmdNext = connMySql.CreateCommand();
+                        cmdNext.CommandText = "SELECT COALESCE(MAX(id_menu), 0) + 1 FROM ctr_menu";
+                        var idMenu = Convert.ToInt64(await cmdNext.ExecuteScalarAsync(ct));
+                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        using var cmdInsert = connMySql.CreateCommand();
+                        cmdInsert.CommandText = @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, vigente, usuario_creacion, fecha_creacion, maquina_creacion) VALUES (@pId, @pIdPadre, @pDesc, @pRuta, @pIcono, @pOrden, @pVigente, @pVigente, @pUser, NOW(), @pMaq)";
+                        cmdInsert.Parameters.AddWithValue("@pId", idMenu);
+                        cmdInsert.Parameters.AddWithValue("@pIdPadre", idPadre);
+                        cmdInsert.Parameters.AddWithValue("@pDesc", request.Descripcion?.Trim() ?? "");
+                        cmdInsert.Parameters.AddWithValue("@pRuta", (object?)request.Detalle ?? DBNull.Value);
+                        cmdInsert.Parameters.AddWithValue("@pIcono", (object?)request.Icono ?? DBNull.Value);
+                        cmdInsert.Parameters.AddWithValue("@pOrden", request.Posicion);
+                        cmdInsert.Parameters.AddWithValue("@pVigente", request.Vigente is 0 ? 0 : 1);
+                        cmdInsert.Parameters.AddWithValue("@pUser", usuarioAuditoria);
+                        cmdInsert.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "LOCAL");
+                        await cmdInsert.ExecuteNonQueryAsync(ct);
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "CREAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = "Menú creado correctamente." };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error MySQL guardando menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    var isUpdate = request.IdMenu.HasValue && request.IdMenu.Value > 0;
+                    if (isUpdate)
+                    {
+                        var idMenu = request.IdMenu!.Value;
+                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        using var cmd = connPg.CreateCommand();
+                        cmd.CommandText = @"UPDATE ctr_menu SET titulo = @pDesc, id_padre = @pIdPadre, orden = @pOrden, icono = @pIcono, estado = @pVigente, vigente = @pVigente, ruta = @pRuta, usuario_modifica = @pUser, fecha_modifica = CURRENT_TIMESTAMP, maquina_modifica = @pMaq WHERE id_menu = @pId";
+                        cmd.Parameters.AddWithValue("@pDesc", request.Descripcion?.Trim() ?? "");
+                        cmd.Parameters.AddWithValue("@pIdPadre", idPadre);
+                        cmd.Parameters.AddWithValue("@pOrden", request.Posicion);
+                        cmd.Parameters.AddWithValue("@pIcono", (object?)request.Icono ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@pVigente", request.Vigente is 0 ? 0 : 1);
+                        cmd.Parameters.AddWithValue("@pRuta", (object?)request.Detalle ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@pUser", usuarioAuditoria);
+                        cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "LOCAL");
+                        cmd.Parameters.AddWithValue("@pId", idMenu);
+                        await cmd.ExecuteNonQueryAsync(ct);
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ACTUALIZAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = "Menú actualizado correctamente." };
+                    }
+                    else
+                    {
+                        using var cmdNext = connPg.CreateCommand();
+                        cmdNext.CommandText = "SELECT COALESCE(MAX(id_menu), 0) + 1 FROM ctr_menu";
+                        var idMenu = Convert.ToInt64(await cmdNext.ExecuteScalarAsync(ct));
+                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        using var cmdInsert = connPg.CreateCommand();
+                        cmdInsert.CommandText = @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, vigente, usuario_creacion, fecha_creacion, maquina_creacion) VALUES (@pId, @pIdPadre, @pDesc, @pRuta, @pIcono, @pOrden, @pVigente, @pVigente, @pUser, CURRENT_TIMESTAMP, @pMaq)";
+                        cmdInsert.Parameters.AddWithValue("@pId", idMenu);
+                        cmdInsert.Parameters.AddWithValue("@pIdPadre", idPadre);
+                        cmdInsert.Parameters.AddWithValue("@pDesc", request.Descripcion?.Trim() ?? "");
+                        cmdInsert.Parameters.AddWithValue("@pRuta", (object?)request.Detalle ?? DBNull.Value);
+                        cmdInsert.Parameters.AddWithValue("@pIcono", (object?)request.Icono ?? DBNull.Value);
+                        cmdInsert.Parameters.AddWithValue("@pOrden", request.Posicion);
+                        cmdInsert.Parameters.AddWithValue("@pVigente", request.Vigente is 0 ? 0 : 1);
+                        cmdInsert.Parameters.AddWithValue("@pUser", usuarioAuditoria);
+                        cmdInsert.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "LOCAL");
+                        await cmdInsert.ExecuteNonQueryAsync(ct);
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "CREAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = "Menú creado correctamente." };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error PostgreSQL guardando menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
 
@@ -333,20 +446,76 @@ namespace Datos.Gestion
                 try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "CREAR", Registro = $"Menú ID {idMenu}: {request.Descripcion}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
                 return new DtoMenuResult { Id = idMenu, Message = "Menú creado correctamente." };
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync(ct);
-                throw;
+                return new DtoMenuResult { Id = 0, Message = $"Error guardando menú: {ex.Message}" };
             }
         }
 
         public async Task<DtoMenuResult> SetEstadoMenuAsync(long idMenu, int vigente, string usuarioAuditoria, string maquinaAuditoria, string? observaciones = null, CancellationToken ct = default)
         {
+            var v = vigente == 0 ? 0 : 1;
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    using var cmd = connMySql.CreateCommand();
+                    cmd.CommandText = "UPDATE ctr_menu SET estado = @pV, vigente = @pV, usuario_modifica = @pUser, fecha_modifica = NOW(), maquina_modifica = @pMaq WHERE id_menu = @pId";
+                    cmd.Parameters.AddWithValue("@pV", v);
+                    cmd.Parameters.AddWithValue("@pUser", usuarioAuditoria);
+                    cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "LOCAL");
+                    cmd.Parameters.AddWithValue("@pId", idMenu);
+                    var rowsMySql = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rowsMySql > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = v == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Menú ID {idMenu}: vigente={v}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = v == 1 ? "Menú activado." : "Menú desactivado." };
+                    }
+                    return new DtoMenuResult { Id = 0, Message = "No se encontró el menú." };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error MySQL cambiando estado de menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    using var cmd = connPg.CreateCommand();
+                    cmd.CommandText = "UPDATE ctr_menu SET estado = @pV, vigente = @pV, usuario_modifica = @pUser, fecha_modifica = CURRENT_TIMESTAMP, maquina_modifica = @pMaq WHERE id_menu = @pId";
+                    cmd.Parameters.AddWithValue("@pV", v);
+                    cmd.Parameters.AddWithValue("@pUser", usuarioAuditoria);
+                    cmd.Parameters.AddWithValue("@pMaq", maquinaAuditoria ?? "LOCAL");
+                    cmd.Parameters.AddWithValue("@pId", idMenu);
+                    var rowsPg = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rowsPg > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = v == 1 ? "ACTIVAR" : "DESACTIVAR", Registro = $"Menú ID {idMenu}: vigente={v}", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL", Observaciones = observaciones }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = v == 1 ? "Menú activado." : "Menú desactivado." };
+                    }
+                    return new DtoMenuResult { Id = 0, Message = "No se encontró el menú." };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error PostgreSQL cambiando estado de menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
 
             int rows = 0;
-            var v = vigente == 0 ? 0 : 1;
             try
             {
                 await using var cmd = conn.CreateCommand();
@@ -419,13 +588,66 @@ namespace Datos.Gestion
         public async Task<List<DtoMenuRolCatalogItem>> GetRolesCatalogAsync(CancellationToken ct)
         {
             var result = new List<DtoMenuRolCatalogItem>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT id_rol, COALESCE(nombre_rol, descripcion, codigo_rol) AS descripcion FROM ctr_roles WHERE COALESCE(estado, vigente, 1) = 1 ORDER BY id_rol";
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoMenuRolCatalogItem
+                        {
+                            IdRol = reader.GetInt32(0),
+                            Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                        });
+                    }
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error MySQL leyendo catálogo de roles");
+                    return result;
+                }
+            }
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = @"
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT id_rol, COALESCE(nombre_rol, descripcion, codigo_rol) AS descripcion FROM ctr_roles WHERE COALESCE(estado, vigente, 1) = 1 ORDER BY id_rol";
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoMenuRolCatalogItem
+                        {
+                            IdRol = reader.GetInt32(0),
+                            Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                        });
+                    }
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error PostgreSQL leyendo catálogo de roles");
+                    return result;
+                }
+            }
+
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var cmdOracle = connOracle.CreateCommand();
+            cmdOracle.CommandType = CommandType.Text;
+            cmdOracle.CommandText = @"
 SELECT r.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, r.codigo_rol)) AS descripcion
   FROM ctr_roles r
  WHERE NVL(r.estado, NVL(r.vigente, 1)) = 1
@@ -433,7 +655,7 @@ SELECT r.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, r.codigo_rol)) AS descripc
 
             try
             {
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                await using var reader = await cmdOracle.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
                 {
                     result.Add(new DtoMenuRolCatalogItem
@@ -445,12 +667,12 @@ SELECT r.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, r.codigo_rol)) AS descripc
             }
             catch (OracleException ex) when (ex.Number == 904)
             {
-                cmd.CommandText = @"
+                cmdOracle.CommandText = @"
 SELECT r.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, r.codigo_rol)) AS descripcion
   FROM ctr_roles r
  WHERE NVL(r.vigente, NVL(r.estado, 1)) = 1
  ORDER BY NVL(r.descripcion, NVL(r.nombre_rol, r.codigo_rol))";
-                await using var reader2 = await cmd.ExecuteReaderAsync(ct);
+                await using var reader2 = await cmdOracle.ExecuteReaderAsync(ct);
                 while (await reader2.ReadAsync(ct))
                 {
                     result.Add(new DtoMenuRolCatalogItem
@@ -467,23 +689,90 @@ SELECT r.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, r.codigo_rol)) AS descripc
         public async Task<List<DtoMenuRolItem>> GetRolesByMenuAsync(long idMenu, CancellationToken ct)
         {
             var result = new List<DtoMenuRolItem>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"SELECT mr.id_rol, COALESCE(r.nombre_rol, r.descripcion, CONCAT('Rol ', mr.id_rol)) AS descripcion_rol
+                                          FROM ctr_menu_roles mr
+                                          LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
+                                         WHERE mr.id_menu = @pIdMenu
+                                         ORDER BY mr.id_rol";
+                    cmd.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    long idx = 1;
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoMenuRolItem
+                        {
+                            IdMenuRol = idx++,
+                            IdRol = reader.GetInt32(0),
+                            DescripcionRol = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                        });
+                    }
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error MySQL leyendo roles por menú");
+                    return result;
+                }
+            }
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = @"
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var conn = new Npgsql.NpgsqlConnection(_cs);
+                    await conn.OpenAsync(ct);
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"SELECT mr.id_rol, COALESCE(r.nombre_rol, r.descripcion, CONCAT('Rol ', mr.id_rol)) AS descripcion_rol
+                                          FROM ctr_menu_roles mr
+                                          LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
+                                         WHERE mr.id_menu = @pIdMenu
+                                         ORDER BY mr.id_rol";
+                    cmd.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    long idx = 1;
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoMenuRolItem
+                        {
+                            IdMenuRol = idx++,
+                            IdRol = reader.GetInt32(0),
+                            DescripcionRol = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                        });
+                    }
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error PostgreSQL leyendo roles por menú");
+                    return result;
+                }
+            }
+
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var cmdOracle = connOracle.CreateCommand();
+            cmdOracle.CommandType = CommandType.Text;
+            cmdOracle.CommandText = @"
 SELECT mr.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, 'Rol ' || mr.id_rol)) AS descripcion_rol
   FROM ctr_menu_roles mr
   LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
  WHERE mr.id_menu = :pIdMenu
  ORDER BY descripcion_rol";
-            cmd.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
+            cmdOracle.Parameters.Add("pIdMenu", OracleDbType.Int64).Value = idMenu;
 
             try
             {
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                await using var reader = await cmdOracle.ExecuteReaderAsync(ct);
                 long idx = 1;
                 while (await reader.ReadAsync(ct))
                 {
@@ -497,13 +786,13 @@ SELECT mr.id_rol, NVL(r.nombre_rol, NVL(r.descripcion, 'Rol ' || mr.id_rol)) AS 
             }
             catch (OracleException ex) when (ex.Number == 904)
             {
-                cmd.CommandText = @"
+                cmdOracle.CommandText = @"
 SELECT mr.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, 'Rol ' || mr.id_rol)) AS descripcion_rol
   FROM ctr_menu_roles mr
   LEFT JOIN ctr_roles r ON r.id_rol = mr.id_rol
  WHERE mr.id_menu = :pIdMenu
  ORDER BY descripcion_rol";
-                await using var reader2 = await cmd.ExecuteReaderAsync(ct);
+                await using var reader2 = await cmdOracle.ExecuteReaderAsync(ct);
                 long idx = 1;
                 while (await reader2.ReadAsync(ct))
                 {
@@ -521,14 +810,71 @@ SELECT mr.id_rol, NVL(r.descripcion, NVL(r.nombre_rol, 'Rol ' || mr.id_rol)) AS 
 
         public async Task<DtoMenuResult> AssignRolToMenuAsync(long idMenu, int idRol, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var tx = conn.BeginTransaction();
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    using var cmdCheck = connMySql.CreateCommand();
+                    cmdCheck.CommandText = "SELECT COUNT(*) FROM ctr_menu_roles WHERE id_menu = @pIdMenu AND id_rol = @pIdRol";
+                    cmdCheck.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    cmdCheck.Parameters.AddWithValue("@pIdRol", idRol);
+                    var count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync(ct));
+                    if (count > 0) return new DtoMenuResult { Id = 0, Message = "El rol ya está asignado al menú." };
+
+                    using var cmdInsert = connMySql.CreateCommand();
+                    cmdInsert.CommandText = "INSERT INTO ctr_menu_roles (id_menu, id_rol, estado) VALUES (@pIdMenu, @pIdRol, 1)";
+                    cmdInsert.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    cmdInsert.Parameters.AddWithValue("@pIdRol", idRol);
+                    await cmdInsert.ExecuteNonQueryAsync(ct);
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ASIGNAR ROL", Registro = $"Menú ID {idMenu}: Rol {idRol} asignado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                    return new DtoMenuResult { Id = idMenu, Message = "Rol asignado al menú correctamente." };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error MySQL asignando rol a menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    using var cmdCheck = connPg.CreateCommand();
+                    cmdCheck.CommandText = "SELECT COUNT(*) FROM ctr_menu_roles WHERE id_menu = @pIdMenu AND id_rol = @pIdRol";
+                    cmdCheck.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    cmdCheck.Parameters.AddWithValue("@pIdRol", idRol);
+                    var count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync(ct));
+                    if (count > 0) return new DtoMenuResult { Id = 0, Message = "El rol ya está asignado al menú." };
+
+                    using var cmdInsert = connPg.CreateCommand();
+                    cmdInsert.CommandText = "INSERT INTO ctr_menu_roles (id_menu, id_rol, estado) VALUES (@pIdMenu, @pIdRol, 1) RETURNING id_menu_rol";
+                    cmdInsert.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    cmdInsert.Parameters.AddWithValue("@pIdRol", idRol);
+                    var newId = Convert.ToInt64(await cmdInsert.ExecuteScalarAsync(ct));
+                    try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ASIGNAR ROL", Registro = $"Menú ID {idMenu}: Rol {idRol} asignado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                    return new DtoMenuResult { Id = newId, Message = "Rol asignado al menú correctamente." };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error PostgreSQL asignando rol a menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var tx = connOracle.BeginTransaction();
             try
             {
                 // Evitar duplicados.
-                await using (var cmdExists = conn.CreateCommand())
+                await using (var cmdExists = connOracle.CreateCommand())
                 {
                     cmdExists.Transaction = tx;
                     cmdExists.CommandType = CommandType.Text;
@@ -551,7 +897,7 @@ SELECT COUNT(1)
                 long nextId = 1;
                 try
                 {
-                    await using var cmdNext = conn.CreateCommand();
+                    await using var cmdNext = connOracle.CreateCommand();
                     cmdNext.Transaction = tx;
                     cmdNext.CommandType = CommandType.Text;
                     cmdNext.CommandText = "SELECT NVL(MAX(id_menu_rol), 0) + 1 FROM ctr_menu_roles";
@@ -561,7 +907,7 @@ SELECT COUNT(1)
                 {
                     try
                     {
-                        await using var cmdNext2 = conn.CreateCommand();
+                        await using var cmdNext2 = connOracle.CreateCommand();
                         cmdNext2.Transaction = tx;
                         cmdNext2.CommandType = CommandType.Text;
                         cmdNext2.CommandText = "SELECT NVL(MAX(id_menurol), 0) + 1 FROM ctr_menu_roles";
@@ -586,7 +932,7 @@ SELECT COUNT(1)
                 {
                     try
                     {
-                        await using var cmdInsert = conn.CreateCommand();
+                        await using var cmdInsert = connOracle.CreateCommand();
                         cmdInsert.Transaction = tx;
                         cmdInsert.BindByName = true;
                         cmdInsert.CommandType = CommandType.Text;
@@ -625,13 +971,65 @@ SELECT COUNT(1)
 
         public async Task<DtoMenuResult> RemoveRolFromMenuAsync(long idMenu, int idRol, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
-            await using var tx = conn.BeginTransaction();
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    using var cmd = connMySql.CreateCommand();
+                    cmd.CommandText = "DELETE FROM ctr_menu_roles WHERE id_menu = @pIdMenu AND id_rol = @pIdRol";
+                    cmd.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    cmd.Parameters.AddWithValue("@pIdRol", idRol);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ELIMINAR ROL", Registro = $"Menú ID {idMenu}: Rol {idRol} retirado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = "Asignación menú-rol eliminada." };
+                    }
+                    return new DtoMenuResult { Id = 0, Message = "No se encontró la asignación menú-rol." };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error MySQL eliminando rol de menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error MySQL: {ex.Message}" };
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    using var cmd = connPg.CreateCommand();
+                    cmd.CommandText = "DELETE FROM ctr_menu_roles WHERE id_menu = @pIdMenu AND id_rol = @pIdRol";
+                    cmd.Parameters.AddWithValue("@pIdMenu", idMenu);
+                    cmd.Parameters.AddWithValue("@pIdRol", idRol);
+                    var rows = await cmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0)
+                    {
+                        try { await _auditoriaRepo.RegistrarAuditoriaAsync(new Comun.Dtos.Auditoria.DtoAuditoriaRegistrarRequest { Usuario = usuarioAuditoria, Modulo = "MENU", Accion = "ELIMINAR ROL", Registro = $"Menú ID {idMenu}: Rol {idRol} retirado", Resultado = "EXITOSO", Maquina = maquinaAuditoria ?? "LOCAL" }, ct); } catch { }
+                        return new DtoMenuResult { Id = idMenu, Message = "Asignación menú-rol eliminada." };
+                    }
+                    return new DtoMenuResult { Id = 0, Message = "No se encontró la asignación menú-rol." };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error PostgreSQL eliminando rol de menú");
+                    return new DtoMenuResult { Id = 0, Message = $"Error PostgreSQL: {ex.Message}" };
+                }
+            }
+
+            await using var connOracle = new OracleConnection(_cs);
+            await connOracle.OpenAsync(ct);
+
+            await using var tx = connOracle.BeginTransaction();
             try
             {
-                await using var cmdDelete = conn.CreateCommand();
+                await using var cmdDelete = connOracle.CreateCommand();
                 cmdDelete.Transaction = tx;
                 cmdDelete.CommandType = CommandType.Text;
                 cmdDelete.CommandText = @"
@@ -662,6 +1060,77 @@ DELETE FROM ctr_menu_roles
         public async Task<List<DtoRoleMenuItem>> GetMenusByRolAsync(int idRol, CancellationToken ct)
         {
             var result = new List<DtoRoleMenuItem>();
+            var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
+
+            if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connMySql = new MySqlConnector.MySqlConnection(_cs);
+                    await connMySql.OpenAsync(ct);
+                    using var cmdMySql = connMySql.CreateCommand();
+                    cmdMySql.CommandText = @"SELECT m.id_menu, m.titulo AS descripcion, m.id_padre AS idpadre, m.orden AS posicion, 'Ruta' AS tipo, m.ruta AS detalle
+                                          FROM ctr_menu_roles mr
+                                          JOIN ctr_menu m ON m.id_menu = mr.id_menu
+                                         WHERE mr.id_rol = @pIdRol
+                                         ORDER BY m.id_padre, m.orden, m.id_menu";
+                    cmdMySql.Parameters.AddWithValue("@pIdRol", idRol);
+                    using var reader = await cmdMySql.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoRoleMenuItem
+                        {
+                            IdMenu = Convert.ToInt64(reader.GetValue(0)),
+                            DescripcionMenu = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                            IdPadre = Convert.ToInt64(reader.GetValue(2)),
+                            Posicion = Convert.ToInt32(reader.GetValue(3)),
+                            Tipo = reader.IsDBNull(4) ? "Ruta" : reader.GetString(4),
+                            Detalle = reader.IsDBNull(5) ? null : reader.GetString(5)
+                        });
+                    }
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error MySQL leyendo menús por rol");
+                    return result;
+                }
+            }
+
+            if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var connPg = new Npgsql.NpgsqlConnection(_cs);
+                    await connPg.OpenAsync(ct);
+                    using var cmdPg = connPg.CreateCommand();
+                    cmdPg.CommandText = @"SELECT m.id_menu, m.titulo AS descripcion, m.id_padre AS idpadre, m.orden AS posicion, 'Ruta' AS tipo, m.ruta AS detalle
+                                          FROM ctr_menu_roles mr
+                                          JOIN ctr_menu m ON m.id_menu = mr.id_menu
+                                         WHERE mr.id_rol = @pIdRol
+                                         ORDER BY m.id_padre, m.orden, m.id_menu";
+                    cmdPg.Parameters.AddWithValue("@pIdRol", idRol);
+                    using var reader = await cmdPg.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        result.Add(new DtoRoleMenuItem
+                        {
+                            IdMenu = Convert.ToInt64(reader.GetValue(0)),
+                            DescripcionMenu = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                            IdPadre = Convert.ToInt64(reader.GetValue(2)),
+                            Posicion = Convert.ToInt32(reader.GetValue(3)),
+                            Tipo = reader.IsDBNull(4) ? "Ruta" : reader.GetString(4),
+                            Detalle = reader.IsDBNull(5) ? null : reader.GetString(5)
+                        });
+                    }
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error PostgreSQL leyendo menús por rol");
+                    return result;
+                }
+            }
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);

@@ -417,6 +417,36 @@ namespace Datos.Gestion
             await using var conn = new Npgsql.NpgsqlConnection(cs);
             await conn.OpenAsync(ct);
 
+            // Garantizar la creación automática de esquemas personalizados (ej. SearchPath=prueba)
+            try
+            {
+                var builder = new Npgsql.NpgsqlConnectionStringBuilder(cs);
+                if (!string.IsNullOrWhiteSpace(builder.SearchPath))
+                {
+                    var schemas = builder.SearchPath.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var s in schemas)
+                    {
+                        var cleanSchema = s.Replace("\"", "").Trim();
+                        if (!string.IsNullOrWhiteSpace(cleanSchema) && !cleanSchema.Equals("public", StringComparison.OrdinalIgnoreCase) && !cleanSchema.StartsWith("$"))
+                        {
+                            await using var cmdSchema = conn.CreateCommand();
+                            cmdSchema.CommandText = $"CREATE SCHEMA IF NOT EXISTS \"{cleanSchema}\";";
+                            await cmdSchema.ExecuteNonQueryAsync(ct);
+                            logger.LogInformation("Esquema PostgreSQL '{Schema}' verificado/creado exitosamente.", cleanSchema);
+                        }
+                    }
+
+                    // Establecer explícitamente el search_path activo para la sesión de migración
+                    await using var cmdSetPath = conn.CreateCommand();
+                    cmdSetPath.CommandText = $"SET search_path TO {builder.SearchPath};";
+                    await cmdSetPath.ExecuteNonQueryAsync(ct);
+                }
+            }
+            catch (Exception exSchema)
+            {
+                logger.LogWarning(exSchema, "Advertencia verificando/creando esquema en PostgreSQL.");
+            }
+
             string[] ddlStatements = new[]
             {
                 // 1. ctr_usuarios
@@ -466,6 +496,81 @@ namespace Datos.Gestion
                     usuario_modifica VARCHAR(100),
                     maquina_modifica VARCHAR(100)
                 );",
+                @"ALTER TABLE ctr_roles
+                    ADD COLUMN IF NOT EXISTS codigo_rol VARCHAR(50) DEFAULT '' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS descripcion VARCHAR(500),
+                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    ADD COLUMN IF NOT EXISTS usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(100) DEFAULT 'LOCAL',
+                    ADD COLUMN IF NOT EXISTS fecha_modifica TIMESTAMP,
+                    ADD COLUMN IF NOT EXISTS usuario_modifica VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS maquina_modifica VARCHAR(100);",
+
+                // 3. ctr_menu
+                @"CREATE TABLE IF NOT EXISTS ctr_menu (
+                    id_menu INT PRIMARY KEY,
+                    id_padre INT DEFAULT 0 NOT NULL,
+                    titulo VARCHAR(255) NOT NULL,
+                    ruta VARCHAR(255),
+                    icono VARCHAR(100),
+                    orden INT DEFAULT 1 NOT NULL,
+                    estado INT DEFAULT 1 NOT NULL,
+                    vigente INT DEFAULT 1 NOT NULL,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
+                    maquina_creacion VARCHAR(255),
+                    usuario_modifica VARCHAR(100),
+                    fecha_modifica TIMESTAMP,
+                    maquina_modifica VARCHAR(255)
+                );",
+                @"ALTER TABLE ctr_menu
+                    ADD COLUMN IF NOT EXISTS id_padre INT DEFAULT 0 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS titulo VARCHAR(255) DEFAULT '' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS ruta VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS icono VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS orden INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    ADD COLUMN IF NOT EXISTS usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS usuario_modifica VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS fecha_modifica TIMESTAMP,
+                    ADD COLUMN IF NOT EXISTS maquina_modifica VARCHAR(255);",
+
+                // 4. ctr_menu_roles
+                @"CREATE TABLE IF NOT EXISTS ctr_menu_roles (
+                    id_menu_rol SERIAL PRIMARY KEY,
+                    id_menu INT NOT NULL,
+                    id_rol INT NOT NULL,
+                    estado INT DEFAULT 1 NOT NULL
+                );",
+                @"ALTER TABLE ctr_menu_roles
+                    ADD COLUMN IF NOT EXISTS id_menu INT NOT NULL DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS id_rol INT NOT NULL DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL;",
+
+                // 5. ctr_roles_user
+                @"CREATE TABLE IF NOT EXISTS ctr_roles_user (
+                    id_user_rol BIGSERIAL PRIMARY KEY,
+                    id_usuario BIGINT NOT NULL,
+                    id_rol INT NOT NULL,
+                    justificacion VARCHAR(500),
+                    fecha_fin DATE,
+                    estado INT DEFAULT 1 NOT NULL,
+                    usuario_creacion BIGINT NOT NULL,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    maquina_creacion VARCHAR(255) NOT NULL
+                );",
+                @"ALTER TABLE ctr_roles_user
+                    ADD COLUMN IF NOT EXISTS justificacion VARCHAR(500),
+                    ADD COLUMN IF NOT EXISTS fecha_fin DATE,
+                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS usuario_creacion BIGINT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(255) DEFAULT 'LOCAL' NOT NULL;",
 
                 // 6. ctr_roles_user_admin
                 @"CREATE TABLE IF NOT EXISTS ctr_roles_user_admin (
@@ -501,29 +606,83 @@ namespace Datos.Gestion
                     ADD COLUMN IF NOT EXISTS abreviatura VARCHAR(100),
                     ADD COLUMN IF NOT EXISTS observacion VARCHAR(500),
                     ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL;",
-                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
-                  VALUES (1, 'DOMINIO PRINCIPAL / RAÍZ', 0, 'RAIZ', 'Dominio Semilla Raíz Principal', 1)
-                  ON CONFLICT (id_dominio) DO NOTHING;",
-                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, vigente, abreviatura, observacion, usuario_creacion, maquina_creacion) VALUES
-                  (1, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ Principal', 1143458803, 'LOCAL'),
-                  (2, 'Personaje del mes', 1, 1, 'PERS_MES', 'Categorías y opciones de Personaje del mes', 1143458803, 'LOCAL'),
-                  (3, 'Categoría oficiales', 2, 1, 'PEROF', 'Personajes del mes en la categoría de oficial', 1143458803, 'LOCAL'),
-                  (4, 'Categoría Mando de nivel ejecutivo', 2, 1, 'CATNIVEL', 'Personajes del mes en la categoría de mando de nivel ejecutivo', 1143458803, 'LOCAL'),
-                  (5, 'Categoría patrulleros', 2, 1, 'CATPT', 'Personajes del mes en la categoría de patrulleros', 1143458803, 'LOCAL'),
-                  (6, 'Personaje de mes ámbito operativo', 2, 1, 'PERAMOP', 'Personaje de mes ámbito operativo', 1143458803, 'LOCAL'),
-                  (7, 'Categoría no uniformados', 2, 1, 'CATNU', 'Categoría no uniformados', 1143458803, 'LOCAL'),
-                  (8, 'Equipo o grupo de alto rendimiento', 2, 1, 'EQUGP', 'Equipo o grupo de alto rendimiento', 1143458803, 'LOCAL'),
-                  (9, 'Categoría estudiantes', 2, 1, 'CATEST', 'Categoría estudiantes', 1143458803, 'LOCAL'),
-                  (10, 'Categoría suboficial', 2, 1, 'CATSUBOF', 'Categoría suboficial', 1143458803, 'LOCAL'),
-                  (11, 'Categoria agentes', 2, 1, 'CATAG', 'Categoria para agrupar agentes de policía', 1143458803, 'LOCAL'),
-                  (12, 'Categoría Auxiliares de Policia', 2, 1, 'CAUXPO', 'Categoria para Auxiliares De Policia', 1143458803, 'LOCAL'),
-                  (13, 'Privacidad de Documentos', 1, 1, 'PRIV_DOC', 'Privacidad de Documentos', 1143458803, 'LOCAL'),
-                  (14, 'INFORMACIÓN PÚBLICA', 13, 1, 'INFPUB', 'Es toda información que un sujeto obligado genere, obtenga o controle', 1143458803, 'LOCAL'),
-                  (15, 'INFORMACIÓN PÚBLICA CLASIFICADA', 13, 1, 'INFPUBCLA', 'Es aquella información que estando en poder o custodia de un sujeto obligado es clasificada', 1143458803, 'LOCAL'),
-                  (16, 'INFORMACIÓN PÚBLICA RESERVADA', 13, 1, 'PUBRES', 'Es aquella información que estando en poder o custodia de un sujeto obligado es reservada', 1143458803, 'LOCAL'),
-                  (17, 'GRUPOS O AREAS', 1, 1, 'GRUPOS_AREAS', 'Dominio Padre Semilla para Grupos o Áreas responsables de cuentas de correo', 1143458803, 'LOCAL'),
-                  (18, 'Grupo Desarrollo de Software', 17, 1, 'GDS', 'Grupo Desarrollo de Software ejemplo responsable de correo', 1143458803, 'LOCAL')
-                  ON CONFLICT (id_dominio) DO NOTHING;",
+
+                // 8. ctr_auditoria
+                @"CREATE TABLE IF NOT EXISTS ctr_auditoria (
+                    id_auditoria BIGSERIAL PRIMARY KEY,
+                    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    usuario VARCHAR(100) NOT NULL,
+                    modulo VARCHAR(100) NOT NULL,
+                    accion VARCHAR(50) NOT NULL,
+                    registro TEXT,
+                    resultado VARCHAR(50),
+                    maquina VARCHAR(100),
+                    observaciones TEXT
+                );",
+                @"ALTER TABLE ctr_auditoria
+                    ADD COLUMN IF NOT EXISTS observaciones TEXT;",
+
+                // 9. ctr_errores_system
+                @"CREATE TABLE IF NOT EXISTS ctr_errores_system (
+                    id_error BIGSERIAL PRIMARY KEY,
+                    procedimiento VARCHAR(255) NOT NULL,
+                    descripcion TEXT,
+                    id_documento VARCHAR(255),
+                    usuario BIGINT,
+                    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+                );",
+
+                // 10. ctr_branding
+                @"CREATE TABLE IF NOT EXISTS ctr_branding (
+                    id_branding BIGSERIAL PRIMARY KEY,
+                    sistema VARCHAR(50) NOT NULL,
+                    nombre_sistema VARCHAR(100) NOT NULL,
+                    unidad_sistema_id INT,
+                    logo_file_name VARCHAR(255),
+                    favicon_file_name VARCHAR(255),
+                    fondo_1_file_name VARCHAR(255),
+                    fondo_2_file_name VARCHAR(255),
+                    fondo_3_file_name VARCHAR(255),
+                    vigente INT DEFAULT 1 NOT NULL,
+                    usuario_creacion VARCHAR(50) DEFAULT 'SISTEMA' NOT NULL,
+                    maquina_creacion VARCHAR(100) DEFAULT 'LOCAL' NOT NULL,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    usuario_modificacion VARCHAR(50),
+                    maquina_modificacion VARCHAR(100),
+                    fecha_modificacion TIMESTAMP,
+                    sigla VARCHAR(100),
+                    nombre_unidad VARCHAR(255)
+                );",
+
+                // 11. login_visual
+                @"CREATE TABLE IF NOT EXISTS login_visual (
+                    id_login_visual SERIAL PRIMARY KEY,
+                    descripcion VARCHAR(255),
+                    imagen_fondo VARCHAR(500),
+                    orden INT DEFAULT 1,
+                    vigente INT DEFAULT 1 NOT NULL
+                );",
+
+                // 12. ctr_linea_mando
+                @"CREATE TABLE IF NOT EXISTS ctr_linea_mando (
+                    id_linea_mando SERIAL PRIMARY KEY,
+                    identificacion VARCHAR(20) NOT NULL,
+                    nombre VARCHAR(100),
+                    apellidos VARCHAR(100),
+                    grado VARCHAR(50),
+                    cargo VARCHAR(100),
+                    unidad VARCHAR(200),
+                    foto_base64 TEXT,
+                    orden INT DEFAULT 1,
+                    vigente INT DEFAULT 1,
+                    usuario_crea VARCHAR(50),
+                    fecha_crea TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    maquina_crea VARCHAR(100),
+                    usuario_mod VARCHAR(50),
+                    fecha_mod TIMESTAMP,
+                    maquina_mod VARCHAR(100),
+                    peso VARCHAR(100)
+                );",
 
                 // 13. ctr_personaje_grupo
                 @"CREATE TABLE IF NOT EXISTS ctr_personaje_grupo (
@@ -566,6 +725,54 @@ namespace Datos.Gestion
                     id_personaje_grupo INT
                 );",
 
+                // 15. ctr_videos
+                @"CREATE TABLE IF NOT EXISTS ctr_videos (
+                    id_video SERIAL PRIMARY KEY,
+                    descripcion VARCHAR(255) NOT NULL,
+                    observaciones VARCHAR(500),
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    usuario_creacion VARCHAR(50) NOT NULL,
+                    ruta_video VARCHAR(500),
+                    vigente INT DEFAULT 1,
+                    fecha_modifica TIMESTAMP,
+                    usuario_modifica VARCHAR(50),
+                    maquina_modifica VARCHAR(100)
+                );",
+
+                // 16. ctr_cuenta_email
+                @"CREATE TABLE IF NOT EXISTS ctr_cuenta_email (
+                    id_cuenta SERIAL PRIMARY KEY,
+                    id_dominio_grupo INT NOT NULL,
+                    nombre_cuenta VARCHAR(200) NOT NULL,
+                    email VARCHAR(255) NOT NULL,
+                    servidor_smtp VARCHAR(255) DEFAULT 'smtp.office365.com',
+                    puerto INT DEFAULT 587,
+                    usuario_smtp VARCHAR(255),
+                    clave_smtp VARCHAR(1000),
+                    usar_ssl INT DEFAULT 1,
+                    vigente INT DEFAULT 1,
+                    usuario_crea VARCHAR(100),
+                    fecha_crea TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    usuario_modifica VARCHAR(100),
+                    fecha_modifica TIMESTAMP,
+                    ip_registro VARCHAR(50),
+                    firma_html TEXT,
+                    imagen_encabezado VARCHAR(500)
+                );",
+
+                // 17. ctr_cuenta_email_usuario
+                @"CREATE TABLE IF NOT EXISTS ctr_cuenta_email_usuario (
+                    id_cuenta_usuario SERIAL PRIMARY KEY,
+                    id_cuenta INT NOT NULL,
+                    id_usuario BIGINT NOT NULL,
+                    vigente INT DEFAULT 1 NOT NULL,
+                    usuario_crea VARCHAR(100),
+                    fecha_crea TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    usuario_modifica VARCHAR(100),
+                    fecha_modifica TIMESTAMP,
+                    ip_registro VARCHAR(45)
+                );",
+
                 // Seed Data - Roles
                 @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, estado, usuario_creacion, maquina_creacion)
                   VALUES (1, 'DESARROLLADOR', 'Desarrollador', 'Rol con acceso total de desarrollo y plantilla', 1, 'SETUP', 'LOCAL')
@@ -578,7 +785,6 @@ namespace Datos.Gestion
                 // Seed Data - Menús Base
                 @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, usuario_creacion) VALUES
                   (1, 0, 'Inicio', '/home', 'fa-solid fa-house', 1, 1, 'SETUP'),
-                  (2, 0, 'Noticias', '/noticias', 'fa-solid fa-newspaper', 2, 1, 'SETUP'),
                   (3, 0, 'Gestión Documental', NULL, 'fa-solid fa-folder-open', 3, 1, 'SETUP'),
                   (31, 3, 'Gestión Correos Electrónicos', '/gestion-documental/gestion-correos-electronicos', 'fa-solid fa-envelope', 1, 1, 'SETUP'),
                   (4, 0, 'Administración', NULL, 'fa-solid fa-gears', 4, 1, 'SETUP'),
@@ -602,7 +808,32 @@ namespace Datos.Gestion
                   (16, 1, 2, 1), (17, 2, 2, 1), (18, 3, 2, 1), (19, 31, 2, 1), (20, 4, 2, 1),
                   (21, 401, 2, 1), (22, 402, 2, 1), (23, 403, 2, 1), (24, 404, 2, 1), (25, 405, 2, 1),
                   (26, 406, 2, 1), (27, 407, 2, 1), (28, 408, 2, 1), (29, 409, 2, 1), (30, 410, 2, 1)
-                  ON CONFLICT (id_menu_rol) DO NOTHING;"
+                  ON CONFLICT (id_menu_rol) DO NOTHING;",
+
+                // Seed Data - Dominios Semilla
+                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
+                  VALUES (1, 'DOMINIO PRINCIPAL / RAÍZ', 0, 'RAIZ', 'Dominio Semilla Raíz Principal', 1)
+                  ON CONFLICT (id_dominio) DO NOTHING;",
+                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, vigente, abreviatura, observacion, usuario_creacion, maquina_creacion) VALUES
+                  (1, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ Principal', 1143458803, 'LOCAL'),
+                  (2, 'Personaje del mes', 1, 1, 'PERS_MES', 'Categorías y opciones de Personaje del mes', 1143458803, 'LOCAL'),
+                  (3, 'Categoría oficiales', 2, 1, 'PEROF', 'Personajes del mes en la categoría de oficial', 1143458803, 'LOCAL'),
+                  (4, 'Categoría Mando de nivel ejecutivo', 2, 1, 'CATNIVEL', 'Personajes del mes en la categoría de mando de nivel ejecutivo', 1143458803, 'LOCAL'),
+                  (5, 'Categoría patrulleros', 2, 1, 'CATPT', 'Personajes del mes en la categoría de patrulleros', 1143458803, 'LOCAL'),
+                  (6, 'Personaje de mes ámbito operativo', 2, 1, 'PERAMOP', 'Personaje de mes ámbito operativo', 1143458803, 'LOCAL'),
+                  (7, 'Categoría no uniformados', 2, 1, 'CATNU', 'Categoría no uniformados', 1143458803, 'LOCAL'),
+                  (8, 'Equipo o grupo de alto rendimiento', 2, 1, 'EQUGP', 'Equipo o grupo de alto rendimiento', 1143458803, 'LOCAL'),
+                  (9, 'Categoría estudiantes', 2, 1, 'CATEST', 'Categoría estudiantes', 1143458803, 'LOCAL'),
+                  (10, 'Categoría suboficial', 2, 1, 'CATSUBOF', 'Categoría suboficial', 1143458803, 'LOCAL'),
+                  (11, 'Categoria agentes', 2, 1, 'CATAG', 'Categoria para agrupar agentes de policía', 1143458803, 'LOCAL'),
+                  (12, 'Categoría Auxiliares de Policia', 2, 1, 'CAUXPO', 'Categoria para Auxiliares De Policia', 1143458803, 'LOCAL'),
+                  (13, 'Privacidad de Documentos', 1, 1, 'PRIV_DOC', 'Privacidad de Documentos', 1143458803, 'LOCAL'),
+                  (14, 'INFORMACIÓN PÚBLICA', 13, 1, 'INFPUB', 'Es toda información que un sujeto obligado genere, obtenga o controle', 1143458803, 'LOCAL'),
+                  (15, 'INFORMACIÓN PÚBLICA CLASIFICADA', 13, 1, 'INFPUBCLA', 'Es aquella información que estando en poder o custodia de un sujeto obligado es clasificada', 1143458803, 'LOCAL'),
+                  (16, 'INFORMACIÓN PÚBLICA RESERVADA', 13, 1, 'PUBRES', 'Es aquella información que estando en poder o custodia de un sujeto obligado es reservada', 1143458803, 'LOCAL'),
+                  (17, 'GRUPOS O AREAS', 1, 1, 'GRUPOS_AREAS', 'Dominio Padre Semilla para Grupos o Áreas responsables de cuentas de correo', 1143458803, 'LOCAL'),
+                  (18, 'Grupo Desarrollo de Software', 17, 1, 'GDS', 'Grupo Desarrollo de Software ejemplo responsable de correo', 1143458803, 'LOCAL')
+                  ON CONFLICT (id_dominio) DO NOTHING;"
             };
 
             foreach (var stmt in ddlStatements)
