@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SetupService, SetupTestRequest } from '../../core/services/setup.service';
+import { SetupResponse, SetupService, SetupTestRequest } from '../../core/services/setup.service';
 
 @Component({
   selector: 'app-setup',
@@ -48,9 +48,9 @@ export class SetupComponent implements OnInit {
   };
 
   testing = false;
-  testResult: { success: boolean; message: string; requiresMigration?: boolean } | null = null;
+  testResult: SetupResponse | null = null;
   saving = false;
-  saveResult: { success: boolean; message: string } | null = null;
+  saveResult: SetupResponse | null = null;
 
   showMigrationModal = false;
   showPipRolesModal = false;
@@ -81,7 +81,7 @@ export class SetupComponent implements OnInit {
     this.step = 4;
   }
   migrating = false;
-  migrationResult: { success: boolean; message: string } | null = null;
+  migrationResult: SetupResponse | null = null;
 
   showFinishModal = false;
 
@@ -518,6 +518,8 @@ export class SetupComponent implements OnInit {
       databaseOrService: this.formData.databaseOrService,
       user: this.formData.user,
       password: this.formData.password,
+      tablespaceData: this.formData.tablespaceData,
+      tablespaceIndexes: this.formData.tablespaceIndexes,
       connectionStringRaw: this.useRawConnectionString ? this.formData.connectionStringRaw : undefined,
       pipUser: this.formData.pipUser,
       pipPassword: this.formData.pipPassword,

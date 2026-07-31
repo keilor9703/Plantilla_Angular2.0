@@ -54,6 +54,7 @@ export interface SetupResponse {
   success: boolean;
   message: string;
   requiresMigration?: boolean;
+  errors?: string[];
 }
 
 @Injectable({
