@@ -516,7 +516,7 @@ namespace Datos.Gestion
                     codigo_rol VARCHAR(50) DEFAULT '' NOT NULL,
                     nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
                     descripcion VARCHAR(500),
-                    estado INT DEFAULT 1 NOT NULL,
+                    vigente INT DEFAULT 1 NOT NULL,
                     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
                     maquina_creacion VARCHAR(100) DEFAULT 'LOCAL',
@@ -528,7 +528,7 @@ namespace Datos.Gestion
                     ADD COLUMN IF NOT EXISTS codigo_rol VARCHAR(50) DEFAULT '' NOT NULL,
                     ADD COLUMN IF NOT EXISTS nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
                     ADD COLUMN IF NOT EXISTS descripcion VARCHAR(500),
-                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL,
                     ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     ADD COLUMN IF NOT EXISTS usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
                     ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(100) DEFAULT 'LOCAL',
@@ -802,11 +802,11 @@ namespace Datos.Gestion
                 );",
 
                 // Seed Data - Roles
-                @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, estado, usuario_creacion, maquina_creacion)
+                @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, vigente, usuario_creacion, maquina_creacion)
                   VALUES (1, 'DESARROLLADOR', 'Desarrollador', 'Rol con acceso total de desarrollo y plantilla', 1, 'SETUP', 'LOCAL')
                   ON CONFLICT (id_rol) DO NOTHING;",
 
-                @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, estado, usuario_creacion, maquina_creacion)
+                @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, vigente, usuario_creacion, maquina_creacion)
                   VALUES (2, 'ADMINISTRADOR', 'Administrador', 'Rol administrador del sistema', 1, 'SETUP', 'LOCAL')
                   ON CONFLICT (id_rol) DO NOTHING;",
 

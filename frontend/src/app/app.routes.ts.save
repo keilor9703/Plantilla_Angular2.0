@@ -1,0 +1,62 @@
+:
+mn
+import { Routes } from '@angular/router';
+import { LoginComponent } from './pages/login/login';
+import { LayoutComponent } from './layout/layout';
+import { authGuard } from './core/auth/auth.guard';
+
+export const routes: Routes = [
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
+  { path: 'login', component: LoginComponent },
+  { path: 'setup', loadComponent: () => import('./pages/setup/setup').then(m => m.SetupComponent) },
+  {
+    path: '',
+    component: LayoutComponent,
+    canActivate: [authGuard],
+    children: [
+      { path: '', redirectTo: 'home', pathMatch: 'full' },
+      { path: 'home', loadComponent: () => import('./pages/home/home').then(m => m.HomeComponent) },
+      { path: 'noticias', loadComponent: () => import('./pages/noticias/noticias').then(m => m.NoticiasWeb) },
+      {
+        path: 'gestion-documental',
+        children: [
+          { path: '', redirectTo: 'gestion-correos-electronicos', pathMatch: 'full' },
+          { path: 'gestion-correos-electronicos', loadComponent: () => import('./pages/gestion-documental/gestion-correos-electronicos/gestion-correos-electronicos').then(m => m.GestionCorreosElectronicosComponent) },
+        ],
+      },
+      {
+        path: 'administracion',
+        canActivate: [authGuard],
+        children: [
+          { path: '', loadComponent: () => import('./pages/administracion/administracion-inicio/administracion-inicio').then(m => m.AdministracionInicioComponent) },
+          { path: 'inicio', loadComponent: () => import('./pages/administracion/administracion-inicio/administracion-inicio').then(m => m.AdministracionInicioComponent) },
+          { path: 'formularios', loadComponent: () => import('./pages/administracion/formularios/formularios').then(m => m.Formularios) },
+          { path: 'usuarios', loadComponent: () => import('./pages/administracion/usuarios/usuarios').then(m => m.UsuariosComponent) },
+          { path: 'roles', loadComponent: () => import('./pages/administracion/roles-admin/roles-admin').then(m => m.RolesAdminComponent) },
+          { path: 'personaje-mes', loadComponent: () => import('./pages/administracion/personaje-mes/personaje-mes').then(m => m.PersonajeMesAdminComponent) },
+          { path: 'menu', loadComponent: () => import('./pages/administracion/menu-admin/menu-admin').then(m => m.MenuAdminComponent) },
+          { path: 'configuracion-sistema', canActivate: [authGuard], loadComponent: () => import('./pages/administracion/configuracion-sistema/configuracion-sistema').then(m => m.ConfiguracionSistemaComponent) },
+          { path: 'admin-multimedia', canActivate: [authGuard], loadComponent: () => import('./pages/administracion/configuracion-sistema/configuracion-sistema').then(m => m.ConfiguracionSistemaComponent) },
+          { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+          { path: 'configuracion-imagen-sitio', canActivate: [authGuard], loadComponent: () => import('./pages/administracion/configuracion-sistema/configuracion-sistema').then(m => m.ConfiguracionSistemaComponent) },
+          { path: 'linea-mando', loadComponent: () => import('./pages/administracion/linea-mando/linea-mando').then(m => m.LineaMandoAdminComponent) },
+          { path: 'dominio', loadComponent: () => import('./pages/administracion/dominio/dominio').then(m => m.DominioAdminComponent) },
+          { path: 'auditoria', loadComponent: () => import('./pages/administracion/auditoria/auditoria').then(m => m.AuditoriaAdminComponent) },
+          { path: 'cuentas-email', loadComponent: () => import('./pages/administracion/cuentas-email/cuentas-email').then(m => m.CuentasEmailComponent) },
+        ],
+      },
+      { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
+      { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },
+      { path: 'roles', redirectTo: 'administracion/roles', pathMatch: 'full' },
+      { path: 'menu', redirectTo: 'administracion/menu', pathMatch: 'full' },
+      { path: 'configuracion-sistema', canActivate: [authGuard], loadComponent: () => import('./pages/administracion/configuracion-sistema/configuracion-sistema').then(m => m.ConfiguracionSistemaComponent) },
+      { path: 'admin-multimedia', canActivate: [authGuard], loadComponent: () => import('./pages/administracion/configuracion-sistema/configuracion-sistema').then(m => m.ConfiguracionSistemaComponent) },
+      { path: 'video-unidad', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'configuracion-imagen-sitio', canActivate: [authGuard], loadComponent: () => import('./pages/administracion/configuracion-sistema/configuracion-sistema').then(m => m.ConfiguracionSistemaComponent) },
+      { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
+      { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
+      { path: 'correos-electronicos', redirectTo: 'gestion-documental/gestion-correos-electronicos', pathMatch: 'full' },
+    ],
+  },
+  { path: '**', redirectTo: 'login' },
+];

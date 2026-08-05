@@ -75,8 +75,8 @@ namespace ofic.Controllers.Administracion
                 new DtoRadioEmisora
                 {
                     IdEmisora = 1,
-                    Nombre = "Bogotá",
-                    StreamUrl = "https://radio.policia.gov.co:8080/inhouse",
+                    Nombre = "Prueba",
+                    StreamUrl = "https://live.truckers.fm/",
                     LogoUrl = "http://srvdockergusof.policia.gov.co/sicoe/api/Radio/logo/90927871aaaf46eb80ed871274f4e1d9.png",
                     Orden = 1,
                     Activo = 1
