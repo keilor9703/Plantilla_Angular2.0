@@ -115,6 +115,11 @@ export class MenuAdminComponent implements OnInit {
       return;
     }
 
+    if (this.editingId && this.form.idPadre === this.editingId) {
+      this.toast.warning('Menú', 'Un menú no puede ser su propio menú padre.');
+      return;
+    }
+
     this.saving = true;
     this.menuService.saveAdminMenu(this.form).subscribe({
       next: (resp) => {
@@ -281,6 +286,10 @@ export class MenuAdminComponent implements OnInit {
 
   toggleNode(node: any): void {
     node.expanded = !node.expanded;
+  }
+
+  get availableParentOptions(): DbMenuItem[] {
+    return this.parentOptions.filter(item => item.idMenu !== this.editingId);
   }
 
   get parentMenuItems(): DbMenuItem[] {

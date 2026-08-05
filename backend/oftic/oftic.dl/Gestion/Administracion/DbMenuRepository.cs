@@ -252,6 +252,11 @@ namespace Datos.Gestion
 
         public async Task<DtoMenuResult> SaveMenuAsync(DtoMenuSaveRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
+            if (request.IdMenu.HasValue && request.IdMenu.Value > 0 && request.IdPadre == request.IdMenu.Value)
+            {
+                return new DtoMenuResult { Id = 0, Message = "Un menú no puede ser su propio menú padre." };
+            }
+
             var provider = (_configuration["DatabaseProvider"] ?? "Oracle").Trim();
 
             if (provider.Equals("MySQL", StringComparison.OrdinalIgnoreCase) || provider.Contains("MySQL", StringComparison.OrdinalIgnoreCase))
@@ -264,7 +269,7 @@ namespace Datos.Gestion
                     if (isUpdate)
                     {
                         var idMenu = request.IdMenu!.Value;
-                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        var idPadre = request.IdPadre <= 0 ? 0 : request.IdPadre;
                         using var cmd = connMySql.CreateCommand();
                         cmd.CommandText = @"UPDATE ctr_menu SET titulo = @pDesc, id_padre = @pIdPadre, orden = @pOrden, icono = @pIcono, estado = @pVigente, vigente = @pVigente, ruta = @pRuta, usuario_modifica = @pUser, fecha_modifica = NOW(), maquina_modifica = @pMaq WHERE id_menu = @pId";
                         cmd.Parameters.AddWithValue("@pDesc", request.Descripcion?.Trim() ?? "");
@@ -285,7 +290,7 @@ namespace Datos.Gestion
                         using var cmdNext = connMySql.CreateCommand();
                         cmdNext.CommandText = "SELECT COALESCE(MAX(id_menu), 0) + 1 FROM ctr_menu";
                         var idMenu = Convert.ToInt64(await cmdNext.ExecuteScalarAsync(ct));
-                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        var idPadre = request.IdPadre <= 0 ? 0 : request.IdPadre;
                         using var cmdInsert = connMySql.CreateCommand();
                         cmdInsert.CommandText = @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, vigente, usuario_creacion, fecha_creacion, maquina_creacion) VALUES (@pId, @pIdPadre, @pDesc, @pRuta, @pIcono, @pOrden, @pVigente, @pVigente, @pUser, NOW(), @pMaq)";
                         cmdInsert.Parameters.AddWithValue("@pId", idMenu);
@@ -319,7 +324,7 @@ namespace Datos.Gestion
                     if (isUpdate)
                     {
                         var idMenu = request.IdMenu!.Value;
-                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        var idPadre = request.IdPadre <= 0 ? 0 : request.IdPadre;
                         using var cmd = connPg.CreateCommand();
                         cmd.CommandText = @"UPDATE ctr_menu SET titulo = @pDesc, id_padre = @pIdPadre, orden = @pOrden, icono = @pIcono, estado = @pVigente, vigente = @pVigente, ruta = @pRuta, usuario_modifica = @pUser, fecha_modifica = CURRENT_TIMESTAMP, maquina_modifica = @pMaq WHERE id_menu = @pId";
                         cmd.Parameters.AddWithValue("@pDesc", request.Descripcion?.Trim() ?? "");
@@ -340,7 +345,7 @@ namespace Datos.Gestion
                         using var cmdNext = connPg.CreateCommand();
                         cmdNext.CommandText = "SELECT COALESCE(MAX(id_menu), 0) + 1 FROM ctr_menu";
                         var idMenu = Convert.ToInt64(await cmdNext.ExecuteScalarAsync(ct));
-                        var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                        var idPadre = request.IdPadre <= 0 ? 0 : request.IdPadre;
                         using var cmdInsert = connPg.CreateCommand();
                         cmdInsert.CommandText = @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, vigente, usuario_creacion, fecha_creacion, maquina_creacion) VALUES (@pId, @pIdPadre, @pDesc, @pRuta, @pIcono, @pOrden, @pVigente, @pVigente, @pUser, CURRENT_TIMESTAMP, @pMaq)";
                         cmdInsert.Parameters.AddWithValue("@pId", idMenu);
@@ -376,7 +381,7 @@ namespace Datos.Gestion
                 if (isUpdate)
                 {
                     idMenu = request.IdMenu!.Value;
-                    var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                    var idPadre = request.IdPadre <= 0 ? 0 : request.IdPadre;
 
                     await using var cmdUpdate = conn.CreateCommand();
                     cmdUpdate.Transaction = tx;
@@ -418,7 +423,7 @@ namespace Datos.Gestion
 
                 await using (var cmdInsert = conn.CreateCommand())
                 {
-                    var idPadre = request.IdPadre <= 0 ? idMenu : request.IdPadre;
+                    var idPadre = request.IdPadre <= 0 ? 0 : request.IdPadre;
                     cmdInsert.Transaction = tx;
                     cmdInsert.CommandType = CommandType.Text;
                     cmdInsert.CommandText = @"

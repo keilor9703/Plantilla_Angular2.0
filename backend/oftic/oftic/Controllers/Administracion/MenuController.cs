@@ -95,6 +95,11 @@ namespace Api.Controllers.Administracion
                     return BadRequest(new { success = false, message = "Vigente debe ser 0 o 1." });
                 }
 
+                if (request.IdMenu.HasValue && request.IdMenu.Value > 0 && request.IdPadre == request.IdMenu.Value)
+                {
+                    return BadRequest(new { success = false, message = "Un menú no puede ser su propio menú padre." });
+                }
+
                 var (usuario, maquina) = ObtenerAuditoria();
                 var result = await _service.SaveMenuAsync(request, usuario, maquina, ct);
 

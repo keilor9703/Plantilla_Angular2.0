@@ -28,7 +28,7 @@
               <label class="ui-label">Padre</label>
               <select class="ui-control" [(ngModel)]="form.idPadre">
                 <option [ngValue]="0">Sin padre (0)</option>
-                <option *ngFor="let parent of parentOptions" [ngValue]="parent.idMenu">
+                <option *ngFor="let parent of availableParentOptions" [ngValue]="parent.idMenu">
                   {{ parent.idMenu }} - {{ parent.descripcion }}
                 </option>
               </select>
