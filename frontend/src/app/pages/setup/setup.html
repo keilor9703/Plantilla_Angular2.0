@@ -238,13 +238,13 @@
           </div>
 
           <div class="ui-field ui-col-6">
-            <label class="ui-label">Emisor del Token (Issuer)</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.jwtIssuer" placeholder="oftic.api">
+            <label class="ui-label">Emisor del Token (Issuer) <i class="fa-solid fa-lock text-sub ms-1" title="Parámetro institucional protegido (no modificable)"></i></label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.jwtIssuer" placeholder="oftic.api" disabled readonly style="opacity: 0.7; cursor: not-allowed;">
           </div>
 
           <div class="ui-field ui-col-6">
-            <label class="ui-label">Audiencia del Token (Audience)</label>
-            <input class="ui-control" type="text" [(ngModel)]="formData.jwtAudience" placeholder="oftic.api">
+            <label class="ui-label">Audiencia del Token (Audience) <i class="fa-solid fa-lock text-sub ms-1" title="Parámetro institucional protegido (no modificable)"></i></label>
+            <input class="ui-control" type="text" [(ngModel)]="formData.jwtAudience" placeholder="oftic.api" disabled readonly style="opacity: 0.7; cursor: not-allowed;">
           </div>
         </div>
 
@@ -326,12 +326,20 @@
             <label class="ui-label">Unidad dueña del sistema</label>
             <div class="searchable-control-wrapper">
               <input class="ui-control" type="text" placeholder="🔍 Buscar unidad por nombre o sigla..."
-                [(ngModel)]="unidadSearchText" (focus)="showUnidadDropdown = true" (input)="showUnidadDropdown = true">
-              <div *ngIf="showUnidadDropdown" class="searchable-dropdown-list">
-                <div class="dropdown-item option-clear" (click)="selectUnidad(null)">
+                [(ngModel)]="unidadSearchText"
+                (focus)="onUnidadFocus()"
+                (input)="onUnidadInput()"
+                (blur)="onUnidadBlur()"
+                (keydown)="onUnidadKeydown($event)">
+              <div *ngIf="showUnidadDropdown" class="searchable-dropdown-list" #unidadListContainer>
+                <div class="dropdown-item option-clear"
+                  [class.is-highlighted]="focusedUnidadIndex === -1"
+                  (click)="selectUnidad(null)">
                   <em>-- Sin seleccionar / Seleccionar más tarde --</em>
                 </div>
-                <div *ngFor="let u of filteredUnidadesList" class="dropdown-item" (click)="selectUnidad(u)">
+                <div *ngFor="let u of filteredUnidadesList; let i = index" class="dropdown-item"
+                  [class.is-highlighted]="focusedUnidadIndex === i"
+                  (click)="selectUnidad(u)">
                   <span class="unit-title">{{ u.nombre || u.descripcionDependencia || u.nombreUnidad }}</span>
                   <span *ngIf="u.sigla || u.siglaPapa" class="unit-badge">
                     {{ u.siglaPapa ? u.siglaPapa + ' - ' : '' }}{{ u.sigla || '' }}
@@ -575,16 +583,15 @@
 
           <!-- ALERTA SI PERTENECE A OFTIC -->
           <div *ngIf="devUserValidationResult?.success" class="alert-box success mt-4"
-            style="background: rgba(34, 197, 94, 0.15); border: 1.5px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
-            <i class="fa-solid fa-circle-check me-2"></i>
-            <span>Funcionario verificado exitosamente como integrante de <strong>OFTIC</strong>. Puede proceder a la
-              instalación.</span>
+            style="background: transparent; border: 2px solid #166534; color: #14532d; font-weight: 700; padding: 12px; border-radius: 8px;">
+            <i class="fa-solid fa-circle-check me-2" style="color: #15803d; font-size: 1.2rem;"></i>
+            <span>Funcionario verificado exitosamente como integrante de <strong style="color: #14532d; text-decoration: underline;">OFTIC</strong>. Puede proceder a la instalación.</span>
           </div>
 
           <!-- ALERTA SI NO PERTENECE A OFTIC (BLOQUEO) -->
           <div *ngIf="!devUserValidationResult?.success" class="alert-box error mt-4"
-            style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid rgba(239, 68, 68, 0.5); color: #fca5a5;">
-            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            style="background: transparent; border: 2px solid #991b1b; color: #7f1d1d; font-weight: 700; padding: 12px; border-radius: 8px;">
+            <i class="fa-solid fa-triangle-exclamation me-2" style="color: #b91c1c; font-size: 1.2rem;"></i>
             <span>{{ devUserValidationResult?.message }}</span>
           </div>
         </div>
@@ -599,8 +606,8 @@
           <!-- Botón Cerrar (Si NO pertenece a OFTIC) -->
           <button *ngIf="!devUserValidationResult?.success" class="ui-btn secondary ui-btn--fx" type="button"
             (click)="closeDevUserModal()"
-            style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5;">
-            <i class="fa-solid fa-xmark me-2"></i> Cerrar (Instalación No Permitida)
+            style="background: transparent; border: 2px solid #991b1b; color: #7f1d1d; font-weight: 700;">
+            <i class="fa-solid fa-xmark me-2" style="color: #b91c1c;"></i> Cerrar (Instalación No Permitida)
           </button>
         </div>
 

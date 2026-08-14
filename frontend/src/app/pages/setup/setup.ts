@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -147,6 +147,8 @@ export class SetupComponent implements OnInit {
 
   unidadSearchText = '';
   showUnidadDropdown = false;
+  focusedUnidadIndex = -1;
+  @ViewChild('unidadListContainer') unidadListContainer!: ElementRef<HTMLDivElement>;
 
   get filteredUnidadesList(): any[] {
     if (!this.unidadSearchText?.trim()) {
@@ -158,6 +160,70 @@ export class SetupComponent implements OnInit {
       const sigla = (u.sigla || u.siglaPapa || '').toLowerCase();
       return nombre.includes(q) || sigla.includes(q);
     });
+  }
+
+  onUnidadFocus(): void {
+    this.showUnidadDropdown = true;
+    this.focusedUnidadIndex = -1;
+  }
+
+  onUnidadInput(): void {
+    this.showUnidadDropdown = true;
+    this.focusedUnidadIndex = -1;
+  }
+
+  onUnidadBlur(): void {
+    setTimeout(() => {
+      this.showUnidadDropdown = false;
+      this.focusedUnidadIndex = -1;
+    }, 200);
+  }
+
+  onUnidadKeydown(event: KeyboardEvent): void {
+    const list = this.filteredUnidadesList;
+    if (!this.showUnidadDropdown) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        this.showUnidadDropdown = true;
+        this.focusedUnidadIndex = -1;
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (this.focusedUnidadIndex < list.length - 1) {
+        this.focusedUnidadIndex++;
+        this.scrollFocusedUnidadIntoView();
+      }
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (this.focusedUnidadIndex > -1) {
+        this.focusedUnidadIndex--;
+        this.scrollFocusedUnidadIntoView();
+      }
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (this.focusedUnidadIndex === -1) {
+        this.selectUnidad(null);
+      } else if (this.focusedUnidadIndex >= 0 && this.focusedUnidadIndex < list.length) {
+        this.selectUnidad(list[this.focusedUnidadIndex]);
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showUnidadDropdown = false;
+      this.focusedUnidadIndex = -1;
+    }
+  }
+
+  private scrollFocusedUnidadIntoView(): void {
+    if (!this.unidadListContainer) return;
+    const container = this.unidadListContainer.nativeElement;
+    const items = container.querySelectorAll('.dropdown-item');
+    const targetItemIndex = this.focusedUnidadIndex + 1;
+    if (items[targetItemIndex]) {
+      (items[targetItemIndex] as HTMLElement).scrollIntoView({ block: 'nearest' });
+    }
   }
 
   selectUnidad(u: any): void {
@@ -175,6 +241,7 @@ export class SetupComponent implements OnInit {
       this.unidadSearchText = `${this.formData.nombreUnidad}${u.sigla ? ' (' + u.sigla + ')' : ''}`;
     }
     this.showUnidadDropdown = false;
+    this.focusedUnidadIndex = -1;
   }
 
   onUnidadChange(event: Event): void {

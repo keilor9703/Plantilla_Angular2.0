@@ -365,6 +365,6 @@
     padding: 4px 8px;
     color: #000;
     cursor: default;
-    &:hover { background: #000080; color: #fff; }
+    &:hover, &.is-highlighted { background: #000080; color: #fff; }
   }
 }

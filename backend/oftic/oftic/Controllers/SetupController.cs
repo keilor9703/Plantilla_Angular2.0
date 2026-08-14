@@ -133,7 +133,7 @@ namespace ofic.Controllers
                         await conn.OpenAsync(ct);
 
                         using var cmdUser = conn.CreateCommand();
-                        cmdUser.CommandText = "SELECT USERNAME, IDENTIFICACION, NOMBRES, APELLIDOS, GRAD_ALFABETICO FROM CTR_USUARIOS WHERE ROWNUM = 1 ORDER BY ID_USUARIO ASC";
+                        cmdUser.CommandText = "SELECT USERNAME, IDENTIFICACION, NOMBRES, APELLIDOS, GRAD_ALFABETICO FROM (SELECT USERNAME, IDENTIFICACION, NOMBRES, APELLIDOS, GRAD_ALFABETICO FROM CTR_USUARIOS ORDER BY ID_USUARIO ASC) WHERE ROWNUM = 1";
                         using var reader = await cmdUser.ExecuteReaderAsync(ct);
                         if (await reader.ReadAsync(ct))
                         {

@@ -529,6 +529,9 @@
     align-items: center;
     box-shadow: var(--ui-shadow-sm);
     transition: transform var(--transition-speed);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
 }
 
 .stat-card:hover {

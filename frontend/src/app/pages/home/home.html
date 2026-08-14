@@ -63,20 +63,20 @@
       [style.top.px]="cursorY"></div>
 
     <div class="stats-grid">
-      <div class="stat-card">
+      <a class="stat-card" routerLink="/administracion/usuarios" title="Ver gestión de usuarios">
         <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
         <div class="stat-info">
           <h3>{{ stats.usuariosActivos | number }}</h3>
           <p>Usuarios Activos</p>
         </div>
-      </div>
-      <div class="stat-card">
+      </a>
+      <a class="stat-card" routerLink="/administracion/roles" title="Ver roles asignados">
         <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div class="stat-info">
           <h3>{{ stats.alertasSistema | number }}</h3>
           <p>Roles por Vencer (7 dias)</p>
         </div>
-      </div>
+      </a>
     </div>
 
     <!-- Nueva estructura: Sección Multimedia (8 cols) + Noticias (4 cols) -->
