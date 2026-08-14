@@ -40,9 +40,11 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                        result.Add(MapVideoGeneric(reader));
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
+                    {
+                        while (await reader.ReadAsync(ct))
+                            result.Add(MapVideoGeneric(reader));
+                    }
                     return result;
                 }
 
@@ -52,36 +54,20 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                        result.Add(MapVideoGeneric(reader));
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
+                    {
+                        while (await reader.ReadAsync(ct))
+                            result.Add(MapVideoGeneric(reader));
+                    }
                     return result;
                 }
 
                 await using var oracleConn = new OracleConnection(_cs);
                 await oracleConn.OpenAsync(ct);
-
-                try
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.CommandText = selectSql;
+                await using (var reader = await cmdQuery.ExecuteReaderAsync(ct))
                 {
-                    await using var cmd = oracleConn.CreateCommand();
-                    cmd.CommandTimeout = 30;
-                    cmd.BindByName = true;
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
-                    cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = DBNull.Value;
-                    var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
-                    cursorParam.Direction = ParameterDirection.ReturnValue;
-
-                    await using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                        result.Add(MapVideo(reader));
-                }
-                catch
-                {
-                    result.Clear();
-                    await using var cmdQuery = oracleConn.CreateCommand();
-                    cmdQuery.CommandText = selectSql;
-                    await using var reader = await cmdQuery.ExecuteReaderAsync(ct);
                     while (await reader.ReadAsync(ct))
                         result.Add(MapVideoGeneric(reader));
                 }

@@ -75,45 +75,21 @@ namespace Datos.Gestion.GestionDocumental
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    try
+                    using (var command = connection.CreateCommand())
                     {
-                        using (var command = new OracleCommand("PK_ADMINISTRACION.P_REGISTRAR_ENVIO_CORREO", connection))
-                        {
-                            command.CommandType = CommandType.StoredProcedure;
-                            command.Parameters.Add("p_id_cuenta_email", OracleDbType.Int32).Value = request.IdCuentaEmail;
-                            command.Parameters.Add("p_radicado", OracleDbType.Varchar2).Value = radicado;
-                            command.Parameters.Add("p_para", OracleDbType.Varchar2).Value = destinatario;
-                            command.Parameters.Add("p_asunto", OracleDbType.Varchar2).Value = request.Asunto;
-                            command.Parameters.Add("p_cuerpo", OracleDbType.Clob).Value = request.Cuerpo;
-                            command.Parameters.Add("p_id_clasificacion", OracleDbType.Int32).Value = (object?)request.IdClasificacion ?? DBNull.Value;
-                            command.Parameters.Add("p_usuario", OracleDbType.Varchar2).Value = usuario;
-                            command.Parameters.Add("p_maquina", OracleDbType.Varchar2).Value = maquina;
-                            command.Parameters.Add("p_resultado", OracleDbType.Int32).Direction = ParameterDirection.Output;
-
-                            command.ExecuteNonQuery();
-                            var res = GetOutputInt(command.Parameters["p_resultado"]);
-                            return res >= 0;
-                        }
-                    }
-                    catch (Exception exProc)
-                    {
-                        _logger.LogWarning(exProc, "El Stored Procedure P_REGISTRAR_ENVIO_CORREO falló. Ejecutando INSERT directo con secuencia Oracle.");
-                        using (var command = connection.CreateCommand())
-                        {
-                            command.CommandText = @"
-                                INSERT INTO CTR_ENVIO_CORREO (ID_ENVIO, ID_CUENTA_EMAIL, RADICADO, DESTINATARIO, ASUNTO, CUERPO, ID_CLASIFICACION, USUARIO_CREA, MAQUINA_CREA, FECHA_CREA)
-                                VALUES (SEQ_CTR_ENVIO_CORREO.NEXTVAL, :c, :r, :d, :a, :b, :cat, :u, :m, SYSDATE)";
-                            command.Parameters.Add(":c", OracleDbType.Int32).Value = request.IdCuentaEmail;
-                            command.Parameters.Add(":r", OracleDbType.Varchar2).Value = radicado ?? "";
-                            command.Parameters.Add(":d", OracleDbType.Varchar2).Value = destinatario;
-                            command.Parameters.Add(":a", OracleDbType.Varchar2).Value = request.Asunto ?? "";
-                            command.Parameters.Add(":b", OracleDbType.Clob).Value = request.Cuerpo ?? "";
-                            command.Parameters.Add(":cat", OracleDbType.Int32).Value = (object?)request.IdClasificacion ?? DBNull.Value;
-                            command.Parameters.Add(":u", OracleDbType.Varchar2).Value = usuario ?? "SISTEMA";
-                            command.Parameters.Add(":m", OracleDbType.Varchar2).Value = maquina ?? "LOCAL";
-                            command.ExecuteNonQuery();
-                            return true;
-                        }
+                        command.CommandText = @"
+                            INSERT INTO CTR_ENVIO_CORREO (ID_ENVIO, ID_CUENTA_EMAIL, RADICADO, DESTINATARIO, ASUNTO, CUERPO, ID_CLASIFICACION, USUARIO_CREA, MAQUINA_CREA, FECHA_CREA)
+                            VALUES (SEQ_CTR_ENVIO_CORREO.NEXTVAL, :c, :r, :d, :a, :b, :cat, :u, :m, SYSDATE)";
+                        command.Parameters.Add(":c", OracleDbType.Int32).Value = request.IdCuentaEmail;
+                        command.Parameters.Add(":r", OracleDbType.Varchar2).Value = radicado ?? "";
+                        command.Parameters.Add(":d", OracleDbType.Varchar2).Value = destinatario;
+                        command.Parameters.Add(":a", OracleDbType.Varchar2).Value = request.Asunto ?? "";
+                        command.Parameters.Add(":b", OracleDbType.Clob).Value = request.Cuerpo ?? "";
+                        command.Parameters.Add(":cat", OracleDbType.Int32).Value = (object?)request.IdClasificacion ?? DBNull.Value;
+                        command.Parameters.Add(":u", OracleDbType.Varchar2).Value = usuario ?? "SISTEMA";
+                        command.Parameters.Add(":m", OracleDbType.Varchar2).Value = maquina ?? "LOCAL";
+                        command.ExecuteNonQuery();
+                        return true;
                     }
                 }
             }
@@ -195,59 +171,26 @@ namespace Datos.Gestion.GestionDocumental
                 using (var connection = new OracleConnection(_cs))
                 {
                     connection.Open();
-                    try
+                    using (var command = connection.CreateCommand())
                     {
-                        using (var command = new OracleCommand("PK_ADMINISTRACION.P_CONSULTAR_CORREOS_ENVIADOS", connection))
+                        command.CommandText = selectSql;
+                        using (var reader = command.ExecuteReader())
                         {
-                            command.CommandType = CommandType.StoredProcedure;
-                            command.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-                            using (var reader = command.ExecuteReader())
+                            while (reader.Read())
                             {
-                                while (reader.Read())
+                                lista.Add(new DtoHistoricoCorreo
                                 {
-                                    lista.Add(new DtoHistoricoCorreo
-                                    {
-                                        IdEnvio = reader["ID_ENVIO"] != DBNull.Value ? Convert.ToInt64(reader["ID_ENVIO"]) : 0,
-                                        Radicado = reader["RADICADO"]?.ToString() ?? "",
-                                        Destinatario = reader["DESTINATARIO"]?.ToString() ?? "",
-                                        Asunto = reader["ASUNTO"]?.ToString() ?? "",
-                                        Cuerpo = reader["CUERPO"] != DBNull.Value ? reader["CUERPO"].ToString() ?? "" : "",
-                                        Fecha = reader["FECHA"] != DBNull.Value ? Convert.ToDateTime(reader["FECHA"]) : DateTime.Now,
-                                        DeEmail = reader["DE_EMAIL"]?.ToString() ?? "",
-                                        NombreCuenta = reader["NOMBRE_CUENTA"]?.ToString() ?? "",
-                                        Clasificacion = reader["CLASIFICACION"]?.ToString() ?? "",
-                                        Username = reader["USERNAME"]?.ToString() ?? "",
-                                        NombreCompleto = reader["NOMBRE_COMPLETO"]?.ToString() ?? ""
-                                    });
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        lista.Clear();
-                        using (var command = connection.CreateCommand())
-                        {
-                            command.CommandText = selectSql;
-                            using (var reader = command.ExecuteReader())
-                            {
-                                while (reader.Read())
-                                {
-                                    lista.Add(new DtoHistoricoCorreo
-                                    {
-                                        IdEnvio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
-                                        Radicado = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                                        Destinatario = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                                        Asunto = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                                        Cuerpo = reader.IsDBNull(4) ? "" : reader.GetString(4),
-                                        Fecha = reader.IsDBNull(5) ? DateTime.Now : Convert.ToDateTime(reader.GetValue(5)),
-                                        DeEmail = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                                        NombreCuenta = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                                        Username = reader.IsDBNull(8) ? "" : reader.GetString(8),
-                                        Clasificacion = reader.IsDBNull(9) ? "" : reader.GetString(9)
-                                    });
-                                }
+                                    IdEnvio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                                    Radicado = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                    Destinatario = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                    Asunto = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    Cuerpo = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    Fecha = reader.IsDBNull(5) ? DateTime.Now : Convert.ToDateTime(reader.GetValue(5)),
+                                    DeEmail = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                    NombreCuenta = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                    Username = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                                    Clasificacion = reader.IsDBNull(9) ? "" : reader.GetString(9)
+                                });
                             }
                         }
                     }

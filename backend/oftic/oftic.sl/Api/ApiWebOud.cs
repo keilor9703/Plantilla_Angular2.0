@@ -43,45 +43,38 @@ namespace Servicios.Api
 
             var normalizedUser = usuario?.Trim() ?? string.Empty;
             var normalizedPassword = contrasena ?? string.Empty;
-            var payload = new
+
+            var payloadCandidates = new object[]
             {
-                usuario = normalizedUser,
-                clave = normalizedPassword,
-                Usuario = normalizedUser,
-                Contrasena = normalizedPassword
+                new { usuario = normalizedUser, clave = normalizedPassword },
+                new { Usuario = normalizedUser, Clave = normalizedPassword },
+                new { usuario = normalizedUser, contrasena = normalizedPassword }
             };
 
-            var json = JsonSerializer.Serialize(payload);
-            var safePayload = JsonSerializer.Serialize(new
+            foreach (var payloadObj in payloadCandidates)
             {
-                usuario = normalizedUser,
-                clave = "***"
-            });
-            try
-            {
-                using var content = new StringContent(json, Encoding.UTF8, "application/json");
-                using var resp = await _http.PostAsync(url, content, ct);
-                var body = await resp.Content.ReadAsStringAsync(ct);
-
-                if (!resp.IsSuccessStatusCode)
+                var json = JsonSerializer.Serialize(payloadObj);
+                try
                 {
-                    _logger.LogWarning("OUD login failed: {StatusCode}. Payload: {Payload}. Body: {Body}", resp.StatusCode, safePayload, body);
-                    return false;
-                }
+                    using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    using var resp = await _http.PostAsync(url, content, ct);
+                    var body = await resp.Content.ReadAsStringAsync(ct);
 
-                if (IsSuccessfulAuthResponse(body))
+                    if (resp.IsSuccessStatusCode && IsSuccessfulAuthResponse(body))
+                    {
+                        _logger.LogInformation("Autenticación exitosa en OUD para usuario: {Usuario}", normalizedUser);
+                        return true;
+                    }
+
+                    _logger.LogWarning("Respuesta de OUD no satisfactoria para usuario {Usuario}. Status={StatusCode}, Body={Body}", normalizedUser, resp.StatusCode, body);
+                }
+                catch (Exception ex)
                 {
-                    return true;
+                    _logger.LogError(ex, "Error conectando con servicio OUD ({Url}) para usuario {Usuario}", url, normalizedUser);
                 }
+            }
 
-                _logger.LogWarning("OUD login response rejected as invalid credentials. Payload: {Payload}. Body: {Body}", safePayload, body);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error llamando OUD login. Payload: {Payload}", safePayload);
-                return false;
-            }
+            return false;
         }
 
         private static bool IsSuccessfulAuthResponse(string body)
@@ -117,6 +110,71 @@ namespace Servicios.Api
             if (root.ValueKind == JsonValueKind.True) return true;
             if (root.ValueKind == JsonValueKind.False) return false;
 
+            if (root.ValueKind != JsonValueKind.Object) return false;
+
+            // 1. Si contiene propiedad 'estado', verificar su valor explícito
+            if (TryGetPropertyIgnoreCase(root, "estado", out var estadoElement))
+            {
+                bool isEstadoTrue = estadoElement.ValueKind == JsonValueKind.True ||
+                                    estadoElement.ToString() == "1" ||
+                                    estadoElement.ToString().Equals("true", StringComparison.OrdinalIgnoreCase);
+
+                if (!isEstadoTrue)
+                {
+                    return false; // Si estado es false, la autenticación FALLÓ.
+                }
+
+                if (TryGetPropertyIgnoreCase(root, "respuesta", out var respElem))
+                {
+                    if (respElem.ValueKind == JsonValueKind.False || respElem.ToString() == "0" || respElem.ToString().Equals("false", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            // 2. Si contiene propiedad 'success', verificar explícitamente
+            if (TryGetPropertyIgnoreCase(root, "success", out var successElement))
+            {
+                bool isSuccessTrue = successElement.ValueKind == JsonValueKind.True ||
+                                     successElement.ToString() == "1" ||
+                                     successElement.ToString().Equals("true", StringComparison.OrdinalIgnoreCase);
+
+                if (!isSuccessTrue)
+                {
+                    return false; // Si success es false, la autenticación FALLÓ.
+                }
+                return true;
+            }
+
+            // 3. Si contiene propiedad 'codigo', verificar que sea 1 o 200 (0 o -1 son FALLOS en PIP)
+            if (TryGetPropertyIgnoreCase(root, "codigo", out var codigoElement) && codigoElement.ValueKind == JsonValueKind.Number)
+            {
+                int code = codigoElement.GetInt32();
+                if (code != 1 && code != 200)
+                {
+                    return false; // En PIP/OUD, código 0 o != 1/200 es error/fallo.
+                }
+
+                if (TryGetPropertyIgnoreCase(root, "mensaje", out var msgElem))
+                {
+                    var msg = msgElem.GetString() ?? "";
+                    if (msg.Contains("invalid", StringComparison.OrdinalIgnoreCase) ||
+                        msg.Contains("incorrect", StringComparison.OrdinalIgnoreCase) ||
+                        msg.Contains("fall", StringComparison.OrdinalIgnoreCase) ||
+                        msg.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                        msg.Contains("denegad", StringComparison.OrdinalIgnoreCase) ||
+                        msg.Contains("errad", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // 4. Si contiene token / access_token no vacío
             if (TryGetPropertyIgnoreCase(root, "token", out var tokenElement) && HasMeaningfulValue(tokenElement))
             {
                 return true;
@@ -125,50 +183,6 @@ namespace Servicios.Api
             if (TryGetPropertyIgnoreCase(root, "access_token", out tokenElement) && HasMeaningfulValue(tokenElement))
             {
                 return true;
-            }
-
-            if (TryGetPropertyIgnoreCase(root, "success", out var successElement) &&
-                (successElement.ValueKind == JsonValueKind.True || successElement.ToString() == "1"))
-            {
-                return true;
-            }
-
-            if (TryGetPropertyIgnoreCase(root, "estado", out var estadoElement))
-            {
-                if (estadoElement.ValueKind == JsonValueKind.True || estadoElement.ToString() == "1" || estadoElement.ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                if (TryGetPropertyIgnoreCase(root, "respuesta", out var respuestaElement))
-                {
-                    if (respuestaElement.ValueKind == JsonValueKind.True) return true;
-                    if (respuestaElement.ValueKind == JsonValueKind.Array) return respuestaElement.GetArrayLength() > 0;
-                    if (respuestaElement.ValueKind == JsonValueKind.Object) return true;
-                    if (respuestaElement.ValueKind == JsonValueKind.String)
-                    {
-                        var value = respuestaElement.GetString()?.Trim();
-                        if (bool.TryParse(value, out var parsedBool)) return parsedBool;
-                        return !string.IsNullOrWhiteSpace(value);
-                    }
-                }
-            }
-
-            if (TryGetPropertyIgnoreCase(root, "codigo", out var codigoElement))
-            {
-                int code = codigoElement.GetInt32();
-                if (code == 200 || code == 1 || code == 0)
-                {
-                    if (TryGetPropertyIgnoreCase(root, "mensaje", out var msgElement))
-                    {
-                        var msg = msgElement.GetString() ?? "";
-                        if (msg.Contains("invalid", StringComparison.OrdinalIgnoreCase) || msg.Contains("incorrect", StringComparison.OrdinalIgnoreCase) || msg.Contains("fall", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
             }
 
             return false;

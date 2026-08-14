@@ -212,17 +212,6 @@ namespace Datos.Gestion
 
             try
             {
-                await LoadWithSignatureAsync(oracleConn, filtro, result, ct);
-                if (result.Items.Count > 0) return result;
-            }
-            catch (Exception exSp)
-            {
-                _logger.LogWarning(exSp, "Procedimiento PK_AUDITORIA.P_GET_BITACORA_GENERAL no disponible. Usando consulta SQL directa a CTR_AUDITORIA.");
-            }
-
-            // Oracle Direct SQL Fallback
-            try
-            {
                 int offset = (result.Page - 1) * result.PageSize;
 
                 var whereList = new List<string>();
@@ -302,53 +291,6 @@ namespace Datos.Gestion
             }
 
             return result;
-        }
-
-        private async Task LoadWithSignatureAsync(OracleConnection conn, DtoAuditoriaFiltroRequest filtro, DtoAuditoriaPageResult result, CancellationToken ct)
-        {
-            await using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandTimeout = 60;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_AUDITORIA.P_GET_BITACORA_GENERAL";
-
-            cmd.Parameters.Add("p_fecha_desde", OracleDbType.Date).Value = (object?)filtro.FechaDesde ?? DBNull.Value;
-            cmd.Parameters.Add("p_fecha_hasta", OracleDbType.Date).Value = (object?)filtro.FechaHasta ?? DBNull.Value;
-            cmd.Parameters.Add("p_usuario", OracleDbType.Varchar2).Value = AsDbValue(filtro.Usuario, 100);
-            cmd.Parameters.Add("p_modulo", OracleDbType.Varchar2).Value = AsDbValue(filtro.Modulo, 100);
-            cmd.Parameters.Add("p_accion", OracleDbType.Varchar2).Value = AsDbValue(filtro.Accion, 50);
-            cmd.Parameters.Add("p_page", OracleDbType.Int32).Value = filtro.Page;
-            cmd.Parameters.Add("p_page_size", OracleDbType.Int32).Value = filtro.PageSize;
-
-            var pTotal = new OracleParameter("p_total", OracleDbType.Int32) { Direction = ParameterDirection.Output };
-            cmd.Parameters.Add(pTotal);
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await FillItemsAsync(cmd, result, ct);
-
-            if (pTotal.Value is OracleDecimal dec && !dec.IsNull)
-                result.Total = dec.ToInt32();
-            else
-                result.Total = result.Items.Count;
-        }
-
-        private async Task FillItemsAsync(OracleCommand cmd, DtoAuditoriaPageResult result, CancellationToken ct)
-        {
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
-            {
-                result.Items.Add(new DtoAuditoriaItem
-                {
-                    Fecha = GetDateSafe(reader, "FECHA", "FECHA_CREACION", "FECHA_MODIFICA"),
-                    Usuario = GetStringSafe(reader, "USUARIO", "USUARIO_CREACION", "USUARIO_MODIFICA"),
-                    Modulo = GetStringSafe(reader, "MODULO", "EVENTO", "ID_PROCESO"),
-                    Accion = GetStringSafe(reader, "ACCION", "EVENTO", "ID_PROCESO"),
-                    Registro = GetStringSafe(reader, "REGISTRO", "DESCRIPCION"),
-                    Resultado = GetStringSafe(reader, "RESULTADO"),
-                    Maquina = GetStringSafe(reader, "MAQUINA", "MAQUINA_CREACION", "MAQUINA_MODIFICA"),
-                    Observaciones = GetStringSafe(reader, "OBSERVACIONES"),
-                });
-            }
         }
 
         private static object AsDbValue(string? value, int max)

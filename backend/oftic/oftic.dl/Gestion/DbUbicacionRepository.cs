@@ -38,15 +38,17 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
                     {
-                        result.Add(new DtoUnidadOrg
+                        while (await reader.ReadAsync(ct))
                         {
-                            Consecutivo = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0)),
-                            Sigla = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                            Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
-                        });
+                            result.Add(new DtoUnidadOrg
+                            {
+                                Consecutivo = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0)),
+                                Sigla = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
+                            });
+                        }
                     }
                     return result;
                 }
@@ -57,46 +59,27 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
                     {
-                        result.Add(new DtoUnidadOrg
+                        while (await reader.ReadAsync(ct))
                         {
-                            Consecutivo = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0)),
-                            Sigla = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                            Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
-                        });
+                            result.Add(new DtoUnidadOrg
+                            {
+                                Consecutivo = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0)),
+                                Sigla = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
+                            });
+                        }
                     }
                     return result;
                 }
 
                 await using var oracleConn = new OracleConnection(_cs);
                 await oracleConn.OpenAsync(ct);
-
-                try
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.CommandText = selectSql;
+                await using (var reader = await cmdQuery.ExecuteReaderAsync(ct))
                 {
-                    await using var cmd = oracleConn.CreateCommand();
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.CommandText = "SP_UNIDADES_DIRECCIONES_OFICINAS";
-                    cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-                    await using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                    {
-                        result.Add(new DtoUnidadOrg
-                        {
-                            Consecutivo = (int)GetInt64(reader, "consecutivo"),
-                            Sigla = GetString(reader, "sigla_fisica"),
-                            Nombre = GetString(reader, "descripcion_dependencia")
-                        });
-                    }
-                }
-                catch
-                {
-                    result.Clear();
-                    await using var cmdQuery = oracleConn.CreateCommand();
-                    cmdQuery.CommandText = selectSql;
-                    await using var reader = await cmdQuery.ExecuteReaderAsync(ct);
                     while (await reader.ReadAsync(ct))
                     {
                         result.Add(new DtoUnidadOrg
@@ -134,15 +117,17 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
                     {
-                        result.Add(new DtoDepartamento
+                        while (await reader.ReadAsync(ct))
                         {
-                            IdDepartamento = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
-                            CodigoDane = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                            Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
-                        });
+                            result.Add(new DtoDepartamento
+                            {
+                                IdDepartamento = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                                CodigoDane = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
+                            });
+                        }
                     }
                     return result;
                 }
@@ -153,7 +138,27 @@ namespace Datos.Gestion
                     await conn.OpenAsync(ct);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
+                    {
+                        while (await reader.ReadAsync(ct))
+                        {
+                            result.Add(new DtoDepartamento
+                            {
+                                IdDepartamento = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                                CodigoDane = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
+                            });
+                        }
+                    }
+                    return result;
+                }
+
+                await using var oracleConn = new OracleConnection(_cs);
+                await oracleConn.OpenAsync(ct);
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.CommandText = selectSql;
+                await using (var reader = await cmdQuery.ExecuteReaderAsync(ct))
+                {
                     while (await reader.ReadAsync(ct))
                     {
                         result.Add(new DtoDepartamento
@@ -163,35 +168,6 @@ namespace Datos.Gestion
                             Nombre = reader.IsDBNull(2) ? "" : reader.GetString(2)
                         });
                     }
-                    return result;
-                }
-
-                await using var oracleConn = new OracleConnection(_cs);
-                await oracleConn.OpenAsync(ct);
-
-                try
-                {
-                    await using var cmd = oracleConn.CreateCommand();
-                    cmd.CommandTimeout = 30;
-                    cmd.BindByName = true;
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.CommandText = "PK_ADMINISTRACION.P_GET_DEPARTAMENTOS";
-                    cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-                    await using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                    {
-                        result.Add(new DtoDepartamento
-                        {
-                            IdDepartamento = GetInt64(reader, "ID_DEPARTAMENTO"),
-                            CodigoDane = GetString(reader, "CODIGO_DANE"),
-                            Nombre = GetString(reader, "NOMBRE")
-                        });
-                    }
-                }
-                catch
-                {
-                    result.Clear();
                 }
             }
             catch
@@ -222,18 +198,20 @@ namespace Datos.Gestion
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
                     cmd.Parameters.AddWithValue("@id", idDepartamento.HasValue ? idDepartamento.Value : DBNull.Value);
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
                     {
-                        result.Add(new DtoMunicipio
+                        while (await reader.ReadAsync(ct))
                         {
-                            IdMunicipio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
-                            IdDepartamento = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
-                            CodigoDane = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                            Nombre = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                            Longitud = reader.IsDBNull(4) ? null : Convert.ToDecimal(reader.GetValue(4)),
-                            Latitud = reader.IsDBNull(5) ? null : Convert.ToDecimal(reader.GetValue(5))
-                        });
+                            result.Add(new DtoMunicipio
+                            {
+                                IdMunicipio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                                IdDepartamento = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
+                                CodigoDane = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Nombre = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                Longitud = reader.IsDBNull(4) ? null : Convert.ToDecimal(reader.GetValue(4)),
+                                Latitud = reader.IsDBNull(5) ? null : Convert.ToDecimal(reader.GetValue(5))
+                            });
+                        }
                     }
                     return result;
                 }
@@ -245,7 +223,32 @@ namespace Datos.Gestion
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = selectSql;
                     cmd.Parameters.AddWithValue("@id", idDepartamento.HasValue ? idDepartamento.Value : DBNull.Value);
-                    using var reader = await cmd.ExecuteReaderAsync(ct);
+                    using (var reader = await cmd.ExecuteReaderAsync(ct))
+                    {
+                        while (await reader.ReadAsync(ct))
+                        {
+                            result.Add(new DtoMunicipio
+                            {
+                                IdMunicipio = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                                IdDepartamento = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
+                                CodigoDane = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Nombre = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                Longitud = reader.IsDBNull(4) ? null : Convert.ToDecimal(reader.GetValue(4)),
+                                Latitud = reader.IsDBNull(5) ? null : Convert.ToDecimal(reader.GetValue(5))
+                            });
+                        }
+                    }
+                    return result;
+                }
+
+                await using var oracleConn = new OracleConnection(_cs);
+                await oracleConn.OpenAsync(ct);
+                await using var cmdQuery = oracleConn.CreateCommand();
+                cmdQuery.BindByName = true;
+                cmdQuery.CommandText = "SELECT id_municipio, id_departamento, codigo_dane, nombre, longitud, latitud FROM ctr_municipio WHERE (:id IS NULL OR id_departamento = :id) ORDER BY nombre";
+                cmdQuery.Parameters.Add(":id", OracleDbType.Int64).Value = idDepartamento.HasValue ? idDepartamento.Value : DBNull.Value;
+                await using (var reader = await cmdQuery.ExecuteReaderAsync(ct))
+                {
                     while (await reader.ReadAsync(ct))
                     {
                         result.Add(new DtoMunicipio
@@ -258,39 +261,6 @@ namespace Datos.Gestion
                             Latitud = reader.IsDBNull(5) ? null : Convert.ToDecimal(reader.GetValue(5))
                         });
                     }
-                    return result;
-                }
-
-                await using var oracleConn = new OracleConnection(_cs);
-                await oracleConn.OpenAsync(ct);
-
-                try
-                {
-                    await using var cmd = oracleConn.CreateCommand();
-                    cmd.CommandTimeout = 30;
-                    cmd.BindByName = true;
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.CommandText = "PK_ADMINISTRACION.P_GET_MUNICIPIOS_BY_DEPTO";
-                    cmd.Parameters.Add("p_id_departamento", OracleDbType.Int64).Value = idDepartamento.HasValue ? idDepartamento.Value : DBNull.Value;
-                    cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-                    await using var reader = await cmd.ExecuteReaderAsync(ct);
-                    while (await reader.ReadAsync(ct))
-                    {
-                        result.Add(new DtoMunicipio
-                        {
-                            IdMunicipio = GetInt64(reader, "ID_MUNICIPIO"),
-                            IdDepartamento = GetInt64(reader, "ID_DEPARTAMENTO"),
-                            CodigoDane = GetString(reader, "CODIGO_DANE"),
-                            Nombre = GetString(reader, "NOMBRE"),
-                            Longitud = GetNullableDecimal(reader, "LONGITUD"),
-                            Latitud = GetNullableDecimal(reader, "LATITUD")
-                        });
-                    }
-                }
-                catch
-                {
-                    result.Clear();
                 }
             }
             catch

@@ -142,6 +142,10 @@ builder.Services.AddHttpClient<IApiWebOud, ApiWebOud>(c =>
 {
     c.Timeout = TimeSpan.FromSeconds(15);
 })
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+})
 .AddHttpMessageHandler<AuthHeaderHandler>();
 
 builder.Services.AddScoped<IApiWebToken, ApiWebToken>();

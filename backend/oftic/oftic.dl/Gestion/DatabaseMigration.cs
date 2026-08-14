@@ -103,6 +103,7 @@ namespace Datos.Gestion
                     nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
                     descripcion VARCHAR(500),
                     estado INT DEFAULT 1 NOT NULL,
+                    vigente INT DEFAULT 1 NOT NULL,
                     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
                     maquina_creacion VARCHAR(100) DEFAULT 'LOCAL',
@@ -115,6 +116,7 @@ namespace Datos.Gestion
                     ADD COLUMN IF NOT EXISTS nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
                     ADD COLUMN IF NOT EXISTS descripcion VARCHAR(500),
                     ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL,
                     ADD COLUMN IF NOT EXISTS fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     ADD COLUMN IF NOT EXISTS usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
                     ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(100) DEFAULT 'LOCAL',
@@ -131,9 +133,28 @@ namespace Datos.Gestion
                     icono VARCHAR(100),
                     orden INT DEFAULT 1 NOT NULL,
                     estado INT DEFAULT 1 NOT NULL,
+                    vigente INT DEFAULT 1 NOT NULL,
                     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL
+                    usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
+                    maquina_creacion VARCHAR(255),
+                    usuario_modifica VARCHAR(100),
+                    fecha_modifica DATETIME,
+                    maquina_modifica VARCHAR(255)
                 );",
+                @"ALTER TABLE CTR_MENU
+                    ADD COLUMN IF NOT EXISTS id_padre INT DEFAULT 0 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS titulo VARCHAR(255) DEFAULT '' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS ruta VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS icono VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS orden INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL,
+                    ADD COLUMN IF NOT EXISTS fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    ADD COLUMN IF NOT EXISTS usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS maquina_creacion VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS usuario_modifica VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS fecha_modifica DATETIME,
+                    ADD COLUMN IF NOT EXISTS maquina_modifica VARCHAR(255);",
 
                 // 4. CTR_MENU_ROLES
                 @"CREATE TABLE IF NOT EXISTS CTR_MENU_ROLES (
@@ -195,13 +216,23 @@ namespace Datos.Gestion
                 // 8. CTR_AUDITORIA
                 @"CREATE TABLE IF NOT EXISTS CTR_AUDITORIA (
                     id_auditoria BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    evento VARCHAR(100) NOT NULL,
-                    descripcion TEXT,
-                    identificador BIGINT,
-                    usuario BIGINT,
-                    maquina VARCHAR(255),
-                    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+                    fecha DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    usuario VARCHAR(100) NOT NULL,
+                    modulo VARCHAR(100) NOT NULL,
+                    accion VARCHAR(50) NOT NULL,
+                    registro TEXT,
+                    resultado VARCHAR(50),
+                    maquina VARCHAR(100),
+                    observaciones TEXT
                 );",
+                @"ALTER TABLE CTR_AUDITORIA
+                    ADD COLUMN IF NOT EXISTS fecha DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    ADD COLUMN IF NOT EXISTS modulo VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS accion VARCHAR(50),
+                    ADD COLUMN IF NOT EXISTS registro TEXT,
+                    ADD COLUMN IF NOT EXISTS resultado VARCHAR(50),
+                    ADD COLUMN IF NOT EXISTS maquina VARCHAR(100),
+                    ADD COLUMN IF NOT EXISTS observaciones TEXT;",
 
                 // 9. CTR_ERRORES_SYSTEM
                 @"CREATE TABLE IF NOT EXISTS CTR_ERRORES_SYSTEM (
@@ -516,6 +547,7 @@ namespace Datos.Gestion
                     codigo_rol VARCHAR(50) DEFAULT '' NOT NULL,
                     nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
                     descripcion VARCHAR(500),
+                    estado INT DEFAULT 1 NOT NULL,
                     vigente INT DEFAULT 1 NOT NULL,
                     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
@@ -528,6 +560,7 @@ namespace Datos.Gestion
                     ADD COLUMN IF NOT EXISTS codigo_rol VARCHAR(50) DEFAULT '' NOT NULL,
                     ADD COLUMN IF NOT EXISTS nombre_rol VARCHAR(255) DEFAULT '' NOT NULL,
                     ADD COLUMN IF NOT EXISTS descripcion VARCHAR(500),
+                    ADD COLUMN IF NOT EXISTS estado INT DEFAULT 1 NOT NULL,
                     ADD COLUMN IF NOT EXISTS vigente INT DEFAULT 1 NOT NULL,
                     ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     ADD COLUMN IF NOT EXISTS usuario_creacion VARCHAR(100) DEFAULT 'SETUP' NOT NULL,
@@ -839,9 +872,6 @@ namespace Datos.Gestion
                   ON CONFLICT (id_menu_rol) DO NOTHING;",
 
                 // Seed Data - Dominios Semilla
-                @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, abreviatura, observacion, vigente)
-                  VALUES (1, 'DOMINIO PRINCIPAL / RAÍZ', 0, 'RAIZ', 'Dominio Semilla Raíz Principal', 1)
-                  ON CONFLICT (id_dominio) DO NOTHING;",
                 @"INSERT INTO ctr_dominio (id_dominio, descripcion, id_padre, vigente, abreviatura, observacion, usuario_creacion, maquina_creacion) VALUES
                   (1, 'RAIZ', 0, 1, 'RAIZ', 'RAIZ Principal', 1143458803, 'LOCAL'),
                   (2, 'Personaje del mes', 1, 1, 'PERS_MES', 'Categorías y opciones de Personaje del mes', 1143458803, 'LOCAL'),
@@ -876,6 +906,28 @@ namespace Datos.Gestion
                 {
                     logger.LogWarning(ex, "Error ejecutando DDL PostgreSQL: {Sql}", stmt.Length > 100 ? stmt.Substring(0, 100) + "..." : stmt);
                     result.Errors.Add(ex.Message);
+                }
+            }
+
+            // Sincronizar las secuencias SERIAL en PostgreSQL para evitar errores de clave duplicada tras sembrado de IDs explícitos
+            string[] seqStatements = new[]
+            {
+                "SELECT setval(pg_get_serial_sequence('ctr_roles', 'id_rol'), COALESCE((SELECT MAX(id_rol) FROM ctr_roles), 1));",
+                "SELECT setval(pg_get_serial_sequence('ctr_menu_roles', 'id_menu_rol'), COALESCE((SELECT MAX(id_menu_rol) FROM ctr_menu_roles), 1));",
+                "SELECT setval(pg_get_serial_sequence('ctr_dominio', 'id_dominio'), COALESCE((SELECT MAX(id_dominio) FROM ctr_dominio), 1));"
+            };
+
+            foreach (var seqSql in seqStatements)
+            {
+                try
+                {
+                    await using var cmdSeq = conn.CreateCommand();
+                    cmdSeq.CommandText = seqSql;
+                    await cmdSeq.ExecuteNonQueryAsync(ct);
+                }
+                catch (Exception exSeq)
+                {
+                    logger.LogWarning(exSeq, "Aviso ajustando secuencia en PostgreSQL: {Sql}", seqSql);
                 }
             }
 

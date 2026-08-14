@@ -65,12 +65,15 @@ namespace ofic.Controllers
                     });
                 }
 
-                var validateOudInDevelopment = _configuration.GetValue<bool>("Auth:ValidateOudInDevelopment");
-                var shouldValidateExternal = !_env.IsDevelopment() || validateOudInDevelopment;
+                var bypassValidationInDev = _env.IsDevelopment() && _configuration.GetValue<bool>("Auth:BypassOudPasswordValidation");
 
-                // 1. Validación de credenciales en OUD / PIP si aplica
-                if (shouldValidateExternal)
+                if (bypassValidationInDev)
                 {
+                    _logger.LogWarning("¡ADVERTENCIA DE SEGURIDAD! La validación de contraseña OUD está desactivada explícitamente en desarrollo (Auth:BypassOudPasswordValidation=true) para usuario: {Usuario}", request.Usuario);
+                }
+                else
+                {
+                    // 1. Validación estricta de credenciales en OUD / PIP
                     var externalOk = await _apiWebOud.ValidarCredencialesAsync(
                         request.Usuario,
                         request.Contrasena,
@@ -125,6 +128,16 @@ namespace ofic.Controllers
                     roles = new List<long> { 1 };
                 }
 
+                if (idUsuario is null || idUsuario <= 0)
+                {
+                    _logger.LogWarning("No fue posible resolver ni crear el idUsuario local para {Usuario}", request.Usuario);
+                    return StatusCode(500, new DtoTokenResponse
+                    {
+                        success = false,
+                        message = "No fue posible resolver la cuenta de usuario en la base de datos."
+                    });
+                }
+
                 // 3. Generar token JWT local
                 var jwtToken = _jwtService.CreateToken(idUsuario.Value, request.Usuario, roles ?? new List<long> { 1 });
 
@@ -138,11 +151,11 @@ namespace ofic.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error en login");
+                _logger.LogError(ex, "Error en login para usuario {Usuario}: {Message}", request?.Usuario, ex.Message);
                 return StatusCode(500, new DtoTokenResponse 
                 { 
                     success = false, 
-                    message = "Error al iniciar sesión" 
+                    message = $"Error al iniciar sesión: {ex.Message}" 
                 });
             }
         }

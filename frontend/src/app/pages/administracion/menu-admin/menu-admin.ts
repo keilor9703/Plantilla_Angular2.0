@@ -37,6 +37,90 @@ export class MenuAdminComponent implements OnInit {
   editingId: number | null = null;
   showRolesModal = false;
 
+  // Selector de Iconos
+  showIconPickerModal = false;
+  iconSearchTerm = '';
+  selectedCategory = 'Todos';
+
+  iconCategories = ['Todos', 'Navegación', 'Administración', 'Usuarios', 'Seguridad', 'Archivos', 'Reportes', 'Comunicación', 'Ubicación'];
+
+  iconList: { class: string; name: string; category: string }[] = [
+    // Navegación
+    { class: 'fa-solid fa-house', name: 'Inicio / Home', category: 'Navegación' },
+    { class: 'fa-solid fa-folder', name: 'Carpeta', category: 'Navegación' },
+    { class: 'fa-solid fa-folder-open', name: 'Carpeta abierta', category: 'Navegación' },
+    { class: 'fa-solid fa-bars', name: 'Menú / Barras', category: 'Navegación' },
+    { class: 'fa-solid fa-list', name: 'Lista', category: 'Navegación' },
+    { class: 'fa-solid fa-sitemap', name: 'Mapa de sitio', category: 'Navegación' },
+    { class: 'fa-solid fa-layer-group', name: 'Capas / Grupos', category: 'Navegación' },
+    { class: 'fa-solid fa-border-all', name: 'Módulos Grid', category: 'Navegación' },
+
+    // Administración
+    { class: 'fa-solid fa-gear', name: 'Engranaje / Config', category: 'Administración' },
+    { class: 'fa-solid fa-gears', name: 'Engranajes', category: 'Administración' },
+    { class: 'fa-solid fa-sliders', name: 'Ajustes Sliders', category: 'Administración' },
+    { class: 'fa-solid fa-wrench', name: 'Llave de tuercas', category: 'Administración' },
+    { class: 'fa-solid fa-screwdriver-wrench', name: 'Herramientas', category: 'Administración' },
+    { class: 'fa-solid fa-toolbox', name: 'Caja herramientas', category: 'Administración' },
+    { class: 'fa-solid fa-database', name: 'Base de datos', category: 'Administración' },
+    { class: 'fa-solid fa-server', name: 'Servidor', category: 'Administración' },
+
+    // Usuarios
+    { class: 'fa-solid fa-users', name: 'Usuarios', category: 'Usuarios' },
+    { class: 'fa-solid fa-user', name: 'Usuario individual', category: 'Usuarios' },
+    { class: 'fa-solid fa-user-gear', name: 'Gestión usuarios', category: 'Usuarios' },
+    { class: 'fa-solid fa-user-shield', name: 'Usuario seguro', category: 'Usuarios' },
+    { class: 'fa-solid fa-user-tie', name: 'Ejecutivo', category: 'Usuarios' },
+    { class: 'fa-solid fa-id-card', name: 'Carnet / Cédula', category: 'Usuarios' },
+    { class: 'fa-solid fa-address-book', name: 'Directorio', category: 'Usuarios' },
+    { class: 'fa-solid fa-user-group', name: 'Grupo usuarios', category: 'Usuarios' },
+    { class: 'fa-solid fa-users-gear', name: 'Admin grupos', category: 'Usuarios' },
+
+    // Seguridad
+    { class: 'fa-solid fa-shield-halved', name: 'Escudo Seguridad', category: 'Seguridad' },
+    { class: 'fa-solid fa-shield-cat', name: 'Protección', category: 'Seguridad' },
+    { class: 'fa-solid fa-lock', name: 'Candado Bloqueo', category: 'Seguridad' },
+    { class: 'fa-solid fa-key', name: 'Llave Clave', category: 'Seguridad' },
+    { class: 'fa-solid fa-user-secret', name: 'Incógnito / Secreto', category: 'Seguridad' },
+    { class: 'fa-solid fa-clipboard-check', name: 'Auditoría', category: 'Seguridad' },
+    { class: 'fa-solid fa-eye', name: 'Inspección', category: 'Seguridad' },
+    { class: 'fa-solid fa-fingerprint', name: 'Huella digital', category: 'Seguridad' },
+
+    // Archivos
+    { class: 'fa-solid fa-file', name: 'Archivo', category: 'Archivos' },
+    { class: 'fa-solid fa-file-lines', name: 'Documento texto', category: 'Archivos' },
+    { class: 'fa-solid fa-file-pdf', name: 'PDF', category: 'Archivos' },
+    { class: 'fa-solid fa-file-excel', name: 'Excel', category: 'Archivos' },
+    { class: 'fa-solid fa-file-word', name: 'Word', category: 'Archivos' },
+    { class: 'fa-solid fa-box-archive', name: 'Archivo histórico', category: 'Archivos' },
+    { class: 'fa-solid fa-newspaper', name: 'Prensa / Noticias', category: 'Archivos' },
+    { class: 'fa-solid fa-folder-tree', name: 'Carpeta árbol', category: 'Archivos' },
+
+    // Reportes
+    { class: 'fa-solid fa-chart-line', name: 'Gráfico línea', category: 'Reportes' },
+    { class: 'fa-solid fa-chart-pie', name: 'Gráfico torta', category: 'Reportes' },
+    { class: 'fa-solid fa-chart-column', name: 'Gráfico barras', category: 'Reportes' },
+    { class: 'fa-solid fa-square-poll-vertical', name: 'Estadísticas', category: 'Reportes' },
+    { class: 'fa-solid fa-diagram-project', name: 'Proyectos', category: 'Reportes' },
+    { class: 'fa-solid fa-gauge-high', name: 'Dashboard', category: 'Reportes' },
+
+    // Comunicación
+    { class: 'fa-solid fa-envelope', name: 'Correo Email', category: 'Comunicación' },
+    { class: 'fa-solid fa-paper-plane', name: 'Envío correo', category: 'Comunicación' },
+    { class: 'fa-solid fa-bell', name: 'Notificación', category: 'Comunicación' },
+    { class: 'fa-solid fa-bullhorn', name: 'Comunicado', category: 'Comunicación' },
+    { class: 'fa-solid fa-comment', name: 'Comentario', category: 'Comunicación' },
+    { class: 'fa-solid fa-headset', name: 'Soporte', category: 'Comunicación' },
+    { class: 'fa-solid fa-radio', name: 'Radio / Emisora', category: 'Comunicación' },
+
+    // Ubicación
+    { class: 'fa-solid fa-building', name: 'Edificio Sede', category: 'Ubicación' },
+    { class: 'fa-solid fa-building-columns', name: 'Institución', category: 'Ubicación' },
+    { class: 'fa-solid fa-map-location-dot', name: 'Mapa Ubicación', category: 'Ubicación' },
+    { class: 'fa-solid fa-globe', name: 'Portal Web', category: 'Ubicación' },
+    { class: 'fa-solid fa-landmark', name: 'Oficina Central', category: 'Ubicación' }
+  ];
+
   form: MenuSaveRequest = this.getDefaultForm();
 
   constructor(
@@ -181,6 +265,30 @@ export class MenuAdminComponent implements OnInit {
     this.rolesAsignados = [];
     this.selectedRolId = null;
     try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  get filteredIcons() {
+    return this.iconList.filter(item => {
+      const matchesCategory = this.selectedCategory === 'Todos' || item.category === this.selectedCategory;
+      const term = this.iconSearchTerm.trim().toLowerCase();
+      const matchesSearch = !term || item.name.toLowerCase().includes(term) || item.class.toLowerCase().includes(term);
+      return matchesCategory && matchesSearch;
+    });
+  }
+
+  openIconPicker(): void {
+    this.showIconPickerModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  closeIconPicker(): void {
+    this.showIconPickerModal = false;
+    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
+  }
+
+  selectIcon(iconClass: string): void {
+    this.form.icono = iconClass;
+    this.closeIconPicker();
   }
 
   cargarCatalogoRoles(): void {

@@ -59,7 +59,16 @@
 
             <div class="ui-field ui-col-12">
               <label class="ui-label">Icono</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.icono" placeholder="fa-solid fa-gear">
+              <div class="icon-selector-group">
+                <div class="icon-preview-box" [title]="form.icono || 'Sin icono'">
+                  <i [class]="form.icono || 'fa-solid fa-icons'"></i>
+                </div>
+                <input class="ui-control" type="text" [(ngModel)]="form.icono" placeholder="fa-solid fa-gear">
+                <button class="ui-btn secondary icon-btn-picker" type="button" (click)="openIconPicker()">
+                  <i class="fa-solid fa-icons"></i>
+                  Librería
+                </button>
+              </div>
             </div>
 
             <div class="ui-field ui-col-12">
@@ -101,7 +110,8 @@
                       [class.is-hidden]="node.children.length === 0"
                       (click)="toggleNode(node)"
                     ></i>
-                    <i class="fa-solid fa-file-lines menu-tree-icon" *ngIf="node.children.length === 0"></i>
+                    <i class="fa-solid fa-file-lines menu-tree-icon" *ngIf="node.children.length === 0 && !node.item.icono"></i>
+                    <i [class]="node.item.icono" class="menu-tree-icon custom-item-icon" *ngIf="node.item.icono"></i>
                     <strong [style.font-weight]="level === 0 ? '700' : '500'">{{ node.item.descripcion }}</strong>
                   </div>
                   <span class="meta">ID: {{ node.item.idMenu }} | Padre: {{ node.item.idPadre }} | Posición: {{ node.item.posicion }}</span>
@@ -186,6 +196,71 @@
         <button class="ui-btn secondary" type="button" (click)="closeRolesModal()">
           <i class="fa-solid fa-xmark"></i>
           Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Selector de Iconos de Librería -->
+  <div class="ui-modal icon-picker-modal" *ngIf="showIconPickerModal">
+    <div class="ui-modal__dialog ui-modal__dialog--lg" (click)="$event.stopPropagation()">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-icons"></i>
+          <span>Librería de Iconos</span>
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="closeIconPicker()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <div class="icon-picker-toolbar">
+          <div class="ui-field search-field">
+            <input
+              class="ui-control"
+              type="text"
+              [(ngModel)]="iconSearchTerm"
+              placeholder="Buscar por nombre o clase (ej: gear, user, folder, chart...)"
+            />
+          </div>
+          <div class="category-pills">
+            <button
+              *ngFor="let cat of iconCategories"
+              type="button"
+              class="pill-btn"
+              [class.active]="selectedCategory === cat"
+              (click)="selectedCategory = cat"
+            >
+              {{ cat }}
+            </button>
+          </div>
+        </div>
+
+        <div class="icon-grid-container">
+          <div
+            *ngFor="let icon of filteredIcons"
+            class="icon-card"
+            [class.selected]="form.icono === icon.class"
+            (click)="selectIcon(icon.class)"
+          >
+            <div class="icon-card-symbol">
+              <i [class]="icon.class"></i>
+            </div>
+            <div class="icon-card-name">{{ icon.name }}</div>
+            <div class="icon-card-class">{{ icon.class }}</div>
+          </div>
+
+          <div class="news-state" *ngIf="filteredIcons.length === 0">
+            No se encontraron iconos que coincidan con "{{ iconSearchTerm }}".
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn secondary" type="button" (click)="closeIconPicker()">
+          <i class="fa-solid fa-xmark"></i>
+          Cancelar
         </button>
       </div>
     </div>
