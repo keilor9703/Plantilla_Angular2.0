@@ -897,7 +897,7 @@ namespace Servicios.Api
                 }
 
                 var url = _cfg["ApiSettings:ConsultaSlidersPublicos"] ?? "https://internalpip.policia.gov.co:8080/api/Coest/Consulta_Sliders_Publicos";
-                var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvdockergusof.policia.gov.co/sicoe/";
+                var imageBaseUrl = _cfg["ApiSettings:SliderImageBaseUrl"] ?? "http://srvsicoeapp1.policia.gov.co/api/Slider/Image/";
 
                 var jsonPayload = JsonSerializer.Serialize(request);
                 using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
@@ -953,16 +953,40 @@ namespace Servicios.Api
                         }
 
                         string fullImgUrl;
-                        if (rawImg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                            rawImg.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                            rawImg.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                        if (rawImg.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
                         {
                             fullImgUrl = rawImg;
+                        }
+                        else if (rawImg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                 rawImg.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (rawImg.Contains("srvdockergusof.policia.gov.co", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var fileName = Path.GetFileName(new Uri(rawImg).AbsolutePath);
+                                var baseClean = imageBaseUrl.TrimEnd('/');
+                                fullImgUrl = $"{baseClean}/{fileName}";
+                            }
+                            else
+                            {
+                                fullImgUrl = rawImg;
+                            }
                         }
                         else
                         {
                             var baseClean = imageBaseUrl.TrimEnd('/');
                             var pathClean = rawImg.TrimStart('/');
+
+                            if (baseClean.EndsWith("/api/Slider/Image", StringComparison.OrdinalIgnoreCase) &&
+                                pathClean.StartsWith("api/Slider/Image/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                pathClean = pathClean.Substring("api/Slider/Image/".Length);
+                            }
+                            else if (!baseClean.Contains("/api/Slider/Image", StringComparison.OrdinalIgnoreCase) &&
+                                     !pathClean.StartsWith("api/Slider/Image/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                baseClean = $"{baseClean}/api/Slider/Image";
+                            }
+
                             fullImgUrl = $"{baseClean}/{pathClean}";
                         }
 

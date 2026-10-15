@@ -531,6 +531,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (raw === 'banner/banner1.jpg') return '/background/banner1.jpg';
     if (raw === 'banner/banner2.jpg') return '/background/banner2.jpg';
     if (raw === 'banner/banner3.jpg') return '/background/banner3.jpg';
+
+    // Si viene del servidor previo srvdockergusof, redirigir al nuevo servidor srvsicoeapp1
+    if (raw.includes('srvdockergusof.policia.gov.co')) {
+      const fileName = raw.split('/').pop() || '';
+      return `http://srvsicoeapp1.policia.gov.co/api/Slider/Image/${fileName}`;
+    }
+
+    // Si es solo el nombre del archivo sin protocolo ni slash (ej. b392a60dffe04d2e88267be657c2ac45.jpg)
+    if (!raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('/') && !raw.startsWith('data:image/')) {
+      return `http://srvsicoeapp1.policia.gov.co/api/Slider/Image/${raw}`;
+    }
+
     return raw;
   }
 
