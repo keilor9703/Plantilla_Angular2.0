@@ -1,0 +1,515 @@
+@if (visible()) {
+  <section class="formularios-page">
+    <app-ui-panel
+      title="Guía visual de formularios"
+      icon="fa-solid fa-clipboard-list"
+      panelId="forms-visual-guide"
+      bodyPadding="0"
+      [minimizable]="true"
+      [closable]="true"
+      [minimized]="minimized()"
+      (minimizedChange)="minimized.set($event)"
+      [visible]="visible()"
+      (visibleChange)="visible.set($event)"
+    >
+      <!-- El formulario envuelve cuerpo y footer para conservar el submit nativo. -->
+      <form class="demo-form" [formGroup]="formularioDemo" (ngSubmit)="guardar()">
+          <div class="ui-panel__body demo-form__content">
+            <aside class="required-marker-demo" aria-labelledby="required-marker-demo-title">
+              <div>
+                <strong id="required-marker-demo-title">Asterisco de campo obligatorio</strong>
+                <p>
+                  Es negro en estado normal y cambia a rojo cuando la validación presenta un error.
+                </p>
+              </div>
+
+              <label class="required-marker-demo__switch">
+                <input
+                  type="checkbox"
+                  [checked]="showRequiredMarkers()"
+                  (change)="updateRequiredMarkerVisibility($event)"
+                />
+                <span class="required-marker-demo__track" aria-hidden="true"></span>
+                <span>Mostrar asteriscos</span>
+              </label>
+            </aside>
+
+            <article class="form-section">
+              <h3>Inputs básicos</h3>
+
+              <div
+                class="form-grid"
+                appUiFormSpacing
+                [formRowGap]="20"
+                [formColumnGap]="14"
+                [formMobileRowGap]="20"
+                [formMobileColumnGap]="0"
+              >
+                <div class="col-6">
+                  <!--
+                    required conserva Validators.required y la semántica accesible.
+                    showRequiredMarker controla únicamente el asterisco visual.
+                    Opciones directas: true = mostrar; false = ocultar.
+                    Aquí se enlaza a una signal para cambiar todos los ejemplos en vivo.
+                  -->
+                  <app-ui-input
+                    formControlName="nombres"
+                    label="Nombres"
+                    placeholder="Ingrese nombres"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [maxlength]="80"
+                    [error]="error('nombres')"
+                  />
+                </div>
+
+                <div class="col-6">
+                  <app-ui-input
+                    formControlName="telefono"
+                    label="Teléfono"
+                    placeholder="Ingrese teléfono"
+                    icon="fa-solid fa-phone"
+                    hint="Ejemplo: 3001234567"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('telefono')"
+                  />
+                </div>
+
+                <div class="col-6">
+                  <app-ui-input
+                    formControlName="correo"
+                    label="Correo electrónico"
+                    placeholder="correo@dominio.com"
+                    type="email"
+                    icon="fa-solid fa-envelope"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('correo')"
+                  />
+                </div>
+              </div>
+            </article>
+
+            <article class="form-section">
+              <h3>Buscadores y selects</h3>
+
+              <div
+                class="form-grid"
+                appUiFormSpacing
+                [formRowGap]="20"
+                [formColumnGap]="14"
+                [formMobileRowGap]="20"
+                [formMobileColumnGap]="0"
+              >
+                <div class="col-12">
+                  <app-ui-search-input
+                    formControlName="criterioBusqueda"
+                    label="Buscar usuario"
+                    placeholder="Buscar por nombre, identificación o correo"
+                    buttonText="Buscar"
+                    (search)="buscar($event)"
+                  />
+                </div>
+
+                <div class="col-6">
+                  <app-ui-select
+                    formControlName="unidad"
+                    label="Unidad"
+                    placeholder="Seleccione una unidad"
+                    searchPlaceholder="Buscar unidad..."
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [options]="unidadOptions"
+                    [error]="error('unidad')"
+                  />
+                </div>
+
+                <div class="col-6">
+                  <app-ui-select
+                    formControlName="ciudad"
+                    label="Ciudad"
+                    placeholder="Seleccione una ciudad"
+                    searchPlaceholder="Buscar ciudad..."
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [options]="ciudadOptions"
+                    [error]="error('ciudad')"
+                  />
+                </div>
+              </div>
+            </article>
+
+            <article class="form-section">
+              <h3>Fecha, hora y texto largo</h3>
+
+              <div
+                class="form-grid"
+                appUiFormSpacing
+                [formRowGap]="20"
+                [formColumnGap]="14"
+                [formMobileRowGap]="20"
+                [formMobileColumnGap]="0"
+              >
+                <div class="col-4">
+                  <app-ui-date-time-picker
+                    formControlName="fechaNacimiento"
+                    label="Fecha de nacimiento"
+                    mode="date"
+                    hint="Formato visible: dd/mm/aaaa"
+                    [maxDate]="today"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('fechaNacimiento')"
+                  />
+                </div>
+
+                <div class="col-4">
+                  <app-ui-date-time-picker
+                    formControlName="horaInicio"
+                    label="Hora inicio"
+                    mode="time"
+                    hint="Formato de 24 horas"
+                    [minuteStep]="5"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('horaInicio')"
+                  />
+                </div>
+
+                <div class="col-4">
+                  <app-ui-date-time-picker
+                    formControlName="fechaHoraCita"
+                    label="Fecha y hora de cita"
+                    mode="datetime"
+                    hint="Seleccione fecha y hora en un solo control"
+                    [minuteStep]="5"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('fechaHoraCita')"
+                  />
+                </div>
+
+                <div class="col-12">
+                  <app-ui-input
+                    formControlName="observacion"
+                    label="Observación"
+                    placeholder="Ingrese observación"
+                    [rows]="4"
+                    [maxlength]="500"
+                    [multiline]="true"
+                    hint="Máximo 500 caracteres."
+                    [error]="error('observacion')"
+                  />
+                </div>
+              </div>
+            </article>
+
+            <article class="form-section">
+              <h3>Flatpickr: hora AM/PM y fecha-hora combinada</h3>
+
+              <div
+                class="form-grid"
+                appUiFormSpacing
+                [formRowGap]="20"
+                [formColumnGap]="14"
+                [formMobileRowGap]="20"
+                [formMobileColumnGap]="0"
+              >
+                <div class="col-6">
+                  <app-ui-date-time-picker
+                    formControlName="horaFlatpickrAmPm"
+                    label="Hora Flatpickr AM/PM"
+                    mode="time"
+                    hourFormat="12"
+                    hint="La biblioteca presenta AM/PM; el formulario conserva HH:mm."
+                    [minuteStep]="15"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('horaFlatpickrAmPm')"
+                  />
+                </div>
+
+                <div class="col-6">
+                  <app-ui-date-time-picker
+                    formControlName="fechaHoraFlatpickrAmPm"
+                    label="Fecha y hora Flatpickr AM/PM"
+                    mode="datetime"
+                    hourFormat="12"
+                    hint="Combina calendario y reloj de 12 horas en un solo control."
+                    [minDate]="today"
+                    [minuteStep]="15"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('fechaHoraFlatpickrAmPm')"
+                  />
+                </div>
+              </div>
+            </article>
+
+            <article class="form-section">
+              <h3>Time picker: AM/PM y 24 horas</h3>
+
+              <div
+                class="form-grid"
+                appUiFormSpacing
+                [formRowGap]="20"
+                [formColumnGap]="14"
+                [formMobileRowGap]="20"
+                [formMobileColumnGap]="0"
+              >
+                <div class="col-6">
+                  <app-ui-time-picker
+                    formControlName="horaAmPm"
+                    label="Hora en formato AM/PM"
+                    hourFormat="12"
+                    placeholder="Seleccione una hora"
+                    hint="Presentación de 12 horas; el formulario conserva el valor HH:mm."
+                    [minuteStep]="30"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('horaAmPm')"
+                  />
+                </div>
+
+                <div class="col-6">
+                  <app-ui-time-picker
+                    formControlName="hora24Horas"
+                    label="Hora en formato 24 horas"
+                    hourFormat="24"
+                    placeholder="Seleccione una hora"
+                    hint="Presentación de 24 horas; intervalos configurables."
+                    [minuteStep]="30"
+                    [required]="true"
+                    [showRequiredMarker]="showRequiredMarkers()"
+                    [error]="error('hora24Horas')"
+                  />
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- Footer reutilizable del panel, equivalente al footer del modal. -->
+          <footer class="ui-panel__foot">
+            <div class="form-actions">
+              <app-ui-button
+                type="button"
+                variant="outline"
+                icon="fa-solid fa-ban"
+                (buttonClick)="cancelar()"
+              >
+                Cancelar
+              </app-ui-button>
+
+              <app-ui-button
+                type="button"
+                variant="secondary"
+                icon="fa-solid fa-eraser"
+                (buttonClick)="limpiar()"
+              >
+                Limpiar
+              </app-ui-button>
+
+              <app-ui-button
+                type="button"
+                variant="info"
+                icon="fa-solid fa-up-right-from-square"
+                (buttonClick)="abrirModal()"
+              >
+                Abrir modal
+              </app-ui-button>
+
+              <app-ui-button type="submit" variant="primary" icon="fa-solid fa-floppy-disk">
+                Guardar
+              </app-ui-button>
+            </div>
+          </footer>
+        </form>
+
+        <app-ui-modal
+          [open]="modalOpen()"
+          title="Programar actividad institucional"
+          subtitle="Complete la información básica para registrar una nueva actividad."
+          icon="fa-solid fa-calendar-plus"
+          size="lg"
+          (closeRequested)="cerrarModal()"
+        >
+          <form
+            modal-body
+            class="modal-demo__form"
+            [formGroup]="modalActividadForm"
+            (ngSubmit)="guardarModal()"
+          >
+            <div class="modal-demo__notice">
+              <span class="modal-demo__notice-icon" aria-hidden="true">
+                <i class="fa-solid fa-circle-info"></i>
+              </span>
+              <div>
+                <strong>Información de la actividad</strong>
+                <p>Los campos marcados con asterisco son obligatorios.</p>
+              </div>
+            </div>
+
+            <div
+              class="modal-demo__grid"
+              appUiFormSpacing
+              [formRowGap]="20"
+              [formColumnGap]="14"
+              [formMobileRowGap]="20"
+              [formMobileColumnGap]="0"
+            >
+              <div class="modal-demo__field modal-demo__field--full">
+                <app-ui-input
+                  formControlName="actividad"
+                  label="Nombre de la actividad"
+                  placeholder="Ingrese un nombre descriptivo"
+                  icon="fa-solid fa-clipboard-check"
+                  [required]="true"
+                  [showRequiredMarker]="showRequiredMarkers()"
+                  [maxlength]="100"
+                  [error]="modalError('actividad')"
+                />
+              </div>
+
+              <div class="modal-demo__field">
+                <app-ui-select
+                  formControlName="unidadResponsable"
+                  label="Unidad responsable"
+                  placeholder="Seleccione una unidad"
+                  searchPlaceholder="Buscar unidad..."
+                  [required]="true"
+                  [showRequiredMarker]="showRequiredMarkers()"
+                  [options]="unidadOptions"
+                  [error]="modalError('unidadResponsable')"
+                />
+              </div>
+
+              <div class="modal-demo__field">
+                <app-ui-date-time-picker
+                  formControlName="fechaProgramada"
+                  label="Fecha y hora programada"
+                  mode="datetime"
+                  hint="Seleccione la fecha y hora de inicio"
+                  [minDate]="today"
+                  [minuteStep]="5"
+                  [required]="true"
+                  [showRequiredMarker]="showRequiredMarkers()"
+                  [error]="modalError('fechaProgramada')"
+                />
+              </div>
+
+              <div class="modal-demo__field modal-demo__field--full">
+                <app-ui-input
+                  formControlName="observaciones"
+                  label="Observaciones"
+                  placeholder="Agregue información complementaria"
+                  [rows]="4"
+                  [maxlength]="300"
+                  [multiline]="true"
+                  hint="Máximo 300 caracteres."
+                  [error]="modalError('observaciones')"
+                />
+              </div>
+            </div>
+          </form>
+
+          <div modal-actions class="modal-demo__actions">
+            <app-ui-button
+              type="button"
+              variant="outline"
+              icon="fa-solid fa-xmark"
+              (buttonClick)="cerrarModal()"
+            >
+              Cancelar
+            </app-ui-button>
+
+            <app-ui-button
+              type="button"
+              variant="secondary"
+              icon="fa-solid fa-eraser"
+              (buttonClick)="limpiarModal()"
+            >
+              Limpiar
+            </app-ui-button>
+
+            <app-ui-button
+              type="button"
+              variant="primary"
+              icon="fa-solid fa-floppy-disk"
+              (buttonClick)="guardarModal()"
+            >
+              Guardar actividad
+            </app-ui-button>
+          </div>
+        </app-ui-modal>
+    </app-ui-panel>
+
+    <!-- El JSON se ubica inmediatamente después de la guía principal del formulario. -->
+    <div class="ui-panel">
+      <div class="ui-panel__head">
+        <div class="ui-panel__title">
+          <i class="fa-solid fa-code"></i>
+          JSON del formulario
+        </div>
+      </div>
+
+      <div class="ui-panel__body">
+        <pre class="json-preview">{{
+          submittedJson() || (formularioDemo.getRawValue() | json)
+        }}</pre>
+      </div>
+    </div>
+
+    <!-- Referencia completa de inputs, outputs, models, slots y prioridades de configuración. -->
+    <app-ui-api-reference />
+
+    <!-- API común para etiquetas animadas en input, textarea, select y pickers. -->
+    <app-floating-controls-demo />
+
+    <!-- API y ejemplos responsive para dimensionar todos los controles compartidos. -->
+    <app-form-control-sizing-demo />
+
+    <!-- Catálogo técnico de ui-search-input y ui-button con ejemplos copiables. -->
+    <app-button-search-demo />
+
+    <!-- Tooltips en overlay: variantes, posiciones y uso integrado con ui-button. -->
+    <app-tooltip-demo />
+
+    <!-- Variantes y API del encabezado institucional reutilizable para paneles administrativos. -->
+    <app-section-header-demo />
+
+    <!-- Sección demostrativa independiente de los componentes compartidos ui-tabs y ui-tab. -->
+    <app-tabs-demo />
+
+    <!-- Catálogo de indicadores de carga construido sobre el componente shared ui-spinner. -->
+    <app-spinner-demo />
+
+    <app-funcionarios-table-demo />
+
+    <!-- Segunda apariencia de ui-table con paginación y acciones intercambiables. -->
+    <app-table-variants-demo />
+
+    <!-- UI para procesos con conceptos sucesivos, bandeja y trazabilidad visual. -->
+    <app-approval-flow-demo />
+
+    <!-- Catálogo reutilizable de badges rectangulares y cápsulas redondeadas. -->
+    <app-status-components-demo />
+
+    <!-- Toggle booleano con tamaños, iconos, estados y API para Reactive Forms. -->
+    <app-toggle-demo />
+
+    <!-- Decisión explícita Sí/No, accesible y compatible con Reactive Forms. -->
+    <app-decision-selector-demo />
+
+    <!-- Fotografía de funcionario con respaldo automático por iniciales. -->
+    <app-avatar-demo />
+
+    <!-- Escritura, filtrado y selección única en un overlay reutilizable. -->
+    <app-autocomplete-demo />
+
+    <!-- Alertas estructuradas con selector de tono, ejemplos ejecutables y documentación. -->
+    <app-rich-alert-demo />
+
+    <app-notificaciones-demo />
+  </section>
+}

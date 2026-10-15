@@ -28,7 +28,7 @@ export const routes: Routes = [
         children: [
           { path: '', loadComponent: () => import('./pages/administracion/administracion-inicio/administracion-inicio').then(m => m.AdministracionInicioComponent) },
           { path: 'inicio', loadComponent: () => import('./pages/administracion/administracion-inicio/administracion-inicio').then(m => m.AdministracionInicioComponent) },
-          { path: 'formularios', loadComponent: () => import('./pages/administracion/formularios/formularios').then(m => m.Formularios) },
+          { path: 'formularios', loadComponent: () => import('./features/administracion/pages/formularios-page/formularios-page.component').then(m => m.FormulariosPageComponent) },
           { path: 'usuarios', loadComponent: () => import('./pages/administracion/usuarios/usuarios').then(m => m.UsuariosComponent) },
           { path: 'roles', loadComponent: () => import('./pages/administracion/roles-admin/roles-admin').then(m => m.RolesAdminComponent) },
           { path: 'personaje-mes', loadComponent: () => import('./pages/administracion/personaje-mes/personaje-mes').then(m => m.PersonajeMesAdminComponent) },
