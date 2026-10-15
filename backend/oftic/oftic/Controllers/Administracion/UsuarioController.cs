@@ -107,24 +107,6 @@ namespace ofic.Controllers.Administracion
                     });
                 }
 
-                // Persistir automÃ¡ticamente en DB local si no existe.
-                // No debe romper la consulta principal si falla la persistencia local.
-                if (empleado is not null)
-                {
-                    try
-                    {
-                        await _dbUsuarioRepository.EnsureUsuarioExistsAsync(empleado, HttpContext.RequestAborted);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(
-                            ex,
-                            "No se pudo persistir el usuario local para identificacion={Identificacion}, usuario={Usuario}",
-                            empleado.identificacion,
-                            empleado.usuario);
-                    }
-                }
-
                 // Si el usuario existe en BD local, reflejar estado real (bloqueado/activo).
                 if (empleado is not null)
                 {
@@ -190,24 +172,6 @@ namespace ofic.Controllers.Administracion
                 //        message = $"Usuario no estÃ¡ en situaciÃ³n laboral vÃ¡lida. SituaciÃ³n actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÃ“N DEL SERVICIO'."
                 //    });
                 //}
-
-                // Persistir automÃ¡ticamente en DB local si no existe.
-                // No debe romper la consulta principal si falla la persistencia local.
-                if (empleado is not null)
-                {
-                    try
-                    {
-                        await _dbUsuarioRepository.EnsureUsuarioExistsAsync(empleado, HttpContext.RequestAborted);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(
-                            ex,
-                            "No se pudo persistir el usuario local para identificacion={Identificacion}, usuario={Usuario}",
-                            empleado.identificacion,
-                            empleado.usuario);
-                    }
-                }
 
                 // Si el usuario existe en BD local, reflejar estado real (bloqueado/activo).
                 if (empleado is not null)

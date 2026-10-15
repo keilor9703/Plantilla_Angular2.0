@@ -1,0 +1,97 @@
+<section class="rich-alert-demo ui-panel" aria-labelledby="rich-alert-demo-title">
+  <header class="rich-alert-demo__header">
+    <span class="rich-alert-demo__number" aria-hidden="true">20</span>
+    <div>
+      <h2 id="rich-alert-demo-title">Alerta con contenido enriquecido</h2>
+      <p>
+        Confirmaciones con información estructurada para reemplazar mensajes planos o modales de
+        revisión.
+      </p>
+    </div>
+    <code>AlertService.confirmRich()</code>
+  </header>
+
+  <div class="rich-alert-demo__body">
+    <section class="rich-alert-demo__playground" aria-labelledby="rich-alert-picker-title">
+      <div class="rich-alert-demo__section-title">
+        <div>
+          <span>Demostración interactiva</span>
+          <h3 id="rich-alert-picker-title">Seleccione el tipo de alerta</h3>
+        </div>
+        <span class="rich-alert-demo__current" [attr.data-tone]="selectedOption().tone">
+          <i [class]="selectedOption().icon" aria-hidden="true"></i>
+          {{ selectedOption().label }}
+        </span>
+      </div>
+
+      <div class="rich-alert-demo__picker" role="group" aria-label="Tipo de alerta enriquecida">
+        @for (option of options; track option.tone) {
+          <button
+            type="button"
+            [attr.data-tone]="option.tone"
+            [class.is-active]="selectedTone() === option.tone"
+            [attr.aria-pressed]="selectedTone() === option.tone"
+            (click)="selectTone(option.tone)"
+          >
+            <i [class]="option.icon" aria-hidden="true"></i>
+            <span>{{ option.label }}</span>
+          </button>
+        }
+      </div>
+
+      <article class="rich-alert-demo__preview" [attr.data-tone]="selectedOption().tone">
+        <span aria-hidden="true"><i [class]="selectedOption().icon"></i></span>
+        <div>
+          <small>{{ selectedOption().label }}</small>
+          <strong>{{ selectedOption().headline }}</strong>
+          <p>{{ selectedOption().description }}</p>
+        </div>
+      </article>
+
+      <div class="rich-alert-demo__actions">
+        <app-ui-button
+          type="button"
+          variant="outline"
+          icon="fa-regular fa-eye"
+          (buttonClick)="showInformation()"
+        >
+          Mostrar información
+        </app-ui-button>
+
+        <app-ui-button
+          type="button"
+          [variant]="selectedOption().buttonVariant"
+          icon="fa-solid fa-arrow-up-right-from-square"
+          (buttonClick)="showConfirmation()"
+        >
+          Probar confirmación
+        </app-ui-button>
+      </div>
+
+      <p class="rich-alert-demo__result" aria-live="polite">
+        <i class="fa-solid fa-terminal" aria-hidden="true"></i>
+        {{ lastResult() }}
+      </p>
+    </section>
+
+    <aside class="rich-alert-demo__documentation" aria-labelledby="rich-alert-doc-title">
+      <div class="rich-alert-demo__section-title">
+        <div>
+          <span>Documentación</span>
+          <h3 id="rich-alert-doc-title">Cuándo y cómo utilizarlo</h3>
+        </div>
+      </div>
+
+      <ul>
+        <li><strong>showRich:</strong> muestra datos que el usuario debe reconocer.</li>
+        <li><strong>confirmRich:</strong> devuelve un booleano antes de guardar o rechazar.</li>
+        <li><strong>tone:</strong> acepta info, success, warning o danger.</li>
+        <li><strong>details:</strong> organiza campos; wide ocupa la fila completa.</li>
+        <li><strong>badge y note:</strong> destacan estado y consecuencia sin texto plano.</li>
+        <li>Los valores se renderizan como texto Angular; no construya HTML con datos del API.</li>
+      </ul>
+
+      <pre><code>{{ usageExample }}</code></pre>
+    </aside>
+  </div>
+</section>

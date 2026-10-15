@@ -1,9 +1,21 @@
 <section class="menu-admin-page" *ngIf="visible">
   <div class="ui-panel">
+    <!-- Header principal -->
     <div class="ui-panel__head">
       <div class="ui-panel__title">
-        <i class="fa-solid fa-bars"></i>
-        Administración de Menú
+        <i class="fa-solid fa-bars-staggered"></i>
+        <span>Administración de Menú</span>
+      </div>
+
+      <div class="menu-admin-summary">
+        <span class="summary-badge info">
+          <i class="fa-solid fa-layer-group"></i>
+          {{ totalItemsCount }} ítems
+        </span>
+        <span class="summary-badge success">
+          <i class="fa-solid fa-circle-check"></i>
+          {{ activeItemsCount }} activos
+        </span>
       </div>
 
       <div class="ui-panel__actions ui-window-controls">
@@ -14,255 +26,421 @@
     </div>
 
     <div class="ui-panel__body" *ngIf="!minimized">
-      <div class="menu-grid">
-        <article class="tab-card form-card">
-          <h3>{{ editingId ? 'Editar menú' : 'Nuevo menú' }}</h3>
+      <!-- Banner informativo / guía rápida -->
+      <aside class="menu-guide-banner">
+        <div class="guide-copy">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          <div>
+            <strong>Gestión centralizada de navegación institucional</strong>
+            <p>Organice menús principales y submenús. Para crear un nuevo elemento en la estructura, pulse el botón "Crear menú".</p>
+          </div>
+        </div>
 
-          <div class="ui-grid">
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Descripción</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.descripcion" maxlength="255">
-            </div>
+        <button class="ui-btn primary btn-create-root" type="button" (click)="openCreateModal()">
+          <i class="fa-solid fa-plus"></i>
+          <span>Crear menú</span>
+        </button>
+      </aside>
 
-            <div class="ui-field ui-col-6">
-              <label class="ui-label">Padre</label>
-              <select class="ui-control" [(ngModel)]="form.idPadre">
-                <option [ngValue]="0">Sin padre (0)</option>
-                <option *ngFor="let parent of availableParentOptions" [ngValue]="parent.idMenu">
-                  {{ parent.idMenu }} - {{ parent.descripcion }}
-                </option>
-              </select>
-            </div>
-
-            <div class="ui-field ui-col-6">
-              <label class="ui-label">Posición</label>
-              <input class="ui-control" type="number" min="0" [(ngModel)]="form.posicion">
-            </div>
-
-            <div class="ui-field ui-col-6">
-              <label class="ui-label">Tipo</label>
-              <select class="ui-control" [(ngModel)]="form.tipo">
-                <option value="S">S (Submenú)</option>
-                <option value="frm">frm (Formulario)</option>
-                <option value="url">url (Hipervínculo)</option>
-                <option value="pdf">pdf (Documento)</option>
-              </select>
-            </div>
-
-            <div class="ui-field ui-col-6">
-              <label class="ui-label">Vigente</label>
-              <select class="ui-control" [(ngModel)]="form.vigente">
-                <option [ngValue]="1">Sí</option>
-                <option [ngValue]="0">No</option>
-              </select>
-            </div>
-
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Icono</label>
-              <div class="icon-selector-group">
-                <div class="icon-preview-box" [title]="form.icono || 'Sin icono'">
-                  <i [class]="form.icono || 'fa-solid fa-icons'"></i>
-                </div>
-                <input class="ui-control" type="text" [(ngModel)]="form.icono" placeholder="fa-solid fa-gear">
-                <button class="ui-btn secondary icon-btn-picker" type="button" (click)="openIconPicker()">
-                  <i class="fa-solid fa-icons"></i>
-                  Librería
-                </button>
+      <!-- Layout del Árbol Jerárquico a ancho completo -->
+      <div class="menu-admin-layout">
+        <article class="tab-card tree-card">
+          <div class="tree-header">
+            <div class="tree-title">
+              <span class="tree-icon">
+                <i class="fa-solid fa-sitemap"></i>
+              </span>
+              <div>
+                <h3>Estructura del menú</h3>
+                <p>Navegación jerárquica organizada en tiempo real</p>
               </div>
             </div>
 
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Detalle (ruta/url)</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.detalle" placeholder="/administracion/menu">
+            <div class="tree-quick-controls">
+              <button class="tree-btn-tool" type="button" title="Expandir todos los submenús" (click)="expandAll()">
+                <i class="fa-solid fa-angles-down"></i>
+                <span>Expandir todos</span>
+              </button>
+              <button class="tree-btn-tool" type="button" title="Contraer todos los submenús" (click)="collapseAll()">
+                <i class="fa-solid fa-angles-up"></i>
+                <span>Contraer todos</span>
+              </button>
             </div>
           </div>
 
-          <div class="tab-actions">
-            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ saving ? 'Guardando...' : 'Guardar' }}
-            </button>
-          </div>
-        </article>
-
-        <article class="tab-card ">
-          <h3>Ítems de menú</h3>
-
-          <div class="list-loading" *ngIf="loading">Cargando menú...</div>
-
-          <div class="menu-list" *ngIf="!loading && menuTree.length > 0">
-            <div class="menu-tree">
-              <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: menuTree, level: 0 }"></ng-container>
+          <!-- Barra de búsqueda y filtrado de la estructura -->
+          <div class="tree-toolbar">
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+              <input
+                type="text"
+                [(ngModel)]="searchTerm"
+                placeholder="Filtrar estructura: Nombre, ruta, tipo o identificador..."
+              />
+              <button
+                class="btn-clear-search"
+                type="button"
+                *ngIf="searchTerm"
+                title="Limpiar búsqueda"
+                (click)="clearSearch()"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
           </div>
 
-          <!-- Template Recursivo para el Árbol -->
-          <ng-template #nodeTemplate let-nodes let-level="level">
-            <ng-container *ngFor="let node of nodes">
-              <div class="menu-item" [class.is-parent]="level === 0">
-                <div class="menu-item__content">
-                  <div class="menu-item__title">
-                    <i
-                      class="fa-solid menu-tree-icon expand-icon"
-                      [class.fa-folder]="!node.expanded"
-                      [class.fa-folder-open]="node.expanded"
-                      [class.is-hidden]="node.children.length === 0"
-                      (click)="toggleNode(node)"
-                    ></i>
-                    <i class="fa-solid fa-file-lines menu-tree-icon" *ngIf="node.children.length === 0 && !node.item.icono"></i>
-                    <i [class]="node.item.icono" class="menu-tree-icon custom-item-icon" *ngIf="node.item.icono"></i>
-                    <strong [style.font-weight]="level === 0 ? '700' : '500'">{{ node.item.descripcion }}</strong>
-                  </div>
-                  <span class="meta">ID: {{ node.item.idMenu }} | Padre: {{ node.item.idPadre }} | Posición: {{ node.item.posicion }}</span>
-                  <span class="meta">Tipo: {{ node.item.tipo }} | Vigente: {{ node.item.vigente === 1 ? 'Sí' : 'No' }}</span>
-                  <span class="meta">Detalle: {{ node.item.detalle || '-' }}</span>
-                </div>
-                <div class="menu-item__actions">
-                  <button class="ui-btn secondary" type="button" (click)="gestionarRoles(node.item)">Roles</button>
-                  <button class="ui-btn secondary" type="button" (click)="editar(node.item)">Editar</button>
+          <!-- Estado de carga -->
+          <div class="list-loading" *ngIf="loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>Cargando estructura del menú...</span>
+          </div>
+
+          <!-- Árbol estructurado -->
+          <div class="tree-body" *ngIf="!loading">
+            <div class="tree-empty" *ngIf="visibleRows.length === 0">
+              <i class="fa-solid fa-folder-open"></i>
+              <strong>No hay elementos para mostrar</strong>
+              <p>Modifique el término de búsqueda o cree un nuevo ítem de menú.</p>
+            </div>
+
+            <div class="menu-tree" *ngIf="visibleRows.length > 0">
+              <article
+                *ngFor="let row of visibleRows; trackBy: trackByMenuId"
+                class="menu-tree-item"
+                [class.is-child]="row.depth > 0"
+                [class.is-editing]="editingId === row.item.idMenu"
+                [style.--menu-indent]="row.indent + 'px'"
+              >
+                <!-- Conector jerárquico de rama -->
+                <span
+                  *ngIf="row.depth > 0"
+                  class="menu-tree-item__branch"
+                  [class.is-continuing]="!row.isLastSibling"
+                  aria-hidden="true"
+                ></span>
+
+                <!-- Contenido principal de la fila (clickeable para expandir/contraer si tiene hijos) -->
+                <div
+                  class="menu-tree-item__main"
+                  [class.is-expandable]="row.hasChildren"
+                  (click)="onRowClick(row, $event)"
+                >
+                  <!-- Botón expandir/contraer -->
                   <button
-                    class="ui-btn"
-                    [class.primary]="node.item.vigente === 0"
-                    [class.secondary]="node.item.vigente === 1"
+                    *ngIf="row.hasChildren"
+                    class="menu-tree-item__toggle"
+                    [class.is-expanded]="isExpanded(row.item.idMenu)"
                     type="button"
-                    (click)="cambiarEstado(node.item)"
+                    [title]="isExpanded(row.item.idMenu) ? 'Contraer' : 'Expandir'"
+                    (click)="toggleNode(row.item.idMenu, $event)"
                   >
-                    {{ node.item.vigente === 1 ? 'Desactivar' : 'Activar' }}
+                    <i [class]="isExpanded(row.item.idMenu) ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"></i>
+                  </button>
+                  <span *ngIf="!row.hasChildren" class="menu-tree-item__toggle-spacer"></span>
+
+                  <!-- Icono representativo del menú -->
+                  <span class="menu-tree-item__leading" aria-hidden="true">
+                    <i [class]="itemIcon(row.item)"></i>
+                  </span>
+
+                  <!-- Textos y metadatos -->
+                  <div class="menu-tree-item__content">
+                    <div class="menu-tree-item__title">
+                      <strong>{{ row.item.descripcion }}</strong>
+                      <span class="status-chip" [class.is-active]="row.item.vigente === 1">
+                        {{ row.item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                      </span>
+                    </div>
+
+                    <div class="menu-tree-item__meta">
+                      <span>ID {{ row.item.idMenu }}</span>
+                      <span>Posición {{ row.item.posicion }}</span>
+                      <span class="type-tag">{{ typeLabel(row.item.tipo) }}</span>
+                    </div>
+
+                    <span class="menu-tree-item__route">
+                      <i class="fa-solid fa-link"></i>
+                      {{ row.item.detalle || 'Sin ruta configurada' }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Botones de acción en fila -->
+                <div class="menu-tree-item__actions">
+                  <!-- Crear submenú dentro de este elemento -->
+                  <button
+                    *ngIf="row.item.tipo === 'S'"
+                    class="tree-action-btn action-create"
+                    type="button"
+                    [title]="'Crear submenú dentro de ' + row.item.descripcion"
+                    (click)="openCreateModal(row.item, $event)"
+                  >
+                    <i class="fa-solid fa-folder-plus"></i>
+                  </button>
+
+                  <!-- Gestionar roles -->
+                  <button
+                    class="tree-action-btn action-roles"
+                    type="button"
+                    [title]="'Gestionar roles de ' + row.item.descripcion"
+                    (click)="gestionarRoles(row.item, $event)"
+                  >
+                    <i class="fa-solid fa-user-shield"></i>
+                  </button>
+
+                  <!-- Editar -->
+                  <button
+                    class="tree-action-btn action-edit"
+                    type="button"
+                    [title]="'Editar ' + row.item.descripcion"
+                    (click)="openEditModal(row.item, $event)"
+                  >
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+
+                  <!-- Activar / Desactivar -->
+                  <button
+                    class="tree-action-btn action-toggle"
+                    [class.is-active]="row.item.vigente === 1"
+                    type="button"
+                    [title]="row.item.vigente === 1 ? 'Inactivar' : 'Activar'"
+                    (click)="cambiarEstado(row.item, $event)"
+                  >
+                    <i [class]="row.item.vigente === 1 ? 'fa-solid fa-pause' : 'fa-solid fa-play'"></i>
                   </button>
                 </div>
-              </div>
-              <div class="menu-children-container" *ngIf="node.expanded && node.children.length > 0">
-                <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node.children, level: level + 1 }"></ng-container>
-              </div>
-            </ng-container>
-          </ng-template>
-
-          <div class="news-state" *ngIf="!loading && menuTree.length === 0">
-            No hay ítems de menú registrados.
+              </article>
+            </div>
           </div>
         </article>
-      </div>
-    </div>
-  </div>
-
-<div class="ui-modal" *ngIf="showRolesModal">
-    <div class="ui-modal__dialog" (click)="$event.stopPropagation()">
-      <div class="ui-modal__head">
-        <div class="ui-modal__title">
-          <i class="fa-solid fa-shield-alt"></i>
-          <span>Permisos por rol</span>
-        </div>
-        <button class="ui-icon-btn" type="button" (click)="closeRolesModal()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="ui-modal__body">
-        <span class="meta">Men\u00fa seleccionado: {{ selectedMenuForRoles?.descripcion }} (ID {{ selectedMenuForRoles?.idMenu }})</span>
-
-        <div class="ui-grid mt-roles">
-          <div class="ui-field ui-col-8">
-            <label class="ui-label">Rol</label>
-            <select class="ui-control" [(ngModel)]="selectedRolId">
-              <option [ngValue]="null">Seleccione un rol</option>
-              <option *ngFor="let rol of rolesCatalog" [ngValue]="rol.idRol">
-                {{ rol.descripcion }} ({{ rol.idRol }})
-              </option>
-            </select>
-          </div>
-          <div class="ui-field ui-col-4 role-action">
-            <button class="ui-btn primary" type="button" (click)="asignarRolMenu()" [disabled]="savingRole">
-              {{ savingRole ? 'Guardando...' : 'Asignar rol' }}
-            </button>
-          </div>
-        </div>
-
-        <div class="list-loading" *ngIf="loadingRoles">Consultando roles asignados...</div>
-
-        <div class="menu-role-list" *ngIf="!loadingRoles && rolesAsignados.length > 0">
-          <div class="menu-role-item" *ngFor="let r of rolesAsignados">
-            <span><strong>{{ r.descripcionRol }}</strong> ({{ r.idRol }})</span>
-            <button class="ui-btn secondary" type="button" (click)="quitarRolMenu(r)">Quitar</button>
-          </div>
-        </div>
-
-        <div class="news-state" *ngIf="!loadingRoles && rolesAsignados.length === 0">
-          No hay roles asignados a este men\u00fa.
-        </div>
-      </div>
-
-      <div class="ui-modal__foot">
-        <button class="ui-btn secondary" type="button" (click)="closeRolesModal()">
-          <i class="fa-solid fa-xmark"></i>
-          Cerrar
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Selector de Iconos de Librería -->
-  <div class="ui-modal icon-picker-modal" *ngIf="showIconPickerModal">
-    <div class="ui-modal__dialog ui-modal__dialog--lg" (click)="$event.stopPropagation()">
-      <div class="ui-modal__head">
-        <div class="ui-modal__title">
-          <i class="fa-solid fa-icons"></i>
-          <span>Librería de Iconos</span>
-        </div>
-        <button class="ui-icon-btn" type="button" (click)="closeIconPicker()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="ui-modal__body">
-        <div class="icon-picker-toolbar">
-          <div class="ui-field search-field">
-            <input
-              class="ui-control"
-              type="text"
-              [(ngModel)]="iconSearchTerm"
-              placeholder="Buscar por nombre o clase (ej: gear, user, folder, chart...)"
-            />
-          </div>
-          <div class="category-pills">
-            <button
-              *ngFor="let cat of iconCategories"
-              type="button"
-              class="pill-btn"
-              [class.active]="selectedCategory === cat"
-              (click)="selectedCategory = cat"
-            >
-              {{ cat }}
-            </button>
-          </div>
-        </div>
-
-        <div class="icon-grid-container">
-          <div
-            *ngFor="let icon of filteredIcons"
-            class="icon-card"
-            [class.selected]="form.icono === icon.class"
-            (click)="selectIcon(icon.class)"
-          >
-            <div class="icon-card-symbol">
-              <i [class]="icon.class"></i>
-            </div>
-            <div class="icon-card-name">{{ icon.name }}</div>
-            <div class="icon-card-class">{{ icon.class }}</div>
-          </div>
-
-          <div class="news-state" *ngIf="filteredIcons.length === 0">
-            No se encontraron iconos que coincidan con "{{ iconSearchTerm }}".
-          </div>
-        </div>
-      </div>
-
-      <div class="ui-modal__foot">
-        <button class="ui-btn secondary" type="button" (click)="closeIconPicker()">
-          <i class="fa-solid fa-xmark"></i>
-          Cancelar
-        </button>
       </div>
     </div>
   </div>
 </section>
+
+<!-- Modal de Creación / Edición de Menú -->
+<div class="menu-modal-backdrop" *ngIf="showMenuModal" (click)="closeMenuModal()">
+  <div class="menu-modal-dialog" (click)="$event.stopPropagation()">
+    <div class="ui-modal__head">
+      <div class="menu-modal-title">
+        <i [class]="editingId ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-folder-plus'"></i>
+        <div>
+          <h3 *ngIf="!editingId">Nuevo menú</h3>
+          <h3 *ngIf="editingId">Editar menú: {{ editingMenuName }}</h3>
+          <p *ngIf="!editingId">
+            {{ createParentName ? ('Submenú dentro de: ' + createParentName) : 'Complete los campos para registrar un nuevo ítem en la navegación' }}
+          </p>
+          <p *ngIf="editingId">
+            ID #{{ editingId }} • Modifique la configuración del elemento seleccionado
+          </p>
+        </div>
+      </div>
+      <button class="close-btn" type="button" (click)="closeMenuModal()" title="Cerrar ventana">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body">
+      <form class="menu-modal-form" (ngSubmit)="guardar()" autocomplete="off">
+        <div class="ui-grid">
+          <!-- Descripción visible -->
+          <div class="ui-field ui-col-12">
+            <label class="ui-label" for="menu-modal-desc">
+              <i class="fa-solid fa-font"></i>
+              Descripción visible <span class="required">*</span>
+            </label>
+            <input
+              id="menu-modal-desc"
+              class="ui-control"
+              type="text"
+              name="descripcion"
+              [(ngModel)]="form.descripcion"
+              maxlength="255"
+              placeholder="Ej: Gestión de Documentos, Reportes Institucionales..."
+              required
+            />
+          </div>
+
+          <!-- Menú Padre -->
+          <div class="ui-field ui-col-6">
+            <label class="ui-label" for="menu-modal-padre">
+              <i class="fa-solid fa-sitemap"></i>
+              Menú padre <span class="required">*</span>
+            </label>
+            <select id="menu-modal-padre" class="ui-control" name="idPadre" [(ngModel)]="form.idPadre">
+              <option [ngValue]="1">RAÍZ / Menú Principal (ID 1)</option>
+              <option *ngFor="let parent of parentOptions" [ngValue]="parent.idMenu">
+                {{ parent.descripcion }} (ID {{ parent.idMenu }})
+              </option>
+            </select>
+          </div>
+
+          <!-- Posición -->
+          <div class="ui-field ui-col-6">
+            <label class="ui-label" for="menu-modal-pos">
+              <i class="fa-solid fa-arrow-down-1-9"></i>
+              Posición <span class="required">*</span>
+            </label>
+            <input
+              id="menu-modal-pos"
+              class="ui-control"
+              type="number"
+              name="posicion"
+              min="0"
+              [(ngModel)]="form.posicion"
+              placeholder="0"
+              required
+            />
+          </div>
+
+          <!-- Tipo de destino -->
+          <div class="ui-field ui-col-6">
+            <label class="ui-label" for="menu-modal-tipo">
+              <i class="fa-solid fa-shapes"></i>
+              Tipo de destino <span class="required">*</span>
+            </label>
+            <select id="menu-modal-tipo" class="ui-control" name="tipo" [(ngModel)]="form.tipo">
+              <option value="S">Submenú (Contenedor)</option>
+              <option value="frm">Formulario / Vista interna</option>
+              <option value="url">Hipervínculo externo</option>
+              <option value="pdf">Documento PDF</option>
+            </select>
+          </div>
+
+          <!-- Estado -->
+          <div class="ui-field ui-col-6">
+            <label class="ui-label" for="menu-modal-estado">
+              <i class="fa-solid fa-toggle-on"></i>
+              Estado <span class="required">*</span>
+            </label>
+            <select id="menu-modal-estado" class="ui-control" name="vigente" [(ngModel)]="form.vigente">
+              <option [ngValue]="1">Activo</option>
+              <option [ngValue]="0">Inactivo</option>
+            </select>
+          </div>
+
+          <!-- Selector de Iconos UI ICON PICKER -->
+          <div class="ui-field ui-col-12">
+            <app-ui-icon-picker
+              [(ngModel)]="form.icono"
+              name="icono"
+              label="Icono del menú"
+              placeholder="Seleccione un icono del catálogo institucional..."
+              hint="Haga clic para buscar o seleccionar entre más de 250 iconos organizados por categoría."
+              [required]="false"
+            ></app-ui-icon-picker>
+          </div>
+
+          <!-- Detalle / Ruta -->
+          <div class="ui-field ui-col-12">
+            <label class="ui-label" for="menu-modal-detalle">
+              <i class="fa-solid fa-link"></i>
+              Detalle (Ruta interna / URL externa)
+            </label>
+            <input
+              id="menu-modal-detalle"
+              class="ui-control"
+              type="text"
+              name="detalle"
+              [(ngModel)]="form.detalle"
+              [placeholder]="form.tipo === 'url' ? 'https://sitio.policia.gov.co' : form.tipo === 'pdf' ? '/assets/documentos/guia.pdf' : '/administracion/usuarios'"
+            />
+            <small class="field-hint" *ngIf="form.tipo === 'S'">
+              Para submenús contenedores puede dejar este campo vacío.
+            </small>
+          </div>
+        </div>
+
+        <div class="modal-footer-actions">
+          <button class="ui-btn secondary" type="button" (click)="closeMenuModal()">
+            <i class="fa-solid fa-xmark"></i>
+            <span>Cancelar</span>
+          </button>
+          <button class="ui-btn primary" type="submit" [disabled]="saving">
+            <i class="fa-solid fa-floppy-disk" *ngIf="!saving"></i>
+            <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i>
+            <span>{{ saving ? 'Guardando...' : (editingId ? 'Actualizar' : 'Guardar') }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Roles -->
+<div class="menu-modal-backdrop" *ngIf="showRolesModal" (click)="closeRolesModal()">
+  <div class="menu-modal-dialog role-modal-dialog" (click)="$event.stopPropagation()">
+    <div class="ui-modal__head">
+      <div class="role-modal-title">
+        <i class="fa-solid fa-user-shield"></i>
+        <div>
+          <h3>Permisos por Rol</h3>
+          <p>{{ selectedMenuForRoles?.descripcion }} (ID {{ selectedMenuForRoles?.idMenu }})</p>
+        </div>
+      </div>
+      <button class="close-btn" type="button" (click)="closeRolesModal()" title="Cerrar ventana">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body">
+      <!-- Asignación de rol -->
+      <div class="role-assignment-bar">
+        <div class="role-select-wrap">
+          <label class="ui-label">Rol disponible</label>
+          <select class="ui-control" [(ngModel)]="selectedRolId" [disabled]="savingRole">
+            <option [ngValue]="null">Seleccione un rol del sistema...</option>
+            <option *ngFor="let rol of rolesCatalog" [ngValue]="rol.idRol">
+              {{ rol.descripcion }} (ID {{ rol.idRol }})
+            </option>
+          </select>
+        </div>
+        <button
+          class="ui-btn primary btn-assign-role"
+          type="button"
+          [disabled]="!selectedRolId || savingRole"
+          (click)="asignarRolMenu()"
+        >
+          <i class="fa-solid fa-plus" *ngIf="!savingRole"></i>
+          <i class="fa-solid fa-spinner fa-spin" *ngIf="savingRole"></i>
+          <span>Asignar</span>
+        </button>
+      </div>
+
+      <!-- Lista de roles asignados -->
+      <div class="assigned-roles-section">
+        <div class="assigned-header">
+          <strong>Roles asignados actualmente</strong>
+          <span class="count-badge">{{ rolesAsignados.length }}</span>
+        </div>
+
+        <div class="roles-loading" *ngIf="loadingRoles">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>Consultando roles asignados...</span>
+        </div>
+
+        <div class="empty-roles" *ngIf="!loadingRoles && rolesAsignados.length === 0">
+          <i class="fa-solid fa-shield-slash"></i>
+          <span>Este menú no tiene roles restringidos (accesible según permisos generales).</span>
+        </div>
+
+        <div class="menu-role-list" *ngIf="!loadingRoles && rolesAsignados.length > 0">
+          <div class="menu-role-item" *ngFor="let r of rolesAsignados">
+            <div class="role-item-info">
+              <i class="fa-solid fa-id-badge"></i>
+              <span>{{ r.descripcionRol }}</span>
+            </div>
+            <button
+              class="btn-remove-role"
+              type="button"
+              title="Quitar rol"
+              (click)="quitarRolMenu(r)"
+            >
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,67 @@
+@if (visible()) {
+  <section
+    class="ui-panel ui-window-panel"
+    [class.is-minimized]="minimized()"
+    [class.is-flat]="!elevated()"
+    [attr.aria-labelledby]="panelId() + '-title'"
+  >
+    <header class="ui-panel__head">
+      <div class="ui-panel__title">
+        @if (showIcon() && icon()) {
+          <i [class]="icon()" aria-hidden="true"></i>
+        }
+        <span [id]="panelId() + '-title'">{{ title() }}</span>
+      </div>
+
+      <div class="ui-panel__actions ui-window-panel__actions">
+        <ng-content select="[panel-actions]" />
+
+        @if (minimizable() || closable()) {
+          <div class="ui-window-controls">
+            @if (minimizable()) {
+              <button
+                type="button"
+                class="ui-icon-btn ui-win-btn is-min"
+                [attr.aria-label]="minimized() ? 'Restaurar ' + title() : 'Minimizar ' + title()"
+                [attr.title]="minimized() ? 'Restaurar' : 'Minimizar'"
+                [attr.aria-expanded]="!minimized()"
+                [attr.aria-controls]="panelId() + '-body'"
+                (click)="toggleMinimized()"
+              >
+                <i
+                  [class]="minimized() ? 'fa-solid fa-plus' : 'fa-solid fa-minus'"
+                  aria-hidden="true"
+                ></i>
+              </button>
+            }
+
+            @if (closable()) {
+              <button
+                type="button"
+                class="ui-icon-btn ui-win-btn is-close"
+                [attr.aria-label]="'Cerrar ' + title()"
+                title="Cerrar"
+                (click)="close()"
+              >
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </header>
+
+    <div
+      class="ui-panel__body ui-window-panel__body"
+      [id]="panelId() + '-body'"
+      [hidden]="minimized()"
+      [style.padding]="bodyPadding()"
+    >
+      <ng-content />
+    </div>
+
+    <div class="ui-window-panel__footer" [hidden]="minimized()">
+      <ng-content select="[panel-footer]" />
+    </div>
+  </section>
+}

@@ -11,6 +11,12 @@ import { ToastService } from '../../../core/services/toast.service';
 
 import { AlertService } from '../../../core/services/alert.service';
 
+export interface RoleMenuTreeNode {
+  item: RoleMenuItem;
+  depth: number;
+  hasChildren: boolean;
+}
+
 @Component({
   selector: 'app-roles-admin',
   standalone: true,
@@ -25,17 +31,23 @@ export class RolesAdminComponent implements OnInit {
   saving = false;
   loadingRoleMenus = false;
   savingRoleMenu = false;
-  showPermissionsModal = false;
+  removingMenuId: number | null = null;
+  searchTerm = '';
 
+  // Modal de Crear / Editar Rol
+  showRoleModal = false;
+  editingId: number | null = null;
+  editingRoleName = '';
+  form: SaveRolAdminRequest = this.getDefaultForm();
+
+  // Catálogos
   roles: RolAdminItem[] = [];
   allMenus: DbMenuItem[] = [];
   roleMenus: RoleMenuItem[] = [];
 
-  editingId: number | null = null;
+  // Selección de rol y permisos
   selectedRoleId: number | null = null;
   selectedMenuId: number | null = null;
-
-  form: SaveRolAdminRequest = this.getDefaultForm();
 
   constructor(
     private readonly rolesService: RolesAdminService,
@@ -53,23 +65,126 @@ export class RolesAdminComponent implements OnInit {
     this.minimized = !this.minimized;
   }
 
-  loadRoles(): void {
+  get activeRolesCount(): number {
+    return this.roles.filter((r) => r.vigente === 1).length;
+  }
+
+  get filteredRoles(): RolAdminItem[] {
+    const term = this.searchTerm.trim().toLowerCase();
+    if (!term) return this.roles;
+    return this.roles.filter(
+      (r) =>
+        (r.nombre ?? '').toLowerCase().includes(term) ||
+        r.id.toString().includes(term)
+    );
+  }
+
+  get selectedRole(): RolAdminItem | null {
+    return this.roles.find((r) => r.id === this.selectedRoleId) ?? null;
+  }
+
+  get selectedRoleName(): string {
+    if (!this.selectedRoleId) {
+      return 'Sin rol seleccionado';
+    }
+    const role = this.selectedRole;
+    return role?.nombre?.trim() || `Rol #${this.selectedRoleId}`;
+  }
+
+  get availableMenus(): DbMenuItem[] {
+    const assigned = new Set(this.roleMenus.map((x) => x.idMenu));
+    return this.allMenus
+      .filter((m) => !assigned.has(m.idMenu))
+      .sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es', { sensitivity: 'base' }));
+  }
+
+  get roleMenuNodes(): RoleMenuTreeNode[] {
+    const ordered = [...this.roleMenus].sort(
+      (a, b) =>
+        a.idPadre - b.idPadre ||
+        a.descripcionMenu.localeCompare(b.descripcionMenu, 'es', { sensitivity: 'base' }) ||
+        a.posicion - b.posicion
+    );
+    const itemIds = new Set(ordered.map((item) => item.idMenu));
+    const childrenByParent = new Map<number, RoleMenuItem[]>();
+
+    for (const item of ordered) {
+      if (item.idPadre !== item.idMenu) {
+        const siblings = childrenByParent.get(item.idPadre) ?? [];
+        siblings.push(item);
+        childrenByParent.set(item.idPadre, siblings);
+      }
+    }
+
+    const roots = ordered.filter(
+      (item) => !itemIds.has(item.idPadre) || item.idPadre === 1 || item.idPadre === 0
+    );
+    const visited = new Set<number>();
+    const result: RoleMenuTreeNode[] = [];
+
+    const visit = (item: RoleMenuItem, depth: number): void => {
+      if (visited.has(item.idMenu)) return;
+      visited.add(item.idMenu);
+      const children = childrenByParent.get(item.idMenu) ?? [];
+      result.push({ item, depth: Math.min(depth, 5), hasChildren: children.length > 0 });
+      for (const child of children) {
+        visit(child, depth + 1);
+      }
+    };
+
+    for (const root of roots) {
+      visit(root, 0);
+    }
+    for (const item of ordered) {
+      if (!visited.has(item.idMenu)) {
+        visit(item, 0);
+      }
+    }
+    return result;
+  }
+
+  iconForNode(node: RoleMenuTreeNode): string {
+    if (node.hasChildren) {
+      return 'fa-solid fa-folder-tree';
+    }
+    const type = node.item.tipo?.trim().toLowerCase() ?? '';
+    return type.includes('extern') || type.includes('url') || type.includes('link')
+      ? 'fa-solid fa-arrow-up-right-from-square'
+      : type === 'pdf'
+        ? 'fa-solid fa-file-pdf'
+        : 'fa-solid fa-file-shield';
+  }
+
+  trackRoleById(_: number, item: RolAdminItem): number {
+    return item.id;
+  }
+
+  trackNodeById(_: number, node: RoleMenuTreeNode): number {
+    return node.item.idMenu;
+  }
+
+  clearSearch(): void {
+    this.searchTerm = '';
+  }
+
+  loadRoles(preferredId: number | null = this.selectedRoleId): void {
     this.loading = true;
     this.rolesService.getAll().subscribe({
       next: (data) => {
         this.roles = (data ?? []).slice().sort((a, b) => {
           const aa = (a.nombre ?? '').toString();
           const bb = (b.nombre ?? '').toString();
-          return aa.localeCompare(bb);
+          return aa.localeCompare(bb, 'es', { sensitivity: 'base' });
         });
 
-        if (this.selectedRoleId && !this.roles.some((r) => r.id === this.selectedRoleId)) {
+        const nextSelection =
+          this.roles.find((r) => r.id === preferredId) ?? this.roles[0] ?? null;
+
+        if (nextSelection) {
+          this.seleccionarRolPermisos(nextSelection);
+        } else {
           this.selectedRoleId = null;
           this.roleMenus = [];
-        }
-
-        if (!this.selectedRoleId && this.roles.length > 0) {
-          this.seleccionarRolPermisos(this.roles[0]);
         }
 
         this.loading = false;
@@ -88,7 +203,7 @@ export class RolesAdminComponent implements OnInit {
         this.allMenus = (items ?? [])
           .filter((x) => !this.isRaiz(x))
           .slice()
-          .sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcion.localeCompare(b.descripcion));
+          .sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcion.localeCompare(b.descripcion, 'es'));
       },
       error: () => {
         this.allMenus = [];
@@ -96,18 +211,41 @@ export class RolesAdminComponent implements OnInit {
     });
   }
 
-  nuevo(): void {
+  // --- MODAL DE CREACIÓN / EDICIÓN ---
+  openCreateRoleModal(): void {
     this.editingId = null;
+    this.editingRoleName = '';
     this.form = this.getDefaultForm();
+    this.showRoleModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch { /* ignore */ }
   }
 
-  editar(item: RolAdminItem): void {
+  openEditRoleModal(item: RolAdminItem, event?: Event): void {
+    if (event) event.stopPropagation();
     this.editingId = item.id;
+    this.editingRoleName = item.nombre ?? `Rol #${item.id}`;
     this.form = {
       id: item.id,
       nombre: (item.nombre ?? '').trim(),
       vigente: item.vigente === 0 ? 0 : 1
     };
+    this.showRoleModal = true;
+    try { document.body.classList.add('ui-modal-open'); } catch { /* ignore */ }
+  }
+
+  closeRoleModal(): void {
+    this.showRoleModal = false;
+    this.editingId = null;
+    this.editingRoleName = '';
+    try { document.body.classList.remove('ui-modal-open'); } catch { /* ignore */ }
+  }
+
+  nuevo(): void {
+    this.openCreateRoleModal();
+  }
+
+  editar(item: RolAdminItem, event?: Event): void {
+    this.openEditRoleModal(item, event);
   }
 
   guardar(): void {
@@ -117,16 +255,12 @@ export class RolesAdminComponent implements OnInit {
       return;
     }
 
-    // Sólo validar duplicados si el rol que estamos guardando quedará vigente/activo
     const formActive = Number(this.form.vigente) === 1;
-
-    
 
     if (formActive) {
       this.saving = true;
       const nombreNorm = this.normalizeForCompare(nombre);
 
-      // Recargar roles del servidor para validar contra el estado más reciente
       this.rolesService.getAll().subscribe({
         next: (data) => {
           const latest = (data ?? []);
@@ -138,8 +272,6 @@ export class RolesAdminComponent implements OnInit {
             return rNombreNorm === nombreNorm;
           });
 
-          
-
           if (duplicado) {
             this.saving = false;
             this.toast.warning('Roles', 'Ya existe un rol activo con ese nombre.');
@@ -150,7 +282,7 @@ export class RolesAdminComponent implements OnInit {
         },
         error: () => {
           this.saving = false;
-          this.toast.error('Roles', 'No fue posible validar duplicados. Intenta de nuevo.');
+          this.toast.error('Roles', 'No fue posible validar duplicados. Intente nuevamente.');
         }
       });
     } else {
@@ -175,8 +307,9 @@ export class RolesAdminComponent implements OnInit {
           }
 
           this.toast.success('Roles', resp.message || 'Rol guardado correctamente.');
-          this.nuevo();
-          this.loadRoles();
+          const targetId = resp.idRol ?? this.form.id ?? this.selectedRoleId;
+          this.closeRoleModal();
+          this.loadRoles(targetId);
         },
         error: (err) => {
           this.saving = false;
@@ -185,7 +318,8 @@ export class RolesAdminComponent implements OnInit {
       });
   }
 
-  async cambiarEstado(item: RolAdminItem): Promise<void> {
+  async cambiarEstado(item: RolAdminItem, event?: Event): Promise<void> {
+    if (event) event.stopPropagation();
     const nuevoEstado = item.vigente === 1 ? 0 : 1;
     const accion = nuevoEstado === 1 ? 'activar' : 'inactivar';
     const motivo = await this.alert.prompt(
@@ -206,12 +340,18 @@ export class RolesAdminComponent implements OnInit {
         }
 
         this.toast.success('Roles', resp.message || 'Estado actualizado.');
-        this.loadRoles();
+        item.vigente = nuevoEstado;
+        this.loadRoles(item.id);
       },
       error: (err) => {
         this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error actualizando estado.');
       }
     });
+  }
+
+  seleccionarRol(item: RolAdminItem, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.seleccionarRolPermisos(item);
   }
 
   seleccionarRolPermisos(item: RolAdminItem): void {
@@ -220,25 +360,11 @@ export class RolesAdminComponent implements OnInit {
     this.cargarMenusPorRol(item.id);
   }
 
-  openPermissionsModal(item: RolAdminItem): void {
-    this.seleccionarRolPermisos(item);
-    this.showPermissionsModal = true;
-    try { document.body.classList.add('ui-modal-open'); } catch (e) { /* ignore */ }
-  }
-
-  closePermissionsModal(): void {
-    this.showPermissionsModal = false;
-    this.selectedRoleId = null;
-    this.roleMenus = [];
-    this.selectedMenuId = null;
-    try { document.body.classList.remove('ui-modal-open'); } catch (e) { /* ignore */ }
-  }
-
   cargarMenusPorRol(idRol: number): void {
     this.loadingRoleMenus = true;
     this.menuService.getMenusByRol(idRol).subscribe({
       next: (data) => {
-        this.roleMenus = (data ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcionMenu.localeCompare(b.descripcionMenu));
+        this.roleMenus = (data ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcionMenu.localeCompare(b.descripcionMenu, 'es'));
         this.loadingRoleMenus = false;
       },
       error: (err) => {
@@ -249,19 +375,14 @@ export class RolesAdminComponent implements OnInit {
     });
   }
 
-  get availableMenus(): DbMenuItem[] {
-    const assigned = new Set(this.roleMenus.map((x) => x.idMenu));
-    return this.allMenus.filter((m) => !assigned.has(m.idMenu));
-  }
-
   asignarMenu(): void {
     if (!this.selectedRoleId || this.selectedRoleId <= 0) {
-      this.toast.warning('Permisos de menú', 'Selecciona un rol.');
+      this.toast.warning('Permisos de menú', 'Seleccione un rol.');
       return;
     }
 
     if (!this.selectedMenuId || this.selectedMenuId <= 0) {
-      this.toast.warning('Permisos de menú', 'Selecciona un menú.');
+      this.toast.warning('Permisos de menú', 'Seleccione un menú.');
       return;
     }
 
@@ -284,13 +405,16 @@ export class RolesAdminComponent implements OnInit {
     });
   }
 
-  quitarMenu(item: RoleMenuItem): void {
-    if (!this.selectedRoleId || this.selectedRoleId <= 0) {
+  quitarMenu(item: RoleMenuItem, event?: Event): void {
+    if (event) event.stopPropagation();
+    if (!this.selectedRoleId || this.selectedRoleId <= 0 || this.removingMenuId !== null) {
       return;
     }
 
+    this.removingMenuId = item.idMenu;
     this.menuService.removeMenuFromRol(this.selectedRoleId, item.idMenu).subscribe({
       next: (resp) => {
+        this.removingMenuId = null;
         if (!resp?.success) {
           this.toast.warning('Permisos de menú', resp?.message || 'No fue posible quitar menú.');
           return;
@@ -299,21 +423,14 @@ export class RolesAdminComponent implements OnInit {
         this.cargarMenusPorRol(this.selectedRoleId!);
       },
       error: (err) => {
+        this.removingMenuId = null;
         this.toast.error('Permisos de menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando menú.');
       }
     });
   }
 
-  get selectedRoleName(): string {
-    if (!this.selectedRoleId) {
-      return 'Sin rol seleccionado';
-    }
-    const role = this.roles.find((r) => r.id === this.selectedRoleId);
-    return role?.nombre?.trim() || `Rol ${this.selectedRoleId}`;
-  }
-
   formatMenuLabel(menu: DbMenuItem): string {
-    const prefix = menu.idPadre === 1 ? '' : '\u21B3 ';
+    const prefix = menu.idPadre === 1 ? '' : '↳ ';
     return `${prefix}${menu.descripcion} (ID ${menu.idMenu})`;
   }
 
@@ -332,13 +449,11 @@ export class RolesAdminComponent implements OnInit {
   private normalizeForCompare(value: string): string {
     return (value ?? '')
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-      .replace(/\u00A0/g, ' ') // no-break spaces to normal spaces
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // remove control chars
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\u00A0/g, ' ')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
   }
 }
-
-

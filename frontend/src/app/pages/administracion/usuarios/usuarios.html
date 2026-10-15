@@ -15,16 +15,19 @@
 
     <div class="ui-panel__body" *ngIf="!minimized">
       <div class="admin-grid" *ngIf="user; else emptyState">
+        <!-- Columna Izquierda: Tarjeta de perfil y resumen de acceso -->
         <aside class="left-column">
           <article class="profile-card">
             <div class="profile-card__cover" [class.inactive]="!user.activo"></div>
             <div class="profile-card__body">
-              <img class="profile-avatar"
+              <img
+                class="profile-avatar"
                 [src]="user.fotoUrl || 'https://ui-avatars.com/api/?name=' + user.nombreCompleto + '&background=002a66&color=fff&size=160'"
-                alt="Foto de usuario">
+                alt="Foto de usuario"
+              />
 
               <h3 class="profile-name">{{ user.nombreCompleto }}</h3>
-              <p class="profile-role">{{ user.cargo }}</p>
+              <p class="profile-role">{{ user.usuarioEmpresarial || user.cargo || 'Usuario empresarial' }}</p>
 
               <div class="state-box">
                 <div>
@@ -33,15 +36,21 @@
                     {{ user.activo ? 'ACTIVO' : 'INACTIVO' }}
                   </span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <button class="ui-icon-btn" type="button" title="Ver como este usuario" (click)="impersonarUsuarioActual()"
-                    *ngIf="rolesVigentes.length > 0">
-                    <i class="fa-solid fa-user-secret"></i>
-                  </button>
-                  <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
-                    <span></span>
-                  </button>
-                </div>
+                <!-- Toggle institucional estilo update-plantilla -->
+                <button
+                  class="ui-toggle ui-toggle--sm ui-toggle--institutional"
+                  type="button"
+                  [class.is-checked]="user.activo"
+                  (click)="toggleEstadoUsuario()"
+                  title="Cambiar estado del usuario"
+                  aria-label="Cambiar estado del usuario"
+                >
+                  <span class="ui-toggle__track">
+                    <span class="ui-toggle__thumb">
+                      <i [class]="user.activo ? 'fa-solid fa-check' : 'fa-solid fa-xmark'"></i>
+                    </span>
+                  </span>
+                </button>
               </div>
             </div>
           </article>
@@ -59,258 +68,490 @@
           </article>
         </aside>
 
-        <aside class="right-column">
-          <div class="tabs-shell">
-            <button type="button" class="tab-btn" [class.active]="activeTab === 'datos'" (click)="setTab('datos')">
-              <i class="fa-solid fa-user"></i>
-              Datos personales
-            </button>
+        <!-- Columna Derecha: Tabs con Datos Personales y Roles -->
+        <section class="right-column">
+          <div class="ui-tabs ui-tabs--navigation is-stretched" [class.has-form-footer]="activeTab !== 'roles'">
+            <div class="ui-tabs__list" role="tablist" aria-label="Administración del usuario">
+              <button
+                type="button"
+                class="ui-tabs__tab"
+                [class.is-active]="activeTab === 'datos'"
+                (click)="setTab('datos')"
+              >
+                <i class="fa-solid fa-address-card" aria-hidden="true"></i>
+                <span>Datos personales</span>
+              </button>
 
-            <button type="button" class="tab-btn" [class.active]="activeTab === 'roles'" (click)="setTab('roles')">
-              <i class="fa-solid fa-shield-halved"></i>
-              Roles y permisos
-            </button>
-          </div>
+              <button
+                type="button"
+                class="ui-tabs__tab"
+                [class.is-active]="activeTab === 'roles'"
+                (click)="setTab('roles')"
+              >
+                <i class="fa-solid fa-key" aria-hidden="true"></i>
+                <span>Roles y permisos</span>
+                <small class="ui-tabs__badge" *ngIf="activeRolesCount > 0">{{ activeRolesCount }}</small>
+              </button>
+            </div>
 
-          <article class="tab-card" *ngIf="activeTab === 'datos'">
-            <div class="ui-grid">
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Identificación</label>
-                <div class="ui-input-group">
-                  <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040"
-                    inputmode="numeric" pattern="[0-9]*"
-                    (keypress)="onlyNumbers($event)"
-                    (input)="onSearchIdentInput($event)"
-                    (keyup.enter)="consultarUsuario()">
-                  <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()"
-                    [disabled]="loading">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                  </button>
+            <!-- Panel 1: Datos Personales -->
+            <div class="ui-tabs__panel" *ngIf="activeTab === 'datos'">
+              <div class="tab-content">
+                <div class="ui-grid user-data-grid">
+                  <!-- Buscador dentro de la grilla (columna 1) -->
+                  <div class="ui-col-6">
+                    <div class="search-field">
+                      <span class="search-field__label">Buscar usuario</span>
+                      <div class="search-field__control search-field__control--detached">
+                        <div class="search-field__shell">
+                          <input
+                            class="search-field__input"
+                            type="text"
+                            [(ngModel)]="searchIdentification"
+                            placeholder="Identificación, nombre o grado"
+                            (keyup.enter)="consultarUsuario()"
+                          />
+                          <button
+                            *ngIf="searchIdentification"
+                            type="button"
+                            class="search-field__clear"
+                            (click)="searchIdentification = ''"
+                            title="Limpiar"
+                          >×</button>
+                        </div>
+                        <button
+                          class="ui-btn primary search-field__button"
+                          type="button"
+                          (click)="consultarUsuario()"
+                          [disabled]="loading"
+                        >
+                          <i class="fa-solid fa-magnifying-glass" *ngIf="!loading"></i>
+                          <i class="fa-solid fa-circle-notch fa-spin" *ngIf="loading"></i>
+                          <span>{{ loading ? 'Consultando...' : 'Buscar' }}</span>
+                        </button>
+                      </div>
+                      <small class="search-field__hint">Con identificación, presione Buscar.</small>
+                    </div>
+                  </div>
+
+                  <!-- Identificación -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Identificación</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.identificacion" readonly />
+                        <i class="form-field__icon fa-solid fa-id-card"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Nombre completo -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Nombre completo</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.nombreCompleto" readonly />
+                        <i class="form-field__icon fa-solid fa-user"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Usuario empresarial -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Usuario empresarial</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.usuarioEmpresarial" readonly />
+                        <i class="form-field__icon fa-solid fa-user-tie"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Grado -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Grado</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.grado || 'Sin dato'" readonly />
+                        <i class="form-field__icon fa-solid fa-award"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Sigla grado -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Sigla grado</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.gradAlfabetico || 'Sin dato'" readonly />
+                        <i class="form-field__icon fa-solid fa-certificate"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Correo institucional -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Correo institucional</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="email" [value]="user.email || 'Sin correo'" readonly />
+                        <i class="form-field__icon fa-solid fa-envelope"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Teléfono -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Teléfono</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.telefono || 'Sin teléfono'" readonly />
+                        <i class="form-field__icon fa-solid fa-phone"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Situación laboral -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Situación laboral</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.situacionLaboral || 'Sin dato'" readonly />
+                        <i class="form-field__icon fa-solid fa-user-check"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Cargo -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Cargo</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.cargo || 'Sin cargo'" readonly />
+                        <i class="form-field__icon fa-solid fa-briefcase"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Unidad -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Unidad</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.unidadFisica || 'Sin unidad'" readonly />
+                        <i class="form-field__icon fa-solid fa-building"></i>
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Grupo donde labora -->
+                  <div class="ui-col-6">
+                    <label class="form-field">
+                      <span class="form-field__label">Grupo donde labora</span>
+                      <span class="form-field__control">
+                        <input class="form-field__native" type="text" [value]="user.unidad || 'Sin grupo'" readonly />
+                        <i class="form-field__icon fa-solid fa-sitemap"></i>
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Usuario empresarial</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.usuarioEmpresarial" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Grado</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.grado" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Nombre completo</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.nombreCompleto" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Correo institucional</label>
-                <input class="ui-control" type="email" [(ngModel)]="user.email" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Teléfono</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.telefono" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Situación laboral</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.situacionLaboral" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Unidad</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.unidadFisica" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Grupo donde labora</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.unidad" readonly>
-              </div>
-
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Cargo</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.cargo" readonly>
-              </div>
-
             </div>
 
-            <div class="tab-actions" *ngIf="activeTab === 'datos'">
-              <div class="tab-actions tab-actions--separated" *ngIf="activeTab === 'datos'">
-                <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
-                  <i class="fa-solid fa-floppy-disk"></i>
-                  {{ loading ? 'Guardando...' : 'Guardar' }}
-                </button>
-
-                <button class="ui-btn secondary" type="button" (click)="prepararNuevoUsuario()" *ngIf="user">
-                  <i class="fa-solid fa-user-plus"></i>
-                  Nuevo usuario
-                </button>
-              </div>
-            </div>
-
-          </article>
-          <article class="tab-card" *ngIf="activeTab === 'roles'">
-            <div class="ui-table-wrap" *ngIf="rolesVigentes.length > 0; else noRoles">
-              <table class="ui-table">
-                <thead class="thead-usuario">
-                  <tr>
-                    <th>Rol</th>
-                    <th>Estado</th>
-                    <th>Expira en</th>
-                    <th>Justificación</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let rol of rolesVigentes">
-                    <td>{{ rol.nombre }}</td>
-                    <td>
-                      <span class="ui-badge" [class.success]="rol.estado === 'Vigente'" [class.warning]="rol.estado === 'Vencido'">
-                        {{ rol.estado }}
-                      </span>
-                    </td>
-                    <td>{{ tiempoRestante(rol.fechaExpiracion) }}</td>
-                    <td>{{ rol.justificacion || 'Sin justificación' }}</td>
-                    <td>
-                      <div class="table-actions">
-                        <button class="ui-btn secondary" type="button" title="Editar" (click)="prepararEdicionRol(rol)">
-                          <i class="fa-solid fa-pen-to-square"></i>
-                        </button>                        
-                        <button class=" ui-btn danger" type="button" title="Retirar rol"
-                          (click)="eliminarRol(rol)"                          
-                          [disabled]="deletingRoleId === rol.id">
-                          <i class="fa-solid fa-trash"></i>
-                        </button>
-
-                        <!-- <button class=" ui-btn danger" type="button" title="Retirar rol"
-                          (click)="eliminarRol(rol)"
-                          *ngIf="rol.id === superAdministradorRolId"
-                          [disabled]="deletingRoleId === rol.id">
-                          <i class="fa-solid fa-trash"></i>
-                        </button> -->
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <ng-template #noRoles>
-              <div class="news-state">
-                El usuario no tiene roles asignados actualmente.
-              </div>
-            </ng-template>
-
-           
-
-            <div class="tab-actions" >
-              <div class="tab-actions tab-actions--separated" >
-                <button class="ui-btn secondary" type="button" (click)="agregarRol()">
-                <i class="fa-solid fa-plus"></i>
-                Agregar rol
+            <!-- Footer con acciones unido al panel de datos personales -->
+            <footer class="form-footer" *ngIf="activeTab === 'datos'">
+              <button
+                class="ui-btn primary"
+                type="button"
+                (click)="guardarDatosUsuario()"
+                [disabled]="loading"
+              >
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>{{ loading ? 'Guardando...' : 'Guardar usuario' }}</span>
               </button>
-              </div>
+
+              <button
+                class="ui-btn secondary"
+                type="button"
+                (click)="prepararNuevoUsuario()"
+              >
+                <i class="fa-solid fa-eraser"></i>
+                <span>Limpiar</span>
+              </button>
+            </footer>
+
+            <!-- Panel 2: Roles y Permisos -->
+            <div class="ui-tabs__panel is-panel-flush" *ngIf="activeTab === 'roles'">
+              <article class="access-section">
+                <header class="ui-section-header is-compact">
+                  <span class="ui-section-header__icon" aria-hidden="true">
+                    <i class="fa-solid fa-key"></i>
+                  </span>
+
+                  <div class="ui-section-header__content">
+                    <small>ROLES Y PERMISOS</small>
+                    <h2 id="usuarios-roles-title">Control de acceso</h2>
+                    <p>Roles vigentes asociados al usuario consultado.</p>
+                  </div>
+
+                  <div class="ui-section-header__actions">
+                    <span class="ui-status-chip ui-status-chip--xs ui-status-chip--outline ui-status-chip--success" *ngIf="rolesVigentes.length > 0">
+                      <span class="ui-status-chip__dot"></span>
+                      <span class="ui-status-chip__label">
+                        <strong class="ui-status-chip__value">{{ activeRolesCount }}</strong> vigentes
+                      </span>
+                    </span>
+
+                    <button class="ui-btn primary btn-sm" type="button" (click)="agregarRol()">
+                      <i class="fa-solid fa-plus"></i>
+                      <span>Agregar rol</span>
+                    </button>
+                  </div>
+                </header>
+
+                <div class="access-section__content">
+                  <div class="roles-table-wrap" *ngIf="rolesVigentes.length > 0; else noRoles">
+                    <table class="ui-table roles-table">
+                      <thead>
+                        <tr>
+                          <th>Rol</th>
+                          <th class="align-center">Estado</th>
+                          <th>Fecha expiración</th>
+                          <th>Justificación</th>
+                          <th class="align-center">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let rol of rolesVigentes">
+                          <td>
+                            <strong class="role-name-text">{{ rol.nombre }}</strong>
+                          </td>
+                          <td class="align-center">
+                            <span class="role-status-badge" [class.success]="rol.estado === 'Vigente'" [class.warning]="rol.estado === 'Vencido'">
+                              <i [class]="rol.estado === 'Vigente' ? 'fa-solid fa-check' : 'fa-solid fa-triangle-exclamation'"></i>
+                              {{ rol.estado }}
+                            </span>
+                          </td>
+                          <td>
+                            <span class="expiration-date">{{ rol.fechaExpiracion || 'Sin fecha' }}</span>
+                            <small class="expiration-countdown" *ngIf="rol.fechaExpiracion">({{ tiempoRestante(rol.fechaExpiracion) }})</small>
+                          </td>
+                          <td>
+                            <span class="justification-text">{{ rol.justificacion || 'Sin justificación' }}</span>
+                          </td>
+                          <td class="align-center">
+                            <div class="table-actions">
+                              <button
+                                class="action-btn action-btn--edit"
+                                type="button"
+                                title="Editar vigencia y justificación"
+                                (click)="prepararEdicionRol(rol)"
+                              >
+                                <i class="fa-solid fa-pen-to-square"></i>
+                              </button>
+                              <button
+                                class="action-btn action-btn--delete"
+                                type="button"
+                                title="Retirar rol"
+                                (click)="eliminarRol(rol)"
+                                [disabled]="deletingRoleId === rol.id"
+                              >
+                                <i class="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <ng-template #noRoles>
+                    <div class="empty-roles-box">
+                      <i class="fa-solid fa-shield-halved"></i>
+                      <strong>Sin roles asignados</strong>
+                      <p>El usuario no tiene roles asignados actualmente. Presione "Agregar rol" para registrar una asignación.</p>
+                    </div>
+                  </ng-template>
+                </div>
+              </article>
             </div>
-
-          </article>
-        </aside>
-
+          </div>
+        </section>
       </div>
 
+      <!-- Estado inicial vacío: buscador destacado -->
       <ng-template #emptyState>
         <div class="empty-state">
           <i class="fa-solid fa-user-plus"></i>
           <h3>Consulta un usuario para iniciar</h3>
-          <p>Ingresa la identificación y consulta para administrar datos y permisos.</p>
+          <p>Digite una identificación o encuentre al funcionario por documento.</p>
 
           <div class="empty-search">
-            <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Identificación"
-              inputmode="numeric" pattern="[0-9]*"
-              (keypress)="onlyNumbers($event)"
-              (input)="onSearchIdentInput($event)"
-              (keyup.enter)="consultarUsuario()">
-            <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              {{ loading ? 'Consultando...' : 'Consultar' }}
-            </button>
+            <div class="search-field">
+              <span class="search-field__label">Buscar usuario</span>
+              <div class="search-field__control search-field__control--detached">
+                <div class="search-field__shell">
+                  <input
+                    class="search-field__input"
+                    type="text"
+                    [(ngModel)]="searchIdentification"
+                    placeholder="Identificación, nombre, apellido o grado"
+                    (keyup.enter)="consultarUsuario()"
+                  />
+                  <button
+                    *ngIf="searchIdentification"
+                    type="button"
+                    class="search-field__clear"
+                    (click)="searchIdentification = ''"
+                    title="Limpiar"
+                  >×</button>
+                </div>
+                <button
+                  class="ui-btn primary search-field__button"
+                  type="button"
+                  (click)="consultarUsuario()"
+                  [disabled]="loading"
+                >
+                  <i class="fa-solid fa-magnifying-glass" *ngIf="!loading"></i>
+                  <i class="fa-solid fa-circle-notch fa-spin" *ngIf="loading"></i>
+                  <span>{{ loading ? 'Consultando usuario' : 'Buscar usuario' }}</span>
+                </button>
+              </div>
+              <small class="search-field__hint">Con identificación, presione Buscar.</small>
+            </div>
           </div>
         </div>
       </ng-template>
-
-
     </div>
   </div>
 
 
   <!-- tabla de Usuarios existentes -->
-  <div class="ui-panel users-table-card">
-    <div class="ui-panel__head">
-      <div class="ui-panel__title">
-        <i class="fa-solid fa-users"></i>
-        Usuarios existentes
-      </div>
-      <div class="ui-panel__actions">
-        <span class="ui-badge info" *ngIf="totalUsuariosListado > 0">
-          Registros: {{ totalUsuariosListado }}
+  <div class="users-existing__panel">
+    <header class="users-existing__header">
+      <div class="users-existing__header-copy">
+        <span class="users-existing__header-icon">
+          <i class="fa-solid fa-users-gear"></i>
         </span>
+        <div class="users-existing__header-text">
+          <h2 class="users-existing__title">Usuarios existentes</h2>
+          <p class="users-existing__desc">Consulte y administre los usuarios registrados en el sistema.</p>
+        </div>
       </div>
-    </div>
 
-    <div class="ui-panel__body">
-      
-      <div class="ui-table-wrap">
-        <div class="empty-state" *ngIf="loadingListado">
+      <div class="users-existing__header-actions">
+        <div class="users-count-badge" *ngIf="totalUsuariosListado > 0">
+          <i class="fa-solid fa-user-group"></i>
+          <span><strong>{{ totalUsuariosListado }}</strong> usuarios</span>
+        </div>
+
+        <div class="users-search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+          <input
+            type="text"
+            class="users-search-input"
+            [(ngModel)]="searchNombreListado"
+            (ngModelChange)="onSearchNombreListadoChange()"
+            placeholder="Buscar por nombre o usuario empresarial..."
+            aria-label="Buscar por nombre o usuario empresarial"
+          />
+          <button
+            *ngIf="searchNombreListado"
+            type="button"
+            class="btn-clear-search"
+            (click)="clearSearchNombreListado()"
+            title="Limpiar búsqueda"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="users-existing__content">
+      <!-- Toolbar con selector de cantidad y resumen -->
+      <div class="users-table-toolbar">
+        <div class="toolbar-summary" *ngIf="totalUsuariosListado > 0 && !loadingListado">
+          Mostrando <strong>{{ startItemIndex }} - {{ endItemIndex }}</strong> de <strong>{{ totalUsuariosListado }}</strong> registros
+          <small class="search-hint-inline" *ngIf="isSearchMode && (searchNombreListado || '').trim().length < minSearchChars">
+            (mínimo {{ minSearchChars }} caracteres para filtrar)
+          </small>
+        </div>
+
+        <div class="toolbar-page-size">
+          <label for="pageSizeSelect">Mostrar</label>
+          <select
+            id="pageSizeSelect"
+            class="page-size-select"
+            [(ngModel)]="pageSize"
+            (ngModelChange)="onPageSizeChange($event)"
+          >
+            <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+          </select>
+          <span>por página</span>
+        </div>
+      </div>
+
+      <!-- Contenedor con scroll y tabla -->
+      <div class="users-table-viewport">
+        <div class="users-table-loading" *ngIf="loadingListado">
           <i class="fa-solid fa-circle-notch fa-spin"></i>
           <p>Consultando usuarios...</p>
         </div>
 
-        <div class="table-controls" *ngIf="!loadingListado" style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
-          <div class="search-group">
-            <label class="ui-label" style="margin:0;">Buscar</label>
-            <input class="ui-control" type="text" [(ngModel)]="searchNombreListado"
-              (ngModelChange)="onSearchNombreListadoChange()" placeholder="Escribe un nombre"
-              style="min-width:260px;" />
-            <small class="search-hint" style="margin-left:6px;color:#666;white-space: nowrap;">(mínimo {{ minSearchChars }} caracteres)...</small>
-          </div>
-
-          <div class="search-mostrar ">
-            <label style="margin:0;">Mostrar</label>
-            <select class="ui-control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)" style="width:100px;">
-              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
-            </select>
-            <span>por página</span>
-          </div>
-        </div>
-
-        <table class="ui-table" *ngIf="!loadingListado">
+        <table class="ui-table users-table" *ngIf="!loadingListado">
           <thead>
             <tr>
-              <th>Usuario empresarial</th>
-              <th>Grado y nombre</th>
-              <th>Rol</th>
-              <th>Fecha vencimiento rol</th>
-              <th>Acciones</th>
+              <th class="col-username">Usuario empresarial</th>
+              <th class="col-name">Grado y nombre</th>
+              <th class="col-roles align-center">Roles</th>
+              <th class="col-actions align-center">Acciones</th>
             </tr>
           </thead>
           <tbody *ngIf="usuariosListado.length > 0; else noUsersTable">
-            <tr *ngFor="let item of usuariosListadoPaginado">
-              <td>{{ item.username || 'N/A' }}</td>
-              <td>{{ item.nombreCompleto || 'N/A' }}</td>
-              <td>{{ item.rol || 'Sin rol' }}</td>
-              <td>{{ item.fechaFinRol || 'Sin fecha' }}</td>
-              <td>
+            <tr
+              *ngFor="let item of usuariosListadoPaginado"
+              [class.is-selected]="isUserSelected(item)"
+            >
+              <td class="col-username">
+                <span class="username-pill">{{ item.username || 'N/A' }}</span>
+              </td>
+              <td class="col-name">
+                <span class="user-fullname">{{ item.nombreCompleto || 'N/A' }}</span>
+              </td>
+              <td class="col-roles align-center">
+                <app-usuario-roles-dropdown
+                  [roles]="item.rol"
+                  [vencimientos]="item.fechaFinRol || ''"
+                  [contextLabel]="item.identificacion || item.username"
+                ></app-usuario-roles-dropdown>
+              </td>
+              <td class="col-actions align-center">
                 <div class="table-actions">
-                  <button class="ui-btn secondary" type="button" (click)="editarDesdeListado(item)">
+                  <button
+                    class="action-btn action-btn--edit"
+                    type="button"
+                    title="Editar datos del usuario"
+                    (click)="editarDesdeListado(item)"
+                  >
                     <i class="fa-solid fa-pen-to-square"></i>
                   </button>
-                  <button class="ui-btn secondary" type="button" title="Ver como este usuario"
-                    (click)="impersonarDesdeListado(item)">
+
+                  <button
+                    class="action-btn action-btn--impersonate"
+                    type="button"
+                    title="Ver como este usuario"
+                    (click)="impersonarDesdeListado(item)"
+                  >
                     <i class="fa-solid fa-user-secret"></i>
                   </button>
-                  <button class="ui-btn secondary danger" type="button" (click)="abrirModalEliminarUsuario(item)">
+
+                  <button
+                    class="action-btn action-btn--delete"
+                    type="button"
+                    title="Eliminar usuario"
+                    (click)="abrirModalEliminarUsuario(item)"
+                  >
                     <i class="fa-solid fa-user-xmark"></i>
                   </button>
                 </div>
@@ -319,91 +560,137 @@
           </tbody>
         </table>
 
-        <div class="table-pagination" *ngIf="totalUsuariosListado > 0">
-          <div class="pagination-actions pagination-numbers">
-            <button class="ui-icon-btn" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
-              <i class="fa-solid fa-chevron-left"></i>
-            </button>
-
-            <ng-container *ngFor="let p of pageNumbers">
-              <button *ngIf="p !== '...'" class="ui-btn page-btn" type="button" [class.page-active]="p === currentPage"
-                (click)="onPageClick(p)">
-                {{ p }}
-              </button>
-              <span *ngIf="p === '...'" class="page-dots">...</span>
-            </ng-container>
-
-            <button class="ui-icon-btn" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
-              <i class="fa-solid fa-chevron-right"></i>
-            </button>
+        <ng-template #noUsersTable>
+          <div class="users-table-empty">
+            <i class="fa-solid fa-users-slash"></i>
+            <strong>{{ isSearchMode ? 'Sin coincidencias' : 'No hay usuarios registrados' }}</strong>
+            <p>{{
+              isSearchMode
+                ? ((searchNombreListado || '').trim().length < minSearchChars
+                  ? ('Escribe mínimo ' + minSearchChars + ' caracteres para activar la búsqueda.')
+                  : 'No se encontraron resultados para la búsqueda actual.')
+                : 'No se encontraron usuarios para mostrar en este momento.'
+            }}</p>
           </div>
-        </div>
+        </ng-template>
       </div>
 
-      <ng-template #noUsersTable>
-        <tr>
-          <td colspan="5">
-            <div class="empty-state">
-              <i class="fa-solid fa-users"></i>
-              <p>{{
-                isSearchMode
-                ? ((searchNombreListado || '').trim().length < minSearchChars ? ('Escribe mínimo ' + minSearchChars + '
-                  caracteres para activar la búsqueda.') : 'No hay resultados para la búsqueda.' )
-                  : 'No hay usuarios para mostrar.' }}</p>
-            </div>
-          </td>
-        </tr>
-      </ng-template>
+      <!-- Paginador institucional -->
+      <footer class="users-table-pagination" *ngIf="totalUsuariosListado > 0 && !loadingListado">
+        <div class="pagination-counter">
+          Página <strong>{{ currentPage }}</strong> de <strong>{{ totalPaginasListado }}</strong>
+        </div>
+
+        <nav class="pagination-nav-group" aria-label="Navegación de páginas">
+          <button
+            class="pagination-btn pagination-arrow"
+            type="button"
+            (click)="prevPaginaListado()"
+            [disabled]="!canGoPrevListado()"
+            title="Página anterior"
+          >
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+
+          <ng-container *ngFor="let p of pageNumbers">
+            <button
+              *ngIf="p !== '...'"
+              class="pagination-btn pagination-number"
+              type="button"
+              [class.is-active]="p === currentPage"
+              (click)="onPageClick(p)"
+            >
+              {{ p }}
+            </button>
+            <span *ngIf="p === '...'" class="pagination-dots">...</span>
+          </ng-container>
+
+          <button
+            class="pagination-btn pagination-arrow"
+            type="button"
+            (click)="nextPaginaListado()"
+            [disabled]="!canGoNextListado()"
+            title="Página siguiente"
+          >
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </nav>
+      </footer>
     </div>
   </div>
 
   <!-- Modal Asignar / Editar Rol -->
   <div class="ui-modal" *ngIf="showAddRoleForm" (click)="$event.stopPropagation()">
-    <div class="ui-modal__dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-      <div class="ui-modal__head">
-        <div class="ui-modal__title">
-          <i class="fa-solid fa-shield-halved"></i>
-          {{ editingRole ? 'Editar rol' : 'Asignar rol' }}
+    <div class="ui-modal__dialog ui-modal__dialog--lg" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <header class="ui-modal__head">
+        <div class="ui-modal__heading">
+          <span class="ui-modal__icon">
+            <i class="fa-solid fa-shield-halved"></i>
+          </span>
+          <div class="ui-modal__heading-copy">
+            <h3 class="ui-modal__title">{{ editingRole ? 'Editar rol asignado' : 'Asignar rol' }}</h3>
+            <p class="ui-modal__subtitle">
+              {{ editingRole ? 'Actualiza la vigencia y la justificación del rol seleccionado.' : 'Selecciona el rol, define su vigencia y registra la justificación.' }}
+            </p>
+          </div>
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cancelarNuevoRol()">
+        <button class="ui-modal__close" type="button" (click)="cancelarNuevoRol()" title="Cerrar ventana">
           <i class="fa-solid fa-xmark"></i>
         </button>
-      </div>
+      </header>
+
       <div class="ui-modal__body">
-        <div class="ui-grid">
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Rol</label>
-            <select class="ui-control" [(ngModel)]="newRole.rolId" [disabled]="editingRole !== null">
-              <option [ngValue]="null">Seleccione un rol</option>
-              <option *ngFor="let role of rolesCatalogo" [ngValue]="role.id">
-                {{ role.nombre || ('Rol ' + role.id) }}
-              </option>
-            </select>
+        <div class="ui-grid role-modal-grid">
+          <div class="ui-col-6">
+            <label class="form-field">
+              <span class="form-field__label">Rol</span>
+              <span class="form-field__control">
+                <select class="form-field__native" [(ngModel)]="newRole.rolId" [disabled]="editingRole !== null">
+                  <option [ngValue]="null">Seleccione un rol</option>
+                  <option *ngFor="let role of rolesCatalogo" [ngValue]="role.id">
+                    {{ role.nombre || ('Rol ' + role.id) }}
+                  </option>
+                </select>
+              </span>
+            </label>
           </div>
 
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Fecha fin</label>
-            <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
+          <div class="ui-col-6">
+            <label class="form-field">
+              <span class="form-field__label">Fecha fin</span>
+              <span class="form-field__control">
+                <input class="form-field__native" type="date" [(ngModel)]="newRole.fechaFin" />
+                <i class="form-field__icon fa-solid fa-calendar-days"></i>
+              </span>
+            </label>
           </div>
 
-          <div class="ui-field ui-col-12">
-            <label class="ui-label">Justificación</label>
-            <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion"
-              placeholder="Motivo de la asignación"></textarea>
+          <div class="ui-col-12">
+            <label class="form-field form-field--multiline">
+              <span class="form-field__label">Justificación</span>
+              <span class="form-field__control">
+                <textarea
+                  class="form-field__native"
+                  rows="3"
+                  [(ngModel)]="newRole.justificacion"
+                  placeholder="Motivo de la asignación"
+                ></textarea>
+              </span>
+            </label>
           </div>
-        </div>
-
-        <div class="ui-toolbar">
-          <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
-            <i class="fa-solid fa-floppy-disk"></i>
-            {{ savingRole ? 'Guardando...' : (editingRole ? 'Actualizar cambios' : 'Guardar rol') }}
-          </button>
-          <button class="ui-btn outline" type="button" (click)="cancelarNuevoRol()" [disabled]="savingRole">
-            <i class="fa-solid fa-xmark"></i>
-            Cancelar
-          </button>
         </div>
       </div>
+
+      <footer class="ui-modal__foot">
+        <button class="ui-btn secondary" type="button" (click)="cancelarNuevoRol()" [disabled]="savingRole">
+          <i class="fa-solid fa-ban"></i>
+          <span>Cancelar</span>
+        </button>
+        <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole || !newRole.rolId || !newRole.fechaFin">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>{{ savingRole ? 'Guardando...' : (editingRole ? 'Actualizar cambios' : 'Guardar rol') }}</span>
+        </button>
+      </footer>
     </div>
   </div>
 
@@ -415,10 +702,7 @@
         <strong>ELIMINAR</strong>.
       </p>
 
-      <input class="ui-control" type="text" [(ngModel)]="deleteConfirmText" placeholder="Escribe ELIMINAR" style="margin-bottom: 12px;">
-
-      <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ui-text, #333);">Motivo de la eliminación:</label>
-      <textarea class="ui-control" rows="3" [(ngModel)]="deleteReason" placeholder="Ingrese la justificación u observación..."></textarea>
+      <input class="ui-control" type="text" [(ngModel)]="deleteConfirmText" placeholder="Escribe ELIMINAR">
 
       <div class="tab-actions">
         <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">

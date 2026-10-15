@@ -1,0 +1,32 @@
+<section class="autocomplete-demo ui-panel">
+  <header class="autocomplete-demo__header">
+    <span class="autocomplete-demo__number">19</span>
+    <div>
+      <h2>Autocompletar</h2>
+      <p>Búsqueda por escritura con selección única y compatibilidad con formularios reactivos.</p>
+    </div>
+  </header>
+
+  <div class="autocomplete-demo__body">
+    <article>
+      <h3>Búsqueda de funcionario</h3>
+      <p>Escriba al menos dos caracteres; el panel se abre fuera de contenedores recortados.</p>
+
+      <form [formGroup]="formulario" (ngSubmit)="validar()">
+        <app-ui-autocomplete
+          formControlName="funcionario"
+          label="Remitir a funcionario por nombre"
+          placeholder="Escriba nombre, apellido o grado"
+          hint="También busca identificación y dependencia."
+          [options]="funcionarios"
+          [required]="true"
+          [error]="errorFuncionario()"
+        />
+
+        <app-ui-button type="submit" variant="primary">Validar ejemplo</app-ui-button>
+      </form>
+    </article>
+
+    <pre><code>{{ ejemplo }}</code></pre>
+  </div>
+</section>

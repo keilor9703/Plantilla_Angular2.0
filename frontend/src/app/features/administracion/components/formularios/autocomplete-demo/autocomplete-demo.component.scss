@@ -1,0 +1,106 @@
+:host {
+  display: block;
+  margin-top: 12px;
+}
+
+.autocomplete-demo {
+  overflow: hidden;
+}
+
+.autocomplete-demo__header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.autocomplete-demo__number {
+  display: grid;
+  width: 38px;
+  height: 31px;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--policia-oscuro, #151b3b);
+  color: #fff;
+  font-size: calc(10px * var(--font-size-scale, 1));
+  font-weight: 850;
+}
+
+.autocomplete-demo h2,
+.autocomplete-demo h3,
+.autocomplete-demo p {
+  margin: 0;
+}
+
+.autocomplete-demo h2,
+.autocomplete-demo h3 {
+  color: var(--policia-oscuro, #151b3b);
+}
+
+.autocomplete-demo h2 {
+  font-size: calc(13px * var(--font-size-scale, 1));
+}
+
+.autocomplete-demo h3 {
+  font-size: calc(11px * var(--font-size-scale, 1));
+}
+
+.autocomplete-demo p {
+  margin-top: 3px;
+  color: var(--ui-muted, #64748b);
+  font-size: calc(9.5px * var(--font-size-scale, 1));
+}
+
+.autocomplete-demo__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+.autocomplete-demo article {
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 7px;
+  background: #fbfcfe;
+}
+
+.autocomplete-demo form {
+  display: grid;
+  gap: 11px;
+  margin-top: 18px;
+}
+
+.autocomplete-demo form app-ui-button {
+  justify-self: end;
+}
+
+.autocomplete-demo pre {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: 7px;
+  background: #0f172a;
+  color: #dbeafe;
+  font-size: calc(9px * var(--font-size-scale, 1));
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .autocomplete-demo__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+:host-context(html.dark-mode) {
+  .autocomplete-demo h2,
+  .autocomplete-demo h3 {
+    color: var(--ui-text, #e6edf7);
+  }
+
+  .autocomplete-demo article {
+    background: #182238;
+  }
+}

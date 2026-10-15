@@ -7,8 +7,15 @@
         </div>
         <span class="logo-name">{{ systemName }}</span>
       </a>
- 
-      
+      <button
+        class="sidebar__collapse"
+        type="button"
+        (click)="closeSidebar()"
+        aria-label="Contraer menú principal"
+        title="Contraer menú"
+      >
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+      </button>
     </div>
 
     <nav class="sidebar-scroll">
@@ -42,23 +49,35 @@
               </a>
             }
 
-           @if (item.submenu) {
-            <div class="submenu"
-                 [class.open]="isOpen() && isExpandedItem(item)"
-                 [ngStyle]="(isOpen() && isExpandedItem(item)) ? getSubmenuStyle() : null">
-              @for (subItem of item.submenu; track subItem.id) {
-                @if (subItem.isExternal) {
-                  <a [href]="subItem.route" target="_blank" rel="noopener noreferrer" class="submenu-item">
-                    {{ subItem.label }}
-                  </a>
-                } @else {
-                  <a [routerLink]="[subItem.route]" class="submenu-item" (click)="onNavigate()">
-                    {{ subItem.label }}
-                  </a>
-                }
-              }
-            </div>
-          }
+            @if (item.submenu) {
+              <div
+                class="submenu-branch"
+                [class.submenu-branch--open]="isExpandedItem(item)"
+              >
+                <div class="submenu-branch-clip">
+                  <div class="submenu-list">
+                    @for (subItem of item.submenu; track subItem.id) {
+                      @if (subItem.isExternal) {
+                        <a [href]="subItem.route" target="_blank" rel="noopener noreferrer" class="submenu-item">
+                          <span class="submenu-icon">
+                            <i [class]="subItem.icon || 'fa-solid fa-angle-right'"></i>
+                          </span>
+                          <span class="submenu-label">{{ subItem.label }}</span>
+                          <i class="submenu-external fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                      } @else {
+                        <a [routerLink]="[subItem.route]" class="submenu-item" (click)="onNavigate()" routerLinkActive="active">
+                          <span class="submenu-icon">
+                            <i [class]="subItem.icon || 'fa-solid fa-angle-right'"></i>
+                          </span>
+                          <span class="submenu-label">{{ subItem.label }}</span>
+                        </a>
+                      }
+                    }
+                  </div>
+                </div>
+              </div>
+            }
           </div>
         }
       </div>

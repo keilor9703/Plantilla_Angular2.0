@@ -1,9 +1,21 @@
 <section class="roles-admin-page" *ngIf="visible">
   <div class="ui-panel">
+    <!-- Header principal -->
     <div class="ui-panel__head">
       <div class="ui-panel__title">
         <i class="fa-solid fa-user-shield"></i>
-        Administración de Roles
+        <span>Administración de Roles</span>
+      </div>
+
+      <div class="roles-admin-summary">
+        <span class="summary-badge info">
+          <i class="fa-solid fa-users-gear"></i>
+          {{ roles.length }} roles
+        </span>
+        <span class="summary-badge success">
+          <i class="fa-solid fa-circle-check"></i>
+          {{ activeRolesCount }} activos
+        </span>
       </div>
 
       <div class="ui-panel__actions ui-window-controls">
@@ -14,132 +26,355 @@
     </div>
 
     <div class="ui-panel__body" *ngIf="!minimized">
-      <div class="roles-grid">
-        <article class="tab-card form-card">
-          <h3>{{ editingId ? 'Editar rol' : 'Nuevo rol' }}</h3>
-
-          <div class="ui-grid">
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Descripción del rol</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.nombre" maxlength="255">
-            </div>
-
-            <div class="ui-field ui-col-12">
-              <label class="ui-label">Vigente</label>
-              <select class="ui-control" [(ngModel)]="form.vigente">
-                <option [ngValue]="1">Sí</option>
-                <option [ngValue]="0">No</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="tab-actions">
-            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ saving ? 'Guardando...' : 'Guardar' }}
-            </button>
-          </div>
-        </article>
-
-        <article class="tab-card">
-          <h3>Roles registrados</h3>
-
-          <div class="list-loading" *ngIf="loading">Cargando roles...</div>
-
-          <div class="role-list" *ngIf="!loading && roles.length > 0">
-            <div class="role-item" *ngFor="let item of roles">
-              <div class="role-item__content">
-                <strong>{{ item.nombre || ('Rol ' + item.id) }}</strong>
-                <span class="meta">ID: {{ item.id }}</span>
-                <span class="meta">Vigente: {{ item.vigente === 1 ? 'Sí' : 'No' }}</span>
-              </div>
-
-              <div class="role-item__actions">
-                <button class="ui-btn secondary" type="button" (click)="editar(item)">Editar</button>
-                <button class="ui-btn secondary" type="button" (click)="openPermissionsModal(item)">Permisos</button>
-                <button
-                  class="ui-btn"
-                  [class.primary]="item.vigente === 0"
-                  [class.secondary]="item.vigente === 1"
-                  type="button"
-                  (click)="cambiarEstado(item)"
-                >
-                  {{ item.vigente === 1 ? 'Inactivar' : 'Activar' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="news-state" *ngIf="!loading && roles.length === 0">
-            No hay roles registrados.
-          </div>
-        </article>
-
-        <!-- Permisos moved to modal -->
-        <div class="ui-modal" *ngIf="showPermissionsModal">
-          <div class="ui-modal__dialog" (click)="$event.stopPropagation()">
-            <div class="ui-modal__head">
-              <div class="ui-modal__title">
-                <i class="fa-solid fa-shield-alt"></i>
-                <span>Permisos de menú por rol</span>
-              </div>
-              <button class="ui-icon-btn" type="button" (click)="closePermissionsModal()">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-
-            <div class="ui-modal__body">
-              <span class="meta">Rol seleccionado: <strong>{{ selectedRoleName }}</strong></span>
-
-              <div class="ui-grid mt-roles">
-                <div class="ui-field ui-col-8">
-                  <label class="ui-label">Menú disponible</label>
-                  <select class="ui-control" [(ngModel)]="selectedMenuId" [disabled]="!selectedRoleId || availableMenus.length === 0">
-                    <option [ngValue]="null">Selecciona un menú...</option>
-                    <option *ngFor="let menu of availableMenus" [ngValue]="menu.idMenu">
-                      {{ formatMenuLabel(menu) }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="ui-field ui-col-4 role-menu-action">
-                  <button class="ui-btn primary" type="button" (click)="asignarMenu()" [disabled]="savingRoleMenu || !selectedRoleId">
-                    <i class="fa-solid fa-plus"></i>
-                    {{ savingRoleMenu ? 'Asignando...' : 'Asignar menú' }}
-                  </button>
-                </div>
-              </div>
-
-              <div class="list-loading" *ngIf="loadingRoleMenus">Consultando menús del rol...</div>
-
-              <div class="role-menu-list" *ngIf="!loadingRoleMenus && roleMenus.length > 0">
-                <div class="role-menu-item" *ngFor="let item of roleMenus">
-                  <div class="role-menu-item__content">
-                    <strong>{{ item.descripcionMenu }}</strong>
-                    <span class="meta">ID menú: {{ item.idMenu }} · Tipo: {{ item.tipo || 'N/A' }}</span>
-                  </div>
-
-                  <button class="ui-btn secondary" type="button" (click)="quitarMenu(item)">
-                    Quitar
-                  </button>
-                </div>
-              </div>
-
-              <div class="news-state" *ngIf="!loadingRoleMenus && selectedRoleId && roleMenus.length === 0">
-                El rol no tiene menús asignados.
-              </div>
-            </div>
-
-            <div class="ui-modal__foot">
-              <button class="ui-btn secondary" type="button" (click)="closePermissionsModal()">
-                <i class="fa-solid fa-xmark"></i>
-                Cerrar
-              </button>
-            </div>
+      <!-- Banner institucional / Guía -->
+      <aside class="roles-guide-banner">
+        <div class="guide-copy">
+          <i class="fa-solid fa-key" aria-hidden="true"></i>
+          <div>
+            <strong>Control de acceso centralizado</strong>
+            <p>Gestione perfiles de acceso y los menús habilitados para cada rol. Seleccione un rol para consultar sus permisos y administre por separado su definición y navegación.</p>
           </div>
         </div>
+
+        <button class="ui-btn primary btn-create-role" type="button" (click)="openCreateRoleModal()">
+          <i class="fa-solid fa-plus"></i>
+          <span>Nuevo rol</span>
+        </button>
+      </aside>
+
+      <!-- Workspace de 2 Columnas estilo update-plantilla -->
+      <div class="roles-admin-workspace">
+        <!-- Columna 1: Catálogo de Roles -->
+        <article class="tab-card role-list-card">
+          <div class="card-section-head">
+            <div class="head-titles">
+              <small class="eyebrow">CATÁLOGO DE ACCESO</small>
+              <h3>Roles registrados</h3>
+              <p>Seleccione un rol para editarlo o consultar sus permisos.</p>
+            </div>
+
+            <div class="head-tools">
+              <span class="count-badge" aria-label="Cantidad de roles">{{ roles.length }}</span>
+            </div>
+          </div>
+
+          <!-- Barra de búsqueda -->
+          <div class="search-toolbar">
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+              <input
+                type="text"
+                [(ngModel)]="searchTerm"
+                placeholder="Buscar rol por nombre o identificador..."
+              />
+              <button
+                class="btn-clear-search"
+                type="button"
+                *ngIf="searchTerm"
+                title="Limpiar búsqueda"
+                (click)="clearSearch()"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Lista de roles -->
+          <div class="roles-list-body">
+            <div class="list-loading" *ngIf="loading">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <span>Consultando catálogo de roles...</span>
+            </div>
+
+            <div class="empty-state" *ngIf="!loading && filteredRoles.length === 0">
+              <i class="fa-solid fa-users-slash"></i>
+              <strong>No hay roles que coincidan</strong>
+              <p>{{ searchTerm ? 'Modifique el término de búsqueda.' : 'No se han registrado roles todavía.' }}</p>
+            </div>
+
+            <div class="role-list" *ngIf="!loading && filteredRoles.length > 0">
+              <article
+                *ngFor="let item of filteredRoles; trackBy: trackRoleById"
+                class="role-item"
+                [class.is-selected]="selectedRoleId === item.id"
+                (click)="seleccionarRol(item, $event)"
+              >
+                <!-- Icono de rol -->
+                <div class="role-item__leading">
+                  <i class="fa-solid fa-id-badge"></i>
+                </div>
+
+                <!-- Contenido textual -->
+                <div class="role-item__content">
+                  <div class="role-item__title">
+                    <strong>{{ item.nombre || ('Rol #' + item.id) }}</strong>
+                    <span class="status-chip" [class.is-active]="item.vigente === 1">
+                      {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </div>
+
+                  <div class="role-item__meta">
+                    <span>ID #{{ item.id }}</span>
+                    <span>{{ item.vigente === 1 ? 'Disponible para usuarios' : 'Deshabilitado' }}</span>
+                  </div>
+                </div>
+
+                <!-- Acciones rápidas -->
+                <div class="role-item__actions">
+                  <!-- Botón Permisos -->
+                  <button
+                    class="role-action-btn action-permissions"
+                    type="button"
+                    [class.is-active]="selectedRoleId === item.id"
+                    [title]="'Ver y gestionar permisos de ' + item.nombre"
+                    (click)="seleccionarRol(item, $event)"
+                  >
+                    <i class="fa-solid fa-key"></i>
+                  </button>
+
+                  <!-- Botón Editar -->
+                  <button
+                    class="role-action-btn action-edit"
+                    type="button"
+                    [title]="'Editar ' + item.nombre"
+                    (click)="openEditRoleModal(item, $event)"
+                  >
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+
+                  <!-- Botón Activar / Inactivar -->
+                  <button
+                    class="role-action-btn action-toggle"
+                    [class.is-active]="item.vigente === 1"
+                    type="button"
+                    [title]="item.vigente === 1 ? 'Inactivar rol' : 'Activar rol'"
+                    (click)="cambiarEstado(item, $event)"
+                  >
+                    <i [class]="item.vigente === 1 ? 'fa-solid fa-pause' : 'fa-solid fa-play'"></i>
+                  </button>
+                </div>
+              </article>
+            </div>
+          </div>
+        </article>
+
+        <!-- Columna 2: Permisos de Navegación del Rol Seleccionado -->
+        <article class="tab-card permissions-card">
+          <div class="card-section-head">
+            <div class="head-titles">
+              <small class="eyebrow">PERMISOS DE NAVEGACIÓN</small>
+              <h3>{{ selectedRoleName }}</h3>
+              <p>Estructura de menús disponible para los usuarios asociados a este rol.</p>
+            </div>
+
+            <div class="head-tools" *ngIf="selectedRole">
+              <span class="count-badge" aria-label="Cantidad de menús asignados">{{ roleMenus.length }}</span>
+            </div>
+          </div>
+
+          <!-- Si hay un rol seleccionado -->
+          <div class="permissions-card__body" *ngIf="selectedRole">
+            <!-- Barra de asignación rápida -->
+            <div class="permission-assignment">
+              <div class="assignment-field">
+                <label class="ui-label" for="assign-menu-select">
+                  <i class="fa-solid fa-sitemap"></i>
+                  Menú disponible
+                </label>
+                <select
+                  id="assign-menu-select"
+                  class="ui-control"
+                  [(ngModel)]="selectedMenuId"
+                  [disabled]="savingRoleMenu || availableMenus.length === 0"
+                >
+                  <option [ngValue]="null">
+                    {{ availableMenus.length === 0 ? 'Todos los menús están asignados' : 'Seleccione un menú para asignar...' }}
+                  </option>
+                  <option *ngFor="let m of availableMenus" [ngValue]="m.idMenu">
+                    {{ formatMenuLabel(m) }}
+                  </option>
+                </select>
+              </div>
+
+              <button
+                class="ui-btn primary btn-assign-menu"
+                type="button"
+                [disabled]="!selectedMenuId || savingRoleMenu"
+                (click)="asignarMenu()"
+              >
+                <i class="fa-solid fa-plus" *ngIf="!savingRoleMenu"></i>
+                <i class="fa-solid fa-spinner fa-spin" *ngIf="savingRoleMenu"></i>
+                <span>Asignar</span>
+              </button>
+            </div>
+
+            <!-- Banner completo si no quedan menús disponibles -->
+            <div class="permissions-card__complete" *ngIf="availableMenus.length === 0 && roleMenus.length > 0">
+              <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+              <span>El rol ya tiene asignados todos los menús del sistema.</span>
+            </div>
+
+            <!-- Árbol jerárquico de menús asignados -->
+            <div class="role-menu-tree">
+              <div class="role-menu-tree__header">
+                <div>
+                  <strong>Menús asignados</strong>
+                  <p>Estructura de navegación habilitada</p>
+                </div>
+                <span>{{ roleMenus.length }}</span>
+              </div>
+
+              <!-- Estado de carga -->
+              <div class="tree-loading" *ngIf="loadingRoleMenus">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <span>Consultando menús del rol...</span>
+              </div>
+
+              <!-- Estado vacío -->
+              <div class="tree-empty" *ngIf="!loadingRoleMenus && roleMenus.length === 0">
+                <i class="fa-solid fa-folder-open"></i>
+                <strong>Sin menús asignados</strong>
+                <p>El rol todavía no tiene permisos de navegación asignados.</p>
+              </div>
+
+              <!-- Lista jerárquica con conectores de rama -->
+              <ul class="role-menu-tree__list" *ngIf="!loadingRoleMenus && roleMenus.length > 0">
+                <li
+                  *ngFor="let node of roleMenuNodes; trackBy: trackNodeById"
+                  class="role-menu-tree__node"
+                  [class.is-root]="node.depth === 0"
+                  [class.is-child]="node.depth > 0"
+                  [style.--tree-depth]="node.depth"
+                >
+                  <!-- Conector jerárquico de rama -->
+                  <span class="role-menu-tree__branch" aria-hidden="true"></span>
+
+                  <!-- Icono de nodo -->
+                  <span class="role-menu-tree__node-icon" aria-hidden="true">
+                    <i [class]="iconForNode(node)"></i>
+                  </span>
+
+                  <!-- Textos -->
+                  <div class="role-menu-tree__content">
+                    <strong>{{ node.item.descripcionMenu }}</strong>
+                    <small>
+                      {{ node.item.tipo || 'Menú' }} · posición {{ node.item.posicion }} · ID {{ node.item.idMenu }}
+                    </small>
+                  </div>
+
+                  <!-- Botón retirar permiso -->
+                  <button
+                    class="btn-remove-permission"
+                    type="button"
+                    [disabled]="removingMenuId !== null"
+                    [title]="'Retirar ' + node.item.descripcionMenu + ' del rol'"
+                    (click)="quitarMenu(node.item, $event)"
+                  >
+                    <i class="fa-solid fa-trash-can" *ngIf="removingMenuId !== node.item.idMenu"></i>
+                    <i class="fa-solid fa-spinner fa-spin" *ngIf="removingMenuId === node.item.idMenu"></i>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Estado vacío cuando no hay rol seleccionado -->
+          <div class="permissions-card__empty" *ngIf="!selectedRole">
+            <span class="empty-icon" aria-hidden="true">
+              <i class="fa-solid fa-arrow-pointer"></i>
+            </span>
+            <div>
+              <strong>Seleccione un rol</strong>
+              <p>Haga clic en un rol del catálogo izquierdo para visualizar y gestionar sus permisos de navegación.</p>
+            </div>
+          </div>
+        </article>
       </div>
     </div>
   </div>
 </section>
+
+<!-- Modal Centrada de Creación / Edición de Rol -->
+<div class="menu-modal-backdrop" *ngIf="showRoleModal" (click)="closeRoleModal()">
+  <div class="menu-modal-dialog" (click)="$event.stopPropagation()">
+    <div class="menu-modal-dialog__head">
+      <div class="menu-modal-title">
+        <i [class]="editingId ? 'fa-solid fa-user-pen' : 'fa-solid fa-user-plus'"></i>
+        <div>
+          <h3 *ngIf="!editingId">Nuevo rol</h3>
+          <h3 *ngIf="editingId">Editar rol: {{ editingRoleName }}</h3>
+          <p *ngIf="!editingId">
+            Registre la identidad y disponibilidad del nuevo perfil de acceso
+          </p>
+          <p *ngIf="editingId">
+            ID #{{ editingId }} • Actualice los datos del rol seleccionado
+          </p>
+        </div>
+      </div>
+      <button class="close-btn" type="button" (click)="closeRoleModal()" title="Cerrar ventana">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="menu-modal-dialog__body">
+      <form class="role-modal-form" (ngSubmit)="guardar()" autocomplete="off">
+        <div class="ui-grid">
+          <!-- Nombre del rol -->
+          <div class="ui-field ui-col-12">
+            <label class="ui-label" for="role-modal-name">
+              <i class="fa-solid fa-id-badge"></i>
+              Nombre del rol <span class="required">*</span>
+            </label>
+            <input
+              id="role-modal-name"
+              class="ui-control"
+              type="text"
+              name="nombre"
+              [(ngModel)]="form.nombre"
+              maxlength="255"
+              placeholder="Ej.: Gestor de Contenidos, Administrador Seccional..."
+              required
+            />
+          </div>
+
+          <!-- Estado -->
+          <div class="ui-field ui-col-12">
+            <label class="ui-label" for="role-modal-vigente">
+              <i class="fa-solid fa-toggle-on"></i>
+              Estado del rol <span class="required">*</span>
+            </label>
+            <select
+              id="role-modal-vigente"
+              class="ui-control"
+              name="vigente"
+              [(ngModel)]="form.vigente"
+            >
+              <option [ngValue]="1">Activo (Habilitado para asignación)</option>
+              <option [ngValue]="0">Inactivo (Deshabilitado)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Nota informativa institucional -->
+        <aside class="role-form__note">
+          <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+          <span>
+            {{ editingId ? 'Los menús asignados se administran en tiempo real desde el panel lateral de permisos.' : 'Después de crear el rol podrá asignarle permisos de menú desde el panel de navegación.' }}
+          </span>
+        </aside>
+
+        <div class="modal-footer-actions">
+          <button class="ui-btn secondary" type="button" (click)="closeRoleModal()">
+            <i class="fa-solid fa-xmark"></i>
+            <span>Cancelar</span>
+          </button>
+          <button class="ui-btn primary" type="submit" [disabled]="saving">
+            <i class="fa-solid fa-floppy-disk" *ngIf="!saving"></i>
+            <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i>
+            <span>{{ saving ? 'Guardando...' : (editingId ? 'Actualizar rol' : 'Crear rol') }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -6,6 +6,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { AlertService } from '../../../core/services/alert.service';
 import { DtoRolCatalogo, EditarRolRequest, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { UsuarioRolesDropdownComponent } from '../../../components/usuario-roles-dropdown/usuario-roles-dropdown';
 
 type TabKey = 'datos' | 'roles';
 type RolEstado = 'Vigente' | 'Vencido';
@@ -50,7 +51,7 @@ interface UserProfile {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UsuarioRolesDropdownComponent],
   templateUrl: './usuarios.html',
   styleUrls: ['./usuarios.scss']
 })
@@ -534,6 +535,25 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
   get totalUsuariosListado(): number {
     return this.usuariosListado.length;
+  }
+
+  get startItemIndex(): number {
+    return this.totalUsuariosListado === 0 ? 0 : (this.currentPage - 1) * this.pageSize + 1;
+  }
+
+  get endItemIndex(): number {
+    return Math.min(this.currentPage * this.pageSize, this.totalUsuariosListado);
+  }
+
+  clearSearchNombreListado(): void {
+    this.searchNombreListado = '';
+    this.cargarListadoUsuarios();
+  }
+
+  isUserSelected(item: UsuarioListadoItem): boolean {
+    const selectedKey = (this.user?.identificacion ?? '').trim().toLowerCase();
+    const rowKey = (item?.identificacion ?? '').trim().toLowerCase();
+    return !!(selectedKey && rowKey && selectedKey === rowKey);
   }
 
   get totalPaginasListado(): number {

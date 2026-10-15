@@ -1,0 +1,25 @@
+<section class="avatar-demo ui-panel">
+  <header>
+    <span class="avatar-demo__number">18</span>
+    <div>
+      <h2>Avatar de funcionario</h2>
+      <p>Presenta una fotografía y genera iniciales cuando la fuente no llega o falla.</p>
+    </div>
+  </header>
+
+  <div class="avatar-demo__examples">
+    <article>
+      <app-ui-avatar nombre="Juan David Rodríguez Pérez" size="lg" />
+      <span><strong>Sin fotografía</strong><small>Respaldo automático JD</small></span>
+    </article>
+
+    <article>
+      <app-ui-avatar
+        nombre="María Camila López García"
+        fuente="imagen-no-disponible.jpg"
+        size="lg"
+      />
+      <span><strong>Fuente con error</strong><small>Conserva el mismo respaldo</small></span>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,69 @@
+:host {
+  display: inline-grid;
+  flex: 0 0 auto;
+}
+
+.ui-avatar {
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #c9e0ea;
+  background: linear-gradient(145deg, #eaf6fa, #f8fcfd);
+  color: var(--policia-azul, #003b78);
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 5px 14px rgba(14, 65, 92, 0.09);
+}
+
+.ui-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ui-avatar--xs {
+  width: 30px;
+  height: 30px;
+  font-size: calc(8px * var(--font-size-scale, 1));
+}
+
+.ui-avatar--sm {
+  width: 38px;
+  height: 38px;
+  font-size: calc(9px * var(--font-size-scale, 1));
+}
+
+.ui-avatar--md {
+  width: 46px;
+  height: 46px;
+  font-size: calc(10px * var(--font-size-scale, 1));
+}
+
+.ui-avatar--lg {
+  width: 58px;
+  height: 58px;
+  font-size: calc(12px * var(--font-size-scale, 1));
+}
+
+.ui-avatar--circle {
+  border-radius: 50%;
+}
+
+.ui-avatar--rounded {
+  border-radius: 12px;
+}
+
+.ui-avatar__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+:host-context(html.dark-mode) .ui-avatar {
+  border-color: #31566c;
+  background: linear-gradient(145deg, #18364a, #102738);
+  color: #a7e4f2;
+}

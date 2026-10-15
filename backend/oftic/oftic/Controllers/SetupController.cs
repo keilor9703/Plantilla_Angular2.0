@@ -97,8 +97,17 @@ namespace ofic.Controllers
         [HttpGet("status")]
         public async Task<IActionResult> GetStatus(CancellationToken ct)
         {
+            // En entorno de desarrollo, si no existe appsettings.Development.json,
+            // el sistema se considera NO instalado para este entorno local y se debe ejecutar el asistente de instalación.
+            bool devFileConfigured = true;
+            if (_env.IsDevelopment())
+            {
+                var devPath = Path.Combine(_env.ContentRootPath, "appsettings.Development.json");
+                devFileConfigured = System.IO.File.Exists(devPath);
+            }
+
             var cs = _configuration.GetConnectionString("DbConnection");
-            var isConfigured = !string.IsNullOrWhiteSpace(cs);
+            var isConfigured = devFileConfigured && !string.IsNullOrWhiteSpace(cs);
             var provider = _configuration["DatabaseProvider"] ?? "Oracle";
             var pipUser = _configuration["ApiSettings:UsuarioPip"] ?? "";
             var nombreSistema = _configuration["ApiSettings:NombreSistema"] ?? "";

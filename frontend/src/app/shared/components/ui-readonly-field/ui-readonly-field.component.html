@@ -1,0 +1,12 @@
+<div class="ui-readonly-field" [class.ui-readonly-field--sm]="size() === 'sm'">
+  <label [for]="resolvedId()">{{ label() }}</label>
+  <input
+    type="text"
+    [id]="resolvedId()"
+    [value]="displayValue()"
+    [placeholder]="placeholder()"
+    [title]="resolvedTitle()"
+    readonly
+    aria-readonly="true"
+  />
+</div>

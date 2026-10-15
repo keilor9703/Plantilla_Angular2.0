@@ -26,15 +26,42 @@ export class AlertService {
     this.subject.next({ type, title, message, okText });
   }
 
-  /**
-   * Muestra un diálogo de confirmación y devuelve una promesa resuelta
-   * con true si el usuario confirma, o false si cancela/cierra.
-   */
-  confirm(title: string, message: string, okText = 'OK', cancelText = 'Cancelar', type: AlertType = 'warning'): Promise<boolean> {
-    this.subject.next({ type, title, message, okText, cancelText, isConfirm: true });
+  confirm(titleOrOptions: string | any, message?: string, okText = 'OK', cancelText = 'Cancelar', type: AlertType = 'warning'): Promise<boolean> {
+    let title = '';
+    let msg = '';
+    let ok = okText;
+    let cancel = cancelText;
+    let t = type;
+
+    if (typeof titleOrOptions === 'object' && titleOrOptions !== null) {
+      title = titleOrOptions.title || '';
+      msg = titleOrOptions.message || titleOrOptions.content?.description || titleOrOptions.content?.headline || '';
+      ok = titleOrOptions.confirmText || titleOrOptions.okText || 'OK';
+      cancel = titleOrOptions.cancelText || 'Cancelar';
+    } else {
+      title = String(titleOrOptions || '');
+      msg = String(message || '');
+    }
+
+    this.subject.next({ type: t, title, message: msg, okText: ok, cancelText: cancel, isConfirm: true });
     return new Promise<boolean>(resolve => {
       this.confirmResolver = resolve;
     });
+  }
+
+  confirmDelete(title: string, message: string, okText = 'Eliminar'): Promise<boolean> {
+    return this.confirm(title, message, okText, 'Cancelar', 'error');
+  }
+
+  showRich(options: any): Promise<void> {
+    const title = options?.content?.headline || options?.title || 'Información';
+    const msg = options?.content?.description || options?.message || '';
+    this.show('info', title, msg);
+    return Promise.resolve();
+  }
+
+  confirmRich(options: any): Promise<boolean> {
+    return this.confirm(options);
   }
 
   /**

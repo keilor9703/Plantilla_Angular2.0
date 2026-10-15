@@ -19,6 +19,7 @@ html.dark-mode {
 /* --- SHELL DEL SISTEMA --- */
 .app-shell {
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--app-shell-bg);
   display: flex;
@@ -41,6 +42,7 @@ html.dark-mode {
 .shell {
   flex: 1;
   height: 100vh;
+  height: 100dvh;
   margin-left: 0; 
   display: flex;
   flex-direction: column;
@@ -62,7 +64,21 @@ html.dark-mode {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-bottom: var(--footer-height, 56px);
+  padding-bottom: 12px;
+  scroll-padding-bottom: 12px;
+}
+
+/*
+ * Reserva el alto de la navegación inferior más el área segura del dispositivo.
+ * Evita que el último control del formulario quede oculto detrás de la barra.
+ */
+.app-shell.mobile-navigation-active {
+  --footer-height: calc(78px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-shell.mobile-navigation-active .main {
+  padding-bottom: calc(var(--footer-height) + 12px);
+  scroll-padding-bottom: calc(var(--footer-height) + 12px);
 }
 
 .content {
@@ -72,7 +88,6 @@ html.dark-mode {
   border: 1px solid var(--content-border);
   border-radius: 12px;
   box-shadow: var(--content-shadow);
-  backdrop-filter: blur(8px);
   position: relative;
   padding: 10px;
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
@@ -88,10 +103,9 @@ html.dark-mode {
 }
 
 .app-footer-fixed {
-  position: fixed;
-  bottom: 0;
-  left: 0;
+  position: relative;
   width: 100%;
+  flex: 0 0 var(--footer-height, 56px);
   z-index: 100;
 }
 
@@ -110,4 +124,47 @@ html.dark-mode {
 
 .app-shell.menu-open ~ app-accessibility-menu {
   pointer-events: none;
+}
+
+/* Botón Volver Arriba */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--policia-cielo);
+  color: var(--ui-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9996;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.7);
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  &.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
 }

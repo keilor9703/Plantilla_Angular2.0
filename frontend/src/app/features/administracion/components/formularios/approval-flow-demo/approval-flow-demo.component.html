@@ -1,0 +1,31 @@
+<section class="ui-panel approval-flow-demo">
+  <div class="ui-panel__head">
+    <div class="ui-panel__title">
+      <i class="fa-solid fa-route" aria-hidden="true"></i>
+      Seguimiento de aprobaciones
+    </div>
+    <span class="ui-badge info">UI reutilizable</span>
+  </div>
+
+  <div class="ui-panel__body approval-flow-demo__body">
+    <header>
+      <span>Flujo administrativo</span>
+      <h3>Resumen, bandeja y continuidad en una sola lectura</h3>
+      <p>
+        Sustituye tablas excesivamente anchas cuando el dato importante es saber quién decidió,
+        quién continúa y dónde se encuentra el trámite.
+      </p>
+    </header>
+
+    <app-ui-approval-flow [process]="example" [showDetailsAction]="true" />
+
+    <aside>
+      <strong>Cuándo utilizarlo</strong>
+      <ul>
+        <li>Solicitudes con dos o más conceptos o aprobaciones.</li>
+        <li>Procesos que deben mostrar una bandeja responsable.</li>
+        <li>Diseños responsive donde una tabla perdería contexto en móvil.</li>
+      </ul>
+    </aside>
+  </div>
+</section>

@@ -1,101 +1,216 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Input, HostListener } from '@angular/core';
-import { AccessibilityService, AccessibilityState } from '../../core/services/accessibility.service';
+import { A11yModule } from '@angular/cdk/a11y';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  PLATFORM_ID,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { AccessibilityService } from '../../core/services/accessibility.service';
 import { SpeechToTextService } from '../../core/services/speech-to-text.service';
 import { TextToSpeechService } from '../../core/services/text-to-speech.service';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { SocialDockAccount, SocialDockGroup } from '../social-dock/social-dock';
+
+interface FabPosition {
+  x: number;
+  y: number;
+}
+
+interface FabViewport {
+  width: number;
+  height: number;
+}
+
+interface StoredFabPosition {
+  xRatio: number;
+  yRatio: number;
+}
+
+interface DragOrigin {
+  pointerId: number;
+  pointerX: number;
+  pointerY: number;
+  fabX: number;
+  fabY: number;
+}
+
+type HorizontalDirection = 'left' | 'right';
+type VerticalDirection = 'up' | 'down';
+
+const FAB_SIZE = 52;
+const FAB_MARGIN = 12;
+const DEFAULT_RIGHT_OFFSET = 22;
+const DEFAULT_BOTTOM_OFFSET = 76;
+const DRAG_THRESHOLD = 6;
+const POSITION_STORAGE_KEY = 'accessibility-fab-position-v1';
+
+/** Separación vertical entre las acciones de la columna ascendente. */
+const ACTION_STEP = 62;
+const ACTION_COUNT = 5;
+
 @Component({
   selector: 'app-accessibility-menu',
-  templateUrl: './accessibility-menu.html',
-  styleUrls: ['./accessibility-menu.scss'],
   standalone: true,
-  imports: [CommonModule],
+  imports: [A11yModule],
+  templateUrl: './accessibility-menu.html',
+  styleUrl: './accessibility-menu.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    'class': 'accessibility-menu-host'
-  }
+    class: 'accessibility-menu-host',
+  },
 })
-export class AccessibilityMenuComponent implements OnInit, OnDestroy {
-  @Input() socialGroups: any[] = [];
+export class AccessibilityMenuComponent implements OnDestroy {
+  readonly socialGroups = input<SocialDockGroup[]>([]);
+  readonly fabMain = viewChild<ElementRef<HTMLButtonElement>>('fabMain');
 
-  accessibility: AccessibilityState = {
-    darkMode: false,
-    fontSize: 2 // nivel por defecto (normal)
-  };
+  private readonly accessibilityService = inject(AccessibilityService);
+  private readonly speechToTextService = inject(SpeechToTextService);
+  private readonly textToSpeechService = inject(TextToSpeechService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
+  private readonly platformId = inject(PLATFORM_ID);
 
-  isListening = false;
-  isSpeaking = false;
-  isHoverMode = false;
-  speechError: string | null = null;
-  speechToTextAvailable = false;
-  textToSpeechAvailable = false;
-  socialExpanded = false;
-  panelOpen = false;
-  selectedGroup: any | null = null;
+  readonly accessibility = toSignal(this.accessibilityService.accessibility$, {
+    initialValue: this.accessibilityService.getState(),
+  });
+  readonly isListening = toSignal(this.speechToTextService.listening$, {
+    initialValue: false,
+  });
+  readonly isSpeaking = toSignal(this.textToSpeechService.speaking$, {
+    initialValue: false,
+  });
+  readonly isHoverMode = toSignal(this.textToSpeechService.hoverMode$, {
+    initialValue: false,
+  });
 
-  private destroy$ = new Subject<void>();
+  readonly speechToTextAvailable = this.speechToTextService.isAvailable();
+  readonly textToSpeechAvailable = this.textToSpeechService.isAvailable();
 
-  constructor(
-    private accessibilityService: AccessibilityService,
-    private speechToTextService: SpeechToTextService,
-    private textToSpeechService: TextToSpeechService
-  ) {
-    this.speechToTextAvailable = this.speechToTextService.isAvailable();
-    this.textToSpeechAvailable = this.textToSpeechService.isAvailable();
-  }
+  readonly dialOpen = signal(false);
+  readonly fontPanelOpen = signal(false);
+  readonly socialPanelOpen = signal(false);
+  readonly drawerOpen = signal(false);
+  readonly selectedGroup = signal<SocialDockGroup | null>(null);
+  readonly speechError = signal<string | null>(null);
+  readonly dragging = signal(false);
+  readonly position = signal<FabPosition | null>(null);
+  readonly viewport = signal<FabViewport>({ width: 0, height: 0 });
 
-  ngOnInit(): void {
-    // Suscribirse a cambios de accesibilidad
-    this.accessibilityService.accessibility$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((state) => {
-        this.accessibility = state;
-      });
+  readonly isDarkMode = computed(() => this.accessibility().darkMode);
+  readonly isFontSizeDefault = computed(() => this.accessibility().fontSize === 2);
+  readonly isFontSizeSmall = computed(() => this.accessibility().fontSize === 0);
+  readonly isFontSizeLarge = computed(() => this.accessibility().fontSize === 6);
+  readonly currentFontLevel = computed(() => `${this.accessibility().fontSize + 1}/7`);
+  readonly fontSizeLabel = computed(() => {
+    const labels = [
+      'Muy pequeña',
+      'Pequeña',
+      'Normal',
+      'Mediana',
+      'Grande',
+      'Muy grande',
+      'Extra grande',
+    ];
 
-    // Suscribirse al estado de escucha
-    this.speechToTextService.listening$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((listening) => {
-        this.isListening = listening;
-      });
+    return labels[this.accessibility().fontSize] ?? 'Normal';
+  });
+  readonly hasSubpanel = computed(() => this.fontPanelOpen() || this.socialPanelOpen());
+  readonly actionsInteractive = computed(
+    () => this.dialOpen() && !this.hasSubpanel() && !this.dragging(),
+  );
+  readonly horizontalDirection = computed<HorizontalDirection>(() => {
+    const position = this.position();
+    const viewport = this.viewport();
 
-    // Suscribirse al estado de síntesis
-    this.textToSpeechService.speaking$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((speaking) => {
-        this.isSpeaking = speaking;
-      });
+    if (!position || !viewport.width) {
+      return 'left';
+    }
 
-    // Suscribirse al modo hover
-    this.textToSpeechService.hoverMode$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((active) => {
-        this.isHoverMode = active;
-      });
+    const leftSpace = Math.max(0, position.x - FAB_MARGIN);
+    const rightSpace = Math.max(0, viewport.width - position.x - FAB_SIZE - FAB_MARGIN);
+    const requiredSpace = 260;
 
-    // Suscribirse a errores de voz a texto
+    if (rightSpace >= requiredSpace) {
+      return 'right';
+    }
+
+    if (leftSpace >= requiredSpace) {
+      return 'left';
+    }
+
+    return leftSpace >= rightSpace ? 'left' : 'right';
+  });
+  readonly verticalDirection = computed<VerticalDirection>(() => {
+    const position = this.position();
+    const viewport = this.viewport();
+
+    if (!position || !viewport.height) {
+      return 'up';
+    }
+
+    return position.y + FAB_SIZE / 2 > viewport.height / 2 ? 'up' : 'down';
+  });
+
+  private dragOrigin: DragOrigin | null = null;
+  private suppressNextClick = false;
+  private speechErrorTimer: number | null = null;
+
+  constructor() {
     this.speechToTextService.error$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((error) => {
-        this.speechError = error;
-        if (error) {
-          // Limpiar el mensaje después de 5 segundos
-          setTimeout(() => { this.speechError = null; }, 5000);
-        }
-      });
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((error) => this.handleSpeechError(error));
+
+    afterNextRender(() => this.initializePosition());
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    // Detener cualquier proceso de voz pendiente
+    const browserWindow = this.document.defaultView;
+
+    if (browserWindow && this.speechErrorTimer !== null) {
+      browserWindow.clearTimeout(this.speechErrorTimer);
+    }
+
+    this.document.body.classList.remove('ui-modal-open');
     this.speechToTextService.stopListening();
     this.textToSpeechService.disableHoverMode();
   }
 
+  toggleDial(): void {
+    if (this.suppressNextClick) {
+      return;
+    }
+
+    this.dialOpen.update((open) => !open);
+
+    if (!this.dialOpen()) {
+      this.closeSubpanels();
+    }
+  }
+
+  closeDial(): void {
+    this.dialOpen.set(false);
+    this.closeSubpanels();
+  }
+
   toggleDarkMode(): void {
     this.accessibilityService.toggleDarkMode();
+    this.closeDial();
+  }
+
+  openFontPanel(): void {
+    this.socialPanelOpen.set(false);
+    this.fontPanelOpen.set(true);
   }
 
   increaseFontSize(): void {
@@ -110,76 +225,352 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
     this.accessibilityService.resetFontSize();
   }
 
-  get isFontSizeDefault(): boolean {
-    return this.accessibility.fontSize === 2;
-  }
-
   toggleSpeechToText(): void {
     this.speechToTextService.toggleListening();
+    this.closeDial();
   }
 
   toggleTextToSpeech(): void {
-    if (this.isHoverMode) {
+    if (this.isHoverMode()) {
       this.textToSpeechService.disableHoverMode();
     } else {
       this.textToSpeechService.enableHoverMode();
     }
+
+    this.closeDial();
   }
 
-  get isDarkMode(): boolean {
-    return this.accessibility.darkMode;
+  openSocialPanel(): void {
+    if (!this.socialGroups().length) {
+      return;
+    }
+
+    this.fontPanelOpen.set(false);
+    this.socialPanelOpen.set(true);
   }
 
-  get isFontSizeSmall(): boolean {
-    return this.accessibility.fontSize === 0;
+  returnToActions(): void {
+    this.closeSubpanels();
   }
 
-  get isFontSizeLarge(): boolean {
-    return this.accessibility.fontSize === 6;
+  openSocialGroup(group: SocialDockGroup): void {
+    this.selectedGroup.set(group);
+    this.drawerOpen.set(true);
+    this.closeDial();
+    this.document.body.classList.add('ui-modal-open');
   }
 
-  get currentFontLevel(): string {
-    return `${this.accessibility.fontSize + 1}/7`;
+  closeSocialDrawer(): void {
+    this.drawerOpen.set(false);
+    this.selectedGroup.set(null);
+    this.document.body.classList.remove('ui-modal-open');
+    this.document.defaultView?.setTimeout(() => this.fabMain()?.nativeElement.focus());
   }
 
-  get fontSizeLabel(): string {
-    const labels = ['Muy pequeña', 'Pequeña', 'Normal', 'Mediana', 'Grande', 'Muy grande', 'Extra grande'];
-    return labels[this.accessibility.fontSize] || 'Normal';
-  }
-
-  toggleSocial(): void {
-    this.socialExpanded = !this.socialExpanded;
-  }
-
-  openSocialGroup(group: any): void {
-    this.selectedGroup = group;
-    this.panelOpen = true;
-    document.body.classList.add('ui-modal-open');
-  }
-
-  closeSocialPanel(): void {
-    this.panelOpen = false;
-    this.selectedGroup = null;
-    document.body.classList.remove('ui-modal-open');
-  }
-
-  getHandle(account: any): string {
+  getHandle(account: SocialDockAccount): string {
     const raw = (account.handle ?? account.accountName ?? '').trim();
+
     if (!raw) {
       return '@cuenta';
     }
 
-    if (raw.startsWith('@')) {
-      return raw;
+    return raw.startsWith('@') ? raw : `@${raw.replace(/\s+/g, '').toLowerCase()}`;
+  }
+
+  actionY(index: number): number {
+    return -ACTION_STEP * (index + 1) * this.actionScale();
+  }
+
+  actionDelay(index: number): string {
+    return `${index * 38}ms`;
+  }
+
+  onFabPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
     }
 
-    return `@${raw.replace(/\s+/g, '').toLowerCase()}`;
+    const currentPosition = this.ensurePosition();
+    this.dragOrigin = {
+      pointerId: event.pointerId,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      fabX: currentPosition.x,
+      fabY: currentPosition.y,
+    };
+
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentPointerMove(event: PointerEvent): void {
+    const origin = this.dragOrigin;
+
+    if (!origin || origin.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - origin.pointerX;
+    const deltaY = event.clientY - origin.pointerY;
+
+    if (!this.dragging() && Math.hypot(deltaX, deltaY) < DRAG_THRESHOLD) {
+      return;
+    }
+
+    if (!this.dragging()) {
+      this.dragging.set(true);
+      this.closeDial();
+    }
+
+    event.preventDefault();
+    this.position.set(this.clampPosition(origin.fabX + deltaX, origin.fabY + deltaY));
+  }
+
+  @HostListener('document:pointerup', ['$event'])
+  @HostListener('document:pointercancel', ['$event'])
+  onDocumentPointerUp(event: PointerEvent): void {
+    const origin = this.dragOrigin;
+
+    if (!origin || origin.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+
+    if (target?.hasPointerCapture(event.pointerId)) {
+      target.releasePointerCapture(event.pointerId);
+    }
+
+    if (this.dragging()) {
+      this.persistPosition();
+      this.suppressNextClick = true;
+      this.document.defaultView?.setTimeout(() => {
+        this.suppressNextClick = false;
+      });
+    }
+
+    this.dragging.set(false);
+    this.dragOrigin = null;
+  }
+
+  resetPosition(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.position.set(this.defaultPosition());
+    this.persistPosition();
+    this.closeDial();
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  onDocumentPointerDown(event: PointerEvent): void {
+    if (!this.dialOpen()) {
+      return;
+    }
+
+    const target = event.target as Node | null;
+
+    if (target && !this.elementRef.nativeElement.contains(target)) {
+      this.closeDial();
+    }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    const browserWindow = this.document.defaultView;
+
+    if (!browserWindow) {
+      return;
+    }
+
+    this.viewport.set({
+      width: browserWindow.innerWidth,
+      height: browserWindow.innerHeight,
+    });
+
+    const currentPosition = this.position();
+
+    if (currentPosition) {
+      this.position.set(this.clampPosition(currentPosition.x, currentPosition.y));
+      this.persistPosition();
+    }
   }
 
   @HostListener('document:keydown.escape')
-  onEsc(): void {
-    if (this.panelOpen) {
-      this.closeSocialPanel();
+  onEscape(): void {
+    if (this.drawerOpen()) {
+      this.closeSocialDrawer();
+      return;
+    }
+
+    if (this.hasSubpanel()) {
+      this.returnToActions();
+      return;
+    }
+
+    this.closeDial();
+  }
+
+  private initializePosition(): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    const browserWindow = this.document.defaultView;
+
+    if (!browserWindow) {
+      return;
+    }
+
+    this.viewport.set({
+      width: browserWindow.innerWidth,
+      height: browserWindow.innerHeight,
+    });
+    this.position.set(this.restorePosition() ?? this.defaultPosition());
+  }
+
+  private ensurePosition(): FabPosition {
+    const currentPosition = this.position();
+
+    if (currentPosition) {
+      return currentPosition;
+    }
+
+    const fallback = this.defaultPosition();
+    this.position.set(fallback);
+    return fallback;
+  }
+
+  private defaultPosition(): FabPosition {
+    const viewport = this.viewport();
+
+    return this.clampPosition(
+      viewport.width - FAB_SIZE - DEFAULT_RIGHT_OFFSET,
+      viewport.height - FAB_SIZE - DEFAULT_BOTTOM_OFFSET,
+    );
+  }
+
+  private clampPosition(x: number, y: number): FabPosition {
+    const viewport = this.viewport();
+    const minY = this.minimumFabY();
+    const maxX = Math.max(FAB_MARGIN, viewport.width - FAB_SIZE - FAB_MARGIN);
+    const maxY = Math.max(minY, viewport.height - FAB_SIZE - FAB_MARGIN);
+
+    return {
+      x: Math.min(Math.max(x, FAB_MARGIN), maxX),
+      y: Math.min(Math.max(y, minY), maxY),
+    };
+  }
+
+  private persistPosition(): void {
+    const browserWindow = this.document.defaultView;
+    const currentPosition = this.position();
+
+    if (!browserWindow || !currentPosition) {
+      return;
+    }
+
+    const viewport = this.viewport();
+    const minY = this.minimumFabY();
+    const availableX = Math.max(1, viewport.width - FAB_SIZE - FAB_MARGIN * 2);
+    const availableY = Math.max(1, viewport.height - FAB_SIZE - FAB_MARGIN - minY);
+    const storedPosition: StoredFabPosition = {
+      xRatio: (currentPosition.x - FAB_MARGIN) / availableX,
+      yRatio: (currentPosition.y - minY) / availableY,
+    };
+
+    try {
+      browserWindow.localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(storedPosition));
+    } catch {
+      // El movimiento sigue funcionando aunque el navegador bloquee localStorage.
+    }
+  }
+
+  private restorePosition(): FabPosition | null {
+    const browserWindow = this.document.defaultView;
+
+    if (!browserWindow) {
+      return null;
+    }
+
+    try {
+      const rawPosition = browserWindow.localStorage.getItem(POSITION_STORAGE_KEY);
+
+      if (!rawPosition) {
+        return null;
+      }
+
+      const storedPosition = JSON.parse(rawPosition) as Partial<StoredFabPosition>;
+
+      if (
+        typeof storedPosition.xRatio !== 'number' ||
+        typeof storedPosition.yRatio !== 'number' ||
+        !Number.isFinite(storedPosition.xRatio) ||
+        !Number.isFinite(storedPosition.yRatio)
+      ) {
+        return null;
+      }
+
+      const viewport = this.viewport();
+      const minY = this.minimumFabY();
+      const availableX = Math.max(1, viewport.width - FAB_SIZE - FAB_MARGIN * 2);
+      const availableY = Math.max(1, viewport.height - FAB_SIZE - FAB_MARGIN - minY);
+
+      return this.clampPosition(
+        FAB_MARGIN + Math.min(Math.max(storedPosition.xRatio, 0), 1) * availableX,
+        minY + Math.min(Math.max(storedPosition.yRatio, 0), 1) * availableY,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  private closeSubpanels(): void {
+    this.fontPanelOpen.set(false);
+    this.socialPanelOpen.set(false);
+  }
+
+  /** Reduce la separación en viewports de poca altura para evitar desbordes. */
+  private actionScale(): number {
+    const viewport = this.viewport();
+
+    if (viewport.height < 420) {
+      return 0.8;
+    }
+
+    if (viewport.width < 900) {
+      return 0.9;
+    }
+
+    return 1;
+  }
+
+  /**
+   * Reserva el espacio superior necesario para que las cinco acciones puedan
+   * desplegarse en columna sin salir del viewport.
+   */
+  private minimumFabY(): number {
+    return FAB_MARGIN + ACTION_STEP * ACTION_COUNT * this.actionScale();
+  }
+
+  private handleSpeechError(error: string | null): void {
+    const browserWindow = this.document.defaultView;
+
+    this.speechError.set(error);
+
+    if (!browserWindow) {
+      return;
+    }
+
+    if (this.speechErrorTimer !== null) {
+      browserWindow.clearTimeout(this.speechErrorTimer);
+      this.speechErrorTimer = null;
+    }
+
+    if (error) {
+      this.speechErrorTimer = browserWindow.setTimeout(() => {
+        this.speechError.set(null);
+        this.speechErrorTimer = null;
+      }, 5000);
     }
   }
 }

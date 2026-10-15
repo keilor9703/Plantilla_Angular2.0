@@ -10,6 +10,7 @@ interface SubMenuItem {
   id: number;
   label: string;
   route: string;
+  icon?: string;
   isExternal?: boolean;
 }
 
@@ -225,8 +226,11 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
 
     // Raíces: idPadre === 0, o idPadre apunta a un id que no existe en la lista
     const parents = active
-      .filter(x => x.idPadre === 0 || !byId.has(x.idPadre))
-      .sort((a, b) => a.posicion - b.posicion);
+      .filter(x => {
+        return x.idPadre === 0 || x.idPadre === 1 || !byId.has(x.idPadre);
+      })
+      .filter(x => x.idMenu !== 1)
+      .sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es', { sensitivity: 'base' }));
 
     if (parents.length === 0) {
       return [];
@@ -235,7 +239,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     const topLevel = parents.map(parent => {
       const directChildren = active
         .filter(child => child.idPadre === parent.idMenu)
-        .sort((a, b) => a.posicion - b.posicion);
+        .sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es', { sensitivity: 'base' }));
 
       const subs = directChildren
         .map(child => {
@@ -244,10 +248,12 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
             id: child.idMenu,
             route: route,
             label: this.normalizeLabel(child.descripcion, route),
+            icon: this.normalizeIcon(child.icono),
             isExternal: this.isExternalUrl(route)
           };
         })
-        .filter(sub => !!sub.route);
+        .filter(sub => !!sub.route)
+        .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
 
       const route = this.normalizeRoute(parent.detalle);
       const label = this.normalizeLabel(parent.descripcion, route);
@@ -277,7 +283,9 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       } as MenuItem;
     });
 
-    return topLevel.filter((x): x is MenuItem => x !== null);
+    return topLevel
+      .filter((x): x is MenuItem => x !== null)
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
   }
 
   private normalizeRoute(raw: unknown): string {
@@ -369,7 +377,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     for (const item of items) {
       // Caso menú simple: item directo con ruta de administración.
       if (item.route && this.isAdministrationRoute(item.route)) {
-        adminSubmenu.push({ id: item.id, label: item.label, route: item.route });
+        adminSubmenu.push({ id: item.id, label: item.label, route: item.route, icon: item.icon });
         continue;
       }
 

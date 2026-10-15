@@ -1,0 +1,114 @@
+:host {
+  display: block;
+  margin-top: 12px;
+}
+
+.decision-demo {
+  overflow: hidden;
+}
+
+.decision-demo__header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.decision-demo__number {
+  display: grid;
+  width: 38px;
+  height: 31px;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--policia-oscuro, #151b3b);
+  color: #fff;
+  font-size: calc(10px * var(--font-size-scale, 1));
+  font-weight: 850;
+}
+
+.decision-demo h2,
+.decision-demo h3,
+.decision-demo p {
+  margin: 0;
+}
+
+.decision-demo h2,
+.decision-demo h3 {
+  color: var(--policia-oscuro, #151b3b);
+}
+
+.decision-demo h2 {
+  font-size: calc(13px * var(--font-size-scale, 1));
+}
+
+.decision-demo h3 {
+  font-size: calc(11px * var(--font-size-scale, 1));
+}
+
+.decision-demo p {
+  margin-top: 3px;
+  color: var(--ui-muted, #64748b);
+  font-size: calc(9.5px * var(--font-size-scale, 1));
+}
+
+.decision-demo__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+.decision-demo article {
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 7px;
+  background: #fbfcfe;
+}
+
+.decision-demo form {
+  display: grid;
+  gap: 11px;
+  margin-top: 14px;
+}
+
+.decision-demo button {
+  justify-self: end;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--policia-azul, #003b78);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.decision-demo pre {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: 7px;
+  background: #0f172a;
+  color: #dbeafe;
+  font-size: calc(9px * var(--font-size-scale, 1));
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .decision-demo__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+:host-context(html.dark-mode) {
+  .decision-demo h2,
+  .decision-demo h3 {
+    color: var(--ui-text, #e6edf7);
+  }
+
+  .decision-demo article {
+    background: #182238;
+  }
+}

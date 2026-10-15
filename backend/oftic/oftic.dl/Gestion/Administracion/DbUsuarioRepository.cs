@@ -304,12 +304,12 @@ namespace Datos.Gestion
 
             var identificacion = (funcionario.identificacion ?? username).Trim();
             var pGrad = !string.IsNullOrWhiteSpace(funcionario.gradAlfabetico) 
-                ? funcionario.gradAlfabetico 
-                : (!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado : "");
-            var pApellidos = funcionario.apellidos ?? "";
-            var pNombres = funcionario.nombres ?? username;
+                ? funcionario.gradAlfabetico.Trim() 
+                : (!string.IsNullOrWhiteSpace(funcionario.nombreGrado) ? funcionario.nombreGrado.Trim() : "N/A");
+            var pApellidos = !string.IsNullOrWhiteSpace(funcionario.apellidos) ? funcionario.apellidos.Trim() : "-";
+            var pNombres = !string.IsNullOrWhiteSpace(funcionario.nombres) ? funcionario.nombres.Trim() : username;
             var pFuncStr = !string.IsNullOrWhiteSpace(funcionario.funcionario) 
-                ? funcionario.funcionario 
+                ? funcionario.funcionario.Trim()
                 : $"{pGrad} {pNombres} {pApellidos}".Trim();
             long pUnde = long.TryParse(funcionario.undeLaborandoCodigo, out var uCode) ? uCode : 0L;
             long pCargo = long.TryParse(funcionario.codigoCargo, out var cCode) ? cCode : 0L;

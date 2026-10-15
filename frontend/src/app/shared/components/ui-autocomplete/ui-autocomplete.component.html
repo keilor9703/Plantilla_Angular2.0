@@ -1,0 +1,105 @@
+<div
+  class="ui-autocomplete"
+  [class.ui-autocomplete--invalid]="!!error"
+  [class.ui-autocomplete--disabled]="isDisabled"
+  [class.ui-autocomplete--open]="opened"
+>
+  @if (label) {
+    <label class="ui-autocomplete__label" [for]="inputId">
+      {{ label }}
+      @if (required && showRequiredMarker()) {
+        <strong class="ui-autocomplete__required" [class.is-invalid]="!!error" aria-hidden="true">
+          *
+        </strong>
+      }
+    </label>
+  }
+
+  <div #origin="cdkOverlayOrigin" cdkOverlayOrigin class="ui-autocomplete__control">
+    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+    <input
+      [id]="inputId"
+      type="text"
+      role="combobox"
+      aria-autocomplete="list"
+      autocomplete="off"
+      [value]="visibleText"
+      [placeholder]="placeholder"
+      [disabled]="isDisabled"
+      [attr.aria-required]="required"
+      [attr.aria-invalid]="!!error"
+      [attr.aria-expanded]="opened"
+      [attr.aria-controls]="opened ? inputId + '-listbox' : null"
+      [attr.aria-describedby]="describedBy"
+      [attr.aria-activedescendant]="activeIndex >= 0 ? inputId + '-option-' + activeIndex : null"
+      (input)="onInput($event)"
+      (focus)="onFocus($event)"
+      (keydown)="handleKeydown($event)"
+    />
+
+    @if (clearable && visibleText && !isDisabled) {
+      <button type="button" class="ui-autocomplete__clear" (click)="clear($event)">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        <span class="sr-only">Limpiar selección</span>
+      </button>
+    }
+  </div>
+
+  <ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="origin"
+    [cdkConnectedOverlayOpen]="opened"
+    [cdkConnectedOverlayPositions]="panelPositions"
+    [cdkConnectedOverlayWidth]="panelWidth()"
+    [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayFlexibleDimensions]="true"
+    [cdkConnectedOverlayViewportMargin]="8"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    (attach)="onPanelAttached()"
+    (backdropClick)="close()"
+    (detach)="close()"
+    (positionChange)="onPanelPositionChange($event)"
+  >
+    <div
+      class="ui-autocomplete__panel"
+      role="listbox"
+      [id]="inputId + '-listbox'"
+      [class.ui-autocomplete__panel--above]="panelPlacement() === 'above'"
+      [class.is-positioned]="panelPositioned()"
+    >
+      @for (option of filteredOptions; track trackOption($index, option); let index = $index) {
+        <button
+          type="button"
+          class="ui-autocomplete__option"
+          role="option"
+          [id]="inputId + '-option-' + index"
+          [class.is-active]="activeIndex === index"
+          [attr.aria-selected]="activeIndex === index"
+          [tabIndex]="-1"
+          (mouseenter)="activate(index)"
+          (click)="selectOption(option)"
+        >
+          <strong>{{ option.label }}</strong>
+          @if (option.description) {
+            <small>{{ option.description }}</small>
+          }
+        </button>
+      } @empty {
+        <p class="ui-autocomplete__empty">Sin resultados para el criterio escrito.</p>
+      }
+    </div>
+  </ng-template>
+
+  @if (error) {
+    <small class="ui-autocomplete__error" [id]="inputId + '-error'" role="alert">
+      {{ error }}
+    </small>
+  } @else if (hint) {
+    <small class="ui-autocomplete__hint" [id]="inputId + '-hint'">{{ hint }}</small>
+  } @else if (showMinimumCharactersMessage) {
+    <small class="ui-autocomplete__hint">
+      Escriba al menos {{ minSearchLength }} caracteres.
+    </small>
+  }
+</div>

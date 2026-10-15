@@ -1,0 +1,8 @@
+<span [class]="clases()" [attr.title]="nombre()">
+  @if (fuenteImagen(); as imagen) {
+    <img [src]="imagen" [alt]="alt()" (error)="registrarError()" />
+  } @else {
+    <span class="ui-avatar__initials" aria-hidden="true">{{ iniciales() }}</span>
+    <span class="ui-avatar__sr-only">{{ alt() }}</span>
+  }
+</span>

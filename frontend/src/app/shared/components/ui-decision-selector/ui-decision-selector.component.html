@@ -1,0 +1,71 @@
+<fieldset
+  class="ui-decision"
+  [class.ui-decision--invalid]="!!error()"
+  [class.ui-decision--disabled]="estaDeshabilitado()"
+  [attr.aria-describedby]="descritoPor()"
+  [attr.aria-invalid]="!!error()"
+  [disabled]="estaDeshabilitado()"
+  (keydown)="manejarTeclado($event)"
+>
+  <legend class="ui-decision__label">
+    {{ etiqueta() }}
+    @if (obligatorio() && mostrarAsterisco()) {
+      <span class="ui-decision__required" aria-hidden="true">*</span>
+    }
+  </legend>
+
+  <div
+    class="ui-decision__options"
+    role="radiogroup"
+    [attr.aria-label]="etiqueta()"
+    [attr.aria-required]="obligatorio()"
+  >
+    <button
+      class="ui-decision__option ui-decision__option--yes"
+      type="button"
+      role="radio"
+      [class.is-selected]="valor() === 'SI'"
+      [attr.aria-checked]="valor() === 'SI'"
+      [attr.tabindex]="valor() !== 'NO' ? 0 : -1"
+      [disabled]="estaDeshabilitado()"
+      (click)="seleccionar('SI')"
+    >
+      <span class="ui-decision__icon" aria-hidden="true">
+        <i class="fa-solid fa-check"></i>
+      </span>
+      <span class="ui-decision__copy">
+        <strong>{{ etiquetaSi() }}</strong>
+        <small>{{ descripcionSi() }}</small>
+      </span>
+      <span class="ui-decision__marker" aria-hidden="true"></span>
+    </button>
+
+    <button
+      class="ui-decision__option ui-decision__option--no"
+      type="button"
+      role="radio"
+      [class.is-selected]="valor() === 'NO'"
+      [attr.aria-checked]="valor() === 'NO'"
+      [attr.tabindex]="valor() === 'NO' ? 0 : -1"
+      [disabled]="estaDeshabilitado()"
+      (click)="seleccionar('NO')"
+    >
+      <span class="ui-decision__icon" aria-hidden="true">
+        <i class="fa-solid fa-xmark"></i>
+      </span>
+      <span class="ui-decision__copy">
+        <strong>{{ etiquetaNo() }}</strong>
+        <small>{{ descripcionNo() }}</small>
+      </span>
+      <span class="ui-decision__marker" aria-hidden="true"></span>
+    </button>
+  </div>
+
+  @if (error()) {
+    <small class="ui-decision__message ui-decision__message--error" [id]="idGrupo + '-error'">
+      {{ error() }}
+    </small>
+  } @else if (ayuda()) {
+    <small class="ui-decision__message" [id]="idGrupo + '-ayuda'">{{ ayuda() }}</small>
+  }
+</fieldset>

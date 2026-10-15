@@ -1,0 +1,94 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.ui-readonly-field {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.ui-readonly-field label {
+  overflow: hidden;
+  color: var(--ui-text-muted, #53677f);
+  font-size: calc(12px * var(--font-size-scale, 1));
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-readonly-field input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--ui-border, #cad8e6) 88%, #9fb4c9);
+  border-radius: 6px;
+  outline: 0;
+  background: linear-gradient(180deg, #f4f7fa 0%, var(--ui-surface, #ffffff) 42%);
+  box-shadow:
+    inset 0 2px 4px rgba(15, 23, 42, 0.11),
+    inset 1px 0 1px rgba(15, 23, 42, 0.035),
+    inset -1px 0 1px rgba(15, 23, 42, 0.025),
+    0 1px 0 rgba(255, 255, 255, 0.9);
+  color: var(--ui-text, #1d2a40);
+  font: inherit;
+  font-size: calc(13px * var(--font-size-scale, 1));
+  font-weight: 650;
+  text-overflow: ellipsis;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.ui-readonly-field input::placeholder {
+  color: var(--ui-text-subtle, #94a3b8);
+  font-weight: 500;
+  opacity: 1;
+}
+
+.ui-readonly-field input:focus-visible {
+  border-color: var(--policia-cielo, #08a6cb);
+  box-shadow:
+    inset 0 2px 4px rgba(15, 23, 42, 0.11),
+    inset 1px 0 1px rgba(15, 23, 42, 0.035),
+    inset -1px 0 1px rgba(15, 23, 42, 0.025),
+    0 0 0 3px rgba(8, 166, 203, 0.14);
+}
+
+.ui-readonly-field--sm {
+  gap: 4px;
+}
+
+.ui-readonly-field--sm label {
+  font-size: calc(10.5px * var(--font-size-scale, 1));
+}
+
+.ui-readonly-field--sm input {
+  height: 34px;
+  padding: 0 10px;
+  font-size: calc(12px * var(--font-size-scale, 1));
+}
+
+:host-context(html.dark-mode) .ui-readonly-field input {
+  border-color: var(--ui-border);
+  background: linear-gradient(180deg, #151d29 0%, var(--ui-surface-muted) 44%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.38),
+    inset 1px 0 1px rgba(0, 0, 0, 0.16),
+    inset -1px 0 1px rgba(0, 0, 0, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.035);
+  color: var(--ui-text);
+  color-scheme: dark;
+}
+
+:host-context(html.dark-mode) .ui-readonly-field input:focus-visible {
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.38),
+    inset 1px 0 1px rgba(0, 0, 0, 0.16),
+    inset -1px 0 1px rgba(0, 0, 0, 0.14),
+    0 0 0 3px rgba(8, 166, 203, 0.2);
+}

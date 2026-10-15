@@ -1,209 +1,1257 @@
-login-visual-card {
-  margin-top: 12px;
-}
-
-/* Tab Card Variants */
-.tab-card {
-  border-radius: 12px;
-    
-}
-
-.tab-card.form-card {
-  background: var(--ui-surface);
-  border: 1px solid rgba(2, 6, 23, 0.08);
-  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.08);
-  padding: 16px;
-  height:min-content;
-}
-
-
-
-.tab-card.form-card h3 {
-  margin: 0 0 16px;
-  color: var(--policia-oscuro);
-  font-size: calc(15px * var(--font-size-scale));
-  font-weight: 900;
-  border-bottom: 1px solid rgba(var(--policia-primario-rgb), 0.1);
-  padding-bottom: 12px;
-}
-
-.tab-card.list-card {
-  background: var(--ui-surface);
-  border: 1px solid rgba(var(--policia-secundario-rgb), 0.15);
-  box-shadow: 0 2px 8px rgba(var(--policia-secundario-rgb), 0.08);
-}
-
-.tab-card.list-card:hover {
-  box-shadow: 0 4px 16px rgba(var(--policia-secundario-rgb), 0.12);
-  border-color: rgba(var(--policia-secundario-rgb), 0.25);
-}
-
-.tab-card.list-card .sub-title,
-.tab-card.list-card h3 {
-  margin: 0;
-  padding: 16px 20px 0;
-  color: var(--policia-secundario);
-  font-size: calc(15px * var(--font-size-scale));
-  font-weight: 700;
-  border-bottom: 1px solid rgba(var(--policia-secundario-rgb), 0.1);
-  padding-bottom: 12px;
-}
-
-.tab-card.list-card .list-header {
-  margin: 0 20px;
-  padding-top: 12px;
-}
-
-.tab-card > *:last-child {
-  margin-bottom: 0;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(var(--policia-oscuro-rgb), 0.1); 
-}
-
-.tab-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(var(--policia-oscuro-rgb), 0.1);
+:host {
+  display: block;
+  min-width: 0;
 }
 
 .roles-admin-page {
-  display: block;
+  animation: fadeInRoles 200ms ease-out;
 }
 
-.roles-grid {
-  display: grid;
-  grid-template-columns: minmax(300px, 420px) 1fr;
-  gap: 1rem;
-}
-
-.permissions-card {
-  grid-column: 1 / -1;
-}
-
-/* Estilos tipo árbol para la lista de roles (inspirados en Template Recursivo) */
-.role-list {
-  display: flex;
-  flex-direction: column;  
-}
-
-.role-tree {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.role-item {
-  border: 1px solid var(--ui-border, rgba(var(--policia-oscuro-rgb), .12));
-  border-radius: 12px;
-  padding: 0.85rem 1rem;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-  align-items: center;  
-  margin-bottom: 0.5rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
-  border-left: 4px solid var(--policia-cielo);
-
-  &:hover {
-    border-color: var(--policia-cielo);
-    box-shadow: var(--ui-shadow-sm);
+@keyframes fadeInRoles {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
-
-  &.is-parent {
-    background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
-    border-left: 4px solid var(--policia-cielo);
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.role-children-container {
-  margin-left: 15px;
-  padding-left: 10px;
-  border-left: 1px dashed rgba(var(--policia-oscuro-rgb), .25);
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 0.5rem;
-}
-
-.role-tree-icon {
-  margin-right: 0.5rem;
-  color: var(--ui-muted);
-}
-
-.expand-icon {
-  cursor: pointer;
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: scale(1.1);
-  }
-
-  &.is-hidden {
-    display: none;
-    pointer-events: none;
-  }
-}
-
-.role-item__content {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.role-item__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.role-menu-action {
-  display: flex;
-  align-items: flex-end;
-}
-
-.role-menu-list {
-  display: grid;
-  gap: 0.7rem;
-  margin-top: 0.75rem;
-}
-
-.role-menu-item {
+/* Header principal con badges */
+.ui-panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  border: 1px solid var(--ui-border, #dbe2ef);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.roles-admin-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  margin-right: 12px;
+
+  .summary-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: calc(11px * var(--font-size-scale, 1));
+    font-weight: 750;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    &.info {
+      background: rgba(8, 166, 203, 0.18);
+      color: #ffffff;
+    }
+
+    &.success {
+      background: rgba(34, 197, 94, 0.2);
+      color: #bbf7d0;
+    }
+
+    i {
+      font-size: 11px;
+    }
+  }
+}
+
+/* Banner de guía institucional */
+.roles-guide-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px 18px;
   border-radius: 12px;
-  padding: 0.8rem;
-}
+  background: linear-gradient(135deg, rgba(8, 166, 203, 0.08) 0%, rgba(0, 42, 102, 0.04) 100%);
+  border: 1px solid rgba(8, 166, 203, 0.2);
+  backdrop-filter: blur(8px);
 
-.role-menu-item__content {
-  display: grid;
-  gap: 0.1rem;
-}
+  .guide-copy {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
 
+    i {
+      font-size: 24px;
+      color: var(--policia-cielo, #08a6cb);
+      flex-shrink: 0;
+    }
 
+    strong {
+      display: block;
+      color: var(--policia-medio, #002a66);
+      font-size: calc(13px * var(--font-size-scale, 1));
+      font-weight: 850;
+      margin-bottom: 2px;
+    }
 
-@media (max-width: 960px) {
-  .roles-grid {
-    grid-template-columns: 1fr;
+    p {
+      margin: 0;
+      color: var(--ui-muted, #64748b);
+      font-size: calc(11.5px * var(--font-size-scale, 1));
+      line-height: 1.35;
+    }
   }
 
-  .role-item {
-    flex-direction: column;
-    align-items: flex-start;
+  .btn-create-role {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--policia-acento, #c8ff00);
+    color: var(--policia-oscuro, #151b3b);
+    border: 1px solid rgba(149, 191, 0, 0.72);
+    border-radius: 9px;
+    font-weight: 850;
+    font-size: calc(12px * var(--font-size-scale, 1));
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(200, 255, 0, 0.25);
+    transition: all 160ms ease;
+
+    &:hover {
+      background: #bbf000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(200, 255, 0, 0.35);
+    }
+  }
+}
+
+/* Workspace de 2 Columnas */
+.roles-admin-workspace {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* Tarjetas */
+.tab-card {
+  border-radius: 12px;
+  background: var(--ui-surface, #ffffff);
+  border: 1px solid var(--ui-border, #d8dee8);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+/* Encabezados de sección */
+.card-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--ui-border, #d8dee8);
+  background: #fafbfd;
+
+  .head-titles {
+    min-width: 0;
+
+    .eyebrow {
+      display: block;
+      color: var(--policia-medio, #002a66);
+      font-size: calc(8.5px * var(--font-size-scale, 1));
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+
+    h3 {
+      margin: 0;
+      color: var(--policia-medio, #002a66);
+      font-size: calc(14px * var(--font-size-scale, 1));
+      font-weight: 850;
+    }
+
+    p {
+      margin: 2px 0 0;
+      color: var(--ui-muted, #64748b);
+      font-size: calc(11px * var(--font-size-scale, 1));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .head-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: rgba(8, 166, 203, 0.14);
+      color: var(--policia-medio, #002a66);
+      font-size: calc(11px * var(--font-size-scale, 1));
+      font-weight: 850;
+    }
+  }
+}
+
+/* Toolbar de búsqueda */
+.search-toolbar {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--ui-border, #d8dee8);
+  background: #ffffff;
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      color: var(--ui-muted, #64748b);
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    input {
+      width: 100%;
+      min-height: 38px;
+      padding: 8px 36px 8px 34px;
+      border: 1px solid var(--ui-control-border, #cbd5e1);
+      border-radius: 8px;
+      outline: none;
+      background: #ffffff;
+      color: var(--ui-text, #0f172a);
+      font: inherit;
+      font-size: calc(12px * var(--font-size-scale, 1));
+      transition: all 140ms ease;
+
+      &:focus {
+        border-color: var(--policia-medio, #002a66);
+        box-shadow: 0 0 0 3px rgba(8, 166, 203, 0.12);
+      }
+    }
+
+    .btn-clear-search {
+      position: absolute;
+      right: 8px;
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--ui-muted, #64748b);
+      cursor: pointer;
+      font-size: 11px;
+
+      &:hover {
+        background: rgba(15, 23, 42, 0.15);
+        color: var(--ui-text, #0f172a);
+      }
+    }
+  }
+}
+
+/* Cuerpo de lista de roles */
+.roles-list-body {
+  padding: 12px;
+  max-height: clamp(420px, 65vh, 720px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.list-loading,
+.empty-state {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--ui-muted, #64748b);
+
+  i {
+    font-size: 32px;
+    color: var(--policia-cielo, #08a6cb);
+  }
+
+  strong {
+    color: var(--ui-text, #0f172a);
+    font-size: calc(13.5px * var(--font-size-scale, 1));
+  }
+
+  p {
+    margin: 0;
+    font-size: calc(11.5px * var(--font-size-scale, 1));
+  }
+}
+
+.role-list {
+  display: grid;
+  gap: 8px;
+}
+
+/* Fila de Rol */
+.role-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-left: 3px solid var(--policia-cielo, #08a6cb);
+  border-radius: 9px;
+  background: var(--ui-surface, #ffffff);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  cursor: pointer;
+  transition: all 140ms ease;
+
+  &:hover {
+    border-color: rgba(8, 166, 203, 0.5);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+  }
+
+  &.is-selected {
+    border-color: #08a6cb;
+    border-left: 4px solid var(--policia-acento, #c8ff00);
+    background: linear-gradient(90deg, rgba(200, 255, 0, 0.08), #ffffff);
+    box-shadow: 0 6px 20px rgba(8, 166, 203, 0.16);
+
+    .role-item__leading {
+      background: var(--policia-medio, #002a66);
+      color: var(--policia-acento, #c8ff00);
+    }
+  }
+
+  .role-item__leading {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(8, 166, 203, 0.12);
+    color: var(--policia-medio, #002a66);
+    font-size: 15px;
+    transition: all 140ms ease;
+  }
+
+  .role-item__content {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+
+    .role-item__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+
+      strong {
+        color: var(--ui-text, #0f172a);
+        font-size: calc(12.5px * var(--font-size-scale, 1));
+        font-weight: 850;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .role-item__meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ui-muted, #64748b);
+      font-size: calc(10.5px * var(--font-size-scale, 1));
+
+      span + span::before {
+        margin-right: 8px;
+        color: rgba(100, 116, 139, 0.4);
+        content: '•';
+      }
+    }
+  }
+
+  .status-chip {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: calc(9.5px * var(--font-size-scale, 1));
+    font-weight: 750;
+    background: #e2e8f0;
+    color: #475569;
+
+    &.is-active {
+      background: rgba(34, 197, 94, 0.16);
+      color: #15803d;
+    }
   }
 
   .role-item__actions {
-    width: 100%;
-    justify-content: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    .role-action-btn {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--ui-border, #d8dee8);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--ui-muted, #64748b);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 130ms ease;
+
+      &:hover {
+        transform: translateY(-1px);
+      }
+
+      &.action-permissions {
+        &:hover,
+        &.is-active {
+          background: rgba(8, 166, 203, 0.15);
+          border-color: var(--policia-cielo, #08a6cb);
+          color: var(--policia-medio, #002a66);
+        }
+      }
+
+      &.action-edit:hover {
+        background: rgba(0, 42, 102, 0.1);
+        border-color: var(--policia-medio, #002a66);
+        color: var(--policia-medio, #002a66);
+      }
+
+      &.action-toggle {
+        &.is-active:hover {
+          background: rgba(239, 68, 68, 0.1);
+          border-color: #ef4444;
+          color: #dc2626;
+        }
+
+        &:not(.is-active):hover {
+          background: rgba(34, 197, 94, 0.12);
+          border-color: #22c55e;
+          color: #16a34a;
+        }
+      }
+    }
+  }
+}
+
+/* --- COLUMNA 2: PERMISOS DE NAVEGACIÓN --- */
+.permissions-card__body {
+  padding: 14px;
+}
+
+/* Barra de asignación de menú */
+.permission-assignment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border: 1px solid var(--ui-border, #d8dee8);
+
+  .assignment-field {
+    min-width: 0;
+
+    .ui-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 5px;
+      color: var(--policia-medio, #002a66);
+      font-size: calc(11px * var(--font-size-scale, 1));
+      font-weight: 750;
+
+      i {
+        font-size: 11px;
+        color: var(--policia-cielo, #08a6cb);
+      }
+    }
+
+    select {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 11px;
+      border: 1px solid var(--ui-control-border, #cbd5e1);
+      border-radius: 7px;
+      outline: none;
+      background: #ffffff;
+      color: var(--ui-text, #0f172a);
+      font: inherit;
+      font-size: calc(12px * var(--font-size-scale, 1));
+      transition: all 140ms ease;
+
+      &:focus {
+        border-color: var(--policia-medio, #002a66);
+        box-shadow: 0 0 0 3px rgba(8, 166, 203, 0.12);
+      }
+    }
   }
 
-  .role-menu-item {
+  .btn-assign-menu {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 7px;
+    background: var(--policia-medio, #002a66);
+    color: #ffffff;
+    border: 1px solid var(--policia-medio, #002a66);
+    font-weight: 750;
+    font-size: calc(12px * var(--font-size-scale, 1));
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 140ms ease;
+
+    &:hover:not(:disabled) {
+      background: #00388a;
+      box-shadow: 0 4px 12px rgba(0, 42, 102, 0.25);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.permissions-card__complete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 7px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #15803d;
+  font-size: calc(11px * var(--font-size-scale, 1));
+  font-weight: 700;
+
+  i {
+    font-size: 13px;
+  }
+}
+
+/* Árbol de menús asignados */
+.role-menu-tree {
+  overflow: hidden;
+  border: 1px solid rgba(8, 166, 203, 0.22);
+  border-radius: 9px;
+  background: var(--ui-surface, #ffffff);
+
+  .role-menu-tree__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(8, 166, 203, 0.18);
+    background: #eaf7fb;
+
+    strong {
+      display: block;
+      color: var(--policia-medio, #002a66);
+      font-size: calc(12.5px * var(--font-size-scale, 1));
+      font-weight: 850;
+    }
+
+    p {
+      margin: 1px 0 0;
+      color: var(--ui-muted, #64748b);
+      font-size: calc(10px * var(--font-size-scale, 1));
+    }
+
+    span {
+      display: grid;
+      min-width: 26px;
+      height: 26px;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(8, 166, 203, 0.2);
+      color: var(--policia-medio, #002a66);
+      font-size: calc(10.5px * var(--font-size-scale, 1));
+      font-weight: 900;
+    }
+  }
+
+  .tree-loading,
+  .tree-empty {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 34px 18px;
+    color: var(--ui-muted, #64748b);
+
+    i {
+      font-size: 28px;
+      color: var(--policia-cielo, #08a6cb);
+    }
+
+    strong {
+      color: var(--ui-text, #0f172a);
+      font-size: calc(13px * var(--font-size-scale, 1));
+    }
+
+    p {
+      margin: 0;
+      font-size: calc(11px * var(--font-size-scale, 1));
+    }
+  }
+
+  .role-menu-tree__list {
+    max-height: clamp(340px, 48vh, 520px);
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+    list-style: none;
+    display: grid;
+    gap: 4px;
+    scrollbar-width: thin;
+  }
+
+  .role-menu-tree__node {
+    --node-indent: calc(var(--tree-depth) * 20px);
+
+    position: relative;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 30px;
+    align-items: center;
+    gap: 10px;
+    margin-left: var(--node-indent);
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: var(--ui-surface, #ffffff);
+    transition: all 130ms ease;
+
+    &.is-root {
+      border-color: rgba(0, 42, 102, 0.12);
+      background: linear-gradient(90deg, rgba(0, 42, 102, 0.05), rgba(8, 166, 203, 0.02));
+    }
+
+    &.is-child {
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: inset 3px 0 0 rgba(8, 166, 203, 0.28);
+    }
+
+    &:hover {
+      border-color: rgba(8, 166, 203, 0.48);
+      background: #edf8fb;
+      box-shadow: inset 3px 0 0 var(--policia-cielo, #08a6cb), 0 4px 12px rgba(15, 23, 42, 0.06);
+      transform: translateX(2px);
+    }
+
+    .role-menu-tree__branch {
+      position: absolute;
+      top: -2px;
+      bottom: 50%;
+      left: -10px;
+      width: 10px;
+      border-bottom: 1px solid #9bb5c7;
+      border-left: 1px solid #9bb5c7;
+      border-radius: 0 0 0 6px;
+    }
+
+    &.is-root .role-menu-tree__branch {
+      display: none;
+    }
+
+    .role-menu-tree__node-icon {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border-radius: 6px;
+      background: rgba(8, 166, 203, 0.1);
+      color: var(--policia-medio, #002a66);
+      font-size: 13px;
+    }
+
+    &.is-root .role-menu-tree__node-icon {
+      background: var(--policia-medio, #002a66);
+      color: var(--policia-acento, #c8ff00);
+      box-shadow: 0 4px 10px rgba(0, 42, 102, 0.15);
+    }
+
+    .role-menu-tree__content {
+      display: grid;
+      gap: 1px;
+      min-width: 0;
+
+      strong {
+        color: var(--ui-text, #0f172a);
+        font-size: calc(11.5px * var(--font-size-scale, 1));
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      small {
+        color: var(--ui-muted, #64748b);
+        font-size: calc(9.5px * var(--font-size-scale, 1));
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .btn-remove-permission {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--ui-border, #d8dee8);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--ui-muted, #64748b);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 130ms ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: #ef4444;
+        color: #dc2626;
+        transform: scale(1.05);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+}
+
+/* Estado vacío de permisos cuando no hay rol seleccionado */
+.permissions-card__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 220px;
+  padding: 30px;
+  color: var(--ui-muted, #64748b);
+
+  .empty-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(8, 166, 203, 0.1);
+    color: var(--policia-medio, #002a66);
+    font-size: 18px;
+  }
+
+  strong {
+    display: block;
+    color: var(--ui-text, #0f172a);
+    font-size: calc(13px * var(--font-size-scale, 1));
+    margin-bottom: 2px;
+  }
+
+  p {
+    margin: 0;
+    font-size: calc(11px * var(--font-size-scale, 1));
+    max-width: 320px;
+    line-height: 1.35;
+  }
+}
+
+/* --- MODAL CENTRADA DE ROL --- */
+.menu-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  animation: fadeInModal 180ms ease-out;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.menu-modal-dialog {
+  position: relative;
+  margin: auto;
+  width: 100%;
+  max-width: 540px;
+  max-height: min(90vh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 25px 65px rgba(2, 6, 23, 0.45), 0 10px 25px rgba(2, 6, 23, 0.2);
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: zoomModalIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes zoomModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.menu-modal-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #00385f, #08a6cb);
+  color: #ffffff;
+
+  .menu-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    i {
+      font-size: 20px;
+      color: var(--policia-acento, #c8ff00);
+    }
+
+    h3 {
+      margin: 0;
+      color: #ffffff;
+      font-size: calc(14px * var(--font-size-scale, 1));
+      font-weight: 850;
+    }
+
+    p {
+      margin: 2px 0 0;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: calc(11px * var(--font-size-scale, 1));
+    }
+  }
+
+  .close-btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 140ms ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.28);
+      transform: scale(1.06);
+    }
+  }
+}
+
+.menu-modal-dialog__body {
+  padding: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+
+  .ui-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 14px;
+  }
+
+  .ui-col-12 {
+    grid-column: span 12;
+  }
+
+  .ui-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    color: var(--policia-medio, #002a66);
+    font-size: calc(11px * var(--font-size-scale, 1));
+    font-weight: 750;
+
+    i {
+      font-size: 11px;
+      color: var(--policia-cielo, #08a6cb);
+    }
+
+    .required {
+      color: var(--ui-danger, #b42318);
+    }
+  }
+
+  .ui-control {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 11px;
+    border: 1px solid var(--ui-control-border, #cbd5e1);
+    border-radius: 7px;
+    outline: none;
+    background: var(--ui-control-bg, #ffffff);
+    color: var(--ui-text, #0f172a);
+    font: inherit;
+    font-size: calc(12px * var(--font-size-scale, 1));
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+
+    &:focus {
+      border-color: var(--policia-medio, #002a66);
+      box-shadow: 0 0 0 3px rgba(8, 166, 203, 0.12);
+    }
+  }
+
+  .role-form__note {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--policia-cielo, #08a6cb);
+    border-radius: 6px;
+    background: rgba(8, 166, 203, 0.08);
+    color: var(--ui-muted, #64748b);
+    font-size: calc(10.5px * var(--font-size-scale, 1));
+    line-height: 1.4;
+
+    i {
+      margin-top: 2px;
+      color: var(--policia-medio, #002a66);
+      font-size: 13px;
+    }
+  }
+
+  .modal-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--ui-border, #d8dee8);
+
+    .ui-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-weight: 750;
+      font-size: calc(12px * var(--font-size-scale, 1));
+      cursor: pointer;
+      transition: all 150ms ease;
+
+      &.primary {
+        background: var(--policia-medio, #002a66);
+        color: #ffffff;
+        border: 1px solid var(--policia-medio, #002a66);
+
+        &:hover:not(:disabled) {
+          background: #00388a;
+          box-shadow: 0 4px 12px rgba(0, 42, 102, 0.25);
+          transform: translateY(-1px);
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      }
+
+      &.secondary {
+        background: transparent;
+        color: var(--ui-muted, #64748b);
+        border: 1px solid var(--ui-border, #d8dee8);
+
+        &:hover {
+          background: rgba(15, 23, 42, 0.05);
+          color: var(--ui-text, #0f172a);
+        }
+      }
+    }
+  }
+}
+
+/* Responsive */
+@media (max-width: 1080px) {
+  .roles-admin-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .roles-guide-banner {
     flex-direction: column;
     align-items: flex-start;
+
+    .btn-create-role {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .permission-assignment {
+    grid-template-columns: 1fr;
+
+    .btn-assign-menu {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .role-item {
+    grid-template-columns: auto 1fr;
+    row-gap: 8px;
+
+    .role-item__actions {
+      grid-column: 1 / -1;
+      justify-content: flex-end;
+      border-top: 1px dashed rgba(148, 163, 184, 0.24);
+      padding-top: 8px;
+    }
+  }
+}
+
+/* Modo oscuro */
+:host-context(html.dark-mode) {
+  .roles-guide-banner {
+    background: rgba(8, 166, 203, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+
+    .guide-copy {
+      strong {
+        color: #f1f5f9;
+      }
+      p {
+        color: #94a3b8;
+      }
+    }
+  }
+
+  .tab-card {
+    background: #151e2e;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .card-section-head {
+    background: #182438;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+
+    .head-titles {
+      .eyebrow {
+        color: #55c8e5;
+      }
+
+      h3 {
+        color: #f1f5f9;
+      }
+    }
+
+    .head-tools .count-badge {
+      background: rgba(8, 166, 203, 0.2);
+      color: #55c8e5;
+    }
+  }
+
+  .search-toolbar {
+    background: #151e2e;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+
+    .search-box input {
+      background: #0f172a;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #f1f5f9;
+
+      &:focus {
+        border-color: #08a6cb;
+      }
+    }
+  }
+
+  .role-item {
+    background: #182438;
+    border-color: rgba(255, 255, 255, 0.1);
+
+    &.is-selected {
+      background: linear-gradient(90deg, rgba(8, 166, 203, 0.16), #182438);
+    }
+
+    .role-item__leading {
+      background: rgba(8, 166, 203, 0.2);
+      color: #55c8e5;
+    }
+
+    .role-item__title strong {
+      color: #f1f5f9;
+    }
+
+    .role-item__actions .role-action-btn {
+      background: #0f172a;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #cbd5e1;
+    }
+  }
+
+  .permission-assignment {
+    background: #182438;
+    border-color: rgba(255, 255, 255, 0.1);
+
+    .assignment-field {
+      .ui-label {
+        color: #cbd5e1;
+      }
+
+      select {
+        background: #0f172a;
+        border-color: rgba(255, 255, 255, 0.14);
+        color: #f1f5f9;
+      }
+    }
+  }
+
+  .role-menu-tree {
+    background: #151e2e;
+    border-color: rgba(255, 255, 255, 0.12);
+
+    .role-menu-tree__header {
+      background: rgba(8, 166, 203, 0.15);
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+
+      strong {
+        color: #f1f5f9;
+      }
+
+      span {
+        background: rgba(8, 166, 203, 0.25);
+        color: #55c8e5;
+      }
+    }
+
+    .role-menu-tree__node {
+      background: #182438;
+      border-color: rgba(255, 255, 255, 0.08);
+
+      &.is-root {
+        background: linear-gradient(90deg, rgba(8, 166, 203, 0.15), rgba(15, 23, 42, 0.35));
+        border-color: rgba(85, 200, 229, 0.2);
+      }
+
+      &.is-child .role-menu-tree__node-icon {
+        background: rgba(8, 166, 203, 0.18);
+        color: #55c8e5;
+      }
+
+      &:hover {
+        background: rgba(8, 166, 203, 0.18);
+        border-color: rgba(85, 200, 229, 0.5);
+      }
+
+      .role-menu-tree__content strong {
+        color: #f1f5f9;
+      }
+
+      .btn-remove-permission {
+        background: #0f172a;
+        border-color: rgba(255, 255, 255, 0.14);
+        color: #cbd5e1;
+      }
+    }
+  }
+
+  .permissions-card__empty {
+    .empty-icon {
+      background: rgba(8, 166, 203, 0.2);
+      color: #55c8e5;
+    }
+
+    strong {
+      color: #f1f5f9;
+    }
+  }
+
+  .menu-modal-dialog {
+    background: #151e2e;
+    border-color: rgba(255, 255, 255, 0.14);
+
+    .ui-label {
+      color: #cbd5e1;
+    }
+
+    .ui-control {
+      background: #0f172a;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #f1f5f9;
+
+      &:focus {
+        border-color: #08a6cb;
+      }
+    }
+
+    .role-form__note {
+      background: rgba(8, 166, 203, 0.12);
+      i {
+        color: #55c8e5;
+      }
+    }
+
+    .modal-footer-actions {
+      border-top-color: rgba(255, 255, 255, 0.1);
+
+      .ui-btn.secondary {
+        border-color: rgba(255, 255, 255, 0.15);
+        color: #cbd5e1;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+      }
+    }
   }
 }

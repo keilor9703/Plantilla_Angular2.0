@@ -1,4 +1,11 @@
-nul# =====================
+# =====================
+# ARCHIVOS COMPRIMIDOS
+# =====================
+*.zip
+*.7z
+*.rar
+
+# =====================
 # FRONTEND (Angular)
 # =====================
 frontend/dist/
@@ -92,3 +99,8 @@ CLAUDE.md
 node_modules/
 *.bak
 docker-compose.override.yml
+
+# Archivos temporales (PL/SQL Developer, Office, backups)
+*.~*
+~$*
+*(1).*

@@ -1,0 +1,23 @@
+@if (loading.visible()) {
+  <div class="ui-global-loading" aria-busy="true">
+    <section class="ui-global-loading__panel" aria-describedby="global-loading-help">
+      <span class="ui-global-loading__eyebrow">{{ systemAcronym() }}</span>
+
+      <app-ui-spinner
+        type="ring"
+        size="xl"
+        variant="accent"
+        [label]="loading.message()"
+        [ariaLabel]="loading.message()"
+      />
+
+      <p id="global-loading-help" class="ui-global-loading__help">
+        Espere un momento mientras preparamos el contenido.
+      </p>
+
+      <span class="ui-global-loading__progress" aria-hidden="true">
+        <span></span>
+      </span>
+    </section>
+  </div>
+}

@@ -67,70 +67,131 @@
 
     <!-- Usuario -->
     <div class="header-user">
-        <div class="user-info" (click)="onProfileClick()">
-            <div class="user-avatar">
-                <img *ngIf="userPhotoUrl; else userIconTpl" [src]="userPhotoUrl" alt="Foto usuario"
-                    class="user-avatar-img">
-                <ng-template #userIconTpl>
-                    <i class="fa-solid fa-user"></i>
-                </ng-template>
-            </div>
-            <div class="user-details">
-                <span class="user-name">{{ userName }}</span>
-                <span class="user-role">{{ userRole }}</span>
-            </div>
-            <i class="fa-solid fa-chevron-down"></i>
-        </div>
+        <button
+            class="user-info profile-trigger"
+            [class.is-loading]="profileSummaryLoading"
+            type="button"
+            [attr.aria-expanded]="isUserDropdownOpen"
+            [attr.aria-busy]="profileSummaryLoading"
+            aria-haspopup="menu"
+            (click)="toggleUserDropdown($event)"
+        >
+            <ng-container *ngIf="hasProfileSummary; else avatarSkeletonTpl">
+                <span class="user-avatar">
+                    <img *ngIf="userPhotoUrl; else userIconTpl" [src]="userPhotoUrl" alt="Foto de usuario" class="user-avatar-img">
+                    <ng-template #userIconTpl>
+                        <i class="fa-solid fa-user" aria-hidden="true"></i>
+                    </ng-template>
+                </span>
+            </ng-container>
+            <ng-template #avatarSkeletonTpl>
+                <span class="user-avatar user-avatar--skeleton" aria-hidden="true"></span>
+            </ng-template>
 
-        <!-- Dropdown Menu (opcional) -->
-        <div class="user-dropdown" [class.show-dropdown]="isUserDropdownOpen">
-            <a href="#" class="dropdown-item" (click)="$event.preventDefault(); openProfileModal()">
-                <i class="fa-solid fa-user-circle"></i>
+            <ng-container *ngIf="hasProfileSummary; else detailsSkeletonTpl">
+                <span class="user-details">
+                    <span class="user-name">{{ userName }}</span>
+                    <span class="user-role" [class.user-role--scroll]="shouldScrollUserRole">
+                        <ng-container *ngIf="shouldScrollUserRole; else textRoleTpl">
+                            <span class="user-role__track">
+                                <span>{{ userRole }}</span>
+                                <span aria-hidden="true">{{ userRole }}</span>
+                            </span>
+                        </ng-container>
+                        <ng-template #textRoleTpl>
+                            <span class="user-role__text">{{ userRole }}</span>
+                        </ng-template>
+                    </span>
+                </span>
+            </ng-container>
+            <ng-template #detailsSkeletonTpl>
+                <span class="user-details user-details--skeleton" aria-hidden="true">
+                    <span class="profile-skeleton profile-skeleton--name"></span>
+                    <span class="profile-skeleton profile-skeleton--role"></span>
+                </span>
+            </ng-template>
+
+            <i class="fa-solid fa-chevron-down profile-chevron" aria-hidden="true"></i>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div class="user-dropdown" [class.show-dropdown]="isUserDropdownOpen" *ngIf="isUserDropdownOpen" role="menu">
+            <button type="button" class="dropdown-item" role="menuitem" (click)="openProfileModal()">
+                <i class="fa-solid fa-user-circle" aria-hidden="true"></i>
                 Mi Perfil
-            </a>
-            <a routerLink="/administracion" class="dropdown-item">
-                <i class="fa-solid fa-cog"></i>
+            </button>
+            <a
+                routerLink="/administracion"
+                class="dropdown-item"
+                role="menuitem"
+                (click)="isUserDropdownOpen = false"
+            >
+                <i class="fa-solid fa-cog" aria-hidden="true"></i>
                 Configuración
             </a>
-            <div class="dropdown-divider"></div>
-            <a *ngIf="isImpersonating()" (click)="stopImpersonation()" class="dropdown-item">
-                <i class="fa-solid fa-user-secret"></i>
+            <span class="dropdown-divider" aria-hidden="true"></span>
+            <button type="button" *ngIf="isImpersonating()" class="dropdown-item" role="menuitem" (click)="stopImpersonation()">
+                <i class="fa-solid fa-user-secret" aria-hidden="true"></i>
                 Salir de impersonación
-            </a>
-            <a (click)="onLogout()" class="dropdown-item logout">
-                <i class="fa-solid fa-sign-out-alt"></i>
+            </button>
+            <button type="button" class="dropdown-item logout" role="menuitem" (click)="onLogout()">
+                <i class="fa-solid fa-sign-out-alt" aria-hidden="true"></i>
                 Cerrar Sesión
-            </a>
+            </button>
         </div>
     </div>
 </header>
 
 <div class="profile-modal-backdrop" *ngIf="profileModalOpen" (click)="closeProfileModal()">
-    <div class="profile-modal" (click)="$event.stopPropagation()">
-        <div class="profile-modal__head">
+    <section class="profile-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+        <header class="profile-modal__head">
             <h3>Mi Perfil</h3>
-            <button type="button" class="close-btn" (click)="closeProfileModal()">✕</button>
-        </div>
+            <button type="button" class="close-btn" (click)="closeProfileModal()" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </header>
 
-        <div class="profile-modal__body" *ngIf="!profileLoading; else loadingTpl">
+        <div class="profile-modal__body" *ngIf="!profileLoading; else profileLoadingTpl">
             <div class="profile-photo">
-                <img *ngIf="userPhotoUrl; else profileIconTpl" [src]="userPhotoUrl" alt="Foto de perfil">
-                <ng-template #profileIconTpl>
-                    <i class="fa-solid fa-user"></i>
+                <img *ngIf="userPhotoUrl; else photoIconTpl" [src]="userPhotoUrl" alt="Foto de perfil">
+                <ng-template #photoIconTpl>
+                    <i class="fa-solid fa-user" aria-hidden="true"></i>
                 </ng-template>
             </div>
 
-            <div class="profile-fields">
-                <div><strong>Grado:</strong> {{ perfil?.grado || 'Sin información' }}</div>
-                <div><strong>Nombre:</strong> {{ perfil?.nombreCompleto || userName }}</div>
-                <div><strong>Cargo:</strong> {{ perfil?.cargo || 'Sin información' }}</div>
-                <div><strong>Situación laboral:</strong> {{ perfil?.situacionLaboral || 'Sin información' }}</div>
-                <div><strong>Tiempo servicio:</strong> {{ perfil?.tiempoServicio || 'Sin información' }}</div>
-            </div>
+            <dl class="profile-fields">
+                <div>
+                    <dt>Grado</dt>
+                    <dd>{{ perfilGrado || 'Sin información' }}</dd>
+                </div>
+                <div>
+                    <dt>Funcionario</dt>
+                    <dd>{{ perfil?.nombreCompleto || userName }}</dd>
+                </div>
+                <div>
+                    <dt>Cargo</dt>
+                    <dd>{{ perfil?.cargo || 'Sin información' }}</dd>
+                </div>
+                <div>
+                    <dt>Situación laboral</dt>
+                    <dd>{{ perfil?.situacionLaboral || 'Sin información' }}</dd>
+                </div>
+                <div>
+                    <dt>Tiempo servicio</dt>
+                    <dd>{{ perfil?.tiempoServicio || 'Sin información' }}</dd>
+                </div>
+            </dl>
         </div>
 
-        <ng-template #loadingTpl>
-            <div class="profile-modal__loading">Cargando perfil...</div>
+        <ng-template #profileLoadingTpl>
+            <div class="profile-modal__loading" aria-hidden="true">
+                <span class="profile-modal__photo-skeleton"></span>
+                <span class="profile-modal__field-skeleton"></span>
+                <span class="profile-modal__field-skeleton"></span>
+                <span class="profile-modal__field-skeleton"></span>
+                <span class="profile-modal__field-skeleton"></span>
+                <span class="profile-modal__field-skeleton"></span>
+            </div>
         </ng-template>
-    </div>
+    </section>
 </div>

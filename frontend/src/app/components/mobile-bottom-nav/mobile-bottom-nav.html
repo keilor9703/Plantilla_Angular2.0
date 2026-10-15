@@ -1,0 +1,81 @@
+@if (isRadioOpen()) {
+  <div class="mobile-bottom-sheet-backdrop" (click)="closeRadioSheet()" aria-hidden="true"></div>
+
+  <section
+    class="mobile-bottom-sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Reproductor de Radio Institucional"
+  >
+    <header class="mobile-bottom-sheet__head">
+      <div class="mobile-bottom-sheet__title">
+        <i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i>
+        <span>Emisora Institucional</span>
+        @if (player.isPlaying()) {
+          <span class="live-pill">
+            <span class="live-pill__dot"></span>
+            EN VIVO
+          </span>
+        }
+      </div>
+
+      <button
+        class="mobile-bottom-sheet__close"
+        type="button"
+        aria-label="Cerrar panel de radio"
+        (click)="closeRadioSheet()"
+      >
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <div class="mobile-bottom-sheet__body">
+      <app-radio-player variant="mobile"></app-radio-player>
+    </div>
+  </section>
+}
+
+<nav class="mobile-nav" aria-label="Navegación principal móvil">
+  <!-- Inicio -->
+  <a
+    class="mobile-nav__item"
+    routerLink="/home"
+    [class.mobile-nav__item--active]="isHomeActive()"
+    aria-label="Ir a Inicio"
+  >
+    <i class="mobile-nav__icon fa-solid fa-house" aria-hidden="true"></i>
+    <span class="mobile-nav__label">Inicio</span>
+  </a>
+
+  <!-- Radio Institucional (Botón Central Interactivo) -->
+  <button
+    class="mobile-nav__item mobile-nav__item--radio"
+    type="button"
+    [class.mobile-nav__item--playing]="player.isPlaying()"
+    [class.mobile-nav__item--active]="isRadioOpen()"
+    (click)="toggleRadioSheet()"
+    [attr.aria-expanded]="isRadioOpen()"
+    aria-label="Emisora institucional"
+  >
+    <div class="mobile-nav__radio-icon-wrap">
+      @if (player.isPlaying()) {
+        <span class="radio-live-dot" aria-hidden="true"></span>
+        <i class="mobile-nav__icon fa-solid fa-tower-broadcast radio-icon-pulsing" aria-hidden="true"></i>
+      } @else {
+        <i class="mobile-nav__icon fa-solid fa-radio" aria-hidden="true"></i>
+      }
+    </div>
+    <span class="mobile-nav__label">{{ player.isPlaying() ? 'En Vivo' : 'Radio' }}</span>
+  </button>
+
+  <!-- Administración / Configuración -->
+  <a
+    class="mobile-nav__item"
+    routerLink="/administracion"
+    [class.mobile-nav__item--active]="isAdminActive()"
+    aria-label="Ir a Configuración y Administración"
+  >
+    <i class="mobile-nav__icon fa-solid fa-gear" aria-hidden="true"></i>
+    <span class="mobile-nav__label">Administración</span>
+  </a>
+</nav>

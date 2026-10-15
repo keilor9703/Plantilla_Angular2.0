@@ -1,0 +1,29 @@
+<section class="decision-demo ui-panel">
+  <header class="decision-demo__header">
+    <span class="decision-demo__number">17</span>
+    <div>
+      <h2>Selector de decisión</h2>
+      <p>Control accesible para decisiones Sí/No que nunca aprueba por omisión.</p>
+    </div>
+  </header>
+
+  <div class="decision-demo__body">
+    <article>
+      <h3>Uso con formulario reactivo</h3>
+      <p>El valor permanece nulo hasta que el usuario toma una decisión explícita.</p>
+
+      <form [formGroup]="formulario" (ngSubmit)="validar()">
+        <app-ui-decision-selector
+          formControlName="concepto"
+          etiqueta="Concepto"
+          ayuda="Use las flechas del teclado para cambiar la selección."
+          [obligatorio]="true"
+          [error]="errorConcepto()"
+        />
+        <button type="submit">Validar ejemplo</button>
+      </form>
+    </article>
+
+    <pre><code>{{ ejemplo }}</code></pre>
+  </div>
+</section>

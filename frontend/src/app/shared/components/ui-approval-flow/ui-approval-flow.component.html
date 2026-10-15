@@ -1,0 +1,204 @@
+<article
+  class="ui-approval-flow"
+  [class.is-compact]="compact()"
+  [attr.aria-labelledby]="'approval-flow-title-' + process().id"
+>
+  @if (headerAppearance() === 'institutional') {
+    <app-ui-panel-header
+      class="ui-approval-flow__header"
+      appearance="institutional"
+      icon="fa-solid fa-file-signature"
+      [headingId]="'approval-flow-title-' + process().id"
+      [title]="resolvedPanelTitle()"
+      [description]="resolvedPanelDescription()"
+    >
+      <app-ui-badge
+        panel-header-actions
+        size="sm"
+        appearance="outline"
+        [label]="process().statusLabel || processState().label"
+        [variant]="processState().variant"
+        [icon]="processState().icon"
+        iconPosition="start"
+      />
+    </app-ui-panel-header>
+  } @else {
+    <!-- La apariencia predeterminada conserva la API y presentación existente. -->
+    <app-ui-section-header
+      class="ui-approval-flow__header"
+      appearance="divider"
+      icon="fa-solid fa-file-signature"
+      [compact]="true"
+      [showAccent]="false"
+      [headingId]="'approval-flow-title-' + process().id"
+      [eyebrow]="resolvedHeaderEyebrow()"
+      [title]="process().title"
+      [description]="process().subtitle || ''"
+    >
+      <app-ui-badge
+        header-actions
+        size="sm"
+        appearance="outline"
+        [label]="process().statusLabel || processState().label"
+        [variant]="processState().variant"
+        [icon]="processState().icon"
+        iconPosition="start"
+      />
+    </app-ui-section-header>
+  }
+
+  <div class="ui-approval-flow__summary">
+    <div>
+      <small>Salida</small>
+      <strong>{{ process().startAt }}</strong>
+    </div>
+    <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+    <div>
+      <small>Llegada</small>
+      <strong>{{ process().endAt }}</strong>
+    </div>
+    <div class="ui-approval-flow__inbox">
+      <small>Bandeja actual</small>
+      <strong
+        ><i class="fa-solid fa-inbox" aria-hidden="true"></i> {{ process().currentInbox }}</strong
+      >
+    </div>
+  </div>
+
+  @if (showObservation()) {
+    <section
+      class="ui-approval-flow__request-information"
+      [attr.aria-labelledby]="'approval-observation-title-' + process().id"
+    >
+      <div class="ui-approval-flow__request-context">
+        <small>
+          <i class="fa-solid fa-bullseye" aria-hidden="true"></i>
+          {{ observationContextLabel() }}
+        </small>
+        <strong>{{ resolvedObservationContext() }}</strong>
+      </div>
+      <div
+        class="ui-approval-flow__observation"
+        [class.is-empty]="!process().observation"
+      >
+        <small [id]="'approval-observation-title-' + process().id">
+          <i class="fa-regular fa-note-sticky" aria-hidden="true"></i>
+          {{ observationLabel() }}
+        </small>
+        <p>
+          {{ process().observation || emptyObservationText() }}
+        </p>
+      </div>
+    </section>
+  }
+
+  <section class="ui-approval-flow__tracking" aria-label="Continuidad de la aprobación">
+    <div class="ui-approval-flow__tracking-head">
+      <div>
+        <strong>Ruta de aprobación</strong>
+        <small>{{ trackingSummary() }}</small>
+      </div>
+      <span>{{ progress() }}%</span>
+    </div>
+
+    <div
+      class="ui-approval-flow__progress"
+      role="progressbar"
+      aria-label="Avance de la solicitud"
+      [attr.aria-valuenow]="progress()"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <span [style.width.%]="progress()"></span>
+    </div>
+
+    <ol class="ui-approval-flow__stages">
+      @for (stage of process().stages; track stage.id; let last = $last) {
+        <li [class]="'is-' + stage.status">
+          <div class="ui-approval-flow__stage-marker" aria-hidden="true">
+            <span><i [class]="stageState(stage.status).icon"></i></span>
+            @if (!last) {
+              <i></i>
+            }
+          </div>
+
+          <article class="ui-approval-flow__stage-copy">
+            <header>
+              <div>
+                <small>{{ stage.label }}</small>
+                <strong>{{ stage.actor }}</strong>
+                @if (stage.role) {
+                  <span>{{ stage.role }}</span>
+                }
+              </div>
+              <app-ui-badge
+                size="xs"
+                appearance="soft"
+                [label]="stageState(stage.status).label"
+                [variant]="stageState(stage.status).variant"
+              />
+            </header>
+
+            @if (stage.decidedAt) {
+              <time class="ui-approval-flow__decision-date">
+                <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
+                {{ stage.decidedAt }}
+              </time>
+            }
+
+            @if (stage.note) {
+              <div class="ui-approval-flow__concept">
+                <small>
+                  <i class="fa-regular fa-circle-check" aria-hidden="true"></i>
+                  Concepto emitido
+                </small>
+                <p>{{ stage.note }}</p>
+              </div>
+            } @else {
+              <span class="ui-approval-flow__empty-concept">
+                <i class="fa-solid fa-minus" aria-hidden="true"></i>
+                {{
+                  stage.status === 'not-required'
+                    ? 'No requerido'
+                    : stage.status === 'pending'
+                      ? 'Aún sin respuesta'
+                      : 'Sin observación registrada'
+                }}
+              </span>
+            }
+          </article>
+        </li>
+      }
+    </ol>
+  </section>
+
+  @if (showSource() || showDetailsAction()) {
+    <footer class="ui-approval-flow__footer">
+      @if (process().timeSummary; as time) {
+        <span
+          class="ui-approval-flow__time"
+          [class.is-upcoming]="time.state === 'upcoming'"
+          [class.is-active]="time.state === 'active'"
+          [class.is-finished]="time.state === 'finished'"
+        >
+          <i [class]="time.icon" aria-hidden="true"></i>
+          {{ time.label }}
+        </span>
+      } @else if (showSource() && process().source) {
+        <span><i class="fa-solid fa-database" aria-hidden="true"></i> {{ process().source }}</span>
+      }
+      @if (showDetailsAction()) {
+        <app-ui-button
+          size="sm"
+          variant="primary"
+          appearance="ghost"
+          icon="fa-solid fa-arrow-up-right-from-square"
+          iconPosition="end"
+          (buttonClick)="requestDetails()"
+        >
+          {{ detailsLabel() }}
+        </app-ui-button>
+      }
+    </footer>
+  }
+</article>

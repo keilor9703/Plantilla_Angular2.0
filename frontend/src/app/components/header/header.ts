@@ -27,6 +27,8 @@ interface Notification {
 
 interface MiPerfilDto {
   identificacion?: string;
+  gradAlfabetico?: string;
+  GradAlfabetico?: string;
   grado?: string;
   nombreCompleto?: string;
   cargo?: string;
@@ -46,7 +48,12 @@ export class HeaderComponent implements OnInit {
   userPhotoUrl: string | null = null;
   profileModalOpen = false;
   profileLoading = false;
+  profileSummaryLoading = true;
   perfil: MiPerfilDto | null = null;
+
+  userName = 'Usuario';
+  userRole = 'OFTIC';
+  private brandingRole = 'OFTIC';
 
   constructor(
     private SidebarService: SidebarService,
@@ -57,15 +64,19 @@ export class HeaderComponent implements OnInit {
     private menuService: MenuService
   ) {}
 
-  private allSearchItems: SearchResult[] = [];
+  allSearchItems: SearchResult[] = [];
   searchResults: SearchResult[] = [];
   showSearchDropdown = false;
   searchActiveIndex = -1;
+
+  notifications: Notification[] = [];
+  searchQuery: string = '';
 
   ngOnInit(): void {
     this.userName = this.authService.getUsuario();
     this.loadBranding();
     this.loadMyPhoto();
+    this.loadMyProfile(false);
     this.loadSearchIndex();
   }
 
@@ -88,41 +99,49 @@ export class HeaderComponent implements OnInit {
   onDocumentClick(event: Event): void {
     const target = event.target as HTMLElement;
 
-    // Cierre de dropdown de usuario
-    if (this.isUserDropdownOpen) {
-      if (!target.closest('.header-user')) {
-        this.closeUserDropdown();
-      }
+    if (this.isUserDropdownOpen && !target.closest('.header-user')) {
+      this.closeUserDropdown();
     }
 
-    // Cierre de dropdown de búsqueda
-    if (this.showSearchDropdown) {
-      if (!target.closest('.header-search')) {
-        this.showSearchDropdown = false;
-      }
+    if (this.showSearchDropdown && !target.closest('.header-search')) {
+      this.showSearchDropdown = false;
     }
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeUserDropdown();
+    this.closeProfileModal();
     this.showSearchDropdown = false;
   }
 
-  notifications: Notification[] = [];
+  get perfilGrado(): string {
+    return (
+      this.perfil?.gradAlfabetico ??
+      this.perfil?.GradAlfabetico ??
+      this.perfil?.grado ??
+      ''
+    ).trim();
+  }
 
-  searchQuery: string = '';
-  userName: string = 'Usuario';
-  userRole: string = 'OFTIC';
+  get shouldScrollUserRole(): boolean {
+    return this.userRole.length > 28;
+  }
+
+  get hasProfileSummary(): boolean {
+    return !this.profileSummaryLoading && !!(this.userName || this.userRole);
+  }
 
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
         const sigla = (cfg?.sistema ?? cfg?.sigla ?? cfg?.systemName ?? '').trim();
-        this.userRole = sigla || 'OFTIC';
+        this.brandingRole = sigla || 'OFTIC';
+        this.applyProfileSummary();
       },
       error: () => {
-        this.userRole = 'OFTIC';
+        this.brandingRole = 'OFTIC';
+        this.applyProfileSummary();
       }
     });
   }
@@ -268,10 +287,6 @@ export class HeaderComponent implements OnInit {
   onNotificationClick(notification: Notification): void {
   }
 
-  onProfileClick(event?: Event): void {
-    this.toggleUserDropdown(event);
-  }
-
   onLogout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
@@ -340,25 +355,41 @@ export class HeaderComponent implements OnInit {
     return `data:image/jpeg;base64,${decoded}`;
   }
 
-  openProfileModal(): void {
-    this.profileModalOpen = true;
-    this.closeUserDropdown();
+  private loadMyProfile(showLoading: boolean): void {
+    this.profileLoading = showLoading;
+    this.profileSummaryLoading = !this.perfil;
 
-    if (this.perfil) {
-      return;
-    }
-
-    this.profileLoading = true;
     this.http.get<MiPerfilDto>(`${environment.apiBaseUrl}/Usuario/MiPerfil`).subscribe({
       next: (data) => {
         this.perfil = data ?? {};
         this.profileLoading = false;
+        this.profileSummaryLoading = false;
+        this.applyProfileSummary();
       },
       error: () => {
-        this.perfil = null;
         this.profileLoading = false;
+        this.profileSummaryLoading = false;
+        this.applyProfileSummary();
       }
     });
+  }
+
+  private applyProfileSummary(): void {
+    const name = (this.perfil?.nombreCompleto ?? '').trim();
+    const grade = this.perfilGrado;
+    const cargo = (this.perfil?.cargo ?? '').trim();
+
+    this.userName = name ? [grade, name].filter(Boolean).join(' ') : this.authService.getUsuario();
+    this.userRole = cargo || this.brandingRole;
+  }
+
+  openProfileModal(): void {
+    this.profileModalOpen = true;
+    this.closeUserDropdown();
+
+    if (!this.perfil && !this.profileLoading) {
+      this.loadMyProfile(true);
+    }
   }
 
   closeProfileModal(): void {

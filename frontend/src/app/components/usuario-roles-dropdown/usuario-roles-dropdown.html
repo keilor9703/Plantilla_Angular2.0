@@ -1,0 +1,83 @@
+<div class="roles-dropdown" [class.is-open]="opened()">
+  <button
+    #trigger
+    cdkOverlayOrigin
+    #origin="cdkOverlayOrigin"
+    class="roles-dropdown__trigger"
+    type="button"
+    aria-haspopup="dialog"
+    [id]="triggerId"
+    [disabled]="!hasRoles()"
+    [attr.aria-expanded]="opened()"
+    [attr.aria-controls]="opened() ? panelId : null"
+    (click)="toggle()"
+  >
+    <span class="roles-dropdown__trigger-icon" aria-hidden="true">
+      <i class="fa-solid fa-user-shield"></i>
+    </span>
+
+    <span class="roles-dropdown__trigger-label">{{ selectedLabel() }}</span>
+
+    <i class="fa-solid fa-chevron-down roles-dropdown__chevron" aria-hidden="true"></i>
+  </button>
+
+  <ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="origin"
+    [cdkConnectedOverlayOpen]="opened()"
+    [cdkConnectedOverlayPositions]="positions()"
+    [cdkConnectedOverlayWidth]="panelWidth()"
+    [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayViewportMargin]="8"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    cdkConnectedOverlayPanelClass="usuario-roles-overlay-pane"
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    (attach)="onOverlayAttached()"
+    (backdropClick)="close()"
+    (detach)="close()"
+  >
+    <section
+      #panel
+      class="roles-dropdown__panel"
+      role="dialog"
+      tabindex="-1"
+      [id]="panelId"
+      [attr.aria-labelledby]="panelTitleId"
+      [attr.aria-describedby]="panelId + '-description'"
+    >
+      <header class="roles-dropdown__panel-head">
+        <div>
+          <strong [id]="panelTitleId">Roles vigentes</strong>
+          <span [id]="panelId + '-description'">{{ panelContext() }}</span>
+        </div>
+
+        <span class="roles-dropdown__count" [attr.aria-label]="items().length + ' roles'">
+          {{ items().length }}
+        </span>
+      </header>
+
+      <p class="roles-dropdown__result-message">
+        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+        {{ resultMessage() }}
+      </p>
+
+      <!-- Desde el cuarto rol, este contenedor conserva tres filas visibles y activa scroll. -->
+      <div class="roles-dropdown__list" role="list" tabindex="0">
+        @for (item of items(); track $index) {
+          <article class="roles-dropdown__item" role="listitem">
+            <span class="roles-dropdown__item-icon" aria-hidden="true">
+              <i class="fa-solid fa-shield-halved"></i>
+            </span>
+
+            <div class="roles-dropdown__item-content">
+              <strong>{{ item.nombre }}</strong>
+              <span>Vencimiento: {{ item.vencimiento }}</span>
+            </div>
+
+            <i class="fa-solid fa-chevron-right roles-dropdown__status" aria-hidden="true"></i>
+          </article>
+        }
+      </div>
+    </section>
+  </ng-template>
+</div>

@@ -1,26 +1,52 @@
-<div class="app-shell" [class.menu-open]="isMenuOpen()">
+<div
+  class="app-shell"
+  [class.menu-open]="isMenuOpen()"
+  [class.mobile-navigation-active]="isMobile()"
+>
   <app-sidebar class="app-sidebar"></app-sidebar>
 
-  <div class="app-backdrop"
-       *ngIf="isMenuOpen()"
-       (click)="closeMenu()"
-       aria-hidden="true"></div>
+  @if (isMenuOpen()) {
+    <div
+      class="app-backdrop"
+      (click)="closeMenu()"
+      aria-hidden="true"
+    ></div>
+  }
 
   <div class="shell">
     <app-header></app-header>
 
-    <main class="main">
+    <main class="main" #mainContainer>
       <app-breadcrumb></app-breadcrumb>
 
       <div class="content">
         <router-outlet></router-outlet>
       </div>
     </main>
+
+    @if (!isMobile()) {
+      <app-footer class="app-footer-fixed"></app-footer>
+    }
   </div>
 
-  <app-footer class="app-footer-fixed"></app-footer>
+  @if (isMobile()) {
+    <app-mobile-bottom-nav></app-mobile-bottom-nav>
+  }
 </div>
 
-<!-- Menú de Accesibilidad Flotante -->
-<app-accessibility-menu [socialGroups]="socialGroups"></app-accessibility-menu>
+@if (!isMobile()) {
+  <!-- Menú de Accesibilidad Flotante -->
+  <app-accessibility-menu [socialGroups]="socialGroups"></app-accessibility-menu>
+}
 
+<!-- Botón Volver Arriba -->
+<button
+  class="scroll-top-btn"
+  [class.show]="showScrollTop"
+  (click)="scrollToTop()"
+  title="Volver arriba"
+  aria-label="Volver al inicio de la página">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <polyline points="18 15 12 9 6 15"></polyline>
+  </svg>
+</button>
