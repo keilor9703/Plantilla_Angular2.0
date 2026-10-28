@@ -35,6 +35,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   mfaClave = '';
   mfaEnrollToken = '';
   mfaCodigo = '';
+  mfaRecordar = false;
   // Restablecimiento (autoservicio)
   mfaReset = false;
   mfaResetCodigo = '';
@@ -198,7 +199,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     const obs = this.mfaEnrolar
       ? this.authService.mfaEnrollConfirm(this.mfaChallenge, codigo, this.mfaEnrollToken)
-      : this.authService.mfaVerify(this.mfaChallenge, codigo);
+      : this.authService.mfaVerify(this.mfaChallenge, codigo, this.mfaRecordar);
 
     obs.subscribe({
       next: (resp: any) => {
@@ -279,6 +280,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.mfaClave = '';
     this.mfaEnrollToken = '';
     this.mfaCodigo = '';
+    this.mfaRecordar = false;
     this.mfaReset = false;
     this.mfaResetCodigo = '';
     this.errorMessage = '';

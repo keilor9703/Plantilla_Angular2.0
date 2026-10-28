@@ -83,6 +83,11 @@
                     inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
             </div>
 
+            <label *ngIf="!mfaEnrolar" style="display:flex; align-items:center; gap:8px; color:#e8e8e8; font-size:13px; margin:2px 0 10px; cursor:pointer;">
+                <input type="checkbox" name="mfaRecordar" [(ngModel)]="mfaRecordar" style="width:auto; margin:0;">
+                Confiar en este dispositivo (no volver a pedir el código)
+            </label>
+
             <p *ngIf="errorMessage" style="color:#ffb3b3; font-size:13px; margin:4px 0 10px 0;">
                 {{ errorMessage }}
             </p>
@@ -92,9 +97,9 @@
                 <i class="fas fa-key icon-key"></i>
             </button>
 
-            <div class="form-options" style="justify-content:space-between; margin-top:10px;">
+            <div class="form-options" style="flex-direction:column; align-items:center; gap:8px; margin-top:14px;">
+                <a *ngIf="!mfaEnrolar" href="javascript:void(0)" class="forgot-password" (click)="solicitarReset()">¿Perdió su autenticador? Restablecer registro</a>
                 <a href="javascript:void(0)" class="forgot-password" (click)="cancelar2fa()">Volver al inicio de sesión</a>
-                <a *ngIf="!mfaEnrolar" href="javascript:void(0)" class="forgot-password" (click)="solicitarReset()">¿Perdió su autenticador? Restablecer</a>
             </div>
         </form>
 

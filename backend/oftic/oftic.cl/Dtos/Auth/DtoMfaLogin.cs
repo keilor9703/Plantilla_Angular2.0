@@ -5,6 +5,8 @@ namespace Comun.Dtos
     {
         public string? Challenge { get; set; }
         public string? Codigo { get; set; }
+        public bool RememberDevice { get; set; }
+        public string? DeviceId { get; set; }
     }
 
     /// <summary>Paso 2 del login (primera vez): confirmación del enrolamiento con el primer código.</summary>

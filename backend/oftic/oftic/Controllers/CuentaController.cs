@@ -160,6 +160,20 @@ namespace ofic.Controllers
                         });
                     }
 
+                    // Dispositivo confiable: si este navegador ya está registrado, se omite el 2FA.
+                    if (!string.IsNullOrWhiteSpace(request.DeviceId) &&
+                        await _apiMfa.IsTrustedAsync(svcToken, ident, request.Usuario, request.DeviceId!, CancellationToken.None))
+                    {
+                        var jwtTrusted = _jwtService.CreateToken(idUsuario.Value, request.Usuario, rolesFinal);
+                        return Ok(new DtoTokenResponse
+                        {
+                            token = jwtTrusted,
+                            usuario = request.Usuario,
+                            success = true,
+                            message = "Login exitoso"
+                        });
+                    }
+
                     var estado = await _apiMfa.GetStateAsync(svcToken, ident, request.Usuario, CancellationToken.None);
                     var challenge = CrearChallenge(idUsuario.Value, request.Usuario, rolesFinal, ident);
 
@@ -361,7 +375,7 @@ namespace ofic.Controllers
             if (string.IsNullOrWhiteSpace(svcToken))
                 return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
 
-            var r = await _apiMfa.VerifyAsync(svcToken, ch.Ident, ch.Usuario, req.Codigo.Trim(), ObtenerIp(), CancellationToken.None);
+            var r = await _apiMfa.VerifyAsync(svcToken, ch.Ident, ch.Usuario, req.Codigo.Trim(), ObtenerIp(), req.RememberDevice, req.DeviceId, CancellationToken.None);
             if (!r.Ok)
                 return Unauthorized(new DtoTokenResponse
                 {

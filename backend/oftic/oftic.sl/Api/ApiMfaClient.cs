@@ -134,10 +134,39 @@ namespace Servicios.Api
             return await VerifyLikeAsync(bearer, "/api/ApiMfa/EnrollConfirm", body, ct);
         }
 
-        public async Task<DtoMfaVerifyCliente> VerifyAsync(string bearer, long identificacion, string usuario, string code, string ip, CancellationToken ct)
+        public async Task<DtoMfaVerifyCliente> VerifyAsync(string bearer, long identificacion, string usuario, string code, string ip, bool rememberDevice, string? deviceId, CancellationToken ct)
         {
-            var body = new { Identificacion = identificacion, Usuario = usuario, Code = code, RememberDevice = false, IpMaquina = ip ?? string.Empty, UserAudit = identificacion };
+            var body = new
+            {
+                Identificacion = identificacion,
+                Usuario = usuario,
+                Code = code,
+                RememberDevice = rememberDevice,
+                DeviceId = deviceId ?? string.Empty,
+                IpMaquina = ip ?? string.Empty,
+                UserAudit = identificacion
+            };
             return await VerifyLikeAsync(bearer, "/api/ApiMfa/Verify", body, ct);
+        }
+
+        public async Task<bool> IsTrustedAsync(string bearer, long identificacion, string usuario, string deviceId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId)) return false;
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get,
+                    $"{_baseUrl}/api/ApiMfa/IsTrusted?identificacion={identificacion}&usuario={Uri.EscapeDataString(usuario ?? string.Empty)}&deviceId={Uri.EscapeDataString(deviceId)}");
+                req.Headers.Add("Authorization", "Bearer " + bearer);
+                using var resp = await _http.SendAsync(req, ct);
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var env = JsonSerializer.Deserialize<Envelope<int>>(json, JsonOpts);
+                return env != null && env.Data == 1;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando IsTrusted en Api2FA");
+                return false;
+            }
         }
 
         public async Task<DtoMfaVerifyCliente> ResetRequestAsync(string bearer, long identificacion, string usuario, string ip, CancellationToken ct)

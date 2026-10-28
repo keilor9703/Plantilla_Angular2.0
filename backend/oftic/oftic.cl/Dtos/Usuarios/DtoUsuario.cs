@@ -61,6 +61,8 @@ namespace Comun.Dtos
     {
         public string? Usuario { get; set; }
         public string? Contrasena { get; set; }
+        /// <summary>Identificador del dispositivo (navegador) para el reconocimiento de dispositivos confiables.</summary>
+        public string? DeviceId { get; set; }
     }
 
     public class DtoImpersonateRequest

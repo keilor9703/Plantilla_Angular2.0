@@ -17,7 +17,10 @@ namespace Servicios.ApiInterfaz
         Task<DtoMfaEstadoCliente> GetStateAsync(string bearer, long identificacion, string usuario, CancellationToken ct);
         Task<DtoMfaEnrolCliente> EnrollStartAsync(string bearer, long identificacion, string usuario, CancellationToken ct);
         Task<DtoMfaVerifyCliente> EnrollConfirmAsync(string bearer, long identificacion, string usuario, string enrollToken, string code, string ip, CancellationToken ct);
-        Task<DtoMfaVerifyCliente> VerifyAsync(string bearer, long identificacion, string usuario, string code, string ip, CancellationToken ct);
+        Task<DtoMfaVerifyCliente> VerifyAsync(string bearer, long identificacion, string usuario, string code, string ip, bool rememberDevice, string? deviceId, CancellationToken ct);
+
+        /// <summary>Indica si el dispositivo está registrado como confiable (para omitir el segundo factor).</summary>
+        Task<bool> IsTrustedAsync(string bearer, long identificacion, string usuario, string deviceId, CancellationToken ct);
 
         // ---- Restablecimiento del segundo factor (autoservicio) ----
         Task<DtoMfaVerifyCliente> ResetRequestAsync(string bearer, long identificacion, string usuario, string ip, CancellationToken ct);

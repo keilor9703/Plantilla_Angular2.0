@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 interface LoginRequest {
   Usuario: string;
   Contrasena: string;
+  DeviceId?: string;
 }
 
 interface LoginResponse {
@@ -34,6 +35,7 @@ export class AuthService {
   private readonly userKey = 'sisge_usuario';
   private readonly authKey = 'sisge_auth';
   private readonly userIdKey = 'sisge_user_id';
+  private readonly deviceIdKey = 'si2fa_device_id';
   private readonly impersonationFlagKey = 'sisge_impersonating';
   private readonly impersonationOriginalTokenKey = 'sisge_impersonation_original_token';
   private readonly impersonationOriginalUserKey = 'sisge_impersonation_original_user';
@@ -53,7 +55,8 @@ export class AuthService {
   login(usuario: string, contrasena: string): Observable<LoginResponse> {
     const payload: LoginRequest = {
       Usuario: usuario,
-      Contrasena: contrasena
+      Contrasena: contrasena,
+      DeviceId: this.getDeviceId()
     };
 
     return this.http.post<LoginResponse>(this.loginUrl, payload, { withCredentials: true }).pipe(
@@ -71,8 +74,9 @@ export class AuthService {
   }
 
   /** Paso 2: verificar el código del segundo factor. */
-  mfaVerify(challenge: string, codigo: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(this.mfaVerifyUrl, { Challenge: challenge, Codigo: codigo }, { withCredentials: true }).pipe(
+  mfaVerify(challenge: string, codigo: string, rememberDevice = false): Observable<LoginResponse> {
+    const body = { Challenge: challenge, Codigo: codigo, RememberDevice: rememberDevice, DeviceId: this.getDeviceId() };
+    return this.http.post<LoginResponse>(this.mfaVerifyUrl, body, { withCredentials: true }).pipe(
       timeout(30000),
       tap((resp) => {
         if (this.isLoginSuccessful(resp) && resp.token) {
@@ -274,6 +278,22 @@ export class AuthService {
       return values.some((v) => v === '1');
     } catch {
       return false;
+    }
+  }
+
+  /** Identificador estable por navegador para el reconocimiento de dispositivos confiables. */
+  getDeviceId(): string {
+    try {
+      let id = localStorage.getItem(this.deviceIdKey);
+      if (!id) {
+        id = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+          ? (crypto as any).randomUUID()
+          : 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem(this.deviceIdKey, id);
+      }
+      return id;
+    } catch {
+      return '';
     }
   }
 
