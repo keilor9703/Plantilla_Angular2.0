@@ -27,6 +27,15 @@ export class LoginComponent implements OnInit, OnDestroy {
   private loginTimeoutHandle: any = null;
   private slideTimerHandle: any = null;
 
+  // Segundo factor (SI2FA)
+  mfaPaso = false;
+  mfaEnrolar = false;
+  mfaChallenge = '';
+  mfaQr = '';
+  mfaClave = '';
+  mfaEnrollToken = '';
+  mfaCodigo = '';
+
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -141,9 +150,21 @@ export class LoginComponent implements OnInit, OnDestroy {
     }, 35000);
 
     this.authService.login(this.usuario.trim(), this.contrasena).subscribe({
-      next: (resp) => {
+      next: (resp: any) => {
         clearTimeout(this.loginTimeoutHandle);
         this.isLoading = false;
+
+        // Requiere segundo factor: pasar al paso 2.
+        if (resp?.requiere2Fa) {
+          this.mfaPaso = true;
+          this.mfaEnrolar = !!resp.enrolar;
+          this.mfaChallenge = resp.challenge ?? '';
+          this.mfaQr = this.toDataUri(resp.qr ?? '');
+          this.mfaClave = resp.claveManual ?? '';
+          this.mfaEnrollToken = resp.enrollToken ?? '';
+          this.mfaCodigo = '';
+          return;
+        }
 
         if (this.authService.isLoginSuccessful(resp)) {
           this.router.navigate(['/home']);
@@ -158,6 +179,52 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexión con el servicio de autenticación.';
       }
     });
+  }
+
+  confirmar2fa(): void {
+    this.errorMessage = '';
+    const codigo = (this.mfaCodigo ?? '').trim();
+    if (!/^\d{6}$/.test(codigo)) {
+      this.errorMessage = 'El código debe ser de 6 dígitos.';
+      return;
+    }
+
+    this.isLoading = true;
+    const obs = this.mfaEnrolar
+      ? this.authService.mfaEnrollConfirm(this.mfaChallenge, codigo, this.mfaEnrollToken)
+      : this.authService.mfaVerify(this.mfaChallenge, codigo);
+
+    obs.subscribe({
+      next: (resp: any) => {
+        this.isLoading = false;
+        if (this.authService.isLoginSuccessful(resp) && resp?.token) {
+          this.router.navigate(['/home']);
+          return;
+        }
+        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible verificar el código.';
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Código inválido o sesión expirada.';
+      }
+    });
+  }
+
+  cancelar2fa(): void {
+    this.mfaPaso = false;
+    this.mfaEnrolar = false;
+    this.mfaChallenge = '';
+    this.mfaQr = '';
+    this.mfaClave = '';
+    this.mfaEnrollToken = '';
+    this.mfaCodigo = '';
+    this.errorMessage = '';
+    this.contrasena = '';
+  }
+
+  private toDataUri(qr: string): string {
+    if (!qr) return '';
+    return qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`;
   }
 
   togglePasswordVisibility(): void {

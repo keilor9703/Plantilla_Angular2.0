@@ -150,5 +150,29 @@ SELECT DISTINCT rua.id_rol
                 return (null, new List<long>());
             }
         }
+
+        public async Task<string?> GetIdentificacionAsync(string usuario, CancellationToken ct)
+        {
+            var provider = (_cfg["DatabaseProvider"] ?? "Oracle").Trim();
+            var tabla = provider.Contains("Postgres", StringComparison.OrdinalIgnoreCase) ? "ctr_usuarios" : "CTR_USUARIOS";
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection(_cs, provider);
+                await conn.OpenAsync(ct);
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT identificacion FROM {tabla} WHERE LOWER(username) = LOWER(@pUser)";
+                var p = cmd.CreateParameter();
+                p.ParameterName = "@pUser";
+                p.Value = usuario ?? string.Empty;
+                cmd.Parameters.Add(p);
+                var obj = await cmd.ExecuteScalarAsync(ct);
+                return obj == null || obj == DBNull.Value ? null : obj.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo obtener la identificación de {Usuario}", usuario);
+                return null;
+            }
+        }
     }
 }

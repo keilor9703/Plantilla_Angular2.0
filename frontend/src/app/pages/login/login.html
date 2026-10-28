@@ -10,7 +10,7 @@
 
         <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
 
-        <form class="login-form" (ngSubmit)="onSubmit()">
+        <form class="login-form" (ngSubmit)="onSubmit()" *ngIf="!mfaPaso">
             <div class="input-group">
                 <i class="fa fa-user"></i>
                 <input type="text" name="usuario" [(ngModel)]="usuario" placeholder="Usuario empresarial"
@@ -47,6 +47,50 @@
                 <span>{{ isLoading ? 'Validando...' : 'Iniciar sesión' }}</span>
                 <i class="fas fa-key icon-key"></i>
             </button>
+        </form>
+
+        <!-- Paso 2: Segundo factor (SI2FA) -->
+        <form class="login-form" (ngSubmit)="confirmar2fa()" *ngIf="mfaPaso">
+            <h2 style="color:#fff; font-size:16px; text-align:center; margin:0 0 10px;">
+                <i class="fa-solid fa-shield-halved"></i> Doble autenticación
+            </h2>
+
+            <ng-container *ngIf="mfaEnrolar">
+                <p style="color:#e8e8e8; font-size:13px; margin:0 0 10px; text-align:center;">
+                    Escanee el código con su aplicación autenticadora (Google/Microsoft Authenticator) y digite el primer código.
+                </p>
+                <div style="text-align:center; margin-bottom:10px;" *ngIf="mfaQr">
+                    <img [src]="mfaQr" alt="Código QR" style="width:180px; height:180px; background:#fff; border-radius:8px; padding:6px;">
+                </div>
+                <p *ngIf="mfaClave" style="color:#cfe8ff; font-size:12px; text-align:center; word-break:break-all; margin:0 0 10px;">
+                    Clave manual: <strong>{{ mfaClave }}</strong>
+                </p>
+            </ng-container>
+
+            <ng-container *ngIf="!mfaEnrolar">
+                <p style="color:#e8e8e8; font-size:13px; margin:0 0 10px; text-align:center;">
+                    Ingrese el código de 6 dígitos de su aplicación autenticadora.
+                </p>
+            </ng-container>
+
+            <div class="input-group">
+                <i class="fa fa-key"></i>
+                <input type="text" name="mfaCodigo" [(ngModel)]="mfaCodigo" placeholder="Código de verificación"
+                    inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+            </div>
+
+            <p *ngIf="errorMessage" style="color:#ffb3b3; font-size:13px; margin:4px 0 10px 0;">
+                {{ errorMessage }}
+            </p>
+
+            <button type="submit" class="btn-login" [disabled]="isLoading">
+                <span>{{ isLoading ? 'Verificando...' : (mfaEnrolar ? 'Enrolar y continuar' : 'Verificar') }}</span>
+                <i class="fas fa-key icon-key"></i>
+            </button>
+
+            <div class="form-options" style="justify-content:center; margin-top:10px;">
+                <a href="javascript:void(0)" class="forgot-password" (click)="cancelar2fa()">Volver al inicio de sesión</a>
+            </div>
         </form>
     </div>
 </main>

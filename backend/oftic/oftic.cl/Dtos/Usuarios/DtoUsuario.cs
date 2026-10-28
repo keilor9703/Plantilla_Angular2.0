@@ -81,6 +81,20 @@ namespace Comun.Dtos
         public string? message { get; set; }
         public bool impersonating { get; set; }
         public string? impersonatedBy { get; set; }
+
+        // --- Segundo factor (SI2FA) ---
+        /// <summary>True cuando, tras validar la contraseña, se requiere el segundo factor.</summary>
+        public bool requiere2Fa { get; set; }
+        /// <summary>True cuando el usuario debe enrolar su segundo factor (primera vez).</summary>
+        public bool enrolar { get; set; }
+        /// <summary>Challenge cifrado que vincula el paso 1 (contraseña) con el paso 2 (código). No es un token de acceso.</summary>
+        public string? challenge { get; set; }
+        /// <summary>Código QR (base64) para el enrolamiento.</summary>
+        public string? qr { get; set; }
+        /// <summary>Clave manual (texto) para el enrolamiento.</summary>
+        public string? claveManual { get; set; }
+        /// <summary>Token de enrolamiento temporal devuelto por el servicio 2FA.</summary>
+        public string? enrollToken { get; set; }
     }
 
     public class DtoUsuarioRequest

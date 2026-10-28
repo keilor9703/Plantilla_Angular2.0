@@ -150,6 +150,16 @@ builder.Services.AddHttpClient<IApiWebOud, ApiWebOud>(c =>
 
 builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 
+// Cliente del servicio centralizado de doble autenticación (Api2FA) para el 2FA del panel CSIRT
+builder.Services.AddHttpClient<IApiMfaClient, ApiMfaClient>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(15);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
+
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
 builder.Services.AddScoped<IDbRolRepository, DbRolRepository>();

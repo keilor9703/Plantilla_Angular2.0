@@ -19,6 +19,13 @@ interface LoginResponse {
   identificacion?: number;
   impersonating?: boolean;
   impersonatedBy?: string;
+  // Segundo factor (SI2FA)
+  requiere2Fa?: boolean;
+  enrolar?: boolean;
+  challenge?: string;
+  qr?: string;
+  claveManual?: string;
+  enrollToken?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -35,6 +42,8 @@ export class AuthService {
   private readonly loginUrl = `${environment.apiBaseUrl}/Cuenta/Token`;
   private readonly impersonateUrl = `${environment.apiBaseUrl}/Cuenta/Impersonate`;
   private readonly refreshUrl = `${environment.apiBaseUrl}/Cuenta/Refresh`;
+  private readonly mfaVerifyUrl = `${environment.apiBaseUrl}/Cuenta/Mfa/Verify`;
+  private readonly mfaEnrollUrl = `${environment.apiBaseUrl}/Cuenta/Mfa/EnrollConfirm`;
   private readonly maxJwtLength = 8192;
   private readonly maxJwtPayloadB64Length = 4096;
   private readonly maxJwtPayloadJsonLength = 6144;
@@ -50,17 +59,49 @@ export class AuthService {
     return this.http.post<LoginResponse>(this.loginUrl, payload, { withCredentials: true }).pipe(
       timeout(30000),
       tap((resp) => {
-        if (this.isLoginSuccessful(resp)) {
-          this.clearImpersonationState();
-          if (resp.token) {
-            this.applySession(resp.token, resp.usuario ?? usuario);
-          }
-          localStorage.setItem(this.authKey, '1');
-          localStorage.setItem(this.userKey, resp.usuario ?? usuario);
-          sessionStorage.removeItem('modales_vistos');
+        // Si se requiere segundo factor, NO se establece sesión todavía (no hay token).
+        if (resp?.requiere2Fa) {
+          return;
+        }
+        if (this.isLoginSuccessful(resp) && resp.token) {
+          this.finalizeSession(resp, usuario);
         }
       })
     );
+  }
+
+  /** Paso 2: verificar el código del segundo factor. */
+  mfaVerify(challenge: string, codigo: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(this.mfaVerifyUrl, { Challenge: challenge, Codigo: codigo }, { withCredentials: true }).pipe(
+      timeout(30000),
+      tap((resp) => {
+        if (this.isLoginSuccessful(resp) && resp.token) {
+          this.finalizeSession(resp, resp.usuario ?? '');
+        }
+      })
+    );
+  }
+
+  /** Paso 2 (primera vez): confirmar el enrolamiento con el primer código. */
+  mfaEnrollConfirm(challenge: string, codigo: string, enrollToken: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(this.mfaEnrollUrl, { Challenge: challenge, Codigo: codigo, EnrollToken: enrollToken }, { withCredentials: true }).pipe(
+      timeout(30000),
+      tap((resp) => {
+        if (this.isLoginSuccessful(resp) && resp.token) {
+          this.finalizeSession(resp, resp.usuario ?? '');
+        }
+      })
+    );
+  }
+
+  private finalizeSession(resp: LoginResponse, usuario: string): void {
+    this.clearImpersonationState();
+    if (resp.token) {
+      this.applySession(resp.token, resp.usuario ?? usuario);
+    }
+    localStorage.setItem(this.authKey, '1');
+    localStorage.setItem(this.userKey, resp.usuario ?? usuario);
+    sessionStorage.removeItem('modales_vistos');
   }
 
   logout(): void {
