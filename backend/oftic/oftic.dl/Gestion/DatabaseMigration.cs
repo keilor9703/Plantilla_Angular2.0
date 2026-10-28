@@ -924,15 +924,41 @@ namespace Datos.Gestion
                   (502, 5, 'Usuarios 2FA', '/si2fa/usuarios', 'fa-solid fa-user-lock', 2, 1, 'SETUP'),
                   (503, 5, 'Sistemas Integrados', '/si2fa/sistemas', 'fa-solid fa-plug-circle-check', 3, 1, 'SETUP'),
                   (504, 5, 'Dispositivos Confiables', '/si2fa/dispositivos', 'fa-solid fa-mobile-screen', 4, 1, 'SETUP'),
-                  (505, 5, 'Auditoría 2FA', '/si2fa/auditoria', 'fa-solid fa-clipboard-list', 5, 1, 'SETUP')
+                  (505, 5, 'Auditoría 2FA', '/si2fa/auditoria', 'fa-solid fa-clipboard-list', 5, 1, 'SETUP'),
+                  (506, 5, 'Parámetros', '/si2fa/parametros', 'fa-solid fa-sliders', 6, 1, 'SETUP')
                   ON CONFLICT (id_menu) DO NOTHING;",
 
                 // Asignación de los menús SI2FA a los roles Desarrollador(1), Administrador(2) y CSIRT(3)
                 @"INSERT INTO ctr_menu_roles (id_menu_rol, id_menu, id_rol, estado) VALUES
                   (31, 5, 1, 1), (32, 501, 1, 1), (33, 502, 1, 1), (34, 503, 1, 1), (35, 504, 1, 1), (36, 505, 1, 1),
                   (37, 5, 2, 1), (38, 501, 2, 1), (39, 502, 2, 1), (40, 503, 2, 1), (41, 504, 2, 1), (42, 505, 2, 1),
-                  (43, 5, 3, 1), (44, 501, 3, 1), (45, 502, 3, 1), (46, 503, 3, 1), (47, 504, 3, 1), (48, 505, 3, 1)
-                  ON CONFLICT (id_menu_rol) DO NOTHING;"
+                  (43, 5, 3, 1), (44, 501, 3, 1), (45, 502, 3, 1), (46, 503, 3, 1), (47, 504, 3, 1), (48, 505, 3, 1),
+                  (49, 506, 1, 1), (50, 506, 2, 1), (51, 506, 3, 1)
+                  ON CONFLICT (id_menu_rol) DO NOTHING;",
+
+                // Tabla de parámetros configurables del servicio 2FA (editables desde el panel SI2FA)
+                @"CREATE TABLE IF NOT EXISTS mfa_parametros (
+                    clave VARCHAR(80) PRIMARY KEY,
+                    valor VARCHAR(255) NOT NULL,
+                    tipo VARCHAR(20) DEFAULT 'INT' NOT NULL,
+                    descripcion VARCHAR(300),
+                    unidad VARCHAR(40),
+                    grupo VARCHAR(60) DEFAULT 'General',
+                    min_valor INT,
+                    max_valor INT,
+                    actualizado_at TIMESTAMP,
+                    usuario_modifica VARCHAR(100)
+                );",
+
+                // Valores por defecto (coinciden con los usados hoy por el servicio/funciones)
+                @"INSERT INTO mfa_parametros (clave, valor, tipo, descripcion, unidad, grupo, min_valor, max_valor) VALUES
+                  ('RESET_CODE_TTL_MIN', '5',  'INT', 'Vigencia del código de restablecimiento enviado al correo', 'minutos', 'Restablecimiento', 1, 60),
+                  ('RESET_RATE_MIN',     '5',  'INT', 'Tiempo mínimo entre solicitudes de restablecimiento',        'minutos', 'Restablecimiento', 1, 120),
+                  ('VERIFY_MAX_INTENTOS','5',  'INT', 'Intentos fallidos de verificación antes de bloquear',        'intentos','Verificación',    1, 20),
+                  ('BLOQUEO_MINUTOS',    '15', 'INT', 'Duración del bloqueo temporal por intentos fallidos',         'minutos', 'Verificación',    1, 1440),
+                  ('TRUSTED_DEVICE_DIAS','30', 'INT', 'Vigencia de un dispositivo marcado como confiable',           'días',    'Dispositivos',    1, 365),
+                  ('ANTIREPLAY_MIN',     '2',  'INT', 'Ventana anti-replay para la emisión del token de servicio',  'minutos', 'Seguridad',       1, 10)
+                  ON CONFLICT (clave) DO NOTHING;"
             };
 
             foreach (var stmt in ddlStatements)

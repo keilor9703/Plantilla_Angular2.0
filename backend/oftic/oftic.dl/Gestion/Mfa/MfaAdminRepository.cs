@@ -521,6 +521,89 @@ namespace Datos.Gestion.Mfa
             return res;
         }
 
+        // ============================ PARÁMETROS ============================
+        public async Task<List<DtoParametro2Fa>> GetParametrosAsync(CancellationToken ct)
+        {
+            var list = new List<DtoParametro2Fa>();
+            await using var conn = await AbrirAsync(ct);
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT clave, valor, tipo, descripcion, unidad, grupo, min_valor, max_valor, actualizado_at, usuario_modifica " +
+                "FROM mfa_parametros ORDER BY grupo, clave";
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                list.Add(new DtoParametro2Fa
+                {
+                    Clave = r.GetString(0),
+                    Valor = r.IsDBNull(1) ? string.Empty : r.GetString(1),
+                    Tipo = r.IsDBNull(2) ? "INT" : r.GetString(2),
+                    Descripcion = GetStrN(r, 3),
+                    Unidad = GetStrN(r, 4),
+                    Grupo = GetStrN(r, 5),
+                    MinValor = r.IsDBNull(6) ? (int?)null : Convert.ToInt32(r.GetValue(6)),
+                    MaxValor = r.IsDBNull(7) ? (int?)null : Convert.ToInt32(r.GetValue(7)),
+                    ActualizadoAt = GetDtN(r, 8),
+                    UsuarioModifica = GetStrN(r, 9)
+                });
+            }
+            return list;
+        }
+
+        public async Task<DtoParametro2FaResult> ActualizarParametroAsync(string clave, string valor, string actor, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(clave))
+                return new DtoParametro2FaResult { Success = false, Message = "Clave requerida." };
+            valor = (valor ?? string.Empty).Trim();
+
+            await using var conn = await AbrirAsync(ct);
+
+            string tipo = "INT"; int? min = null, max = null; bool existe = false;
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT tipo, min_valor, max_valor FROM mfa_parametros WHERE clave = @c";
+                cmd.Parameters.AddWithValue("c", clave);
+                await using var r = await cmd.ExecuteReaderAsync(ct);
+                if (await r.ReadAsync(ct))
+                {
+                    existe = true;
+                    tipo = r.IsDBNull(0) ? "INT" : r.GetString(0);
+                    min = r.IsDBNull(1) ? (int?)null : Convert.ToInt32(r.GetValue(1));
+                    max = r.IsDBNull(2) ? (int?)null : Convert.ToInt32(r.GetValue(2));
+                }
+            }
+            if (!existe)
+                return new DtoParametro2FaResult { Success = false, Message = "Parámetro no encontrado." };
+
+            if (tipo.Equals("INT", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(valor, out var n))
+                    return new DtoParametro2FaResult { Success = false, Message = "El valor debe ser un número entero." };
+                if (min.HasValue && n < min.Value)
+                    return new DtoParametro2FaResult { Success = false, Message = $"El valor mínimo permitido es {min.Value}." };
+                if (max.HasValue && n > max.Value)
+                    return new DtoParametro2FaResult { Success = false, Message = $"El valor máximo permitido es {max.Value}." };
+                valor = n.ToString();
+            }
+            else if (tipo.Equals("BOOL", StringComparison.OrdinalIgnoreCase))
+            {
+                var v = valor.ToLowerInvariant();
+                if (v is "1" or "true" or "si" or "sí") valor = "1";
+                else if (v is "0" or "false" or "no") valor = "0";
+                else return new DtoParametro2FaResult { Success = false, Message = "El valor debe ser 0 o 1." };
+            }
+
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE mfa_parametros SET valor = @v, usuario_modifica = @a, actualizado_at = CURRENT_TIMESTAMP WHERE clave = @c";
+                cmd.Parameters.AddWithValue("v", valor);
+                cmd.Parameters.AddWithValue("a", actor ?? "SI2FA");
+                cmd.Parameters.AddWithValue("c", clave);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+            return new DtoParametro2FaResult { Success = true, Message = "Parámetro actualizado." };
+        }
+
         // ============================ HELPERS ============================
         private async Task<DtoAccion2FaResult> EjecutarAccionUsuario(
             long idMfa, string actor, string ip, string updateSql, string evento, string detalle, string okMsg,

@@ -38,5 +38,9 @@ namespace Datos.Interfaz.Mfa
 
         // ---- Auditoría ----
         Task<DtoAuditoria2FaPagina> GetAuditoriaAsync(DtoAuditoria2FaFiltro filtro, CancellationToken ct);
+
+        // ---- Parámetros ----
+        Task<List<DtoParametro2Fa>> GetParametrosAsync(CancellationToken ct);
+        Task<DtoParametro2FaResult> ActualizarParametroAsync(string clave, string valor, string actor, CancellationToken ct);
     }
 }

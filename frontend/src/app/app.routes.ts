@@ -53,6 +53,7 @@ export const routes: Routes = [
           { path: 'sistemas', loadComponent: () => import('./pages/si2fa/sistemas/sistemas').then(m => m.Si2faSistemasComponent) },
           { path: 'dispositivos', loadComponent: () => import('./pages/si2fa/dispositivos/dispositivos').then(m => m.Si2faDispositivosComponent) },
           { path: 'auditoria', loadComponent: () => import('./pages/si2fa/auditoria/auditoria').then(m => m.Si2faAuditoriaComponent) },
+          { path: 'parametros', loadComponent: () => import('./pages/si2fa/parametros/parametros').then(m => m.Si2faParametrosComponent) },
         ],
       },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },

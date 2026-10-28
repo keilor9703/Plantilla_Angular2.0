@@ -29,5 +29,8 @@ namespace Negocio.Interfaz.Mfa
         Task<DtoAccion2FaResult> RevocarDispositivoAsync(long idDevice, string actor, string ip, CancellationToken ct);
 
         Task<DtoAuditoria2FaPagina> GetAuditoriaAsync(DtoAuditoria2FaFiltro filtro, CancellationToken ct);
+
+        Task<List<DtoParametro2Fa>> GetParametrosAsync(CancellationToken ct);
+        Task<DtoParametro2FaResult> ActualizarParametroAsync(string clave, string valor, string actor, CancellationToken ct);
     }
 }

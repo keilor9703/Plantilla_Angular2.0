@@ -97,6 +97,20 @@ export interface Auditoria2FaFiltro {
   tamano?: number;
 }
 
+export interface Parametro2Fa {
+  clave: string;
+  valor: string;
+  tipo: string;
+  descripcion?: string;
+  unidad?: string;
+  grupo?: string;
+  minValor?: number;
+  maxValor?: number;
+  actualizadoAt?: string;
+  usuarioModifica?: string;
+}
+export interface Parametro2FaResult { success: boolean; message?: string; }
+
 @Injectable({ providedIn: 'root' })
 export class Si2faService {
   private readonly base = `${environment.apiBaseUrl}/admin`;
@@ -169,6 +183,14 @@ export class Si2faService {
   }
   exportarAuditoria(f: Auditoria2FaFiltro): Observable<Blob> {
     return this.http.get(`${this.base}/auditoria2fa/exportar`, { params: this.toParams(f), responseType: 'blob' });
+  }
+
+  // -------- Parámetros --------
+  getParametros(): Observable<Parametro2Fa[]> {
+    return this.http.get<Parametro2Fa[]>(`${this.base}/parametros`);
+  }
+  actualizarParametro(clave: string, valor: string): Observable<Parametro2FaResult> {
+    return this.http.put<Parametro2FaResult>(`${this.base}/parametros/${encodeURIComponent(clave)}`, { valor });
   }
 
   private toParams(f: Auditoria2FaFiltro): HttpParams {

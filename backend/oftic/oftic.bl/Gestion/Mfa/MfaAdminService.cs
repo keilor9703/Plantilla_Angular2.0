@@ -67,5 +67,11 @@ namespace Negocio.Gestion.Mfa
 
         public Task<DtoAuditoria2FaPagina> GetAuditoriaAsync(DtoAuditoria2FaFiltro filtro, CancellationToken ct) =>
             _repo.GetAuditoriaAsync(filtro, ct);
+
+        public Task<List<DtoParametro2Fa>> GetParametrosAsync(CancellationToken ct) =>
+            _repo.GetParametrosAsync(ct);
+
+        public Task<DtoParametro2FaResult> ActualizarParametroAsync(string clave, string valor, string actor, CancellationToken ct) =>
+            _repo.ActualizarParametroAsync(clave, valor, actor, ct);
     }
 }
