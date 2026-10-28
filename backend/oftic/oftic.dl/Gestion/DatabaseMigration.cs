@@ -891,7 +891,48 @@ namespace Datos.Gestion
                   (16, 'INFORMACIÓN PÚBLICA RESERVADA', 13, 1, 'PUBRES', 'Es aquella información que estando en poder o custodia de un sujeto obligado es reservada', 1143458803, 'LOCAL'),
                   (17, 'GRUPOS O AREAS', 1, 1, 'GRUPOS_AREAS', 'Dominio Padre Semilla para Grupos o Áreas responsables de cuentas de correo', 1143458803, 'LOCAL'),
                   (18, 'Grupo Desarrollo de Software', 17, 1, 'GDS', 'Grupo Desarrollo de Software ejemplo responsable de correo', 1143458803, 'LOCAL')
-                  ON CONFLICT (id_dominio) DO NOTHING;"
+                  ON CONFLICT (id_dominio) DO NOTHING;",
+
+                // =====================================================================
+                // SI2FA - Sistema de Información de Doble Factor de Autenticación
+                // =====================================================================
+
+                // Tabla de sistemas integrados (reemplaza "SistemasConfiables" de appsettings)
+                @"CREATE TABLE IF NOT EXISTS mfa_sistemas (
+                    id_sistema SERIAL PRIMARY KEY,
+                    sigla VARCHAR(100) NOT NULL UNIQUE,
+                    nombre VARCHAR(255) NOT NULL,
+                    descripcion VARCHAR(500),
+                    secret_hmac TEXT NOT NULL,
+                    habilitado INT DEFAULT 1 NOT NULL,
+                    creado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    actualizado_at TIMESTAMP,
+                    rotado_at TIMESTAMP,
+                    usuario_creacion VARCHAR(100) DEFAULT 'SETUP',
+                    usuario_modifica VARCHAR(100)
+                );",
+
+                // Rol CSIRT (grupo de seguridad que administra el servicio 2FA)
+                @"INSERT INTO ctr_roles (id_rol, codigo_rol, nombre_rol, descripcion, vigente, usuario_creacion, maquina_creacion)
+                  VALUES (3, 'CSIRT', 'CSIRT - Seguridad', 'Grupo de seguridad (CSIRT) administrador del servicio de doble autenticación', 1, 'SETUP', 'LOCAL')
+                  ON CONFLICT (id_rol) DO NOTHING;",
+
+                // Menús del panel SI2FA
+                @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, usuario_creacion) VALUES
+                  (5, 0, 'Doble Autenticación (SI2FA)', NULL, 'fa-solid fa-shield-halved', 2, 1, 'SETUP'),
+                  (501, 5, 'Tablero 2FA', '/si2fa/dashboard', 'fa-solid fa-gauge-high', 1, 1, 'SETUP'),
+                  (502, 5, 'Usuarios 2FA', '/si2fa/usuarios', 'fa-solid fa-user-lock', 2, 1, 'SETUP'),
+                  (503, 5, 'Sistemas Integrados', '/si2fa/sistemas', 'fa-solid fa-plug-circle-check', 3, 1, 'SETUP'),
+                  (504, 5, 'Dispositivos Confiables', '/si2fa/dispositivos', 'fa-solid fa-mobile-screen', 4, 1, 'SETUP'),
+                  (505, 5, 'Auditoría 2FA', '/si2fa/auditoria', 'fa-solid fa-clipboard-list', 5, 1, 'SETUP')
+                  ON CONFLICT (id_menu) DO NOTHING;",
+
+                // Asignación de los menús SI2FA a los roles Desarrollador(1), Administrador(2) y CSIRT(3)
+                @"INSERT INTO ctr_menu_roles (id_menu_rol, id_menu, id_rol, estado) VALUES
+                  (31, 5, 1, 1), (32, 501, 1, 1), (33, 502, 1, 1), (34, 503, 1, 1), (35, 504, 1, 1), (36, 505, 1, 1),
+                  (37, 5, 2, 1), (38, 501, 2, 1), (39, 502, 2, 1), (40, 503, 2, 1), (41, 504, 2, 1), (42, 505, 2, 1),
+                  (43, 5, 3, 1), (44, 501, 3, 1), (45, 502, 3, 1), (46, 503, 3, 1), (47, 504, 3, 1), (48, 505, 3, 1)
+                  ON CONFLICT (id_menu_rol) DO NOTHING;"
             };
 
             foreach (var stmt in ddlStatements)

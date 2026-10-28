@@ -231,6 +231,10 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IDbBrandingService, DbBrandingService>();
 builder.Services.AddScoped<IDbBrandingRepository, DbBrandingRepository>();
 
+// --- SI2FA: Panel administrativo del servicio de Doble Factor de Autenticación ---
+builder.Services.AddScoped<Datos.Interfaz.Mfa.IMfaAdminRepository, Datos.Gestion.Mfa.MfaAdminRepository>();
+builder.Services.AddScoped<Negocio.Interfaz.Mfa.IMfaAdminService, Negocio.Gestion.Mfa.MfaAdminService>();
+
 var app = builder.Build();
 
 var configuredUploadsBase = app.Configuration["AppSettings:UploadsPath"];
