@@ -10,80 +10,98 @@ import { ToastService } from '../../../core/services/toast.service';
   imports: [CommonModule, FormsModule],
   styleUrls: ['../si2fa-shared.scss'],
   template: `
-    <div class="si2fa-header">
-      <div>
-        <h1><i class="fa-solid fa-gauge-high"></i> Tablero 2FA</h1>
-        <div class="sub">Estado y actividad del servicio de doble factor de autenticación</div>
-      </div>
-      <div class="toolbar" style="margin:0">
-        <label style="font-size:.85rem;color:#6b7280">Ventana:</label>
-        <select [(ngModel)]="dias" (change)="cargar()">
-          <option [ngValue]="7">7 días</option>
-          <option [ngValue]="30">30 días</option>
-          <option [ngValue]="90">90 días</option>
-          <option [ngValue]="365">1 año</option>
-        </select>
-        <button class="btn secondary sm" (click)="cargar()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
-      </div>
-    </div>
-
-    <div *ngIf="loading" class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando métricas…</div>
-
-    <ng-container *ngIf="!loading && m">
-      <div class="kpi-grid">
-        <div class="card kpi info"><div class="value">{{ m.totalUsuarios }}</div><div class="label">Usuarios registrados</div></div>
-        <div class="card kpi ok"><div class="value">{{ m.usuariosEnrolados }}</div><div class="label">Enrolados</div></div>
-        <div class="card kpi warn"><div class="value">{{ m.usuariosPendientesEnrolar }}</div><div class="label">Pendientes de enrolar</div></div>
-        <div class="card kpi danger"><div class="value">{{ m.usuariosBloqueados }}</div><div class="label">Bloqueados</div></div>
-        <div class="card kpi"><div class="value">{{ m.sistemasActivos }}/{{ m.sistemasTotales }}</div><div class="label">Sistemas activos</div></div>
-        <div class="card kpi info"><div class="value">{{ m.dispositivosConfiablesActivos }}</div><div class="label">Dispositivos confiables</div></div>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="card kpi ok"><div class="value">{{ m.verificacionesOk }}</div><div class="label">Verificaciones OK ({{ m.ventanaDias }}d)</div></div>
-        <div class="card kpi danger"><div class="value">{{ m.verificacionesFallidas }}</div><div class="label">Verificaciones fallidas ({{ m.ventanaDias }}d)</div></div>
-        <div class="card kpi ok"><div class="value">{{ m.enrolamientos }}</div><div class="label">Enrolamientos ({{ m.ventanaDias }}d)</div></div>
-        <div class="card kpi warn"><div class="value">{{ m.restablecimientos }}</div><div class="label">Restablecimientos ({{ m.ventanaDias }}d)</div></div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <h3>Actividad por sistema</h3>
-          <div *ngIf="!m.actividadPorSistema.length" class="empty">Sin actividad en el periodo.</div>
-          <div *ngFor="let c of m.actividadPorSistema" class="bar-row">
-            <span class="name" [title]="c.clave">{{ c.clave }}</span>
-            <span class="bar"><span [style.width.%]="pct(c.total, maxSistema)"></span></span>
-            <span class="n">{{ c.total }}</span>
+    <section class="home-view">
+      <div class="ui-panel">
+        <div class="ui-panel__head">
+          <div class="ui-panel__title"><i class="fa-solid fa-gauge-high"></i> Tablero 2FA</div>
+          <div class="si2fa-toolbar-row">
+            <div class="ui-field" style="min-width:150px">
+              <label class="ui-label">Ventana</label>
+              <select class="ui-control" [(ngModel)]="dias" (change)="cargar()">
+                <option [ngValue]="7">7 días</option>
+                <option [ngValue]="30">30 días</option>
+                <option [ngValue]="90">90 días</option>
+                <option [ngValue]="365">1 año</option>
+              </select>
+            </div>
+            <button class="ui-btn secondary" (click)="cargar()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
           </div>
         </div>
+        <div class="ui-panel__subtitle">Estado y actividad del servicio de doble factor de autenticación</div>
 
-        <div class="card">
-          <h3>Eventos por tipo</h3>
-          <div *ngIf="!m.eventosPorTipo.length" class="empty">Sin eventos en el periodo.</div>
-          <div *ngFor="let c of m.eventosPorTipo" class="bar-row">
-            <span class="name" [title]="c.clave">{{ c.clave }}</span>
-            <span class="bar"><span [style.width.%]="pct(c.total, maxEvento)"></span></span>
-            <span class="n">{{ c.total }}</span>
-          </div>
+        <div class="ui-panel__body">
+          <div *ngIf="loading" class="si2fa-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando métricas…</div>
+
+          <ng-container *ngIf="!loading && m">
+            <div class="si2fa-kpis">
+              <div class="si2fa-kpi info"><div class="v">{{ m.totalUsuarios }}</div><div class="l">Usuarios registrados</div></div>
+              <div class="si2fa-kpi ok"><div class="v">{{ m.usuariosEnrolados }}</div><div class="l">Enrolados</div></div>
+              <div class="si2fa-kpi warn"><div class="v">{{ m.usuariosPendientesEnrolar }}</div><div class="l">Pendientes de enrolar</div></div>
+              <div class="si2fa-kpi danger"><div class="v">{{ m.usuariosBloqueados }}</div><div class="l">Bloqueados</div></div>
+              <div class="si2fa-kpi"><div class="v">{{ m.sistemasActivos }}/{{ m.sistemasTotales }}</div><div class="l">Sistemas activos</div></div>
+              <div class="si2fa-kpi info"><div class="v">{{ m.dispositivosConfiablesActivos }}</div><div class="l">Dispositivos confiables</div></div>
+            </div>
+
+            <div class="si2fa-kpis">
+              <div class="si2fa-kpi ok"><div class="v">{{ m.verificacionesOk }}</div><div class="l">Verificaciones OK ({{ m.ventanaDias }}d)</div></div>
+              <div class="si2fa-kpi danger"><div class="v">{{ m.verificacionesFallidas }}</div><div class="l">Verificaciones fallidas ({{ m.ventanaDias }}d)</div></div>
+              <div class="si2fa-kpi ok"><div class="v">{{ m.enrolamientos }}</div><div class="l">Enrolamientos ({{ m.ventanaDias }}d)</div></div>
+              <div class="si2fa-kpi warn"><div class="v">{{ m.restablecimientos }}</div><div class="l">Restablecimientos ({{ m.ventanaDias }}d)</div></div>
+            </div>
+
+            <div class="ui-grid">
+              <div class="ui-col-6">
+                <div class="ui-panel" style="margin:0">
+                  <div class="ui-panel__head"><div class="ui-panel__title" style="font-size:1rem"><i class="fa-solid fa-layer-group"></i> Actividad por sistema</div></div>
+                  <div class="ui-panel__body">
+                    <div *ngIf="!m.actividadPorSistema.length" class="si2fa-muted">Sin actividad en el periodo.</div>
+                    <div *ngFor="let c of m.actividadPorSistema" class="si2fa-bar">
+                      <span class="n" [title]="c.clave">{{ c.clave }}</span>
+                      <span class="track"><span [style.width.%]="pct(c.total, maxSistema)"></span></span>
+                      <span class="t">{{ c.total }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ui-col-6">
+                <div class="ui-panel" style="margin:0">
+                  <div class="ui-panel__head"><div class="ui-panel__title" style="font-size:1rem"><i class="fa-solid fa-list"></i> Eventos por tipo</div></div>
+                  <div class="ui-panel__body">
+                    <div *ngIf="!m.eventosPorTipo.length" class="si2fa-muted">Sin eventos en el periodo.</div>
+                    <div *ngFor="let c of m.eventosPorTipo" class="si2fa-bar">
+                      <span class="n" [title]="c.clave">{{ c.clave }}</span>
+                      <span class="track"><span [style.width.%]="pct(c.total, maxEvento)"></span></span>
+                      <span class="t">{{ c.total }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ui-col-12">
+                <div class="ui-panel" style="margin:0">
+                  <div class="ui-panel__head"><div class="ui-panel__title" style="font-size:1rem"><i class="fa-solid fa-chart-column"></i> Verificaciones por día</div></div>
+                  <div class="ui-panel__body">
+                    <div *ngIf="!m.serieDiaria.length" class="si2fa-muted">Sin datos en el periodo.</div>
+                    <div *ngFor="let d of m.serieDiaria" class="si2fa-bar">
+                      <span class="n">{{ d.fecha }}</span>
+                      <span class="track">
+                        <span style="background:#16a34a" [style.width.%]="pct(d.verificacionesOk, maxDia)"></span>
+                        <span style="background:#dc2626" [style.width.%]="pct(d.verificacionesFallidas, maxDia)"></span>
+                      </span>
+                      <span class="t">{{ d.total }}</span>
+                    </div>
+                    <div style="margin-top:.5rem">
+                      <span class="si2fa-badge green">OK</span> &nbsp; <span class="si2fa-badge red">Fallidas</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ng-container>
         </div>
       </div>
-
-      <div class="card" style="margin-top:1rem">
-        <h3>Verificaciones por día</h3>
-        <div *ngIf="!m.serieDiaria.length" class="empty">Sin datos en el periodo.</div>
-        <div *ngFor="let d of m.serieDiaria" class="bar-row">
-          <span class="name">{{ d.fecha }}</span>
-          <span class="bar" style="display:flex;background:transparent;gap:2px">
-            <span style="background:#16a34a;border-radius:7px 0 0 7px" [style.width.%]="pct(d.verificacionesOk, maxDia)"></span>
-            <span style="background:#dc2626" [style.width.%]="pct(d.verificacionesFallidas, maxDia)"></span>
-          </span>
-          <span class="n">{{ d.total }}</span>
-        </div>
-        <div style="margin-top:.5rem;font-size:.78rem;color:#6b7280">
-          <span class="badge green">OK</span> &nbsp; <span class="badge red">Fallidas</span>
-        </div>
-      </div>
-    </ng-container>
+    </section>
   `
 })
 export class Si2faDashboardComponent implements OnInit {

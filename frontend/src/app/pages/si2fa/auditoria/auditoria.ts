@@ -10,56 +10,80 @@ import { ToastService } from '../../../core/services/toast.service';
   imports: [CommonModule, FormsModule],
   styleUrls: ['../si2fa-shared.scss'],
   template: `
-    <div class="si2fa-header">
-      <div>
-        <h1><i class="fa-solid fa-clipboard-list"></i> Auditoría 2FA</h1>
-        <div class="sub">Trazabilidad de los eventos del servicio de doble autenticación</div>
-      </div>
-      <button class="btn secondary" (click)="exportar()" [disabled]="exportando">
-        <i class="fa-solid fa-file-csv"></i> Exportar CSV
-      </button>
-    </div>
+    <section class="home-view">
+      <div class="ui-panel">
+        <div class="ui-panel__head">
+          <div class="ui-panel__title"><i class="fa-solid fa-clipboard-list"></i> Auditoría 2FA</div>
+          <button class="ui-btn secondary" (click)="exportar()" [disabled]="exportando">
+            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+          </button>
+        </div>
+        <div class="ui-panel__subtitle">Trazabilidad de los eventos del servicio de doble autenticación</div>
 
-    <div class="toolbar">
-      <input [(ngModel)]="f.identificacion" type="number" placeholder="Identificación" />
-      <input [(ngModel)]="f.usuario" placeholder="Usuario" />
-      <input [(ngModel)]="f.sistema" placeholder="Sistema" />
-      <input [(ngModel)]="f.evento" placeholder="Evento (p.ej. VERIFY_FAIL)" />
-      <input [(ngModel)]="f.desde" type="datetime-local" title="Desde" />
-      <input [(ngModel)]="f.hasta" type="datetime-local" title="Hasta" />
-      <button class="btn primary" (click)="pagina=1; buscar()"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
-      <button class="btn secondary" (click)="limpiar()">Limpiar</button>
-    </div>
+        <div class="ui-panel__body">
+          <div class="ui-grid" style="margin-bottom:14px">
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Identificación</label>
+              <input class="ui-control" [(ngModel)]="f.identificacion" type="number" placeholder="Identificación" />
+            </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Usuario</label>
+              <input class="ui-control" [(ngModel)]="f.usuario" placeholder="Usuario" />
+            </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Sistema</label>
+              <input class="ui-control" [(ngModel)]="f.sistema" placeholder="Sistema" />
+            </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Evento</label>
+              <input class="ui-control" [(ngModel)]="f.evento" placeholder="p. ej. VERIFY_FAIL" />
+            </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Desde</label>
+              <input class="ui-control" [(ngModel)]="f.desde" type="datetime-local" />
+            </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Hasta</label>
+              <input class="ui-control" [(ngModel)]="f.hasta" type="datetime-local" />
+            </div>
+            <div class="ui-field ui-col-6" style="flex-direction:row;align-items:flex-end;gap:10px">
+              <button class="ui-btn primary" (click)="pagina=1; buscar()"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
+              <button class="ui-btn" (click)="limpiar()">Limpiar</button>
+            </div>
+          </div>
 
-    <div *ngIf="loading" class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+          <div class="si2fa-muted" style="margin-bottom:8px">{{ total }} registro(s)</div>
 
-    <div *ngIf="!loading">
-      <div style="font-size:.85rem;color:#6b7280;margin-bottom:.5rem">{{ total }} registro(s)</div>
-      <div class="table-wrap">
-        <table class="tbl">
-          <thead>
-            <tr><th>Fecha</th><th>Identificación</th><th>Usuario</th><th>Sistema</th><th>Evento</th><th>Detalle</th><th>IP</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let a of items">
-              <td style="white-space:nowrap">{{ a.creadoAt ? (a.creadoAt | date:'yyyy-MM-dd HH:mm:ss') : '' }}</td>
-              <td>{{ a.identificacion }}</td>
-              <td>{{ a.usuarioInstitucional }}</td>
-              <td>{{ a.sistema }}</td>
-              <td><span class="badge" [ngClass]="eventoClase(a.evento)">{{ a.evento }}</span></td>
-              <td style="max-width:360px">{{ a.detalle }}</td>
-              <td>{{ a.ipOrigen }}</td>
-            </tr>
-            <tr *ngIf="!items.length"><td colspan="7" class="empty">Sin registros.</td></tr>
-          </tbody>
-        </table>
+          <div *ngIf="loading" class="si2fa-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+
+          <div *ngIf="!loading" class="ui-table-wrap">
+            <table class="ui-table">
+              <thead>
+                <tr><th>Fecha</th><th>Identificación</th><th>Usuario</th><th>Sistema</th><th>Evento</th><th>Detalle</th><th>IP</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of items">
+                  <td style="white-space:nowrap">{{ a.creadoAt ? (a.creadoAt | date:'yyyy-MM-dd HH:mm:ss') : '' }}</td>
+                  <td>{{ a.identificacion }}</td>
+                  <td>{{ a.usuarioInstitucional }}</td>
+                  <td>{{ a.sistema }}</td>
+                  <td><span class="si2fa-badge" [ngClass]="eventoClase(a.evento)">{{ a.evento }}</span></td>
+                  <td style="max-width:360px">{{ a.detalle }}</td>
+                  <td>{{ a.ipOrigen }}</td>
+                </tr>
+                <tr *ngIf="!items.length"><td colspan="7" class="empty-row">Sin registros.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="!loading" style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button class="ui-btn si2fa-sm" [disabled]="pagina<=1" (click)="pagina=pagina-1; buscar()">Anterior</button>
+            <span class="si2fa-muted">Página {{ pagina }} de {{ totalPaginas }}</span>
+            <button class="ui-btn si2fa-sm" [disabled]="pagina>=totalPaginas" (click)="pagina=pagina+1; buscar()">Siguiente</button>
+          </div>
+        </div>
       </div>
-      <div style="margin-top:.8rem;display:flex;gap:.5rem;align-items:center">
-        <button class="btn secondary sm" [disabled]="pagina<=1" (click)="pagina=pagina-1; buscar()">Anterior</button>
-        <span style="font-size:.85rem">Página {{ pagina }} de {{ totalPaginas }}</span>
-        <button class="btn secondary sm" [disabled]="pagina>=totalPaginas" (click)="pagina=pagina+1; buscar()">Siguiente</button>
-      </div>
-    </div>
+    </section>
   `
 })
 export class Si2faAuditoriaComponent implements OnInit {

@@ -10,89 +10,94 @@ import { ToastService } from '../../../core/services/toast.service';
   imports: [CommonModule, FormsModule],
   styleUrls: ['../si2fa-shared.scss'],
   template: `
-    <div class="si2fa-header">
-      <div>
-        <h1><i class="fa-solid fa-plug-circle-check"></i> Sistemas Integrados</h1>
-        <div class="sub">Sistemas de información autorizados a consumir el servicio 2FA</div>
+    <section class="home-view">
+      <div class="ui-panel">
+        <div class="ui-panel__head">
+          <div class="ui-panel__title"><i class="fa-solid fa-plug-circle-check"></i> Sistemas Integrados</div>
+          <button class="ui-btn primary" (click)="abrirCrear()"><i class="fa-solid fa-plus"></i> Nuevo sistema</button>
+        </div>
+        <div class="ui-panel__subtitle">Sistemas de información autorizados a consumir el servicio 2FA</div>
+
+        <div class="ui-panel__body">
+          <div *ngIf="loading" class="si2fa-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+
+          <div *ngIf="!loading" class="ui-table-wrap">
+            <table class="ui-table">
+              <thead>
+                <tr><th>Sigla</th><th>Nombre</th><th>Descripción</th><th>Estado</th><th>Secreto</th><th>Últ. rotación</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let s of sistemas">
+                  <td><strong>{{ s.sigla }}</strong></td>
+                  <td>{{ s.nombre }}</td>
+                  <td>{{ s.descripcion }}</td>
+                  <td><span class="si2fa-badge" [ngClass]="s.habilitado ? 'green' : 'gray'">{{ s.habilitado ? 'Activo' : 'Inactivo' }}</span></td>
+                  <td class="si2fa-mono si2fa-muted">{{ s.secretoEnmascarado }}</td>
+                  <td>{{ s.rotadoAt ? (s.rotadoAt | date:'yyyy-MM-dd HH:mm') : '—' }}</td>
+                  <td>
+                    <div class="si2fa-actions">
+                      <button class="ui-btn si2fa-sm" (click)="abrirEditar(s)"><i class="fa-solid fa-pen"></i></button>
+                      <button class="ui-btn si2fa-sm" [ngClass]="s.habilitado ? 'outline' : 'primary'" (click)="toggle(s)">
+                        {{ s.habilitado ? 'Deshabilitar' : 'Habilitar' }}
+                      </button>
+                      <button class="ui-btn si2fa-sm info" (click)="rotar(s)"><i class="fa-solid fa-key"></i> Rotar</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="!sistemas.length"><td colspan="7" class="empty-row">No hay sistemas registrados.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <button class="btn primary" (click)="abrirCrear()"><i class="fa-solid fa-plus"></i> Nuevo sistema</button>
-    </div>
-
-    <div *ngIf="loading" class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
-
-    <div *ngIf="!loading" class="table-wrap">
-      <table class="tbl">
-        <thead>
-          <tr><th>Sigla</th><th>Nombre</th><th>Descripción</th><th>Estado</th><th>Secreto</th><th>Últ. rotación</th><th>Acciones</th></tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let s of sistemas">
-            <td><strong>{{ s.sigla }}</strong></td>
-            <td>{{ s.nombre }}</td>
-            <td>{{ s.descripcion }}</td>
-            <td>
-              <span class="badge" [ngClass]="s.habilitado ? 'green' : 'gray'">{{ s.habilitado ? 'Activo' : 'Inactivo' }}</span>
-            </td>
-            <td style="font-family:monospace;color:#6b7280">{{ s.secretoEnmascarado }}</td>
-            <td>{{ s.rotadoAt ? (s.rotadoAt | date:'yyyy-MM-dd HH:mm') : '—' }}</td>
-            <td>
-              <div class="row-actions">
-                <button class="btn secondary sm" (click)="abrirEditar(s)"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn sm" [ngClass]="s.habilitado ? 'warn' : 'success'" (click)="toggle(s)">
-                  {{ s.habilitado ? 'Deshabilitar' : 'Habilitar' }}
-                </button>
-                <button class="btn danger sm" (click)="rotar(s)"><i class="fa-solid fa-key"></i> Rotar</button>
-              </div>
-            </td>
-          </tr>
-          <tr *ngIf="!sistemas.length"><td colspan="7" class="empty">No hay sistemas registrados.</td></tr>
-        </tbody>
-      </table>
-    </div>
+    </section>
 
     <!-- Modal crear/editar -->
-    <div class="modal-backdrop" *ngIf="showForm" (click)="cerrar()">
-      <div class="modal" (click)="$event.stopPropagation()">
-        <h3>{{ editId ? 'Editar sistema' : 'Nuevo sistema' }}</h3>
-        <div class="form-group">
-          <label>Sigla (identificador usado para firmar) *</label>
-          <input [(ngModel)]="form.sigla" [disabled]="!!editId" placeholder="Ej: SECADSISEC" />
-          <small *ngIf="editId" style="color:#6b7280">La sigla no se puede modificar.</small>
-        </div>
-        <div class="form-group">
-          <label>Nombre *</label>
-          <input [(ngModel)]="form.nombre" placeholder="Nombre del sistema de información" />
-        </div>
-        <div class="form-group">
-          <label>Descripción</label>
-          <textarea [(ngModel)]="form.descripcion" rows="2"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Estado</label>
-          <select [(ngModel)]="form.habilitado">
-            <option [ngValue]="1">Activo</option>
-            <option [ngValue]="0">Inactivo</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button class="btn secondary" (click)="cerrar()">Cancelar</button>
-          <button class="btn primary" [disabled]="saving" (click)="guardar()">
-            <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i> Guardar
-          </button>
+    <div class="si2fa-backdrop" *ngIf="showForm" (click)="cerrar()">
+      <div class="ui-panel si2fa-dialog" (click)="$event.stopPropagation()">
+        <div class="ui-panel__head"><div class="ui-panel__title" style="font-size:1rem">{{ editId ? 'Editar sistema' : 'Nuevo sistema' }}</div></div>
+        <div class="ui-panel__body">
+          <div class="ui-field" style="margin-bottom:12px">
+            <label class="ui-label">Sigla (identificador usado para firmar) *</label>
+            <input class="ui-control" [(ngModel)]="form.sigla" [disabled]="!!editId" placeholder="Ej: SECADSISEC" />
+            <small class="si2fa-muted" *ngIf="editId">La sigla no se puede modificar.</small>
+          </div>
+          <div class="ui-field" style="margin-bottom:12px">
+            <label class="ui-label">Nombre *</label>
+            <input class="ui-control" [(ngModel)]="form.nombre" placeholder="Nombre del sistema de información" />
+          </div>
+          <div class="ui-field" style="margin-bottom:12px">
+            <label class="ui-label">Descripción</label>
+            <textarea class="ui-control" [(ngModel)]="form.descripcion" rows="2"></textarea>
+          </div>
+          <div class="ui-field" style="margin-bottom:12px">
+            <label class="ui-label">Estado</label>
+            <select class="ui-control" [(ngModel)]="form.habilitado">
+              <option [ngValue]="1">Activo</option>
+              <option [ngValue]="0">Inactivo</option>
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
+            <button class="ui-btn" (click)="cerrar()">Cancelar</button>
+            <button class="ui-btn primary" [disabled]="saving" (click)="guardar()">
+              <i class="fa-solid fa-spinner fa-spin" *ngIf="saving"></i> Guardar
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Modal secreto (una sola vez) -->
-    <div class="modal-backdrop" *ngIf="secretoVisible" (click)="secretoVisible=null">
-      <div class="modal" (click)="$event.stopPropagation()">
-        <h3><i class="fa-solid fa-triangle-exclamation" style="color:#d97706"></i> Secreto HMAC</h3>
-        <p style="font-size:.88rem">Copie este secreto y entréguelo de forma segura al sistema integrado.
-          <strong>No se volverá a mostrar.</strong></p>
-        <div class="secret-box">{{ secretoVisible }}</div>
-        <div class="modal-actions">
-          <button class="btn secondary" (click)="copiar(secretoVisible!)"><i class="fa-solid fa-copy"></i> Copiar</button>
-          <button class="btn primary" (click)="secretoVisible=null">Entendido</button>
+    <div class="si2fa-backdrop" *ngIf="secretoVisible" (click)="secretoVisible=null">
+      <div class="ui-panel si2fa-dialog" (click)="$event.stopPropagation()">
+        <div class="ui-panel__head"><div class="ui-panel__title" style="font-size:1rem"><i class="fa-solid fa-triangle-exclamation" style="color:#d97706"></i> Secreto HMAC</div></div>
+        <div class="ui-panel__body">
+          <p>Copie este secreto y entréguelo de forma segura al sistema integrado. <strong>No se volverá a mostrar.</strong></p>
+          <div class="si2fa-secret">{{ secretoVisible }}</div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px">
+            <button class="ui-btn" (click)="copiar(secretoVisible!)"><i class="fa-solid fa-copy"></i> Copiar</button>
+            <button class="ui-btn primary" (click)="secretoVisible=null">Entendido</button>
+          </div>
         </div>
       </div>
     </div>
