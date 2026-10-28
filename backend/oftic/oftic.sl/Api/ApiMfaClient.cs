@@ -140,6 +140,40 @@ namespace Servicios.Api
             return await VerifyLikeAsync(bearer, "/api/ApiMfa/Verify", body, ct);
         }
 
+        public async Task<DtoMfaVerifyCliente> ResetRequestAsync(string bearer, long identificacion, string usuario, string ip, CancellationToken ct)
+        {
+            var body = new { Identificacion = identificacion, Usuario = usuario, IpMaquina = ip ?? string.Empty, UserAudit = identificacion, Sistema = _sigla };
+            return await ResetLikeAsync(bearer, "/api/ApiMfa/ResetRequest", body, ct);
+        }
+
+        public async Task<DtoMfaVerifyCliente> ResetConfirmAsync(string bearer, long identificacion, string usuario, string code, string ip, CancellationToken ct)
+        {
+            var body = new { Identificacion = identificacion, Usuario = usuario, Code = code, IpMaquina = ip ?? string.Empty, UserAudit = identificacion, Sistema = _sigla };
+            return await ResetLikeAsync(bearer, "/api/ApiMfa/ResetConfirm", body, ct);
+        }
+
+        public async Task<DtoMfaVerifyCliente> ResetExecuteAsync(string bearer, long identificacion, string usuario, string ip, CancellationToken ct)
+        {
+            var body = new { Identificacion = identificacion, Usuario = usuario, IpMaquina = ip ?? string.Empty, UserAudit = identificacion, Sistema = _sigla };
+            return await ResetLikeAsync(bearer, "/api/ApiMfa/ResetExecute", body, ct);
+        }
+
+        private async Task<DtoMfaVerifyCliente> ResetLikeAsync(string bearer, string ruta, object body, CancellationToken ct)
+        {
+            var r = new DtoMfaVerifyCliente();
+            try
+            {
+                var env = await PostAsync<object>(bearer, ruta, body, ct);
+                r.Ok = env != null && (env.CodigoExito == 1 || string.Equals(env.IsError, "false", StringComparison.OrdinalIgnoreCase));
+                r.Mensaje = env?.Mensaje;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en {Ruta} de Api2FA", ruta);
+            }
+            return r;
+        }
+
         private async Task<DtoMfaVerifyCliente> VerifyLikeAsync(string bearer, string ruta, object body, CancellationToken ct)
         {
             var r = new DtoMfaVerifyCliente();

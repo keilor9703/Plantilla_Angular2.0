@@ -18,5 +18,10 @@ namespace Servicios.ApiInterfaz
         Task<DtoMfaEnrolCliente> EnrollStartAsync(string bearer, long identificacion, string usuario, CancellationToken ct);
         Task<DtoMfaVerifyCliente> EnrollConfirmAsync(string bearer, long identificacion, string usuario, string enrollToken, string code, string ip, CancellationToken ct);
         Task<DtoMfaVerifyCliente> VerifyAsync(string bearer, long identificacion, string usuario, string code, string ip, CancellationToken ct);
+
+        // ---- Restablecimiento del segundo factor (autoservicio) ----
+        Task<DtoMfaVerifyCliente> ResetRequestAsync(string bearer, long identificacion, string usuario, string ip, CancellationToken ct);
+        Task<DtoMfaVerifyCliente> ResetConfirmAsync(string bearer, long identificacion, string usuario, string code, string ip, CancellationToken ct);
+        Task<DtoMfaVerifyCliente> ResetExecuteAsync(string bearer, long identificacion, string usuario, string ip, CancellationToken ct);
     }
 }

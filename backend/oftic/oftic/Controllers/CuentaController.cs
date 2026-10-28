@@ -396,6 +396,78 @@ namespace ofic.Controllers
             return Ok(EmitirTokenFinal(ch));
         }
 
+        /// <summary>Autoservicio: solicita el restablecimiento del segundo factor (envía código al correo).</summary>
+        [HttpPost("Mfa/ResetRequest")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> MfaResetRequest([FromBody] DtoMfaVerifyLoginReq req)
+        {
+            var ch = LeerChallenge(req?.Challenge);
+            if (ch == null)
+                return Unauthorized(new DtoTokenResponse { success = false, message = "Sesión de verificación inválida o expirada. Inicie sesión de nuevo." });
+
+            var svcToken = await _apiMfa.ObtenerTokenAsync(ch.Usuario, ch.Ident, CancellationToken.None);
+            if (string.IsNullOrWhiteSpace(svcToken))
+                return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
+
+            var r = await _apiMfa.ResetRequestAsync(svcToken, ch.Ident, ch.Usuario, ObtenerIp(), CancellationToken.None);
+            return Ok(new DtoTokenResponse
+            {
+                success = r.Ok,
+                usuario = ch.Usuario,
+                challenge = req!.Challenge, // el mismo challenge sigue vigente (5 min) para el paso de confirmación
+                message = r.Ok
+                    ? "Se envió un código de verificación a su correo institucional."
+                    : (r.Mensaje ?? "No fue posible iniciar el restablecimiento.")
+            });
+        }
+
+        /// <summary>
+        /// Autoservicio: confirma el código enviado al correo, ejecuta el restablecimiento y
+        /// devuelve los datos para volver a enrolar el segundo factor.
+        /// </summary>
+        [HttpPost("Mfa/ResetConfirm")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> MfaResetConfirm([FromBody] DtoMfaVerifyLoginReq req)
+        {
+            var ch = LeerChallenge(req?.Challenge);
+            if (ch == null)
+                return Unauthorized(new DtoTokenResponse { success = false, message = "Sesión de verificación inválida o expirada. Inicie sesión de nuevo." });
+            if (string.IsNullOrWhiteSpace(req?.Codigo))
+                return BadRequest(new DtoTokenResponse { success = false, message = "Código requerido." });
+
+            var svcToken = await _apiMfa.ObtenerTokenAsync(ch.Usuario, ch.Ident, CancellationToken.None);
+            if (string.IsNullOrWhiteSpace(svcToken))
+                return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
+
+            var conf = await _apiMfa.ResetConfirmAsync(svcToken, ch.Ident, ch.Usuario, req.Codigo.Trim(), ObtenerIp(), CancellationToken.None);
+            if (!conf.Ok)
+                return Unauthorized(new DtoTokenResponse { success = false, message = conf.Mensaje ?? "Código de restablecimiento inválido." });
+
+            var exec = await _apiMfa.ResetExecuteAsync(svcToken, ch.Ident, ch.Usuario, ObtenerIp(), CancellationToken.None);
+            if (!exec.Ok)
+                return StatusCode(503, new DtoTokenResponse { success = false, message = exec.Mensaje ?? "No fue posible ejecutar el restablecimiento." });
+
+            var enrol = await _apiMfa.EnrollStartAsync(svcToken, ch.Ident, ch.Usuario, CancellationToken.None);
+            if (!enrol.Exito)
+                return StatusCode(503, new DtoTokenResponse { success = false, message = "No fue posible iniciar el nuevo enrolamiento." });
+
+            var fresh = CrearChallenge(ch.IdUsuario, ch.Usuario, ch.Roles, ch.Ident);
+            return Ok(new DtoTokenResponse
+            {
+                success = true,
+                usuario = ch.Usuario,
+                requiere2Fa = true,
+                enrolar = true,
+                challenge = fresh,
+                qr = enrol.QrBase64,
+                claveManual = enrol.ManualKey,
+                enrollToken = enrol.EnrollToken,
+                message = "Segundo factor restablecido. Enrole nuevamente su autenticador."
+            });
+        }
+
         // ===================== Helpers 2FA =====================
         private sealed class Challenge2Fa
         {

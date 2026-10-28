@@ -35,6 +35,10 @@ export class LoginComponent implements OnInit, OnDestroy {
   mfaClave = '';
   mfaEnrollToken = '';
   mfaCodigo = '';
+  // Restablecimiento (autoservicio)
+  mfaReset = false;
+  mfaResetCodigo = '';
+  infoMessage = '';
 
   constructor(
     private authService: AuthService,
@@ -163,6 +167,8 @@ export class LoginComponent implements OnInit, OnDestroy {
           this.mfaClave = resp.claveManual ?? '';
           this.mfaEnrollToken = resp.enrollToken ?? '';
           this.mfaCodigo = '';
+          this.mfaReset = false;
+          this.infoMessage = '';
           return;
         }
 
@@ -210,6 +216,61 @@ export class LoginComponent implements OnInit, OnDestroy {
     });
   }
 
+  solicitarReset(): void {
+    this.errorMessage = '';
+    this.infoMessage = '';
+    this.isLoading = true;
+    this.authService.mfaResetRequest(this.mfaChallenge).subscribe({
+      next: (resp: any) => {
+        this.isLoading = false;
+        if (resp?.success) {
+          this.mfaReset = true;
+          this.mfaResetCodigo = '';
+          if (resp.challenge) this.mfaChallenge = resp.challenge;
+          this.infoMessage = resp?.message ?? 'Se envió un código a su correo institucional.';
+        } else {
+          this.errorMessage = resp?.message ?? resp?.mensaje ?? 'No fue posible iniciar el restablecimiento.';
+        }
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = err?.error?.message ?? err?.error?.mensaje ?? 'No fue posible iniciar el restablecimiento.';
+      }
+    });
+  }
+
+  confirmarReset(): void {
+    this.errorMessage = '';
+    const codigo = (this.mfaResetCodigo ?? '').trim();
+    if (!/^\d{6}$/.test(codigo)) {
+      this.errorMessage = 'El código debe ser de 6 dígitos.';
+      return;
+    }
+    this.isLoading = true;
+    this.authService.mfaResetConfirm(this.mfaChallenge, codigo).subscribe({
+      next: (resp: any) => {
+        this.isLoading = false;
+        if (resp?.requiere2Fa && resp?.enrolar) {
+          // Restablecido: pasar a re-enrolar con el nuevo QR.
+          this.mfaReset = false;
+          this.mfaEnrolar = true;
+          this.mfaChallenge = resp.challenge ?? this.mfaChallenge;
+          this.mfaQr = this.toDataUri(resp.qr ?? '');
+          this.mfaClave = resp.claveManual ?? '';
+          this.mfaEnrollToken = resp.enrollToken ?? '';
+          this.mfaCodigo = '';
+          this.infoMessage = resp?.message ?? 'Segundo factor restablecido. Enrole nuevamente.';
+        } else {
+          this.errorMessage = resp?.message ?? resp?.mensaje ?? 'No fue posible restablecer el segundo factor.';
+        }
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = err?.error?.message ?? err?.error?.mensaje ?? 'Código inválido o sesión expirada.';
+      }
+    });
+  }
+
   cancelar2fa(): void {
     this.mfaPaso = false;
     this.mfaEnrolar = false;
@@ -218,7 +279,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.mfaClave = '';
     this.mfaEnrollToken = '';
     this.mfaCodigo = '';
+    this.mfaReset = false;
+    this.mfaResetCodigo = '';
     this.errorMessage = '';
+    this.infoMessage = '';
     this.contrasena = '';
   }
 

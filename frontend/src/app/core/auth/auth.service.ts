@@ -94,6 +94,20 @@ export class AuthService {
     );
   }
 
+  /** Autoservicio: solicita el restablecimiento del segundo factor (envía código al correo). */
+  mfaResetRequest(challenge: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/Cuenta/Mfa/ResetRequest`, { Challenge: challenge }, { withCredentials: true }).pipe(
+      timeout(30000)
+    );
+  }
+
+  /** Autoservicio: confirma el código del correo; la respuesta trae los datos para re-enrolar. */
+  mfaResetConfirm(challenge: string, codigo: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/Cuenta/Mfa/ResetConfirm`, { Challenge: challenge, Codigo: codigo }, { withCredentials: true }).pipe(
+      timeout(30000)
+    );
+  }
+
   private finalizeSession(resp: LoginResponse, usuario: string): void {
     this.clearImpersonationState();
     if (resp.token) {
