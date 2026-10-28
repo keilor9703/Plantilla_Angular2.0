@@ -43,6 +43,18 @@ export const routes: Routes = [
           { path: 'cuentas-email', loadComponent: () => import('./pages/administracion/cuentas-email/cuentas-email').then(m => m.CuentasEmailComponent) },
         ],
       },
+      {
+        path: 'si2fa',
+        canActivate: [authGuard],
+        children: [
+          { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+          { path: 'dashboard', loadComponent: () => import('./pages/si2fa/dashboard/dashboard').then(m => m.Si2faDashboardComponent) },
+          { path: 'usuarios', loadComponent: () => import('./pages/si2fa/usuarios/usuarios').then(m => m.Si2faUsuariosComponent) },
+          { path: 'sistemas', loadComponent: () => import('./pages/si2fa/sistemas/sistemas').then(m => m.Si2faSistemasComponent) },
+          { path: 'dispositivos', loadComponent: () => import('./pages/si2fa/dispositivos/dispositivos').then(m => m.Si2faDispositivosComponent) },
+          { path: 'auditoria', loadComponent: () => import('./pages/si2fa/auditoria/auditoria').then(m => m.Si2faAuditoriaComponent) },
+        ],
+      },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
       { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },
       { path: 'roles', redirectTo: 'administracion/roles', pathMatch: 'full' },
