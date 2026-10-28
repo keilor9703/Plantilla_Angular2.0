@@ -60,7 +60,7 @@ interface GrupoParam { nombre: string; items: Parametro2Fa[]; }
 
             <div class="si2fa-muted" style="margin-top:6px">
               <i class="fa-solid fa-circle-info"></i>
-              Los cambios se guardan de inmediato en la configuración central del servicio 2FA.
+              Los cambios se guardan de inmediato. El servicio 2FA los aplica dentro de su intervalo de recarga (por defecto ~60 s).
             </div>
           </ng-container>
         </div>
