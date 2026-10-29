@@ -87,6 +87,35 @@
   overflow: auto;
 }
 
+/* Estado de salud del servicio 2FA (tablero) */
+.si2fa-health {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--ui-border, rgba(21, 27, 59, .12));
+  background: var(--ui-surface, #fff);
+  border-left: 4px solid var(--ui-muted, #9ca3af);
+  margin-bottom: 16px;
+}
+.si2fa-health.up { border-left-color: #16a34a; }
+.si2fa-health.down { border-left-color: #dc2626; }
+.si2fa-health .dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #9ca3af; flex: 0 0 auto;
+}
+.si2fa-health.up .dot { background: #16a34a; box-shadow: 0 0 0 4px rgba(22, 163, 74, .18); animation: si2fa-pulse 2s ease-in-out infinite; }
+.si2fa-health.down .dot { background: #dc2626; box-shadow: 0 0 0 4px rgba(220, 38, 38, .18); }
+.si2fa-health .txt { display: flex; flex-direction: column; gap: 2px; }
+.si2fa-health .txt .st { font-weight: 800; font-size: calc(15px * var(--font-size-scale, 1)); color: var(--ui-text, #151b3b); }
+.si2fa-health .txt .sub { font-size: calc(12px * var(--font-size-scale, 1)); color: var(--ui-muted, #6b7280); }
+.si2fa-health .lat { margin-left: auto; text-align: right; }
+.si2fa-health .lat .v { font-weight: 800; font-size: calc(18px * var(--font-size-scale, 1)); color: var(--ui-text, #151b3b); }
+.si2fa-health .lat .l { font-size: calc(10px * var(--font-size-scale, 1)); text-transform: uppercase; letter-spacing: .04em; color: var(--ui-muted, #6b7280); }
+@keyframes si2fa-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
 /* utilidades menores */
 .si2fa-muted { color: var(--ui-muted, #6b7280); font-size: calc(12px * var(--font-size-scale, 1)); }
 .si2fa-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .78rem; }

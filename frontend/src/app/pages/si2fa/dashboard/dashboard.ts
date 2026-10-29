@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Si2faService, Metricas2Fa } from '../../../core/services/si2fa/si2fa.service';
+import { Si2faService, Metricas2Fa, Salud2Fa } from '../../../core/services/si2fa/si2fa.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
@@ -30,6 +30,29 @@ import { ToastService } from '../../../core/services/toast.service';
         <div class="ui-panel__subtitle">Estado y actividad del servicio de doble factor de autenticación</div>
 
         <div class="ui-panel__body">
+          <!-- Estado de salud del servicio 2FA (monitoreo en tiempo real) -->
+          <div class="si2fa-health" [class.up]="salud?.up === true" [class.down]="salud?.up === false">
+            <span class="dot"></span>
+            <div class="txt">
+              <span class="st">
+                <i class="fa-solid" [ngClass]="salud?.up ? 'fa-circle-check' : (salud?.up === false ? 'fa-triangle-exclamation' : 'fa-spinner fa-spin')"></i>
+                Servicio 2FA:
+                {{ saludConsultada ? (salud?.up ? 'Operativo' : 'No disponible') : 'Consultando…' }}
+              </span>
+              <span class="sub">
+                <ng-container *ngIf="saludConsultada; else sinDato">
+                  {{ salud?.mensaje || (salud?.up ? 'El servicio responde correctamente.' : 'El servicio no responde.') }}
+                  · Última verificación {{ ultimaVerificacion | date:'HH:mm:ss' }}
+                </ng-container>
+                <ng-template #sinDato>Verificación automática cada {{ saludIntervaloSeg }} s</ng-template>
+              </span>
+            </div>
+            <div class="lat" *ngIf="salud?.up">
+              <div class="v">{{ salud?.latenciaMs }}<span style="font-size:.6em"> ms</span></div>
+              <div class="l">Latencia</div>
+            </div>
+          </div>
+
           <div *ngIf="loading" class="si2fa-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando métricas…</div>
 
           <ng-container *ngIf="!loading && m">
@@ -104,16 +127,46 @@ import { ToastService } from '../../../core/services/toast.service';
     </section>
   `
 })
-export class Si2faDashboardComponent implements OnInit {
+export class Si2faDashboardComponent implements OnInit, OnDestroy {
   m: Metricas2Fa | null = null;
   dias = 30;
   loading = false;
 
   maxSistema = 1; maxEvento = 1; maxDia = 1;
 
+  // Monitoreo de salud del servicio 2FA en tiempo real.
+  salud: Salud2Fa | null = null;
+  saludConsultada = false;
+  ultimaVerificacion: Date | null = null;
+  readonly saludIntervaloSeg = 15;
+  private saludTimer: any = null;
+
   constructor(private service: Si2faService, private toast: ToastService) {}
 
-  ngOnInit(): void { this.cargar(); }
+  ngOnInit(): void {
+    this.cargar();
+    this.consultarSalud();
+    this.saludTimer = setInterval(() => this.consultarSalud(), this.saludIntervaloSeg * 1000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.saludTimer) { clearInterval(this.saludTimer); this.saludTimer = null; }
+  }
+
+  consultarSalud(): void {
+    this.service.getSalud().subscribe({
+      next: (s) => {
+        this.salud = s;
+        this.saludConsultada = true;
+        this.ultimaVerificacion = new Date();
+      },
+      error: () => {
+        this.salud = { up: false, estado: 'CAIDO', latenciaMs: 0, mensaje: 'No fue posible contactar el servicio.', consultado: new Date().toISOString() };
+        this.saludConsultada = true;
+        this.ultimaVerificacion = new Date();
+      }
+    });
+  }
 
   cargar(): void {
     this.loading = true;

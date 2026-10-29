@@ -111,6 +111,14 @@ export interface Parametro2Fa {
 }
 export interface Parametro2FaResult { success: boolean; message?: string; }
 
+export interface Salud2Fa {
+  up: boolean;
+  estado: string;      // OPERATIVO | CAIDO
+  latenciaMs: number;
+  mensaje?: string;
+  consultado: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class Si2faService {
   private readonly base = `${environment.apiBaseUrl}/admin`;
@@ -120,6 +128,10 @@ export class Si2faService {
   // -------- Dashboard --------
   getMetricas(dias = 30): Observable<Metricas2Fa> {
     return this.http.get<Metricas2Fa>(`${this.base}/dashboard/metricas`, { params: { dias } });
+  }
+
+  getSalud(): Observable<Salud2Fa> {
+    return this.http.get<Salud2Fa>(`${this.base}/dashboard/salud`);
   }
 
   // -------- Sistemas --------
