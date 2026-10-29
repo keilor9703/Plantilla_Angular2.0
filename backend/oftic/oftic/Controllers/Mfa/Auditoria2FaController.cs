@@ -62,7 +62,8 @@ namespace Api.Controllers.Mfa
             var data = await _service.GetAuditoriaAsync(filtro, ct);
 
             var sb = new StringBuilder();
-            sb.AppendLine("IdAuditoria;Fecha;Identificacion;Usuario;Sistema;Evento;Detalle;IP");
+            // Se exporta la descripción legible del evento y, aparte, su código técnico (trazabilidad).
+            sb.AppendLine("IdAuditoria;Fecha;Identificacion;Usuario;Sistema;Evento;CodigoEvento;Detalle;IP");
             foreach (var a in data.Items)
             {
                 sb.Append(a.IdAuditoria).Append(';')
@@ -70,6 +71,7 @@ namespace Api.Controllers.Mfa
                   .Append(a.Identificacion).Append(';')
                   .Append(Csv(a.UsuarioInstitucional)).Append(';')
                   .Append(Csv(a.Sistema)).Append(';')
+                  .Append(Csv(EtiquetaEvento(a.Evento))).Append(';')
                   .Append(Csv(a.Evento)).Append(';')
                   .Append(Csv(a.Detalle)).Append(';')
                   .Append(Csv(a.IpOrigen)).AppendLine();
@@ -81,6 +83,40 @@ namespace Api.Controllers.Mfa
 
             var nombre = $"auditoria_si2fa_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
             return File(bytes, "text/csv", nombre);
+        }
+
+        /// <summary>
+        /// Traduce el código técnico del evento a un texto entendible para el usuario.
+        /// Debe mantenerse alineado con EVENTOS_2FA del frontend (si2fa.service.ts).
+        /// </summary>
+        private static string EtiquetaEvento(string? codigo)
+        {
+            if (string.IsNullOrWhiteSpace(codigo)) return "—";
+            var key = codigo.Trim().ToUpperInvariant();
+            return key switch
+            {
+                "VERIFY_OK"            => "Verificación exitosa",
+                "VERIFY_FAIL"          => "Código incorrecto",
+                "ENROLL_OK"            => "Registro de 2FA completado",
+                "CHANGE_MFA"           => "Cambio de estado del 2FA",
+                "TRUST_ADD"            => "Dispositivo marcado como confiable",
+                "TRUST_CLEAR"          => "Dispositivos confiables eliminados",
+                "RESET"                => "Restablecimiento del 2FA",
+                "RESET_CODE_SENT"      => "Código de restablecimiento enviado",
+                "RESET_CODE_BAD"       => "Código de restablecimiento incorrecto",
+                "RESET_CODE_EXPIRED"   => "Código de restablecimiento expirado",
+                "RESET_CODE_MAX_TRY"   => "Demasiados intentos de restablecimiento",
+                "RESET_CONFIRMED"      => "Restablecimiento confirmado",
+                "RESET_EXECUTED"       => "Restablecimiento aplicado",
+                "RESET_RATELIMIT"      => "Restablecimiento bloqueado temporalmente",
+                "ADMIN_CHANGE_MFA"     => "Un administrador cambió el estado del 2FA",
+                "ADMIN_FORCE_REENROLL" => "Un administrador exigió un nuevo registro",
+                "ADMIN_RESET"          => "Un administrador restableció el 2FA",
+                "ADMIN_TRUST_CLEAR"    => "Un administrador eliminó los dispositivos confiables",
+                "ADMIN_TRUST_REVOKE"   => "Un administrador revocó un dispositivo confiable",
+                "ADMIN_UNLOCK"         => "Un administrador desbloqueó al usuario",
+                _ => char.ToUpperInvariant(key[0]) + key.Substring(1).ToLowerInvariant().Replace('_', ' ')
+            };
         }
 
         private static string Csv(string? v)

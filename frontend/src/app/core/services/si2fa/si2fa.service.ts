@@ -119,6 +119,46 @@ export interface Salud2Fa {
   consultado: string;
 }
 
+// ================== Eventos de auditoría legibles ==================
+// La BD guarda códigos técnicos (VERIFY_OK, ENROLL_OK, RESET_CODE_SENT…).
+// Aquí se traducen a lenguaje entendible para los usuarios del panel.
+export const EVENTOS_2FA: Record<string, string> = {
+  VERIFY_OK:             'Verificación exitosa',
+  VERIFY_FAIL:           'Código incorrecto',
+  ENROLL_OK:             'Registro de 2FA completado',
+  CHANGE_MFA:            'Cambio de estado del 2FA',
+  TRUST_ADD:             'Dispositivo marcado como confiable',
+  TRUST_CLEAR:           'Dispositivos confiables eliminados',
+  RESET:                 'Restablecimiento del 2FA',
+  RESET_CODE_SENT:       'Código de restablecimiento enviado',
+  RESET_CODE_BAD:        'Código de restablecimiento incorrecto',
+  RESET_CODE_EXPIRED:    'Código de restablecimiento expirado',
+  RESET_CODE_MAX_TRY:    'Demasiados intentos de restablecimiento',
+  RESET_CONFIRMED:       'Restablecimiento confirmado',
+  RESET_EXECUTED:        'Restablecimiento aplicado',
+  RESET_RATELIMIT:       'Restablecimiento bloqueado temporalmente',
+  ADMIN_CHANGE_MFA:      'Un administrador cambió el estado del 2FA',
+  ADMIN_FORCE_REENROLL:  'Un administrador exigió un nuevo registro',
+  ADMIN_RESET:           'Un administrador restableció el 2FA',
+  ADMIN_TRUST_CLEAR:     'Un administrador eliminó los dispositivos confiables',
+  ADMIN_TRUST_REVOKE:    'Un administrador revocó un dispositivo confiable',
+  ADMIN_UNLOCK:          'Un administrador desbloqueó al usuario'
+};
+
+/** Traduce un código de evento a texto legible; si no se conoce, lo humaniza. */
+export function etiquetaEvento(codigo?: string): string {
+  if (!codigo) return '—';
+  const key = codigo.trim().toUpperCase();
+  if (EVENTOS_2FA[key]) return EVENTOS_2FA[key];
+  // Respaldo: convierte "ALGO_RARO" en "Algo raro".
+  const t = key.replace(/_/g, ' ').toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Opciones para el filtro de eventos (etiqueta legible + código real). */
+export const EVENTOS_2FA_OPCIONES: { codigo: string; etiqueta: string }[] =
+  Object.keys(EVENTOS_2FA).map((c) => ({ codigo: c, etiqueta: EVENTOS_2FA[c] }));
+
 @Injectable({ providedIn: 'root' })
 export class Si2faService {
   private readonly base = `${environment.apiBaseUrl}/admin`;

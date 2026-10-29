@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Si2faService, Auditoria2Fa, Auditoria2FaFiltro } from '../../../core/services/si2fa/si2fa.service';
+import { Si2faService, Auditoria2Fa, Auditoria2FaFiltro, etiquetaEvento, EVENTOS_2FA_OPCIONES } from '../../../core/services/si2fa/si2fa.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
@@ -36,7 +36,10 @@ import { ToastService } from '../../../core/services/toast.service';
             </div>
             <div class="ui-field ui-col-3">
               <label class="ui-label">Evento</label>
-              <input class="ui-control" [(ngModel)]="f.evento" placeholder="p. ej. VERIFY_FAIL" />
+              <select class="ui-control" [(ngModel)]="f.evento">
+                <option [ngValue]="undefined">Todos los eventos</option>
+                <option *ngFor="let o of eventosOpciones" [ngValue]="o.codigo">{{ o.etiqueta }}</option>
+              </select>
             </div>
             <div class="ui-field ui-col-3">
               <label class="ui-label">Desde</label>
@@ -67,7 +70,7 @@ import { ToastService } from '../../../core/services/toast.service';
                   <td>{{ a.identificacion }}</td>
                   <td>{{ a.usuarioInstitucional }}</td>
                   <td>{{ a.sistema }}</td>
-                  <td><span class="si2fa-badge" [ngClass]="eventoClase(a.evento)">{{ a.evento }}</span></td>
+                  <td><span class="si2fa-badge" [ngClass]="eventoClase(a.evento)" [title]="a.evento">{{ etiqueta(a.evento) }}</span></td>
                   <td style="max-width:360px">{{ a.detalle }}</td>
                   <td>{{ a.ipOrigen }}</td>
                 </tr>
@@ -94,8 +97,11 @@ export class Si2faAuditoriaComponent implements OnInit {
   total = 0;
   loading = false;
   exportando = false;
+  readonly eventosOpciones = EVENTOS_2FA_OPCIONES;
 
   constructor(private service: Si2faService, private toast: ToastService) {}
+
+  etiqueta(ev?: string): string { return etiquetaEvento(ev); }
 
   get totalPaginas(): number { return Math.max(1, Math.ceil(this.total / this.tamano)); }
 

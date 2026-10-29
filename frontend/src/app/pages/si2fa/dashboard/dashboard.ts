@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Si2faService, Metricas2Fa, Salud2Fa } from '../../../core/services/si2fa/si2fa.service';
+import { Si2faService, Metricas2Fa, Salud2Fa, etiquetaEvento } from '../../../core/services/si2fa/si2fa.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
@@ -93,7 +93,7 @@ import { ToastService } from '../../../core/services/toast.service';
                   <div class="ui-panel__body">
                     <div *ngIf="!m.eventosPorTipo.length" class="si2fa-muted">Sin eventos en el periodo.</div>
                     <div *ngFor="let c of m.eventosPorTipo" class="si2fa-bar">
-                      <span class="n" [title]="c.clave">{{ c.clave }}</span>
+                      <span class="n" [title]="c.clave">{{ etiquetaEvento(c.clave) }}</span>
                       <span class="track"><span [style.width.%]="pct(c.total, maxEvento)"></span></span>
                       <span class="t">{{ c.total }}</span>
                     </div>
@@ -183,4 +183,6 @@ export class Si2faDashboardComponent implements OnInit, OnDestroy {
   }
 
   pct(v: number, max: number): number { return max > 0 ? Math.round((v / max) * 100) : 0; }
+
+  etiquetaEvento = etiquetaEvento;
 }
