@@ -49,13 +49,120 @@
             </button>
         </form>
 
-        <!-- Doble autenticación institucional estándar (@policia/mfa): todas las modales. -->
-        <pmfa-flow
-            *ngIf="mfaChallenge"
-            [challenge]="mfaChallenge"
-            [usuario]="usuario"
-            (autenticado)="onMfaAutenticado($event)"
-            (cancelado)="onMfaCancelado()">
-        </pmfa-flow>
+        <!-- Doble autenticación (lógica estándar @policia/mfa, diseño del login) -->
+        <div class="mfa-panel" *ngIf="mfaChallenge">
+
+            <!-- VERIFICAR / RESET -->
+            <ng-container *ngIf="mfaVista === 'verify'">
+
+                <!-- Paso normal: ingresar código del autenticador -->
+                <ng-container *ngIf="resetStep === 0">
+                    <h2 class="mfa-title"><i class="fa-solid fa-shield-halved"></i> Verificación en dos pasos</h2>
+                    <p class="mfa-sub">Abra su app de autenticación e ingrese el código de 6 dígitos.</p>
+
+                    <div class="mfa-otp" (paste)="onOtpPaste($event)">
+                        <input *ngFor="let d of otpDigits; let i = index" [id]="'otp-' + i"
+                            type="text" inputmode="numeric" maxlength="1" autocomplete="off"
+                            [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)" />
+                    </div>
+
+                    <label class="mfa-check">
+                        <input type="checkbox" [(ngModel)]="mfaRememberDevice" name="rememberDevice" />
+                        <span>Confiar en este equipo por 30 días</span>
+                    </label>
+
+                    <button type="button" class="btn-login" [disabled]="mfaLoading" (click)="submitVerify()">
+                        <span>{{ mfaLoading ? 'Validando…' : 'Verificar e ingresar' }}</span>
+                    </button>
+
+                    <div class="mfa-links">
+                        <a href="javascript:void(0)" (click)="irAReset()">¿Perdió el acceso a su app? Restablecer 2FA</a>
+                    </div>
+                </ng-container>
+
+                <!-- Reset paso 1: enviar código al correo -->
+                <ng-container *ngIf="resetStep === 1">
+                    <h2 class="mfa-title"><i class="fa-solid fa-envelope-circle-check"></i> Restablecer 2FA</h2>
+                    <p class="mfa-sub">Le enviaremos un código de verificación a su correo institucional para reiniciar su registro de doble autenticación.</p>
+                    <button type="button" class="btn-login" [disabled]="mfaLoading" (click)="submitResetRequest()">
+                        <span>{{ mfaLoading ? 'Enviando…' : 'Enviar código a mi correo' }}</span>
+                    </button>
+                    <div class="mfa-links">
+                        <a href="javascript:void(0)" (click)="volverAVerify()">Volver</a>
+                    </div>
+                </ng-container>
+
+                <!-- Reset paso 2: ingresar código de correo -->
+                <ng-container *ngIf="resetStep === 2">
+                    <h2 class="mfa-title"><i class="fa-solid fa-envelope-open-text"></i> Código de correo</h2>
+                    <p class="mfa-sub">Ingrese el código de 6 dígitos que enviamos a su correo institucional.</p>
+
+                    <div class="mfa-otp" (paste)="onOtpPaste($event)">
+                        <input *ngFor="let d of otpDigits; let i = index" [id]="'otp-' + i"
+                            type="text" inputmode="numeric" maxlength="1" autocomplete="off"
+                            [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)" />
+                    </div>
+
+                    <button type="button" class="btn-login" [disabled]="mfaLoading" (click)="submitResetConfirm()">
+                        <span>{{ mfaLoading ? 'Validando…' : 'Confirmar y restablecer' }}</span>
+                    </button>
+                    <div class="mfa-links">
+                        <a href="javascript:void(0)" (click)="submitResetRequest()">Reenviar código</a>
+                        <a href="javascript:void(0)" (click)="volverAVerify()">Volver</a>
+                    </div>
+                </ng-container>
+            </ng-container>
+
+            <!-- ENROLAR -->
+            <ng-container *ngIf="mfaVista === 'enroll'">
+                <h2 class="mfa-title"><i class="fa-solid fa-qrcode"></i> Activar doble autenticación</h2>
+                <p class="mfa-sub">Escanee el código QR con Google Authenticator, Microsoft Authenticator o Authy y escriba el código de 6 dígitos.</p>
+
+                <div class="mfa-qr" *ngIf="mfaQrBase64">
+                    <img [src]="'data:image/png;base64,' + mfaQrBase64" alt="Código QR de activación" />
+                </div>
+
+                <div class="mfa-manual" *ngIf="mfaManualKey">
+                    <span class="mfa-manual-label">Clave manual (no la comparta)</span>
+                    <code>{{ mfaManualKey }}</code>
+                </div>
+
+                <a *ngIf="mfaOtpauthUri" class="mfa-otpauth" [href]="mfaOtpauthUri">
+                    <i class="fa-solid fa-mobile-screen-button"></i> ¿En un celular? Toque para agregarla a su app
+                </a>
+
+                <div class="mfa-otp" (paste)="onOtpPaste($event)">
+                    <input *ngFor="let d of otpDigits; let i = index" [id]="'otp-' + i"
+                        type="text" inputmode="numeric" maxlength="1" autocomplete="off"
+                        [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)" />
+                </div>
+
+                <button type="button" class="btn-login" [disabled]="mfaLoading" (click)="submitEnroll()">
+                    <span>{{ mfaLoading ? 'Activando…' : 'Confirmar y activar' }}</span>
+                </button>
+
+                <p class="mfa-warn"><i class="fa-solid fa-triangle-exclamation"></i> Si cambia de celular, deberá re-enrolar su autenticador.</p>
+            </ng-container>
+
+            <!-- BLOQUEADO -->
+            <ng-container *ngIf="mfaVista === 'blocked'">
+                <h2 class="mfa-title"><i class="fa-solid fa-lock"></i> Cuenta bloqueada temporalmente</h2>
+                <p class="mfa-sub">
+                    Por seguridad, su acceso con doble autenticación quedó bloqueado por demasiados intentos fallidos.
+                    <ng-container *ngIf="mfaBloqueoHasta"><br />Intente nuevamente después de: <strong>{{ mfaBloqueoHasta | date:'yyyy-MM-dd HH:mm' }}</strong>.</ng-container>
+                </p>
+            </ng-container>
+
+            <!-- SERVICIO NO DISPONIBLE -->
+            <ng-container *ngIf="mfaVista === 'svcdown'">
+                <h2 class="mfa-title"><i class="fa-solid fa-plug-circle-xmark"></i> Servicio no disponible</h2>
+                <p class="mfa-sub">{{ mfaSvcMsg || 'El servicio de doble autenticación no está disponible en este momento. Intente más tarde.' }}</p>
+            </ng-container>
+
+            <p *ngIf="mfaInfo" class="mfa-msg info">{{ mfaInfo }}</p>
+            <p *ngIf="mfaError" class="mfa-msg error">{{ mfaError }}</p>
+
+            <button type="button" class="mfa-cancel" (click)="cancelarMfa()">Cancelar</button>
+        </div>
     </div>
 </main>

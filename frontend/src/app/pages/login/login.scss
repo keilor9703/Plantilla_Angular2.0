@@ -211,6 +211,174 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     text-decoration: underline;
 }
 
+/* ───────────────── Doble autenticación (mismo diseño del login) ───────────────── */
+.mfa-panel {
+    text-align: center;
+    animation: mfa-fade .25s ease;
+}
+@keyframes mfa-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.mfa-title {
+    color: #ffffff;
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.mfa-sub {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-bottom: 18px;
+}
+
+/* Casillas del código OTP */
+.mfa-otp {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.mfa-otp input {
+    width: 44px;
+    height: 54px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.92);
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #000046;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: box-shadow .2s, transform .1s;
+}
+.mfa-otp input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(28, 181, 224, 0.7);
+    transform: translateY(-1px);
+}
+
+.mfa-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+    cursor: pointer;
+}
+.mfa-check input { width: 16px; height: 16px; cursor: pointer; }
+
+.mfa-links {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.mfa-links a {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: color .3s ease;
+}
+.mfa-links a:hover { color: #1cb5e0; text-decoration: underline; }
+
+/* QR de enrolamiento */
+.mfa-qr {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+.mfa-qr img {
+    width: 180px;
+    height: 180px;
+    background: #fff;
+    padding: 10px;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.mfa-manual {
+    margin-bottom: 14px;
+}
+.mfa-manual-label {
+    display: block;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.mfa-manual code {
+    display: inline-block;
+    background: #0f172a;
+    color: #4ade80;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    letter-spacing: 1px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    word-break: break-all;
+    font-size: 0.82rem;
+}
+
+.mfa-otpauth {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    text-decoration: none;
+    margin-bottom: 16px;
+    transition: background .2s;
+}
+.mfa-otpauth:hover { background: rgba(255, 255, 255, 0.2); }
+
+.mfa-warn {
+    color: #ffe08a;
+    font-size: 0.75rem;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.mfa-msg {
+    font-size: 0.82rem;
+    margin: 14px 0 0 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+.mfa-msg.info { color: #bfe9ff; background: rgba(28, 181, 224, 0.15); }
+.mfa-msg.error { color: #ffb3b3; background: rgba(220, 38, 38, 0.15); }
+
+.mfa-cancel {
+    margin-top: 16px;
+    width: 100%;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 25px;
+    background: transparent;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background .2s;
+}
+.mfa-cancel:hover { background: rgba(255, 255, 255, 0.12); }
+
+@media (max-width: 560px) {
+  .mfa-otp input { width: 38px; height: 48px; font-size: 1.3rem; }
+  .mfa-qr img { width: 150px; height: 150px; }
+}
+
 @media (max-width: 560px) {
   .login-container {
     padding: 14px;

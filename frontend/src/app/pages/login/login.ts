@@ -2,16 +2,21 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { AuthService } from '../../core/auth/auth.service';
 import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 import { SetupService } from '../../core/services/setup.service';
-import { MfaLoginChallenge, PoliciaMfaFlowComponent } from '@policia/mfa';
+// Lógica estándar institucional de 2FA (@policia/mfa). La UI se renderiza con
+// el diseño propio del login (glass-card) para mantener la coherencia visual.
+import { MfaLoginChallenge, MfaStepResponse, MfaService } from '@policia/mfa';
+
+type MfaVista = 'verify' | 'enroll' | 'blocked' | 'svcdown' | null;
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, PoliciaMfaFlowComponent],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
@@ -28,15 +33,32 @@ export class LoginComponent implements OnInit, OnDestroy {
   private loginTimeoutHandle: any = null;
   private slideTimerHandle: any = null;
 
-  // Reto de doble autenticación (estándar @policia/mfa). Al asignarse, <pmfa-flow> abre la modal.
+  // ───────────── Estado del flujo 2FA (diseño login + lógica @policia/mfa) ─────────────
   mfaChallenge: MfaLoginChallenge | null = null;
+  mfaVista: MfaVista = null;
+  private mfaSessionToken = '';
+  mfaQrBase64 = '';
+  mfaManualKey = '';
+  private mfaEnrollToken = '';
+  mfaOtpauthUri: SafeUrl | null = null;
+  mfaBloqueoHasta = '';
+  mfaSvcMsg = '';
+  otpDigits: string[] = ['', '', '', '', '', ''];
+  mfaRememberDevice = false;
+  mfaLoading = false;
+  mfaError = '';
+  mfaInfo = '';
+  // 0 = verificar/enrolar normal; 1 = pedir código de correo; 2 = ingresar código de correo
+  resetStep = 0;
 
   constructor(
     private authService: AuthService,
     private router: Router,
     private loginVisualService: LoginVisualService,
     private brandingService: BrandingService,
-    private setupService: SetupService
+    private setupService: SetupService,
+    private mfaService: MfaService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -149,9 +171,9 @@ export class LoginComponent implements OnInit, OnDestroy {
         clearTimeout(this.loginTimeoutHandle);
         this.isLoading = false;
 
-        // Requiere segundo factor: el componente <pmfa-flow> se encarga de las modales.
+        // Requiere segundo factor: se abre el flujo 2FA con el diseño del login.
         if (resp?.requiresMfa) {
-          this.mfaChallenge = resp as MfaLoginChallenge;
+          this.iniciarMfa(resp as MfaLoginChallenge);
           return;
         }
 
@@ -170,17 +192,192 @@ export class LoginComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** El componente de 2FA emite el JWT definitivo. */
-  onMfaAutenticado(token: string): void {
-    this.authService.storeLoginData(token, this.usuario.trim());
-    this.mfaChallenge = null;
-    this.router.navigate(['/home']);
+  // ───────────────────────────── Flujo 2FA ─────────────────────────────
+
+  private iniciarMfa(ch: MfaLoginChallenge): void {
+    this.mfaChallenge = ch;
+    this.mfaSessionToken = ch.mfaSessionToken ?? '';
+    this.mfaQrBase64 = ch.mfaQrBase64 ?? '';
+    this.mfaManualKey = ch.mfaManualKey ?? '';
+    this.mfaEnrollToken = ch.mfaEnrollToken ?? '';
+    this.mfaBloqueoHasta = ch.bloqueoHasta ?? '';
+    this.mfaSvcMsg = ch.message ?? '';
+    this.mfaError = '';
+    this.mfaInfo = '';
+    this.resetStep = 0;
+    this.mfaRememberDevice = false;
+    this.clearOtp();
+    this.construirOtpauth();
+
+    switch (ch.mfaMode) {
+      case 'enroll':  this.mfaVista = 'enroll';  break;
+      case 'blocked': this.mfaVista = 'blocked'; break;
+      case 'svcdown': this.mfaVista = 'svcdown'; break;
+      default:        this.mfaVista = 'verify';
+    }
   }
 
-  /** El usuario cerró/canceló el flujo de 2FA. */
-  onMfaCancelado(): void {
+  private construirOtpauthUri(): void {
+    if (!this.mfaManualKey) { this.mfaOtpauthUri = null; return; }
+    const issuer = 'SI2FA';
+    const label = encodeURIComponent(`${issuer}:${this.usuario || 'usuario'}`);
+    const uri = `otpauth://totp/${label}?secret=${encodeURIComponent(this.mfaManualKey)}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
+    this.mfaOtpauthUri = this.sanitizer.bypassSecurityTrustUrl(uri);
+  }
+  // Alias interno usado en iniciarMfa (compat).
+  private construirOtpauth(): void { this.construirOtpauthUri(); }
+
+  cancelarMfa(): void {
     this.mfaChallenge = null;
+    this.mfaVista = null;
     this.contrasena = '';
+    this.clearOtp();
+    this.mfaError = '';
+    this.mfaInfo = '';
+    this.resetStep = 0;
+  }
+
+  get otpCode(): string { return this.otpDigits.join(''); }
+
+  clearOtp(): void {
+    this.otpDigits = ['', '', '', '', '', ''];
+  }
+
+  onOtpInput(idx: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const val = (input.value || '').replace(/\D/g, '');
+    this.otpDigits[idx] = val.slice(-1);
+    input.value = this.otpDigits[idx];
+    if (this.otpDigits[idx] && idx < 5) {
+      this.focusOtp(idx + 1);
+    }
+  }
+
+  onOtpKeydown(idx: number, event: KeyboardEvent): void {
+    if (event.key === 'Backspace' && !this.otpDigits[idx] && idx > 0) {
+      this.focusOtp(idx - 1);
+    }
+  }
+
+  onOtpPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const text = (event.clipboardData?.getData('text') ?? '').replace(/\D/g, '').slice(0, 6);
+    if (!text) { return; }
+    for (let i = 0; i < 6; i++) {
+      this.otpDigits[i] = text[i] ?? '';
+    }
+    this.focusOtp(Math.min(text.length, 5));
+  }
+
+  private focusOtp(idx: number): void {
+    setTimeout(() => {
+      const el = document.getElementById('otp-' + idx) as HTMLInputElement | null;
+      el?.focus();
+      el?.select();
+    }, 0);
+  }
+
+  submitVerify(): void {
+    if (this.otpCode.length !== 6) { this.mfaError = 'Ingrese los 6 dígitos del código.'; return; }
+    this.mfaLoading = true;
+    this.mfaError = '';
+    this.mfaService.verify(this.mfaSessionToken, this.otpCode, this.mfaRememberDevice)
+      .subscribe({ next: (r) => this.handleStep(r), error: () => this.onMfaHttpError() });
+  }
+
+  submitEnroll(): void {
+    if (this.otpCode.length !== 6) { this.mfaError = 'Ingrese los 6 dígitos del código.'; return; }
+    this.mfaLoading = true;
+    this.mfaError = '';
+    this.mfaService.enrollConfirm(this.mfaSessionToken, this.otpCode, this.mfaEnrollToken)
+      .subscribe({ next: (r) => this.handleStep(r), error: () => this.onMfaHttpError() });
+  }
+
+  /** Paso 1 del reset: solicitar código al correo institucional. */
+  submitResetRequest(): void {
+    this.mfaLoading = true;
+    this.mfaError = '';
+    this.mfaInfo = '';
+    this.mfaService.resetRequest(this.mfaSessionToken)
+      .subscribe({ next: (r) => this.handleStep(r), error: () => this.onMfaHttpError() });
+  }
+
+  /** Paso 2 del reset: confirmar el código de correo (reinicia el 2FA → nuevo QR). */
+  submitResetConfirm(): void {
+    if (this.otpCode.length !== 6) { this.mfaError = 'Ingrese el código de 6 dígitos enviado a su correo.'; return; }
+    this.mfaLoading = true;
+    this.mfaError = '';
+    this.mfaService.resetConfirm(this.mfaSessionToken, this.otpCode)
+      .subscribe({ next: (r) => this.handleStep(r), error: () => this.onMfaHttpError() });
+  }
+
+  /** Abre el paso de restablecimiento (pide confirmación de envío de código). */
+  irAReset(): void {
+    this.resetStep = 1;
+    this.mfaError = '';
+    this.mfaInfo = '';
+    this.clearOtp();
+  }
+
+  volverAVerify(): void {
+    this.resetStep = 0;
+    this.mfaVista = 'verify';
+    this.mfaError = '';
+    this.mfaInfo = '';
+    this.clearOtp();
+  }
+
+  private handleStep(r: MfaStepResponse): void {
+    this.mfaLoading = false;
+
+    // 2FA completo → JWT definitivo.
+    if (r.success && r.token) {
+      this.authService.storeLoginData(r.token, this.usuario.trim());
+      this.mfaChallenge = null;
+      this.mfaVista = null;
+      this.router.navigate(['/home']);
+      return;
+    }
+
+    // Tras un reset exitoso llega un nuevo QR para re-enrolar.
+    if (r.qrBase64) {
+      this.mfaQrBase64 = r.qrBase64;
+      this.mfaManualKey = r.manualKey ?? '';
+      this.mfaEnrollToken = r.enrollToken ?? '';
+      this.construirOtpauthUri();
+      this.resetStep = 0;
+      this.mfaVista = 'enroll';
+      this.mfaInfo = r.message || '2FA restablecido. Vuelva a registrar su aplicación.';
+      this.clearOtp();
+      return;
+    }
+
+    // Mensaje informativo (p. ej. "código enviado a su correo").
+    if (r.isInfo) {
+      this.mfaInfo = r.message || 'Operación realizada.';
+      if (this.resetStep === 1) {
+        this.resetStep = 2;
+        this.clearOtp();
+      }
+      return;
+    }
+
+    // Bloqueo por intentos fallidos.
+    if (r.bloqueoHasta) {
+      this.mfaBloqueoHasta = r.bloqueoHasta;
+      this.mfaVista = 'blocked';
+      return;
+    }
+
+    // Error normal (código incorrecto, etc.).
+    this.mfaError = r.message || 'No fue posible validar el código.';
+    this.clearOtp();
+    this.focusOtp(0);
+  }
+
+  private onMfaHttpError(): void {
+    this.mfaLoading = false;
+    this.mfaError = 'No fue posible contactar el servicio de doble autenticación. Intente nuevamente.';
   }
 
   togglePasswordVisibility(): void {
