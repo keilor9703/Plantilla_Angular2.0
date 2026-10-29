@@ -6,11 +6,12 @@ import { AuthService } from '../../core/auth/auth.service';
 import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 import { SetupService } from '../../core/services/setup.service';
+import { MfaLoginChallenge, PoliciaMfaFlowComponent } from '@policia/mfa';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, PoliciaMfaFlowComponent],
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
@@ -27,19 +28,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   private loginTimeoutHandle: any = null;
   private slideTimerHandle: any = null;
 
-  // Segundo factor (SI2FA)
-  mfaPaso = false;
-  mfaEnrolar = false;
-  mfaChallenge = '';
-  mfaQr = '';
-  mfaClave = '';
-  mfaEnrollToken = '';
-  mfaCodigo = '';
-  mfaRecordar = false;
-  // Restablecimiento (autoservicio)
-  mfaReset = false;
-  mfaResetCodigo = '';
-  infoMessage = '';
+  // Reto de doble autenticación (estándar @policia/mfa). Al asignarse, <pmfa-flow> abre la modal.
+  mfaChallenge: MfaLoginChallenge | null = null;
 
   constructor(
     private authService: AuthService,
@@ -159,17 +149,9 @@ export class LoginComponent implements OnInit, OnDestroy {
         clearTimeout(this.loginTimeoutHandle);
         this.isLoading = false;
 
-        // Requiere segundo factor: pasar al paso 2.
-        if (resp?.requiere2Fa) {
-          this.mfaPaso = true;
-          this.mfaEnrolar = !!resp.enrolar;
-          this.mfaChallenge = resp.challenge ?? '';
-          this.mfaQr = this.toDataUri(resp.qr ?? '');
-          this.mfaClave = resp.claveManual ?? '';
-          this.mfaEnrollToken = resp.enrollToken ?? '';
-          this.mfaCodigo = '';
-          this.mfaReset = false;
-          this.infoMessage = '';
+        // Requiere segundo factor: el componente <pmfa-flow> se encarga de las modales.
+        if (resp?.requiresMfa) {
+          this.mfaChallenge = resp as MfaLoginChallenge;
           return;
         }
 
@@ -188,113 +170,20 @@ export class LoginComponent implements OnInit, OnDestroy {
     });
   }
 
-  confirmar2fa(): void {
-    this.errorMessage = '';
-    const codigo = (this.mfaCodigo ?? '').trim();
-    if (!/^\d{6}$/.test(codigo)) {
-      this.errorMessage = 'El código debe ser de 6 dígitos.';
-      return;
-    }
-
-    this.isLoading = true;
-    const obs = this.mfaEnrolar
-      ? this.authService.mfaEnrollConfirm(this.mfaChallenge, codigo, this.mfaEnrollToken)
-      : this.authService.mfaVerify(this.mfaChallenge, codigo, this.mfaRecordar);
-
-    obs.subscribe({
-      next: (resp: any) => {
-        this.isLoading = false;
-        if (this.authService.isLoginSuccessful(resp) && resp?.token) {
-          this.router.navigate(['/home']);
-          return;
-        }
-        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible verificar el código.';
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Código inválido o sesión expirada.';
-      }
-    });
+  /** El componente de 2FA emite el JWT definitivo. */
+  onMfaAutenticado(token: string): void {
+    this.authService.storeLoginData(token, this.usuario.trim());
+    this.mfaChallenge = null;
+    this.router.navigate(['/home']);
   }
 
-  solicitarReset(): void {
-    this.errorMessage = '';
-    this.infoMessage = '';
-    this.isLoading = true;
-    this.authService.mfaResetRequest(this.mfaChallenge).subscribe({
-      next: (resp: any) => {
-        this.isLoading = false;
-        if (resp?.success) {
-          this.mfaReset = true;
-          this.mfaResetCodigo = '';
-          if (resp.challenge) this.mfaChallenge = resp.challenge;
-          this.infoMessage = resp?.message ?? 'Se envió un código a su correo institucional.';
-        } else {
-          this.errorMessage = resp?.message ?? resp?.mensaje ?? 'No fue posible iniciar el restablecimiento.';
-        }
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err?.error?.message ?? err?.error?.mensaje ?? 'No fue posible iniciar el restablecimiento.';
-      }
-    });
-  }
-
-  confirmarReset(): void {
-    this.errorMessage = '';
-    const codigo = (this.mfaResetCodigo ?? '').trim();
-    if (!/^\d{6}$/.test(codigo)) {
-      this.errorMessage = 'El código debe ser de 6 dígitos.';
-      return;
-    }
-    this.isLoading = true;
-    this.authService.mfaResetConfirm(this.mfaChallenge, codigo).subscribe({
-      next: (resp: any) => {
-        this.isLoading = false;
-        if (resp?.requiere2Fa && resp?.enrolar) {
-          // Restablecido: pasar a re-enrolar con el nuevo QR.
-          this.mfaReset = false;
-          this.mfaEnrolar = true;
-          this.mfaChallenge = resp.challenge ?? this.mfaChallenge;
-          this.mfaQr = this.toDataUri(resp.qr ?? '');
-          this.mfaClave = resp.claveManual ?? '';
-          this.mfaEnrollToken = resp.enrollToken ?? '';
-          this.mfaCodigo = '';
-          this.infoMessage = resp?.message ?? 'Segundo factor restablecido. Enrole nuevamente.';
-        } else {
-          this.errorMessage = resp?.message ?? resp?.mensaje ?? 'No fue posible restablecer el segundo factor.';
-        }
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err?.error?.message ?? err?.error?.mensaje ?? 'Código inválido o sesión expirada.';
-      }
-    });
-  }
-
-  cancelar2fa(): void {
-    this.mfaPaso = false;
-    this.mfaEnrolar = false;
-    this.mfaChallenge = '';
-    this.mfaQr = '';
-    this.mfaClave = '';
-    this.mfaEnrollToken = '';
-    this.mfaCodigo = '';
-    this.mfaRecordar = false;
-    this.mfaReset = false;
-    this.mfaResetCodigo = '';
-    this.errorMessage = '';
-    this.infoMessage = '';
+  /** El usuario cerró/canceló el flujo de 2FA. */
+  onMfaCancelado(): void {
+    this.mfaChallenge = null;
     this.contrasena = '';
-  }
-
-  private toDataUri(qr: string): string {
-    if (!qr) return '';
-    return qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`;
   }
 
   togglePasswordVisibility(): void {
     this.showPassword = !this.showPassword;
   }
 }
-

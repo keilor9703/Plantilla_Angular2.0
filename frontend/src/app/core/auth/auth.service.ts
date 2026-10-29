@@ -20,13 +20,14 @@ interface LoginResponse {
   identificacion?: number;
   impersonating?: boolean;
   impersonatedBy?: string;
-  // Segundo factor (SI2FA)
-  requiere2Fa?: boolean;
-  enrolar?: boolean;
-  challenge?: string;
-  qr?: string;
-  claveManual?: string;
-  enrollToken?: string;
+  // Segundo factor (estándar @policia/mfa)
+  requiresMfa?: boolean;
+  mfaMode?: string;
+  mfaSessionToken?: string;
+  mfaQrBase64?: string;
+  mfaManualKey?: string;
+  mfaEnrollToken?: string;
+  bloqueoHasta?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -35,7 +36,7 @@ export class AuthService {
   private readonly userKey = 'sisge_usuario';
   private readonly authKey = 'sisge_auth';
   private readonly userIdKey = 'sisge_user_id';
-  private readonly deviceIdKey = 'si2fa_device_id';
+  private readonly deviceIdKey = 'si2fa_mfa_device';
   private readonly impersonationFlagKey = 'sisge_impersonating';
   private readonly impersonationOriginalTokenKey = 'sisge_impersonation_original_token';
   private readonly impersonationOriginalUserKey = 'sisge_impersonation_original_user';
@@ -44,8 +45,6 @@ export class AuthService {
   private readonly loginUrl = `${environment.apiBaseUrl}/Cuenta/Token`;
   private readonly impersonateUrl = `${environment.apiBaseUrl}/Cuenta/Impersonate`;
   private readonly refreshUrl = `${environment.apiBaseUrl}/Cuenta/Refresh`;
-  private readonly mfaVerifyUrl = `${environment.apiBaseUrl}/Cuenta/Mfa/Verify`;
-  private readonly mfaEnrollUrl = `${environment.apiBaseUrl}/Cuenta/Mfa/EnrollConfirm`;
   private readonly maxJwtLength = 8192;
   private readonly maxJwtPayloadB64Length = 4096;
   private readonly maxJwtPayloadJsonLength = 6144;
@@ -63,7 +62,8 @@ export class AuthService {
       timeout(30000),
       tap((resp) => {
         // Si se requiere segundo factor, NO se establece sesión todavía (no hay token).
-        if (resp?.requiere2Fa) {
+        // El componente <pmfa-flow> (@policia/mfa) completa el 2FA y emite el token final.
+        if (resp?.requiresMfa) {
           return;
         }
         if (this.isLoginSuccessful(resp) && resp.token) {
@@ -73,43 +73,12 @@ export class AuthService {
     );
   }
 
-  /** Paso 2: verificar el código del segundo factor. */
-  mfaVerify(challenge: string, codigo: string, rememberDevice = false): Observable<LoginResponse> {
-    const body = { Challenge: challenge, Codigo: codigo, RememberDevice: rememberDevice, DeviceId: this.getDeviceId() };
-    return this.http.post<LoginResponse>(this.mfaVerifyUrl, body, { withCredentials: true }).pipe(
-      timeout(30000),
-      tap((resp) => {
-        if (this.isLoginSuccessful(resp) && resp.token) {
-          this.finalizeSession(resp, resp.usuario ?? '');
-        }
-      })
-    );
-  }
-
-  /** Paso 2 (primera vez): confirmar el enrolamiento con el primer código. */
-  mfaEnrollConfirm(challenge: string, codigo: string, enrollToken: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(this.mfaEnrollUrl, { Challenge: challenge, Codigo: codigo, EnrollToken: enrollToken }, { withCredentials: true }).pipe(
-      timeout(30000),
-      tap((resp) => {
-        if (this.isLoginSuccessful(resp) && resp.token) {
-          this.finalizeSession(resp, resp.usuario ?? '');
-        }
-      })
-    );
-  }
-
-  /** Autoservicio: solicita el restablecimiento del segundo factor (envía código al correo). */
-  mfaResetRequest(challenge: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/Cuenta/Mfa/ResetRequest`, { Challenge: challenge }, { withCredentials: true }).pipe(
-      timeout(30000)
-    );
-  }
-
-  /** Autoservicio: confirma el código del correo; la respuesta trae los datos para re-enrolar. */
-  mfaResetConfirm(challenge: string, codigo: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/Cuenta/Mfa/ResetConfirm`, { Challenge: challenge, Codigo: codigo }, { withCredentials: true }).pipe(
-      timeout(30000)
-    );
+  /**
+   * Guarda la sesión con el JWT definitivo. Lo usa el login tras recibir el token
+   * del componente estándar &lt;pmfa-flow&gt; (evento `autenticado`).
+   */
+  storeLoginData(token: string, usuario: string): void {
+    this.finalizeSession({ success: true, token, usuario }, usuario);
   }
 
   private finalizeSession(resp: LoginResponse, usuario: string): void {

@@ -10,7 +10,7 @@
 
         <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
 
-        <form class="login-form" (ngSubmit)="onSubmit()" *ngIf="!mfaPaso">
+        <form class="login-form" (ngSubmit)="onSubmit()" *ngIf="!mfaChallenge">
             <div class="input-group">
                 <i class="fa fa-user"></i>
                 <input type="text" name="usuario" [(ngModel)]="usuario" placeholder="Usuario empresarial"
@@ -49,92 +49,13 @@
             </button>
         </form>
 
-        <!-- Paso 2: Segundo factor (SI2FA) — verificar / enrolar -->
-        <form class="login-form" (ngSubmit)="confirmar2fa()" *ngIf="mfaPaso && !mfaReset">
-            <h2 style="color:#fff; font-size:16px; text-align:center; margin:0 0 10px;">
-                <i class="fa-solid fa-shield-halved"></i> Doble autenticación
-            </h2>
-
-            <ng-container *ngIf="mfaEnrolar">
-                <p style="color:#e8e8e8; font-size:13px; margin:0 0 10px; text-align:center;">
-                    Escanee el código con su aplicación autenticadora (Google/Microsoft Authenticator) y digite el primer código.
-                </p>
-                <div style="text-align:center; margin-bottom:10px;" *ngIf="mfaQr">
-                    <img [src]="mfaQr" alt="Código QR" style="width:180px; height:180px; background:#fff; border-radius:8px; padding:6px;">
-                </div>
-                <p *ngIf="mfaClave" style="color:#cfe8ff; font-size:12px; text-align:center; word-break:break-all; margin:0 0 10px;">
-                    Clave manual: <strong>{{ mfaClave }}</strong>
-                </p>
-            </ng-container>
-
-            <ng-container *ngIf="!mfaEnrolar">
-                <p style="color:#e8e8e8; font-size:13px; margin:0 0 10px; text-align:center;">
-                    Ingrese el código de 6 dígitos de su aplicación autenticadora.
-                </p>
-            </ng-container>
-
-            <p *ngIf="infoMessage" style="color:#b7f5c8; font-size:13px; margin:4px 0 10px 0; text-align:center;">
-                {{ infoMessage }}
-            </p>
-
-            <div class="input-group">
-                <i class="fa fa-key"></i>
-                <input type="text" name="mfaCodigo" [(ngModel)]="mfaCodigo" placeholder="Código de verificación"
-                    inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
-            </div>
-
-            <label *ngIf="!mfaEnrolar" style="display:flex; align-items:center; gap:8px; color:#e8e8e8; font-size:13px; margin:2px 0 10px; cursor:pointer;">
-                <input type="checkbox" name="mfaRecordar" [(ngModel)]="mfaRecordar" style="width:auto; margin:0;">
-                Confiar en este dispositivo (no volver a pedir el código)
-            </label>
-
-            <p *ngIf="errorMessage" style="color:#ffb3b3; font-size:13px; margin:4px 0 10px 0;">
-                {{ errorMessage }}
-            </p>
-
-            <button type="submit" class="btn-login" [disabled]="isLoading">
-                <span>{{ isLoading ? 'Verificando...' : (mfaEnrolar ? 'Enrolar y continuar' : 'Verificar') }}</span>
-                <i class="fas fa-key icon-key"></i>
-            </button>
-
-            <div class="form-options" style="flex-direction:column; align-items:center; gap:8px; margin-top:14px;">
-                <a *ngIf="!mfaEnrolar" href="javascript:void(0)" class="forgot-password" (click)="solicitarReset()">¿Perdió su autenticador? Restablecer registro</a>
-                <a href="javascript:void(0)" class="forgot-password" (click)="cancelar2fa()">Volver al inicio de sesión</a>
-            </div>
-        </form>
-
-        <!-- Paso 2 (autoservicio): restablecimiento del segundo factor -->
-        <form class="login-form" (ngSubmit)="confirmarReset()" *ngIf="mfaPaso && mfaReset">
-            <h2 style="color:#fff; font-size:16px; text-align:center; margin:0 0 10px;">
-                <i class="fa-solid fa-rotate"></i> Restablecer segundo factor
-            </h2>
-
-            <p style="color:#e8e8e8; font-size:13px; margin:0 0 10px; text-align:center;">
-                Ingrese el código de 6 dígitos que enviamos a su correo institucional.
-            </p>
-
-            <p *ngIf="infoMessage" style="color:#b7f5c8; font-size:13px; margin:4px 0 10px 0; text-align:center;">
-                {{ infoMessage }}
-            </p>
-
-            <div class="input-group">
-                <i class="fa fa-envelope"></i>
-                <input type="text" name="mfaResetCodigo" [(ngModel)]="mfaResetCodigo" placeholder="Código del correo"
-                    inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
-            </div>
-
-            <p *ngIf="errorMessage" style="color:#ffb3b3; font-size:13px; margin:4px 0 10px 0;">
-                {{ errorMessage }}
-            </p>
-
-            <button type="submit" class="btn-login" [disabled]="isLoading">
-                <span>{{ isLoading ? 'Procesando...' : 'Confirmar restablecimiento' }}</span>
-                <i class="fas fa-key icon-key"></i>
-            </button>
-
-            <div class="form-options" style="justify-content:center; margin-top:10px;">
-                <a href="javascript:void(0)" class="forgot-password" (click)="cancelar2fa()">Volver al inicio de sesión</a>
-            </div>
-        </form>
+        <!-- Doble autenticación institucional estándar (@policia/mfa): todas las modales. -->
+        <pmfa-flow
+            *ngIf="mfaChallenge"
+            [challenge]="mfaChallenge"
+            [usuario]="usuario"
+            (autenticado)="onMfaAutenticado($event)"
+            (cancelado)="onMfaCancelado()">
+        </pmfa-flow>
     </div>
 </main>

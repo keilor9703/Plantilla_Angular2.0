@@ -9,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
+using Api.Services;
 
 namespace ofic.Controllers
 {
@@ -24,7 +26,8 @@ namespace ofic.Controllers
         private readonly ILogger<CuentaController> _logger;
         private readonly IWebHostEnvironment _env;
         private readonly IConfiguration _configuration;
-        private readonly IApiMfaClient _apiMfa;
+        private readonly IMfaCentralService _mfa;
+        private readonly MfaSessionTokenService _mfaSession;
         private readonly HashSet<long> _impersonationAllowedUserIds;
 
         public CuentaController(
@@ -36,7 +39,8 @@ namespace ofic.Controllers
             ILogger<CuentaController> logger,
             IWebHostEnvironment env,
             IConfiguration configuration,
-            IApiMfaClient apiMfa)
+            IMfaCentralService mfa,
+            MfaSessionTokenService mfaSession)
         {
             _apiWebOud = apiWebOud;
             _apiWebToken = apiWebToken;
@@ -46,7 +50,8 @@ namespace ofic.Controllers
             _logger = logger;
             _env = env;
             _configuration = configuration;
-            _apiMfa = apiMfa;
+            _mfa = mfa;
+            _mfaSession = mfaSession;
             _impersonationAllowedUserIds = ResolveImpersonationAllowedUserIds(configuration);
         }
 
@@ -143,74 +148,42 @@ namespace ofic.Controllers
 
                 var rolesFinal = roles ?? new List<long> { 1 };
 
-                // 3. Gate de segundo factor (SI2FA). Si está habilitado, no se emite el JWT aún:
-                //    se exige el código del segundo factor (enrolamiento la primera vez).
-                if (_configuration.GetValue<bool>("Mfa:Habilitado"))
+                // 3. Gate de segundo factor (estándar institucional @policia/mfa). Si está
+                //    habilitado y el equipo no es confiable, no se emite el JWT aún: se devuelve
+                //    el reto MFA (enroll/verify/blocked/svcdown) para que el frontend muestre la modal.
+                if (MfaEnabled())
                 {
-                    var ident = await ResolverIdentificacionAsync(request.Usuario, idUsuario.Value, CancellationToken.None);
+                    var ident = await ResolverIdentificacionAsync(request.Usuario!, idUsuario.Value, CancellationToken.None);
 
-                    var svcToken = await _apiMfa.ObtenerTokenAsync(request.Usuario, ident, CancellationToken.None);
-                    if (string.IsNullOrWhiteSpace(svcToken))
-                    {
-                        // El segundo factor es obligatorio: si el servicio 2FA no responde, NO se omite.
-                        return StatusCode(503, new DtoTokenResponse
-                        {
-                            success = false,
-                            message = "El servicio de doble autenticación no está disponible. Intente más tarde."
-                        });
-                    }
-
-                    // Dispositivo confiable: si este navegador ya está registrado, se omite el 2FA.
+                    // Dispositivo confiable → se omite el segundo factor.
                     if (!string.IsNullOrWhiteSpace(request.DeviceId) &&
-                        await _apiMfa.IsTrustedAsync(svcToken, ident, request.Usuario, request.DeviceId!, CancellationToken.None))
+                        await _mfa.IsTrustedAsync(ident, request.Usuario!, request.DeviceId!, CancellationToken.None))
                     {
-                        var jwtTrusted = _jwtService.CreateToken(idUsuario.Value, request.Usuario, rolesFinal);
-                        return Ok(new DtoTokenResponse
-                        {
-                            token = jwtTrusted,
-                            usuario = request.Usuario,
-                            success = true,
-                            message = "Login exitoso"
-                        });
+                        var jwtTrusted = _jwtService.CreateToken(idUsuario.Value, request.Usuario!, rolesFinal);
+                        return Ok(new DtoTokenResponse { token = jwtTrusted, usuario = request.Usuario, success = true, message = "Login exitoso" });
                     }
 
-                    var estado = await _apiMfa.GetStateAsync(svcToken, ident, request.Usuario, CancellationToken.None);
-                    var challenge = CrearChallenge(idUsuario.Value, request.Usuario, rolesFinal, ident);
+                    var estado = await _mfa.GetStateAsync(ident, request.Usuario!, CancellationToken.None);
 
-                    if (!estado.Enrolado)
-                    {
-                        var enrol = await _apiMfa.EnrollStartAsync(svcToken, ident, request.Usuario, CancellationToken.None);
-                        if (!enrol.Exito)
-                        {
-                            return StatusCode(503, new DtoTokenResponse
-                            {
-                                success = false,
-                                message = "No fue posible iniciar el enrolamiento del segundo factor."
-                            });
-                        }
-                        return Ok(new DtoTokenResponse
-                        {
-                            success = true,
-                            usuario = request.Usuario,
-                            requiere2Fa = true,
-                            enrolar = true,
-                            challenge = challenge,
-                            qr = enrol.QrBase64,
-                            claveManual = enrol.ManualKey,
-                            enrollToken = enrol.EnrollToken,
-                            message = "Debe enrolar su segundo factor de autenticación."
-                        });
-                    }
+                    // Servicio 2FA caído → svcdown (el segundo factor es obligatorio, no se omite).
+                    if (estado.ServiceDown)
+                        return Ok(BuildMfaChallenge(idUsuario.Value, request.Usuario!, ident, rolesFinal, ClientIp(), "svcdown"));
 
-                    return Ok(new DtoTokenResponse
-                    {
-                        success = true,
-                        usuario = request.Usuario,
-                        requiere2Fa = true,
-                        enrolar = false,
-                        challenge = challenge,
-                        message = "Ingrese el código de verificación."
-                    });
+                    if (estado.BloqueoHasta.HasValue && estado.BloqueoHasta.Value > DateTime.Now)
+                        return Ok(BuildMfaChallenge(idUsuario.Value, request.Usuario!, ident, rolesFinal, ClientIp(), "blocked",
+                            bloqueoHasta: estado.BloqueoHasta.Value.ToString("yyyy-MM-dd HH:mm:ss")));
+
+                    var enrolado = estado.MfaHabilitado == 1 && estado.RequireReenroll == 0;
+                    if (enrolado)
+                        return Ok(BuildMfaChallenge(idUsuario.Value, request.Usuario!, ident, rolesFinal, ClientIp(), "verify"));
+
+                    // No enrolado → iniciar enrolamiento y devolver el QR.
+                    var enroll = await _mfa.EnrollStartAsync(ident, request.Usuario!, CancellationToken.None);
+                    if (!enroll.Ok)
+                        return Ok(BuildMfaChallenge(idUsuario.Value, request.Usuario!, ident, rolesFinal, ClientIp(), "svcdown"));
+
+                    return Ok(BuildMfaChallenge(idUsuario.Value, request.Usuario!, ident, rolesFinal, ClientIp(), "enroll",
+                        qrBase64: enroll.QrBase64, manualKey: enroll.ManualKey, enrollToken: enroll.EnrollToken));
                 }
 
                 // 3-bis. Sin segundo factor: se emite el JWT directamente.
@@ -360,179 +333,140 @@ namespace ofic.Controllers
             }
         }
 
-        [HttpPost("Mfa/Verify")]
+        // ════════════════════════════════════════════════════════════════════════
+        // ENDPOINTS MFA (estándar institucional @policia/mfa) — requieren MfaSessionToken
+        // ════════════════════════════════════════════════════════════════════════
+
+        [HttpPost("MfaVerify")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> MfaVerify([FromBody] DtoMfaVerifyLoginReq req)
+        public async Task<IActionResult> MfaVerify([FromBody] DtoMfaVerifyRequest req, CancellationToken ct)
         {
-            var ch = LeerChallenge(req?.Challenge);
-            if (ch == null)
-                return Unauthorized(new DtoTokenResponse { success = false, message = "Sesión de verificación inválida o expirada. Inicie sesión de nuevo." });
-            if (string.IsNullOrWhiteSpace(req?.Codigo))
-                return BadRequest(new DtoTokenResponse { success = false, message = "Código requerido." });
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión MFA expirada o inválida. Inicie sesión nuevamente." });
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Ingrese el código de 6 dígitos." });
 
-            var svcToken = await _apiMfa.ObtenerTokenAsync(ch.Usuario, ch.Ident, CancellationToken.None);
-            if (string.IsNullOrWhiteSpace(svcToken))
-                return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
+            var result = await _mfa.VerifyAsync(d.Identificacion, d.Usuario, req.Code, req.RememberDevice, req.DeviceId, ClientIp(), ct);
+            if (result.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+            if (result.Blocked)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = $"Cuenta bloqueada temporalmente hasta {result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss") ?? "próximamente"}.", BloqueoHasta = result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss") });
+            if (!result.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = result.Mensaje.Length > 0 ? result.Mensaje : "Código inválido. Verifique su app de autenticación." });
 
-            var r = await _apiMfa.VerifyAsync(svcToken, ch.Ident, ch.Usuario, req.Codigo.Trim(), ObtenerIp(), req.RememberDevice, req.DeviceId, CancellationToken.None);
-            if (!r.Ok)
-                return Unauthorized(new DtoTokenResponse
-                {
-                    success = false,
-                    message = r.BloqueoHasta.HasValue
-                        ? "Cuenta bloqueada temporalmente por intentos fallidos."
-                        : "Código inválido."
-                });
-
-            return Ok(EmitirTokenFinal(ch));
+            return Ok(new DtoMfaStepResponse { Success = true, Token = BuildFinalJwt(d), Message = "Autenticación completada." });
         }
 
-        [HttpPost("Mfa/EnrollConfirm")]
+        [HttpPost("MfaEnrollConfirm")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> MfaEnrollConfirm([FromBody] DtoMfaEnrollConfirmLoginReq req)
+        public async Task<IActionResult> MfaEnrollConfirm([FromBody] DtoMfaEnrollConfirmRequest req, CancellationToken ct)
         {
-            var ch = LeerChallenge(req?.Challenge);
-            if (ch == null)
-                return Unauthorized(new DtoTokenResponse { success = false, message = "Sesión de verificación inválida o expirada. Inicie sesión de nuevo." });
-            if (string.IsNullOrWhiteSpace(req?.Codigo) || string.IsNullOrWhiteSpace(req?.EnrollToken))
-                return BadRequest(new DtoTokenResponse { success = false, message = "Código y token de enrolamiento requeridos." });
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión MFA expirada. Inicie sesión nuevamente." });
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Ingrese el código de 6 dígitos." });
 
-            var svcToken = await _apiMfa.ObtenerTokenAsync(ch.Usuario, ch.Ident, CancellationToken.None);
-            if (string.IsNullOrWhiteSpace(svcToken))
-                return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
+            var result = await _mfa.EnrollConfirmAsync(d.Identificacion, d.Usuario, req.EnrollToken, req.Code, ClientIp(), ct);
+            if (result.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+            if (result.Blocked)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = $"Cuenta bloqueada hasta {result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss") ?? "próximamente"}.", BloqueoHasta = result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss") });
+            if (!result.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = result.Mensaje.Length > 0 ? result.Mensaje : "Código inválido. Intente de nuevo." });
 
-            var r = await _apiMfa.EnrollConfirmAsync(svcToken, ch.Ident, ch.Usuario, req.EnrollToken, req.Codigo.Trim(), ObtenerIp(), CancellationToken.None);
-            if (!r.Ok)
-                return Unauthorized(new DtoTokenResponse { success = false, message = "Código de enrolamiento inválido." });
-
-            return Ok(EmitirTokenFinal(ch));
+            return Ok(new DtoMfaStepResponse { Success = true, Token = BuildFinalJwt(d), Message = "MFA activado y sesión iniciada correctamente." });
         }
 
-        /// <summary>Autoservicio: solicita el restablecimiento del segundo factor (envía código al correo).</summary>
-        [HttpPost("Mfa/ResetRequest")]
+        [HttpPost("MfaResetRequest")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> MfaResetRequest([FromBody] DtoMfaVerifyLoginReq req)
+        public async Task<IActionResult> MfaResetRequest([FromBody] DtoMfaResetRequest req, CancellationToken ct)
         {
-            var ch = LeerChallenge(req?.Challenge);
-            if (ch == null)
-                return Unauthorized(new DtoTokenResponse { success = false, message = "Sesión de verificación inválida o expirada. Inicie sesión de nuevo." });
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión expirada. Inicie sesión nuevamente." });
 
-            var svcToken = await _apiMfa.ObtenerTokenAsync(ch.Usuario, ch.Ident, CancellationToken.None);
-            if (string.IsNullOrWhiteSpace(svcToken))
-                return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
+            var result = await _mfa.ResetRequestAsync(d.Identificacion, d.Usuario, ClientIp(), ct);
+            if (result.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
 
-            var r = await _apiMfa.ResetRequestAsync(svcToken, ch.Ident, ch.Usuario, ObtenerIp(), CancellationToken.None);
-            return Ok(new DtoTokenResponse
-            {
-                success = r.Ok,
-                usuario = ch.Usuario,
-                challenge = req!.Challenge, // el mismo challenge sigue vigente (5 min) para el paso de confirmación
-                message = r.Ok
-                    ? "Se envió un código de verificación a su correo institucional."
-                    : (r.Mensaje ?? "No fue posible iniciar el restablecimiento.")
-            });
+            // IsInfo=true → el frontend muestra el mensaje informativo sin cerrar la modal.
+            return Ok(new DtoMfaStepResponse { Success = result.Ok, IsInfo = result.Ok, Message = result.Mensaje });
         }
 
-        /// <summary>
-        /// Autoservicio: confirma el código enviado al correo, ejecuta el restablecimiento y
-        /// devuelve los datos para volver a enrolar el segundo factor.
-        /// </summary>
-        [HttpPost("Mfa/ResetConfirm")]
+        [HttpPost("MfaResetConfirm")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> MfaResetConfirm([FromBody] DtoMfaVerifyLoginReq req)
+        public async Task<IActionResult> MfaResetConfirm([FromBody] DtoMfaResetConfirmRequest req, CancellationToken ct)
         {
-            var ch = LeerChallenge(req?.Challenge);
-            if (ch == null)
-                return Unauthorized(new DtoTokenResponse { success = false, message = "Sesión de verificación inválida o expirada. Inicie sesión de nuevo." });
-            if (string.IsNullOrWhiteSpace(req?.Codigo))
-                return BadRequest(new DtoTokenResponse { success = false, message = "Código requerido." });
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión expirada. Inicie sesión nuevamente." });
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Ingrese el código enviado al correo." });
 
-            var svcToken = await _apiMfa.ObtenerTokenAsync(ch.Usuario, ch.Ident, CancellationToken.None);
-            if (string.IsNullOrWhiteSpace(svcToken))
-                return StatusCode(503, new DtoTokenResponse { success = false, message = "El servicio de doble autenticación no está disponible." });
+            var ip = ClientIp();
+            var confirm = await _mfa.ResetConfirmAsync(d.Identificacion, d.Usuario, req.Code, ip, ct);
+            if (confirm.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+            if (!confirm.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = confirm.AvailableAt.HasValue ? $"Aún no disponible. Podrá reenrolar desde las {confirm.AvailableAt.Value:HH:mm:ss}." : confirm.Mensaje });
 
-            var conf = await _apiMfa.ResetConfirmAsync(svcToken, ch.Ident, ch.Usuario, req.Codigo.Trim(), ObtenerIp(), CancellationToken.None);
-            if (!conf.Ok)
-                return Unauthorized(new DtoTokenResponse { success = false, message = conf.Mensaje ?? "Código de restablecimiento inválido." });
-
-            var exec = await _apiMfa.ResetExecuteAsync(svcToken, ch.Ident, ch.Usuario, ObtenerIp(), CancellationToken.None);
+            var exec = await _mfa.ResetExecuteAsync(d.Identificacion, d.Usuario, ip, ct);
             if (!exec.Ok)
-                return StatusCode(503, new DtoTokenResponse { success = false, message = exec.Mensaje ?? "No fue posible ejecutar el restablecimiento." });
+                return Ok(new DtoMfaStepResponse { Success = false, Message = exec.Mensaje });
 
-            var enrol = await _apiMfa.EnrollStartAsync(svcToken, ch.Ident, ch.Usuario, CancellationToken.None);
-            if (!enrol.Exito)
-                return StatusCode(503, new DtoTokenResponse { success = false, message = "No fue posible iniciar el nuevo enrolamiento." });
+            var enroll = await _mfa.EnrollStartAsync(d.Identificacion, d.Usuario, ct);
+            if (!enroll.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Se restableció el MFA pero no fue posible generar el nuevo QR. Inicie sesión." });
 
-            var fresh = CrearChallenge(ch.IdUsuario, ch.Usuario, ch.Roles, ch.Ident);
-            return Ok(new DtoTokenResponse
-            {
-                success = true,
-                usuario = ch.Usuario,
-                requiere2Fa = true,
-                enrolar = true,
-                challenge = fresh,
-                qr = enrol.QrBase64,
-                claveManual = enrol.ManualKey,
-                enrollToken = enrol.EnrollToken,
-                message = "Segundo factor restablecido. Enrole nuevamente su autenticador."
-            });
+            return Ok(new DtoMfaStepResponse { Success = true, Message = "MFA restablecido. Escanee el nuevo código QR para activar su autenticador.", QrBase64 = enroll.QrBase64, ManualKey = enroll.ManualKey, EnrollToken = enroll.EnrollToken });
         }
 
-        // ===================== Helpers 2FA =====================
-        private sealed class Challenge2Fa
+        // ===================== Helpers MFA =====================
+        private bool MfaEnabled() => _configuration.GetValue<bool>("Mfa:Enabled");
+
+        private string ClientIp()
         {
-            public long IdUsuario { get; set; }
-            public string Usuario { get; set; } = string.Empty;
-            public List<long> Roles { get; set; } = new();
-            public long Ident { get; set; }
-            public long Exp { get; set; }
+            var fwd = Request.Headers["X-Forwarded-For"].ToString();
+            if (!string.IsNullOrWhiteSpace(fwd)) return fwd.Split(',')[0].Trim();
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
         }
 
-        private string CrearChallenge(long idUsuario, string usuario, List<long> roles, long ident)
+        private DtoMfaLoginResponse BuildMfaChallenge(long idUsuario, string usuario, long identificacion, List<long> roles, string ip, string mfaMode,
+            string? qrBase64 = null, string? manualKey = null, string? enrollToken = null, string? bloqueoHasta = null)
         {
-            var payload = new Challenge2Fa
+            var sessionData = new MfaSessionTokenService.MfaSessionData(
+                IdUsuario: idUsuario, Usuario: usuario, Identificacion: identificacion,
+                RolesJson: JsonSerializer.Serialize(roles ?? new List<long> { 1 }), Ip: ip);
+
+            return new DtoMfaLoginResponse
             {
-                IdUsuario = idUsuario,
-                Usuario = usuario,
-                Roles = roles ?? new List<long> { 1 },
-                Ident = ident,
-                Exp = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds()
+                success = false,
+                RequiresMfa = true,
+                MfaMode = mfaMode,
+                MfaSessionToken = _mfaSession.CreateToken(sessionData),
+                MfaQrBase64 = qrBase64,
+                MfaManualKey = manualKey,
+                MfaEnrollToken = enrollToken,
+                BloqueoHasta = bloqueoHasta,
+                message = mfaMode == "svcdown" ? "El servicio de doble autenticación no está disponible."
+                        : mfaMode == "blocked" ? "Cuenta bloqueada temporalmente."
+                        : "Se requiere segundo factor de autenticación."
             };
-            var json = System.Text.Json.JsonSerializer.Serialize(payload);
-            return Comun.Security.CryptoUtility.Encrypt(json, _configuration);
         }
 
-        private Challenge2Fa? LeerChallenge(string? challenge)
-        {
-            if (string.IsNullOrWhiteSpace(challenge)) return null;
-            try
-            {
-                var json = Comun.Security.CryptoUtility.Decrypt(challenge, _configuration);
-                var ch = System.Text.Json.JsonSerializer.Deserialize<Challenge2Fa>(json);
-                if (ch == null || string.IsNullOrWhiteSpace(ch.Usuario)) return null;
-                if (ch.Exp < DateTimeOffset.UtcNow.ToUnixTimeSeconds()) return null;
-                return ch;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+        private string BuildFinalJwt(MfaSessionTokenService.MfaSessionData d)
+            => _jwtService.CreateToken(d.IdUsuario, d.Usuario, ParseRoles(d.RolesJson));
 
-        private DtoTokenResponse EmitirTokenFinal(Challenge2Fa ch)
+        private static List<long> ParseRoles(string rolesJson)
         {
-            var token = _jwtService.CreateToken(ch.IdUsuario, ch.Usuario, ch.Roles ?? new List<long> { 1 });
-            return new DtoTokenResponse
-            {
-                token = token,
-                usuario = ch.Usuario,
-                success = true,
-                message = "Login exitoso"
-            };
+            try { return JsonSerializer.Deserialize<List<long>>(rolesJson) ?? new List<long> { 1 }; }
+            catch { return new List<long> { 1 }; }
         }
 
         private async Task<long> ResolverIdentificacionAsync(string usuario, long idUsuario, CancellationToken ct)
@@ -545,13 +479,6 @@ namespace ofic.Controllers
             }
             catch { /* respaldo abajo */ }
             return idUsuario;
-        }
-
-        private string ObtenerIp()
-        {
-            var fwd = Request.Headers["X-Forwarded-For"].ToString();
-            if (!string.IsNullOrWhiteSpace(fwd)) return fwd.Split(',')[0].Trim();
-            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "N/A";
         }
 
         private bool CanImpersonate(long userId, ClaimsPrincipal? user)

@@ -150,8 +150,12 @@ builder.Services.AddHttpClient<IApiWebOud, ApiWebOud>(c =>
 
 builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 
-// Cliente del servicio centralizado de doble autenticación (Api2FA) para el 2FA del panel CSIRT
-builder.Services.AddHttpClient<IApiMfaClient, ApiMfaClient>(c =>
+// --- Doble autenticación institucional (estándar @policia/mfa) ---
+// Servicio de sesión MFA (JWT de corta vida que vincula el paso 1 con el paso 2).
+builder.Services.AddScoped<Api.Services.MfaSessionTokenService>();
+
+// Cliente del servicio centralizado Api2FA (firma HMAC + endpoints ApiMfa + health).
+builder.Services.AddHttpClient<IMfaCentralService, MfaCentralService>(c =>
 {
     c.Timeout = TimeSpan.FromSeconds(15);
 })
