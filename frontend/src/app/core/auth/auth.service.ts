@@ -253,13 +253,14 @@ export class AuthService {
   /** Identificador estable por navegador para el reconocimiento de dispositivos confiables. */
   getDeviceId(): string {
     try {
-      let id = localStorage.getItem(this.deviceIdKey);
-      if (!id) {
-        id = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
-          ? (crypto as any).randomUUID()
-          : 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-        localStorage.setItem(this.deviceIdKey, id);
+      const existing = localStorage.getItem(this.deviceIdKey);
+      if (existing) {
+        return existing;
       }
+      const id: string = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+        ? (crypto as any).randomUUID()
+        : 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+      localStorage.setItem(this.deviceIdKey, id);
       return id;
     } catch {
       return '';
