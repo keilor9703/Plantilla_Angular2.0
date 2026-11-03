@@ -62,6 +62,13 @@ Guarda el `IdDispositivo` y la llave privada `dev.key` para firmar.
 
 ## 3. Probar el login por QR
 
+> **Atajo:** `docs/qr_e2e_simular_celular.sh` hace TODO el flujo automáticamente (simula el
+> celular y el navegador con `curl`): registra un dispositivo, obtiene el bearer, crea la
+> sesión en SI2FA, aprueba firmando y confirma el login. Uso:
+> `API2FA_URL=http://IP:PUERTO SI2FA_URL=http://IP:PUERTO USUARIO=jperez IDENTIFICACION=123 ./docs/qr_e2e_simular_celular.sh`
+> (requiere `QrLogin:PermitirRegistroPoc=true` en Api2FA). Lo de abajo es el paso a paso manual.
+
+
 1. Abre **SI2FA** en el navegador → pantalla de login → botón **"Ingresar con QR"**.
    - SI2FA llama a `Api2FA /api/Qr/CreateSession` (firmando con el HMAC de SI2FA) y muestra el
      **QR** + el **número de verificación**, y empieza a hacer *polling*.

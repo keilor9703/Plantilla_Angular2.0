@@ -385,11 +385,12 @@ namespace ofic.Controllers
                 if (string.IsNullOrWhiteSpace(usuario))
                     return Ok(new { success = false, estado = "ERROR", message = "No fue posible identificar al usuario." });
 
-                var (idUsuario, roles) = await _dbAuthRepository.GetUsuarioYRolesAsync(usuario, ct);
+                // Resuelve el usuario local; si no existe, lo auto-aprovisiona (igual que el login por contraseña).
+                var (idUsuario, roles) = await ResolverOCrearUsuarioAsync(usuario!, ct);
                 if (idUsuario is null || idUsuario <= 0)
-                    return Ok(new { success = false, estado = "ERROR", message = "El usuario no está habilitado en SI2FA." });
+                    return Ok(new { success = false, estado = "ERROR", message = "No fue posible resolver la cuenta del usuario." });
 
-                var jwt = _jwtService.CreateToken(idUsuario.Value, usuario, roles ?? new List<long> { 1 });
+                var jwt = _jwtService.CreateToken(idUsuario.Value, usuario!, roles);
                 _logger.LogInformation("Login por QR exitoso para {Usuario}", usuario);
                 return Ok(new { success = true, estado = "APPROVED", token = jwt, usuario });
             }
@@ -398,6 +399,42 @@ namespace ofic.Controllers
         }
 
         private bool QrLoginEnabled() => _configuration.GetValue<bool>("QrLogin:Enabled");
+
+        /// <summary>
+        /// Devuelve (idUsuario, roles) del usuario local; si no existe, lo auto-aprovisiona
+        /// consultando PIP (mismo comportamiento que el login por contraseña).
+        /// </summary>
+        private async Task<(long? idUsuario, List<long> roles)> ResolverOCrearUsuarioAsync(string usuario, CancellationToken ct)
+        {
+            var (idUsuario, roles) = await _dbAuthRepository.GetUsuarioYRolesAsync(usuario, ct);
+            if (idUsuario is not null && idUsuario > 0)
+                return (idUsuario, roles ?? new List<long> { 1 });
+
+            DtoFuncionario? pipFunc = null;
+            try
+            {
+                var tokenResp = await _apiWebToken.ObtenerTokenPipAsync(ct);
+                var tokenPip = tokenResp?.Respuesta ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(tokenPip))
+                    pipFunc = await _apiWebToken.GetFuncionarioAsync(tokenPip, usuario.Trim());
+            }
+            catch (Exception exPip)
+            {
+                _logger.LogWarning(exPip, "No se pudo consultar PIP para auto-aprovisionar a {Usuario} (QR)", usuario);
+            }
+
+            long? nuevoId;
+            if (pipFunc != null && (!string.IsNullOrWhiteSpace(pipFunc.identificacion) || !string.IsNullOrWhiteSpace(pipFunc.nombres)))
+            {
+                if (string.IsNullOrWhiteSpace(pipFunc.usuario)) pipFunc.usuario = usuario.Trim();
+                nuevoId = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(pipFunc, ct);
+            }
+            else
+            {
+                nuevoId = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(usuario.Trim(), usuario.Trim(), ct);
+            }
+            return (nuevoId, new List<long> { 1 });
+        }
 
         private static string? ExtraerUsuarioDeJwt(string token)
         {
