@@ -341,7 +341,6 @@ namespace ofic.Controllers
 
         [HttpPost("QrCreate")]
         [AllowAnonymous]
-        [EnableRateLimiting("auth")]
         public async Task<IActionResult> QrCreate(CancellationToken ct)
         {
             if (!QrLoginEnabled()) return NotFound();
@@ -362,9 +361,10 @@ namespace ofic.Controllers
             });
         }
 
+        // Sin rate limiter "auth": QrStatus es un endpoint de polling (se consulta cada ~2s);
+        // su abuso está limitado por el binding con webPollToken y el TTL corto de la sesión.
         [HttpGet("QrStatus")]
         [AllowAnonymous]
-        [EnableRateLimiting("auth")]
         public async Task<IActionResult> QrStatus([FromQuery] string sid, [FromQuery] string webPollToken, CancellationToken ct)
         {
             if (!QrLoginEnabled()) return NotFound();
