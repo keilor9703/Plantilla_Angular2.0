@@ -1,7 +1,26 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap, timeout, map, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+
+export interface QrCreateResponse {
+  success: boolean;
+  sid?: string;
+  qrPng?: string;
+  qrPayload?: string;
+  pairing?: string;
+  webPollToken?: string;
+  expiraAt?: string;
+  message?: string;
+}
+
+export interface QrStatusResponse {
+  success: boolean;
+  estado?: string;   // PENDING|SCANNED|APPROVED|CONSUMED|REJECTED|EXPIRED|SVCDOWN|ERROR
+  token?: string;
+  usuario?: string;
+  message?: string;
+}
 
 interface LoginRequest {
   Usuario: string;
@@ -45,6 +64,8 @@ export class AuthService {
   private readonly loginUrl = `${environment.apiBaseUrl}/Cuenta/Token`;
   private readonly impersonateUrl = `${environment.apiBaseUrl}/Cuenta/Impersonate`;
   private readonly refreshUrl = `${environment.apiBaseUrl}/Cuenta/Refresh`;
+  private readonly qrCreateUrl = `${environment.apiBaseUrl}/Cuenta/QrCreate`;
+  private readonly qrStatusUrl = `${environment.apiBaseUrl}/Cuenta/QrStatus`;
   private readonly maxJwtLength = 8192;
   private readonly maxJwtPayloadB64Length = 4096;
   private readonly maxJwtPayloadJsonLength = 6144;
@@ -79,6 +100,17 @@ export class AuthService {
    */
   storeLoginData(token: string, usuario: string): void {
     this.finalizeSession({ success: true, token, usuario }, usuario);
+  }
+
+  /** Crea una sesión de login por QR (el backend intermedia con Api2FA). */
+  qrCreate(): Observable<QrCreateResponse> {
+    return this.http.post<QrCreateResponse>(this.qrCreateUrl, {}, { withCredentials: true }).pipe(timeout(15000));
+  }
+
+  /** Consulta el estado de la sesión de login por QR. */
+  qrStatus(sid: string, webPollToken: string): Observable<QrStatusResponse> {
+    const params = new HttpParams().set('sid', sid).set('webPollToken', webPollToken);
+    return this.http.get<QrStatusResponse>(this.qrStatusUrl, { params }).pipe(timeout(15000));
   }
 
   private finalizeSession(resp: LoginResponse, usuario: string): void {

@@ -10,7 +10,7 @@
 
         <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
 
-        <form class="login-form" (ngSubmit)="onSubmit()" *ngIf="!mfaChallenge">
+        <form class="login-form" (ngSubmit)="onSubmit()" *ngIf="!mfaChallenge && !qrLoginMode">
             <div class="input-group">
                 <i class="fa fa-user"></i>
                 <input type="text" name="usuario" [(ngModel)]="usuario" placeholder="Usuario empresarial"
@@ -48,6 +48,45 @@
                 <i class="fas fa-key icon-key"></i>
             </button>
         </form>
+
+        <!-- Opción de ingreso por QR (passwordless) -->
+        <div class="qr-entry" *ngIf="!mfaChallenge && !qrLoginMode">
+            <div class="qr-sep"><span>o</span></div>
+            <button type="button" class="btn-qr" (click)="iniciarQrLogin()">
+                <i class="fa-solid fa-qrcode"></i> Ingresar con QR
+            </button>
+        </div>
+
+        <!-- Panel de login por QR -->
+        <div class="qr-panel" *ngIf="qrLoginMode">
+            <h2 class="mfa-title"><i class="fa-solid fa-qrcode"></i> Ingreso por QR</h2>
+
+            <div *ngIf="qrCargando" class="qr-loading">
+                <i class="fa-solid fa-spinner fa-spin"></i> Generando código…
+            </div>
+
+            <ng-container *ngIf="!qrCargando">
+                <div class="qr-image" *ngIf="qrPng">
+                    <img [src]="qrPng" alt="Código QR de ingreso" />
+                </div>
+
+                <p class="mfa-sub" *ngIf="qrPng">{{ qrInfo }}</p>
+
+                <div class="qr-pairing" *ngIf="qrPng && qrPairing">
+                    <span class="qr-pairing-label">Número de verificación</span>
+                    <span class="qr-pairing-value">{{ qrPairing }}</span>
+                    <span class="qr-pairing-hint">Debe coincidir con el que ve en su app</span>
+                </div>
+
+                <p *ngIf="qrError" class="mfa-msg error">{{ qrError }}</p>
+
+                <button type="button" class="btn-login" *ngIf="qrError" (click)="reintentarQr()">
+                    <span>Generar nuevo código</span>
+                </button>
+            </ng-container>
+
+            <button type="button" class="mfa-cancel" (click)="cancelarQrLogin()">Volver al inicio de sesión</button>
+        </div>
 
         <!-- Doble autenticación (lógica estándar @policia/mfa, diseño del login) -->
         <div class="mfa-panel" *ngIf="mfaChallenge">

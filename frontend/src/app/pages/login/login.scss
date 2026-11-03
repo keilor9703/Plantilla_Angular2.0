@@ -211,6 +211,34 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     text-decoration: underline;
 }
 
+/* ───────────────── Ingreso por QR ───────────────── */
+.qr-entry { margin-top: 16px; }
+.qr-sep {
+    display: flex; align-items: center; text-align: center;
+    color: rgba(255, 255, 255, 0.6); font-size: 0.8rem; margin: 6px 0 14px 0;
+}
+.qr-sep::before, .qr-sep::after {
+    content: ''; flex: 1; height: 1px; background: rgba(255, 255, 255, 0.2);
+}
+.qr-sep span { padding: 0 12px; }
+.btn-qr {
+    width: 100%; padding: 12px; border-radius: 25px; cursor: pointer;
+    background: rgba(255, 255, 255, 0.1); color: #fff; font-weight: 700; font-size: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    transition: background .2s;
+}
+.btn-qr:hover { background: rgba(255, 255, 255, 0.2); }
+
+.qr-panel { text-align: center; animation: mfa-fade .25s ease; }
+.qr-loading { color: rgba(255, 255, 255, 0.85); padding: 24px 0; }
+.qr-image { display: flex; justify-content: center; margin: 8px 0 14px 0; }
+.qr-image img { width: 220px; height: 220px; background: #fff; padding: 10px; border-radius: 14px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); }
+.qr-pairing { margin: 10px 0; }
+.qr-pairing-label { display: block; color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; }
+.qr-pairing-value { display: block; color: #1cb5e0; font-size: 2rem; font-weight: 900; letter-spacing: 6px; }
+.qr-pairing-hint { display: block; color: rgba(255, 255, 255, 0.55); font-size: 0.72rem; }
+
 /* ───────────────── Doble autenticación (mismo diseño del login) ───────────────── */
 .mfa-panel {
     text-align: center;

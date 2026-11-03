@@ -59,6 +59,30 @@ namespace Servicios.ApiInterfaz
         public DateTime Consultado { get; set; } = DateTime.Now;
     }
 
+    /// <summary>Resultado de crear una sesión de login por QR en el servicio central.</summary>
+    public class MfaQrCreateResult
+    {
+        public bool Ok { get; set; }
+        public bool ServiceDown { get; set; }
+        public string Mensaje { get; set; } = "";
+        public string Sid { get; set; } = "";
+        public string QrPngBase64 { get; set; } = "";
+        public string QrPayload { get; set; } = "";
+        public string Pairing { get; set; } = "";
+        public string WebPollToken { get; set; } = "";
+        public DateTime? ExpiraAt { get; set; }
+    }
+
+    /// <summary>Estado de una sesión de login por QR (incluye el JWT del servicio al aprobarse).</summary>
+    public class MfaQrStatusResult
+    {
+        public bool Ok { get; set; }
+        public bool ServiceDown { get; set; }
+        public string Mensaje { get; set; } = "";
+        public string Estado { get; set; } = "";   // PENDING|SCANNED|APPROVED|CONSUMED|REJECTED|EXPIRED
+        public string? Token { get; set; }          // JWT emitido por Api2FA al aprobarse
+    }
+
     /// <summary>
     /// Cliente HTTP para el servicio centralizado Api2FA de la Policía Nacional.
     /// Gestiona la obtención/caché del bearer de sistema y expone los endpoints
@@ -77,5 +101,11 @@ namespace Servicios.ApiInterfaz
 
         /// <summary>Verifica la disponibilidad del servicio 2FA central (health).</summary>
         Task<MfaHealthResult> HealthAsync(CancellationToken ct = default);
+
+        /// <summary>Crea una sesión de login por QR (firma HMAC del sistema). La consume el login web.</summary>
+        Task<MfaQrCreateResult> QrCreateAsync(CancellationToken ct = default);
+
+        /// <summary>Consulta el estado de una sesión de login por QR (binding por webPollToken).</summary>
+        Task<MfaQrStatusResult> QrStatusAsync(string sid, string webPollToken, CancellationToken ct = default);
     }
 }

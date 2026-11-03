@@ -334,6 +334,82 @@ namespace ofic.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════════════
+        // LOGIN POR QR (passwordless) — el navegador muestra el QR y hace polling.
+        // El motor vive en Api2FA; aquí SI2FA actúa de intermediario y, al aprobarse,
+        // emite su PROPIO JWT de sesión para el usuario que aprobó desde la app.
+        // ════════════════════════════════════════════════════════════════════════
+
+        [HttpPost("QrCreate")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> QrCreate(CancellationToken ct)
+        {
+            if (!QrLoginEnabled()) return NotFound();
+
+            var r = await _mfa.QrCreateAsync(ct);
+            if (!r.Ok)
+                return StatusCode(r.ServiceDown ? 503 : 502, new { success = false, message = r.Mensaje });
+
+            return Ok(new
+            {
+                success = true,
+                sid = r.Sid,
+                qrPng = r.QrPngBase64,
+                qrPayload = r.QrPayload,
+                pairing = r.Pairing,
+                webPollToken = r.WebPollToken,
+                expiraAt = r.ExpiraAt
+            });
+        }
+
+        [HttpGet("QrStatus")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> QrStatus([FromQuery] string sid, [FromQuery] string webPollToken, CancellationToken ct)
+        {
+            if (!QrLoginEnabled()) return NotFound();
+            if (string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(webPollToken))
+                return BadRequest(new { success = false, message = "Solicitud inválida." });
+
+            var r = await _mfa.QrStatusAsync(sid, webPollToken, ct);
+            if (r.ServiceDown)
+                return Ok(new { success = false, estado = "SVCDOWN", message = r.Mensaje });
+            if (!r.Ok)
+                return Ok(new { success = false, estado = "", message = r.Mensaje });
+
+            // Al aprobarse, Api2FA devuelve su JWT con la identidad del usuario. SI2FA lo
+            // traduce a su propia sesión (cargando los roles locales del usuario).
+            if (r.Estado == "APPROVED" && !string.IsNullOrWhiteSpace(r.Token))
+            {
+                var usuario = ExtraerUsuarioDeJwt(r.Token!);
+                if (string.IsNullOrWhiteSpace(usuario))
+                    return Ok(new { success = false, estado = "ERROR", message = "No fue posible identificar al usuario." });
+
+                var (idUsuario, roles) = await _dbAuthRepository.GetUsuarioYRolesAsync(usuario, ct);
+                if (idUsuario is null || idUsuario <= 0)
+                    return Ok(new { success = false, estado = "ERROR", message = "El usuario no está habilitado en SI2FA." });
+
+                var jwt = _jwtService.CreateToken(idUsuario.Value, usuario, roles ?? new List<long> { 1 });
+                _logger.LogInformation("Login por QR exitoso para {Usuario}", usuario);
+                return Ok(new { success = true, estado = "APPROVED", token = jwt, usuario });
+            }
+
+            return Ok(new { success = true, estado = r.Estado });
+        }
+
+        private bool QrLoginEnabled() => _configuration.GetValue<bool>("QrLogin:Enabled");
+
+        private static string? ExtraerUsuarioDeJwt(string token)
+        {
+            try
+            {
+                var jwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
+                return jwt.Claims.FirstOrDefault(c => c.Type == "Usuario")?.Value;
+            }
+            catch { return null; }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // ENDPOINTS MFA (estándar institucional @policia/mfa) — requieren MfaSessionToken
         // ════════════════════════════════════════════════════════════════════════
 

@@ -51,6 +51,17 @@ export class LoginComponent implements OnInit, OnDestroy {
   // 0 = verificar/enrolar normal; 1 = pedir código de correo; 2 = ingresar código de correo
   resetStep = 0;
 
+  // ───────────── Estado del login por QR (passwordless) ─────────────
+  qrLoginMode = false;
+  qrPng = '';
+  qrPairing = '';
+  qrError = '';
+  qrInfo = 'Abra la app Autenticador 2FA y escanee el código.';
+  qrCargando = false;
+  private qrSid = '';
+  private qrWebToken = '';
+  private qrPollHandle: any = null;
+
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -85,6 +96,95 @@ export class LoginComponent implements OnInit, OnDestroy {
     if (this.slideTimerHandle) {
       clearInterval(this.slideTimerHandle);
     }
+    this.detenerQrPoll();
+  }
+
+  // ───────────────────────────── Login por QR ─────────────────────────────
+
+  iniciarQrLogin(): void {
+    this.qrLoginMode = true;
+    this.qrError = '';
+    this.qrPng = '';
+    this.qrCargando = true;
+    this.errorMessage = '';
+
+    this.authService.qrCreate().subscribe({
+      next: (resp: any) => {
+        this.qrCargando = false;
+        if (!resp?.success) {
+          this.qrError = resp?.message ?? 'No fue posible iniciar el ingreso por QR.';
+          return;
+        }
+        this.qrSid = resp.sid;
+        this.qrWebToken = resp.webPollToken;
+        this.qrPng = resp.qrPng ? 'data:image/png;base64,' + resp.qrPng : '';
+        this.qrPairing = resp.pairing ?? '';
+        this.iniciarQrPoll();
+      },
+      error: () => {
+        this.qrCargando = false;
+        this.qrError = 'El servicio de ingreso por QR no está disponible.';
+      }
+    });
+  }
+
+  private iniciarQrPoll(): void {
+    this.detenerQrPoll();
+    this.qrPollHandle = setInterval(() => this.consultarQr(), 1800);
+  }
+
+  private detenerQrPoll(): void {
+    if (this.qrPollHandle) {
+      clearInterval(this.qrPollHandle);
+      this.qrPollHandle = null;
+    }
+  }
+
+  private consultarQr(): void {
+    if (!this.qrSid || !this.qrWebToken) return;
+    this.authService.qrStatus(this.qrSid, this.qrWebToken).subscribe({
+      next: (resp: any) => {
+        const estado = resp?.estado;
+        if (resp?.success && estado === 'APPROVED' && resp?.token) {
+          this.detenerQrPoll();
+          this.authService.storeLoginData(resp.token, resp.usuario ?? this.usuario);
+          this.router.navigate(['/home']);
+          return;
+        }
+        if (estado === 'SCANNED') {
+          this.qrInfo = 'Código escaneado. Confirme el ingreso en su dispositivo.';
+        }
+        if (estado === 'EXPIRED') {
+          this.detenerQrPoll();
+          this.qrError = 'El código expiró. Genere uno nuevo.';
+          this.qrPng = '';
+        }
+        if (estado === 'REJECTED') {
+          this.detenerQrPoll();
+          this.qrError = 'El ingreso fue rechazado desde el dispositivo.';
+          this.qrPng = '';
+        }
+        if (estado === 'SVCDOWN' || estado === 'ERROR') {
+          this.detenerQrPoll();
+          this.qrError = resp?.message ?? 'No fue posible completar el ingreso.';
+          this.qrPng = '';
+        }
+      },
+      error: () => { /* reintenta en el siguiente tick */ }
+    });
+  }
+
+  reintentarQr(): void {
+    this.iniciarQrLogin();
+  }
+
+  cancelarQrLogin(): void {
+    this.detenerQrPoll();
+    this.qrLoginMode = false;
+    this.qrPng = '';
+    this.qrError = '';
+    this.qrSid = '';
+    this.qrWebToken = '';
   }
 
   loadLoginBackgrounds(): void {

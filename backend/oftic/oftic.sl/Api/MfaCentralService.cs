@@ -322,6 +322,86 @@ namespace Servicios.Api
             }
         }
 
+        private class QrCreateData
+        {
+            public string Sid { get; set; } = "";
+            public string QrPngBase64 { get; set; } = "";
+            public string QrPayload { get; set; } = "";
+            public string Pairing { get; set; } = "";
+            public string WebPollToken { get; set; } = "";
+            public DateTime? ExpiraAt { get; set; }
+        }
+        private class QrStatusData
+        {
+            public string Estado { get; set; } = "";
+            public string? Token { get; set; }
+        }
+
+        public async Task<MfaQrCreateResult> QrCreateAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_hmacSecret))
+                    return new MfaQrCreateResult { ServiceDown = true, Mensaje = "2FA no configurado." };
+
+                var fechaUtc = DateTimeOffset.UtcNow;
+                var nonce = Guid.NewGuid().ToString("N");
+                var canonical = $"QR-CREATE|{_sistema}|{fechaUtc:O}|{nonce}";
+                var sig = ComputeHmacSha256Hex(_hmacSecret, canonical);
+
+                var reqBody = new { Sistema = _sistema, FechaUtc = fechaUtc, Nonce = nonce, Signature = sig };
+                using var resp = await _http.PostAsync($"{_baseUrl}/api/Qr/CreateSession", Json(reqBody), ct);
+                if (!resp.IsSuccessStatusCode)
+                    return new MfaQrCreateResult { ServiceDown = true, Mensaje = $"Servicio 2FA no disponible (HTTP {(int)resp.StatusCode})." };
+
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                var parsed = JsonSerializer.Deserialize<Resp<QrCreateData>>(body, _jOpts);
+                if (parsed?.CodigoExito != 1 || parsed.Data is null)
+                    return new MfaQrCreateResult { Mensaje = parsed?.Mensaje ?? "No fue posible crear la sesión QR." };
+
+                var d = parsed.Data;
+                return new MfaQrCreateResult
+                {
+                    Ok = true,
+                    Sid = d.Sid,
+                    QrPngBase64 = d.QrPngBase64,
+                    QrPayload = d.QrPayload,
+                    Pairing = d.Pairing,
+                    WebPollToken = d.WebPollToken,
+                    ExpiraAt = d.ExpiraAt
+                };
+            }
+            catch (Exception ex) when (IsDown(ex))
+            {
+                _log.LogWarning(ex, "[MFA] Servicio caído en QrCreate");
+                return new MfaQrCreateResult { ServiceDown = true, Mensaje = "Servicio 2FA no disponible." };
+            }
+        }
+
+        public async Task<MfaQrStatusResult> QrStatusAsync(string sid, string webPollToken, CancellationToken ct = default)
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/Qr/Status?sid={Uri.EscapeDataString(sid)}");
+                req.Headers.TryAddWithoutValidation("X-Web-Poll-Token", webPollToken);
+                using var resp = await _http.SendAsync(req, ct);
+                if (!resp.IsSuccessStatusCode)
+                    return new MfaQrStatusResult { ServiceDown = true, Mensaje = $"Servicio 2FA no disponible (HTTP {(int)resp.StatusCode})." };
+
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                var parsed = JsonSerializer.Deserialize<Resp<QrStatusData>>(body, _jOpts);
+                if (parsed?.CodigoExito != 1 || parsed.Data is null)
+                    return new MfaQrStatusResult { Mensaje = parsed?.Mensaje ?? "No fue posible consultar la sesión." };
+
+                return new MfaQrStatusResult { Ok = true, Estado = parsed.Data.Estado, Token = parsed.Data.Token };
+            }
+            catch (Exception ex) when (IsDown(ex))
+            {
+                _log.LogWarning(ex, "[MFA] Servicio caído en QrStatus");
+                return new MfaQrStatusResult { ServiceDown = true, Mensaje = "Servicio 2FA no disponible." };
+            }
+        }
+
         private static MfaVerifyResult ParseVerifyResult(string? body)
         {
             if (body is null) return new MfaVerifyResult { ServiceDown = true, Mensaje = "Servicio 2FA no disponible." };
