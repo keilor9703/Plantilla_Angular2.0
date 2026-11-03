@@ -230,7 +230,18 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
 }
 .btn-qr:hover { background: rgba(255, 255, 255, 0.2); }
 
+.auth-options { display: block; }
 .qr-panel { text-align: center; animation: mfa-fade .25s ease; }
+
+/* Despliegue elegante del formulario de credenciales */
+.cred-form {
+    animation: cred-reveal .35s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+@keyframes cred-reveal {
+    from { opacity: 0; transform: translateY(-10px); max-height: 0; }
+    to   { opacity: 1; transform: translateY(0);     max-height: 640px; }
+}
 .qr-loading { color: rgba(255, 255, 255, 0.85); padding: 24px 0; }
 .qr-image { display: flex; justify-content: center; margin: 8px 0 14px 0; }
 .qr-image img { width: 220px; height: 220px; background: #fff; padding: 10px; border-radius: 14px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); }

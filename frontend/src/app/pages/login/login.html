@@ -10,82 +10,85 @@
 
         <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
 
-        <form class="login-form" (ngSubmit)="onSubmit()" *ngIf="!mfaChallenge && !qrLoginMode">
-            <div class="input-group">
-                <i class="fa fa-user"></i>
-                <input type="text" name="usuario" [(ngModel)]="usuario" placeholder="Usuario empresarial"
-                    autocomplete="username" required>
-            </div>
+        <!-- Opciones de ingreso: QR primero; credenciales + TOTP debajo (colapsadas) -->
+        <div class="auth-options" *ngIf="!mfaChallenge">
 
-            <div class="input-group">
-                <i class="fa fa-lock"></i>
-                <input [type]="showPassword ? 'text' : 'password'" name="contrasena" [(ngModel)]="contrasena"
-                    placeholder="Contraseña" autocomplete="current-password" required>
-                <button type="button" class="toggle-password-btn" (click)="togglePasswordVisibility()"
-                    [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
-                    <i class="fa-solid" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
-                </button>
-            </div>
+            <!-- 1) Ingreso por QR (opción primaria, listo al cargar) -->
+            <div class="qr-panel" *ngIf="qrVisible || qrCargando">
+                <h2 class="mfa-title"><i class="fa-solid fa-qrcode"></i> Ingresar con QR</h2>
 
-            <div class="form-options">
-                <a href="https://gestionacceso.policia.gov.co:8443/" class="forgot-password">¿Olvidó su contraseña?</a>
-            </div>
-
-            <p *ngIf="errorMessage" style="color:#ffb3b3; font-size:13px; margin:4px 0 10px 0;">
-                {{ errorMessage }}
-            </p>
-
-            <p class="security-text">
-                Está ingresando a un sistema de información de propiedad de la Policía Nacional, su uso no autorizado
-                incurre en el incumplimiento de las políticas de seguridad de la Institución establecidas en el Manual
-                del Sistema de Gestión de Seguridad de la Información para la Policía Nacional y acarrea sanciones
-                penales, disciplinarias y/o administrativas a que haya lugar; ayúdenos a prevenir la divulgación no
-                autorizada, pérdida y/o fuga de la información institucional.
-            </p>
-
-            <button type="submit" class="btn-login" [disabled]="isLoading">
-                <span>{{ isLoading ? 'Validando...' : 'Iniciar sesión' }}</span>
-                <i class="fas fa-key icon-key"></i>
-            </button>
-        </form>
-
-        <!-- Opción de ingreso por QR (passwordless) -->
-        <div class="qr-entry" *ngIf="!mfaChallenge && !qrLoginMode">
-            <div class="qr-sep"><span>o</span></div>
-            <button type="button" class="btn-qr" (click)="iniciarQrLogin()">
-                <i class="fa-solid fa-qrcode"></i> Ingresar con QR
-            </button>
-        </div>
-
-        <!-- Panel de login por QR -->
-        <div class="qr-panel" *ngIf="qrLoginMode">
-            <h2 class="mfa-title"><i class="fa-solid fa-qrcode"></i> Ingreso por QR</h2>
-
-            <div *ngIf="qrCargando" class="qr-loading">
-                <i class="fa-solid fa-spinner fa-spin"></i> Generando código…
-            </div>
-
-            <ng-container *ngIf="!qrCargando">
-                <div class="qr-image" *ngIf="qrPng">
-                    <img [src]="qrPng" alt="Código QR de ingreso" />
+                <div *ngIf="qrCargando" class="qr-loading">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Generando código…
                 </div>
 
-                <p class="mfa-sub" *ngIf="qrPng">{{ qrInfo }}</p>
+                <ng-container *ngIf="!qrCargando">
+                    <div class="qr-image" *ngIf="qrPng">
+                        <img [src]="qrPng" alt="Código QR de ingreso" />
+                    </div>
 
-                <div class="qr-pairing" *ngIf="qrPng && qrPairing">
-                    <span class="qr-pairing-label">Número de verificación</span>
-                    <span class="qr-pairing-value">{{ qrPairing }}</span>
-                    <span class="qr-pairing-hint">Debe coincidir con el que ve en su app</span>
+                    <p class="mfa-sub" *ngIf="qrPng">{{ qrInfo }}</p>
+
+                    <div class="qr-pairing" *ngIf="qrPng && qrPairing">
+                        <span class="qr-pairing-label">Número de verificación</span>
+                        <span class="qr-pairing-value">{{ qrPairing }}</span>
+                        <span class="qr-pairing-hint">Debe coincidir con el que ve en su app</span>
+                    </div>
+
+                    <p *ngIf="qrError" class="mfa-msg error">{{ qrError }}</p>
+
+                    <button type="button" class="btn-login" *ngIf="qrError" (click)="reintentarQr()">
+                        <span>Generar nuevo código</span>
+                    </button>
+                </ng-container>
+            </div>
+
+            <!-- Separador -->
+            <div class="qr-sep" *ngIf="qrVisible"><span>o</span></div>
+
+            <!-- 2) Botón para desplegar el ingreso con credenciales -->
+            <button type="button" class="btn-qr" *ngIf="!showCredenciales" (click)="mostrarCredenciales()">
+                <i class="fa-solid fa-user-lock"></i> Ingresar con usuario y contraseña
+            </button>
+
+            <!-- 3) Formulario de credenciales + TOTP (aparece elegante al desplegarse) -->
+            <form class="login-form cred-form" (ngSubmit)="onSubmit()" *ngIf="showCredenciales">
+                <div class="input-group">
+                    <i class="fa fa-user"></i>
+                    <input type="text" name="usuario" [(ngModel)]="usuario" placeholder="Usuario empresarial"
+                        autocomplete="username" required>
                 </div>
 
-                <p *ngIf="qrError" class="mfa-msg error">{{ qrError }}</p>
+                <div class="input-group">
+                    <i class="fa fa-lock"></i>
+                    <input [type]="showPassword ? 'text' : 'password'" name="contrasena" [(ngModel)]="contrasena"
+                        placeholder="Contraseña" autocomplete="current-password" required>
+                    <button type="button" class="toggle-password-btn" (click)="togglePasswordVisibility()"
+                        [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                        <i class="fa-solid" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                    </button>
+                </div>
 
-                <button type="button" class="btn-login" *ngIf="qrError" (click)="reintentarQr()">
-                    <span>Generar nuevo código</span>
+                <div class="form-options">
+                    <a href="https://gestionacceso.policia.gov.co:8443/" class="forgot-password">¿Olvidó su contraseña?</a>
+                </div>
+
+                <p *ngIf="errorMessage" style="color:#ffb3b3; font-size:13px; margin:4px 0 10px 0;">
+                    {{ errorMessage }}
+                </p>
+
+                <p class="security-text">
+                    Está ingresando a un sistema de información de propiedad de la Policía Nacional, su uso no autorizado
+                    incurre en el incumplimiento de las políticas de seguridad de la Institución establecidas en el Manual
+                    del Sistema de Gestión de Seguridad de la Información para la Policía Nacional y acarrea sanciones
+                    penales, disciplinarias y/o administrativas a que haya lugar; ayúdenos a prevenir la divulgación no
+                    autorizada, pérdida y/o fuga de la información institucional.
+                </p>
+
+                <button type="submit" class="btn-login" [disabled]="isLoading">
+                    <span>{{ isLoading ? 'Validando...' : 'Iniciar sesión' }}</span>
+                    <i class="fas fa-key icon-key"></i>
                 </button>
-            </ng-container>
-
-            <button type="button" class="mfa-cancel" (click)="cancelarQrLogin()">Volver al inicio de sesión</button>
+            </form>
         </div>
 
         <!-- Doble autenticación (lógica estándar @policia/mfa, diseño del login) -->

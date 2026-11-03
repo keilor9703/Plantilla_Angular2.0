@@ -51,8 +51,9 @@ export class LoginComponent implements OnInit, OnDestroy {
   // 0 = verificar/enrolar normal; 1 = pedir código de correo; 2 = ingresar código de correo
   resetStep = 0;
 
-  // ───────────── Estado del login por QR (passwordless) ─────────────
-  qrLoginMode = false;
+  // ───────────── Estado del login por QR (passwordless, opción primaria) ─────────────
+  qrVisible = false;          // la sección del QR está disponible/mostrada
+  showCredenciales = false;   // el formulario de usuario/contraseña está desplegado
   qrPng = '';
   qrPairing = '';
   qrError = '';
@@ -76,6 +77,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.checkSetup();
     this.loadBranding();
     this.loadLoginBackgrounds();
+    // El QR es la opción primaria: se genera de inmediato, listo para escanear.
+    this.cargarQr();
   }
 
   private checkSetup(): void {
@@ -101,31 +104,42 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   // ───────────────────────────── Login por QR ─────────────────────────────
 
-  iniciarQrLogin(): void {
-    this.qrLoginMode = true;
+  /** Genera el QR (opción primaria). Si el servicio no está disponible, muestra el login por contraseña. */
+  cargarQr(): void {
     this.qrError = '';
     this.qrPng = '';
     this.qrCargando = true;
-    this.errorMessage = '';
 
     this.authService.qrCreate().subscribe({
       next: (resp: any) => {
         this.qrCargando = false;
-        if (!resp?.success) {
-          this.qrError = resp?.message ?? 'No fue posible iniciar el ingreso por QR.';
-          return;
-        }
+        if (!resp?.success) { this.qrNoDisponible(); return; }
+        this.qrVisible = true;
         this.qrSid = resp.sid;
         this.qrWebToken = resp.webPollToken;
         this.qrPng = resp.qrPng ? 'data:image/png;base64,' + resp.qrPng : '';
         this.qrPairing = resp.pairing ?? '';
+        this.qrInfo = 'Abra la app Autenticador 2FA y escanee el código.';
         this.iniciarQrPoll();
       },
       error: () => {
         this.qrCargando = false;
-        this.qrError = 'El servicio de ingreso por QR no está disponible.';
+        this.qrNoDisponible();
       }
     });
+  }
+
+  /** El QR no está disponible (servicio apagado/caído): se deja a la mano el login por contraseña. */
+  private qrNoDisponible(): void {
+    this.detenerQrPoll();
+    this.qrVisible = false;
+    this.qrPng = '';
+    this.showCredenciales = true;
+  }
+
+  /** Despliega el formulario de usuario/contraseña (p. ej. si abre desde el mismo celular). */
+  mostrarCredenciales(): void {
+    this.showCredenciales = true;
   }
 
   private iniciarQrPoll(): void {
@@ -175,16 +189,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   reintentarQr(): void {
-    this.iniciarQrLogin();
-  }
-
-  cancelarQrLogin(): void {
-    this.detenerQrPoll();
-    this.qrLoginMode = false;
-    this.qrPng = '';
-    this.qrError = '';
-    this.qrSid = '';
-    this.qrWebToken = '';
+    this.cargarQr();
   }
 
   loadLoginBackgrounds(): void {
