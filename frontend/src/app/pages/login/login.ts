@@ -53,7 +53,8 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   // ───────────── Estado del login por QR (passwordless, opción primaria) ─────────────
   qrVisible = false;          // la sección del QR está disponible/mostrada
-  showCredenciales = false;   // el formulario de usuario/contraseña está desplegado
+  qrDisponible = true;        // el servicio de QR respondió (si no, no se ofrece "volver al QR")
+  showCredenciales = false;   // el formulario de usuario/contraseña está desplegado (oculta el QR)
   qrPng = '';
   qrPairing = '';
   qrError = '';
@@ -133,13 +134,26 @@ export class LoginComponent implements OnInit, OnDestroy {
   private qrNoDisponible(): void {
     this.detenerQrPoll();
     this.qrVisible = false;
+    this.qrDisponible = false;
     this.qrPng = '';
     this.showCredenciales = true;
   }
 
-  /** Despliega el formulario de usuario/contraseña (p. ej. si abre desde el mismo celular). */
+  /** Cambia a la vista de credenciales (oculta el QR). Útil si abre desde el mismo celular. */
   mostrarCredenciales(): void {
     this.showCredenciales = true;
+    this.detenerQrPoll();   // no se consulta el QR mientras se usa la otra opción
+  }
+
+  /** Vuelve a la vista del QR (oculta las credenciales). Regenera el QR si ya no es válido. */
+  volverAQr(): void {
+    this.showCredenciales = false;
+    this.errorMessage = '';
+    if (!this.qrPng || this.qrError) {
+      this.cargarQr();
+    } else {
+      this.iniciarQrPoll();
+    }
   }
 
   private iniciarQrPoll(): void {

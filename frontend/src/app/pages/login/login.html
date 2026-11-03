@@ -10,11 +10,11 @@
 
         <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
 
-        <!-- Opciones de ingreso: QR primero; credenciales + TOTP debajo (colapsadas) -->
+        <!-- Opciones de ingreso: una u otra (nunca ambas). QR primero. -->
         <div class="auth-options" *ngIf="!mfaChallenge">
 
             <!-- 1) Ingreso por QR (opción primaria, listo al cargar) -->
-            <div class="qr-panel" *ngIf="qrVisible || qrCargando">
+            <div class="qr-panel" *ngIf="!showCredenciales && (qrVisible || qrCargando)">
                 <h2 class="mfa-title"><i class="fa-solid fa-qrcode"></i> Ingresar con QR</h2>
 
                 <div *ngIf="qrCargando" class="qr-loading">
@@ -42,16 +42,21 @@
                 </ng-container>
             </div>
 
-            <!-- Separador -->
-            <div class="qr-sep" *ngIf="qrVisible"><span>o</span></div>
+            <!-- Separador (solo en la vista del QR) -->
+            <div class="qr-sep" *ngIf="!showCredenciales && qrVisible"><span>o</span></div>
 
-            <!-- 2) Botón para desplegar el ingreso con credenciales -->
+            <!-- 2) Botón para cambiar al ingreso con credenciales (oculta el QR) -->
             <button type="button" class="btn-qr" *ngIf="!showCredenciales" (click)="mostrarCredenciales()">
                 <i class="fa-solid fa-user-lock"></i> Ingresar con usuario y contraseña
             </button>
 
-            <!-- 3) Formulario de credenciales + TOTP (aparece elegante al desplegarse) -->
+            <!-- 3) Formulario de credenciales + TOTP (reemplaza al QR) -->
             <form class="login-form cred-form" (ngSubmit)="onSubmit()" *ngIf="showCredenciales">
+                <!-- Volver a la vista del QR -->
+                <button type="button" class="btn-qr volver-qr" *ngIf="qrDisponible" (click)="volverAQr()">
+                    <i class="fa-solid fa-qrcode"></i> Ingresar con QR
+                </button>
+
                 <div class="input-group">
                     <i class="fa fa-user"></i>
                     <input type="text" name="usuario" [(ngModel)]="usuario" placeholder="Usuario empresarial"

@@ -233,6 +233,8 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
 .auth-options { display: block; }
 .qr-panel { text-align: center; animation: mfa-fade .25s ease; }
 
+.btn-qr.volver-qr { margin-bottom: 16px; }
+
 /* Despliegue elegante del formulario de credenciales */
 .cred-form {
     animation: cred-reveal .35s cubic-bezier(0.16, 1, 0.3, 1);
