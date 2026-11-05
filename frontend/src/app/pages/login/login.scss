@@ -296,10 +296,37 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     transition: box-shadow .2s, transform .1s;
 }
+/* Casilla activa: borde cian + halo bien visible para saber dónde se está escribiendo */
 .mfa-otp input:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(28, 181, 224, 0.7);
-    transform: translateY(-1px);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px #1cb5e0, 0 0 0 7px rgba(28, 181, 224, 0.35), 0 6px 14px rgba(0, 0, 0, 0.25);
+    transform: translateY(-2px) scale(1.06);
+}
+/* Casilla ya escrita */
+.mfa-otp input.filled {
+    background: #e6f7fd;
+    box-shadow: 0 0 0 2px rgba(28, 181, 224, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.mfa-otp input.filled:focus {
+    box-shadow: 0 0 0 3px #1cb5e0, 0 0 0 7px rgba(28, 181, 224, 0.35), 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+/* Código incorrecto */
+.mfa-otp input.error {
+    box-shadow: 0 0 0 3px #ff7a85, 0 2px 6px rgba(0, 0, 0, 0.2);
+    animation: mfa-shake .35s;
+}
+.mfa-otp input.error:focus {
+    box-shadow: 0 0 0 3px #ff7a85, 0 0 0 7px rgba(255, 122, 133, 0.35);
+}
+.mfa-otp input[readonly] { opacity: .75; cursor: progress; }
+@keyframes mfa-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mfa-otp input, .mfa-otp input.error { animation: none; transition: none; }
 }
 
 .mfa-check {

@@ -334,6 +334,8 @@ export class LoginComponent implements OnInit, OnDestroy {
       case 'svcdown': this.mfaVista = 'svcdown'; break;
       default:        this.mfaVista = 'verify';
     }
+    // El cursor queda listo en la primera casilla: se puede escribir sin hacer clic.
+    if (this.mfaVista === 'verify' || this.mfaVista === 'enroll') { this.focusOtp(0); }
   }
 
   private construirOtpauthUri(): void {
@@ -360,40 +362,127 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   clearOtp(): void {
     this.otpDigits = ['', '', '', '', '', ''];
+    this.otpUltimoEnviado = '';
   }
 
+  /** Las casillas se identifican por posición (no por valor): así el DOM y el foco no se recrean al escribir. */
+  trackOtp = (index: number): number => index;
+
+  /** Cantidad de dígitos del código. */
+  private readonly otpLen = 6;
+  /** Evita enviar dos veces el mismo código (p. ej. pegar + escribir). */
+  private otpUltimoEnviado = '';
+
+  /** Entrada de respaldo (teclados móviles, autocompletado): reparte lo escrito desde la casilla actual. */
   onOtpInput(idx: number, event: Event): void {
     const input = event.target as HTMLInputElement;
-    const val = (input.value || '').replace(/\D/g, '');
-    this.otpDigits[idx] = val.slice(-1);
-    input.value = this.otpDigits[idx];
-    if (this.otpDigits[idx] && idx < 5) {
-      this.focusOtp(idx + 1);
+    const digitos = (input.value || '').replace(/\D/g, '');
+    if (!digitos) {
+      this.otpDigits[idx] = '';
+      input.value = '';
+      return;
     }
+    // Si llegan varios dígitos juntos (autocompletado), se reparten en las casillas siguientes.
+    let pos = idx;
+    for (const d of digitos) {
+      if (pos >= this.otpLen) { break; }
+      this.otpDigits[pos++] = d;
+    }
+    input.value = this.otpDigits[idx];
+    this.trasEscribir(pos);
   }
 
   onOtpKeydown(idx: number, event: KeyboardEvent): void {
-    if (event.key === 'Backspace' && !this.otpDigits[idx] && idx > 0) {
-      this.focusOtp(idx - 1);
+    if (this.mfaLoading) { event.preventDefault(); return; }
+    const k = event.key;
+
+    // Dígito: se escribe (reemplazando lo que hubiera) y se avanza.
+    if (/^\d$/.test(k) && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      this.otpDigits[idx] = k;
+      this.trasEscribir(idx + 1);
+      return;
     }
+
+    if (k === 'Backspace') {
+      event.preventDefault();
+      if (this.otpDigits[idx]) {
+        // 1.er borrar: vacía la casilla actual y se queda en ella.
+        this.otpDigits[idx] = '';
+      } else if (idx > 0) {
+        // 2.º borrar (casilla ya vacía): pasa a la anterior, con su dígito seleccionado.
+        this.focusOtp(idx - 1);
+      }
+      this.mfaError = '';
+      return;
+    }
+
+    if (k === 'Delete') {
+      event.preventDefault();
+      this.otpDigits[idx] = '';
+      return;
+    }
+    if (k === 'ArrowLeft' && idx > 0) { event.preventDefault(); this.focusOtp(idx - 1); return; }
+    if (k === 'ArrowRight' && idx < this.otpLen - 1) { event.preventDefault(); this.focusOtp(idx + 1); return; }
+    if (k === 'Enter') { event.preventDefault(); this.enviarSiCompleto(true); return; }
+    // Cualquier otra tecla imprimible (letras, símbolos) se ignora; Tab y atajos siguen funcionando.
+    if (k.length === 1 && !event.ctrlKey && !event.metaKey) { event.preventDefault(); }
   }
 
   onOtpPaste(event: ClipboardEvent): void {
     event.preventDefault();
-    const text = (event.clipboardData?.getData('text') ?? '').replace(/\D/g, '').slice(0, 6);
+    if (this.mfaLoading) { return; }
+    const text = (event.clipboardData?.getData('text') ?? '').replace(/\D/g, '').slice(0, this.otpLen);
     if (!text) { return; }
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < this.otpLen; i++) {
       this.otpDigits[i] = text[i] ?? '';
     }
-    this.focusOtp(Math.min(text.length, 5));
+    this.trasEscribir(text.length);
   }
 
-  private focusOtp(idx: number): void {
+  /** Mueve el cursor a la siguiente casilla (o envía si ya está completo). */
+  private trasEscribir(siguiente: number): void {
+    this.mfaError = '';
+    if (siguiente < this.otpLen) {
+      this.focusOtp(siguiente);
+    } else {
+      this.focusOtp(this.otpLen - 1);
+      this.enviarSiCompleto(false);
+    }
+  }
+
+  /** Verifica automáticamente cuando el código está completo, según el paso actual. */
+  private enviarSiCompleto(forzar: boolean): void {
+    const codigo = this.otpCode;
+    if (this.mfaLoading || codigo.length !== this.otpLen) { return; }
+    if (!forzar && codigo === this.otpUltimoEnviado) { return; }
+    this.otpUltimoEnviado = codigo;
+
+    if (this.mfaVista === 'enroll') { this.submitEnroll(); return; }
+    if (this.mfaVista === 'verify') {
+      if (this.resetStep === 0) { this.submitVerify(); }
+      else if (this.resetStep === 2) { this.submitResetConfirm(); }
+    }
+  }
+
+  /**
+   * Enfoca una casilla. Se difiere un instante para que Angular termine de dibujar la vista
+   * (p. ej. al pasar de "restablecer" a "activar") y se reintenta si aún no existe.
+   */
+  focusOtp(idx: number): void {
+    this.intentarFocoOtp(idx, 15, 0);
+  }
+
+  private intentarFocoOtp(idx: number, intentos: number, demora: number): void {
     setTimeout(() => {
       const el = document.getElementById('otp-' + idx) as HTMLInputElement | null;
-      el?.focus();
-      el?.select();
-    }, 0);
+      if (el) {
+        el.focus();
+        el.select();
+        return;
+      }
+      if (intentos > 0) { this.intentarFocoOtp(idx, intentos - 1, 40); }
+    }, demora);
   }
 
   submitVerify(): void {
@@ -444,6 +533,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.mfaError = '';
     this.mfaInfo = '';
     this.clearOtp();
+    this.focusOtp(0);
   }
 
   private handleStep(r: MfaStepResponse): void {
@@ -468,6 +558,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.mfaVista = 'enroll';
       this.mfaInfo = r.message || '2FA restablecido. Vuelva a registrar su aplicación.';
       this.clearOtp();
+      this.focusOtp(0);
       return;
     }
 
@@ -478,6 +569,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.resetStep = 2;
         this.clearOtp();
       }
+      if (this.resetStep === 2) { this.focusOtp(0); }
       return;
     }
 

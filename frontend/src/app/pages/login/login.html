@@ -105,12 +105,15 @@
                 <!-- Paso normal: ingresar código del autenticador -->
                 <ng-container *ngIf="resetStep === 0">
                     <h2 class="mfa-title"><i class="fa-solid fa-shield-halved"></i> Verificación en dos pasos</h2>
-                    <p class="mfa-sub">Abra su app de autenticación e ingrese el código de 6 dígitos.</p>
+                    <p class="mfa-sub">Abra su app de autenticación e ingrese el código de 6 dígitos. Se verifica automáticamente al completarlo.</p>
 
                     <div class="mfa-otp" (paste)="onOtpPaste($event)">
-                        <input *ngFor="let d of otpDigits; let i = index" [id]="'otp-' + i"
-                            type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                            [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)" />
+                        <input *ngFor="let d of otpDigits; let i = index; trackBy: trackOtp" [id]="'otp-' + i"
+                            type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                            [attr.aria-label]="'Dígito ' + (i + 1) + ' de 6'"
+                            [class.filled]="otpDigits[i]" [class.error]="mfaError" [readOnly]="mfaLoading"
+                            [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)"
+                            (focus)="$any($event.target).select()" />
                     </div>
 
                     <label class="mfa-check">
@@ -145,9 +148,12 @@
                     <p class="mfa-sub">Ingrese el código de 6 dígitos que enviamos a su correo institucional.</p>
 
                     <div class="mfa-otp" (paste)="onOtpPaste($event)">
-                        <input *ngFor="let d of otpDigits; let i = index" [id]="'otp-' + i"
-                            type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                            [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)" />
+                        <input *ngFor="let d of otpDigits; let i = index; trackBy: trackOtp" [id]="'otp-' + i"
+                            type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                            [attr.aria-label]="'Dígito ' + (i + 1) + ' de 6'"
+                            [class.filled]="otpDigits[i]" [class.error]="mfaError" [readOnly]="mfaLoading"
+                            [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)"
+                            (focus)="$any($event.target).select()" />
                     </div>
 
                     <button type="button" class="btn-login" [disabled]="mfaLoading" (click)="submitResetConfirm()">
@@ -179,9 +185,12 @@
                 </a>
 
                 <div class="mfa-otp" (paste)="onOtpPaste($event)">
-                    <input *ngFor="let d of otpDigits; let i = index" [id]="'otp-' + i"
-                        type="text" inputmode="numeric" maxlength="1" autocomplete="off"
-                        [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)" />
+                    <input *ngFor="let d of otpDigits; let i = index; trackBy: trackOtp" [id]="'otp-' + i"
+                        type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                        [attr.aria-label]="'Dígito ' + (i + 1) + ' de 6'"
+                        [class.filled]="otpDigits[i]" [class.error]="mfaError" [readOnly]="mfaLoading"
+                        [value]="otpDigits[i]" (input)="onOtpInput(i, $event)" (keydown)="onOtpKeydown(i, $event)"
+                        (focus)="$any($event.target).select()" />
                 </div>
 
                 <button type="button" class="btn-login" [disabled]="mfaLoading" (click)="submitEnroll()">
