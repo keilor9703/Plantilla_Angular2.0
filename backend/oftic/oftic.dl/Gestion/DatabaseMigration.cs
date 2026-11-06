@@ -936,13 +936,11 @@ namespace Datos.Gestion
                   (49, 506, 1, 1), (50, 506, 2, 1), (51, 506, 3, 1)
                   ON CONFLICT (id_menu_rol) DO NOTHING;",
 
-                // Celulares registrados en la app (login por QR): permite al CSIRT revocarlos
-                @"INSERT INTO ctr_menu (id_menu, id_padre, titulo, ruta, icono, orden, estado, usuario_creacion) VALUES
-                  (507, 5, 'Celulares de la app (QR)', '/si2fa/celulares', 'fa-solid fa-mobile-screen-button', 7, 1, 'SETUP')
-                  ON CONFLICT (id_menu) DO NOTHING;",
-                @"INSERT INTO ctr_menu_roles (id_menu_rol, id_menu, id_rol, estado) VALUES
-                  (52, 507, 1, 1), (53, 507, 2, 1), (54, 507, 3, 1)
-                  ON CONFLICT (id_menu_rol) DO NOTHING;",
+                // Un solo módulo «Dispositivos y accesos» (celulares de la app + equipos confiables).
+                // El menú 507 («Celulares de la app») se unificó con el 504: se elimina y se renombra el 504.
+                @"DELETE FROM ctr_menu_roles WHERE id_menu = 507;",
+                @"DELETE FROM ctr_menu WHERE id_menu = 507;",
+                @"UPDATE ctr_menu SET titulo = 'Dispositivos y accesos', icono = 'fa-solid fa-mobile-screen' WHERE id_menu = 504;",
 
                 // Tabla de parámetros configurables del servicio 2FA (editables desde el panel SI2FA)
                 @"CREATE TABLE IF NOT EXISTS mfa_parametros (

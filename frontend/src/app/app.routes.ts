@@ -52,7 +52,7 @@ export const routes: Routes = [
           { path: 'usuarios', loadComponent: () => import('./pages/si2fa/usuarios/usuarios').then(m => m.Si2faUsuariosComponent) },
           { path: 'sistemas', loadComponent: () => import('./pages/si2fa/sistemas/sistemas').then(m => m.Si2faSistemasComponent) },
           { path: 'dispositivos', loadComponent: () => import('./pages/si2fa/dispositivos/dispositivos').then(m => m.Si2faDispositivosComponent) },
-          { path: 'celulares', loadComponent: () => import('./pages/si2fa/celulares/celulares').then(m => m.Si2faCelularesComponent) },
+          { path: 'celulares', redirectTo: 'dispositivos', pathMatch: 'full' },
           { path: 'auditoria', loadComponent: () => import('./pages/si2fa/auditoria/auditoria').then(m => m.Si2faAuditoriaComponent) },
           { path: 'parametros', loadComponent: () => import('./pages/si2fa/parametros/parametros').then(m => m.Si2faParametrosComponent) },
         ],

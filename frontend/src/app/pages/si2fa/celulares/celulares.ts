@@ -12,17 +12,7 @@ type Objetivo = { tipo: 'uno'; cel: CelularApp } | { tipo: 'todos'; cel: Celular
   imports: [CommonModule, FormsModule],
   styleUrls: ['../si2fa-shared.scss'],
   template: `
-    <section class="home-view">
-      <div class="ui-panel">
-        <div class="ui-panel__head">
-          <div class="ui-panel__title"><i class="fa-solid fa-mobile-screen-button"></i> Celulares de la app (login por QR)</div>
-        </div>
-        <div class="ui-panel__subtitle">
-          Celulares registrados por los funcionarios. Revocar un celular (perdido o robado) impide al instante que apruebe ingresos.
-        </div>
-
-        <div class="ui-panel__body">
-          <div class="si2fa-toolbar-row" style="margin-bottom:14px">
+    <div class="si2fa-toolbar-row" style="margin-bottom:14px">
             <div class="ui-field" style="min-width:260px">
               <label class="ui-label">Cédula o usuario</label>
               <input class="ui-control" [(ngModel)]="filtro" (keyup.enter)="cargar()" placeholder="Ej: 1012345678 o juan.perez" />
@@ -68,9 +58,7 @@ type Objetivo = { tipo: 'uno'; cel: CelularApp } | { tipo: 'todos'; cel: Celular
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
-    </section>
+
 
     <div class="si2fa-backdrop" *ngIf="objetivo" (click)="cerrar()">
       <div class="ui-panel si2fa-dialog" (click)="$event.stopPropagation()">
@@ -85,8 +73,8 @@ type Objetivo = { tipo: 'uno'; cel: CelularApp } | { tipo: 'todos'; cel: Celular
             <span *ngIf="objetivo.tipo === 'uno'"> — {{ objetivo.cel.alias || objetivo.cel.modelo }}</span>
           </p>
           <p class="si2fa-muted">
-            El celular dejará de poder aprobar ingresos de inmediato. El funcionario deberá registrarse de nuevo en la app.
-            La acción queda en auditoría con su motivo.
+            El celular dejará de poder aprobar ingresos con QR y notificaciones de inmediato y el funcionario deberá registrarlo de nuevo.
+            <b>No cambia</b> su contraseña ni su código TOTP (eso se gestiona en Usuarios 2FA). La acción queda en auditoría con su motivo.
           </p>
           <div class="ui-field" style="margin-bottom:12px">
             <label class="ui-label">Motivo (obligatorio) *</label>
