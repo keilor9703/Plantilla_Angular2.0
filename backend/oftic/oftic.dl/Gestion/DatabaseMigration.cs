@@ -965,7 +965,12 @@ namespace Datos.Gestion
                   ('VERIFY_MAX_INTENTOS','5',  'INT', 'Intentos fallidos de verificación antes de bloquear',        'intentos','Verificación',    1, 20),
                   ('BLOQUEO_MINUTOS',    '15', 'INT', 'Duración del bloqueo temporal por intentos fallidos',         'minutos', 'Verificación',    1, 1440),
                   ('TRUSTED_DEVICE_DIAS','30', 'INT', 'Vigencia de un dispositivo marcado como confiable',           'días',    'Dispositivos',    1, 365),
-                  ('ANTIREPLAY_MIN',     '2',  'INT', 'Ventana anti-replay para la emisión del token de servicio',  'minutos', 'Seguridad',       1, 10)
+                  ('ANTIREPLAY_MIN',     '2',  'INT', 'Ventana anti-replay para la emisión del token de servicio',  'minutos', 'Seguridad',       1, 10),
+                  ('PUSH_LOGIN_ACTIVO',  '1',  'INT', 'Enviar notificación push a la app al iniciar sesión (1 = sí, 0 = solo TOTP)', NULL, 'Notificación push', 0, 1),
+                  ('PUSH_OPCIONES',      '3',  'INT', 'Cantidad de números que la app muestra para elegir',         'opciones','Notificación push', 2, 5),
+                  ('PUSH_MAX_ENVIOS',    '3',  'INT', 'Máximo de notificaciones por funcionario en la ventana',     'envíos',  'Notificación push', 1, 10),
+                  ('PUSH_VENTANA_MIN',   '10', 'INT', 'Ventana para limitar envíos y detectar fatiga',              'minutos', 'Notificación push', 1, 120),
+                  ('PUSH_FATIGA_ALERTA', '3',  'INT', 'Denegaciones en la ventana que disparan la alerta al funcionario', 'denegadas','Notificación push', 2, 10)
                   ON CONFLICT (clave) DO NOTHING;"
             };
 

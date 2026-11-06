@@ -488,3 +488,25 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
   }
 }
 
+
+
+/* Notificación push: número a elegir en el celular */
+.mfa-push {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(28, 181, 224, 0.12);
+    border: 1px solid rgba(28, 181, 224, 0.35);
+    text-align: center;
+}
+.mfa-push .mfa-sub { margin-bottom: 8px; }
+.mfa-push-number {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: 6px;
+    color: #ffffff;
+    line-height: 1.1;
+    margin: 6px 0 8px;
+}
+.mfa-push-hint { color: rgba(255, 255, 255, 0.75); font-size: 0.75rem; }
+.mfa-push a { color: #1cb5e0; font-size: 0.82rem; text-decoration: underline; }

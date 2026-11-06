@@ -1,7 +1,9 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { Router, RouterModule } from '@angular/router';
+import { environment } from '../../../environments/environment';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { AuthService } from '../../core/auth/auth.service';
 import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
@@ -12,6 +14,7 @@ import { SetupService } from '../../core/services/setup.service';
 import { MfaLoginChallenge, MfaStepResponse, MfaService } from '@policia/mfa';
 
 type MfaVista = 'verify' | 'enroll' | 'blocked' | 'svcdown' | null;
+type PushEstado = 'ninguno' | 'enviando' | 'esperando' | 'denegado' | 'vencido';
 
 @Component({
   selector: 'app-login',
@@ -46,6 +49,15 @@ export class LoginComponent implements OnInit, OnDestroy {
   otpDigits: string[] = ['', '', '', '', '', ''];
   mfaRememberDevice = false;
   mfaLoading = false;
+
+  // ───────────── Notificación push a la app (por defecto al llegar al paso del 2FA) ─────────────
+  pushEstado: PushEstado = 'ninguno';
+  pushPairing = '';
+  pushRestante = 0;
+  private pushSid = '';
+  private pushWebToken = '';
+  private pushExpira = 0;
+  private pushTimer: any = null;
   mfaError = '';
   mfaInfo = '';
   // 0 = verificar/enrolar normal; 1 = pedir código de correo; 2 = ingresar código de correo
@@ -71,7 +83,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     private brandingService: BrandingService,
     private setupService: SetupService,
     private mfaService: MfaService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -94,6 +107,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.detenerPush();
     if (this.loginTimeoutHandle) {
       clearTimeout(this.loginTimeoutHandle);
     }
@@ -336,6 +350,56 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
     // El cursor queda listo en la primera casilla: se puede escribir sin hacer clic.
     if (this.mfaVista === 'verify' || this.mfaVista === 'enroll') { this.focusOtp(0); }
+    // Por defecto se envía la notificación a la app; si no llega, se puede escribir el código TOTP.
+    this.detenerPush();
+    if (this.mfaVista === 'verify') { this.iniciarPush(); }
+  }
+
+  /** Envía la notificación de ingreso y empieza a consultar la respuesta del funcionario. */
+  iniciarPush(): void {
+    this.detenerPush();
+    this.pushEstado = 'enviando';
+    this.http.post<any>(`${environment.apiBaseUrl}/Cuenta/MfaPushStart`, { mfaSessionToken: this.mfaSessionToken }).subscribe({
+      next: (r) => {
+        if (!r?.success) { this.pushEstado = 'ninguno'; return; }   // sin celular / límite → solo TOTP
+        this.pushSid = r.sid;
+        this.pushWebToken = r.webPollToken;
+        this.pushPairing = r.pairing;
+        this.pushExpira = Date.now() + (Number(r.expiraSeg) || 300) * 1000;
+        this.pushRestante = Math.max(0, Math.round((this.pushExpira - Date.now()) / 1000));
+        this.pushEstado = 'esperando';
+        this.pushTimer = setInterval(() => this.consultarPush(), 2000);
+      },
+      error: () => { this.pushEstado = 'ninguno'; }
+    });
+  }
+
+  private consultarPush(): void {
+    if (this.pushEstado !== 'esperando') { return; }
+    this.pushRestante = Math.max(0, Math.round((this.pushExpira - Date.now()) / 1000));
+    this.http.post<any>(`${environment.apiBaseUrl}/Cuenta/MfaPushStatus`, {
+      mfaSessionToken: this.mfaSessionToken, sid: this.pushSid, webPollToken: this.pushWebToken
+    }).subscribe({
+      next: (r) => {
+        if (this.pushEstado !== 'esperando') { return; }
+        switch (r?.estado) {
+          case 'APPROVED':
+            this.detenerPush();
+            this.handleStep({ success: true, token: r.token } as MfaStepResponse);
+            break;
+          case 'REJECTED': this.detenerPush(); this.pushEstado = 'denegado'; break;
+          case 'EXPIRED':  this.detenerPush(); this.pushEstado = 'vencido'; break;
+          case 'ERROR':    this.detenerPush(); this.pushEstado = 'ninguno'; break;
+          default: if (this.pushRestante <= 0) { this.detenerPush(); this.pushEstado = 'vencido'; }
+        }
+      },
+      error: () => { /* red intermitente: se reintenta en el siguiente ciclo */ }
+    });
+  }
+
+  private detenerPush(): void {
+    if (this.pushTimer) { clearInterval(this.pushTimer); this.pushTimer = null; }
+    if (this.pushEstado === 'esperando' || this.pushEstado === 'enviando') { this.pushEstado = 'ninguno'; }
   }
 
   private construirOtpauthUri(): void {
@@ -349,6 +413,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   private construirOtpauth(): void { this.construirOtpauthUri(); }
 
   cancelarMfa(): void {
+    this.detenerPush();
+    this.pushEstado = 'ninguno';
     this.mfaChallenge = null;
     this.mfaVista = null;
     this.contrasena = '';
@@ -541,6 +607,7 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     // 2FA completo → JWT definitivo.
     if (r.success && r.token) {
+      this.detenerPush();
       this.authService.storeLoginData(r.token, this.usuario.trim());
       this.mfaChallenge = null;
       this.mfaVista = null;

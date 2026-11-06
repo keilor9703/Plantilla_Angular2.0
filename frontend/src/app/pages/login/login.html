@@ -105,7 +105,28 @@
                 <!-- Paso normal: ingresar código del autenticador -->
                 <ng-container *ngIf="resetStep === 0">
                     <h2 class="mfa-title"><i class="fa-solid fa-shield-halved"></i> Verificación en dos pasos</h2>
-                    <p class="mfa-sub">Abra su app de autenticación e ingrese el código de 6 dígitos. Se verifica automáticamente al completarlo.</p>
+
+                    <!-- Notificación a la app: el funcionario elige este número en su celular -->
+                    <div class="mfa-push" *ngIf="pushEstado !== 'ninguno'" aria-live="polite">
+                        <ng-container *ngIf="pushEstado === 'enviando'">
+                            <p class="mfa-sub"><i class="fa-solid fa-spinner fa-spin"></i> Enviando la notificación a su celular…</p>
+                        </ng-container>
+                        <ng-container *ngIf="pushEstado === 'esperando'">
+                            <p class="mfa-sub"><i class="fa-solid fa-mobile-screen-button"></i> Abra la notificación en su app y <b>elija este número</b>:</p>
+                            <div class="mfa-push-number">{{ pushPairing }}</div>
+                            <small class="mfa-push-hint">Vence en {{ pushRestante }} s. ¿No le llegó? Escriba el código de su app de autenticación aquí abajo.</small>
+                        </ng-container>
+                        <ng-container *ngIf="pushEstado === 'denegado'">
+                            <p class="mfa-sub">La solicitud fue <b>denegada</b> en el celular. Si no fue usted, cambie su contraseña e informe a la mesa de servicio.</p>
+                            <a href="javascript:void(0)" (click)="iniciarPush()">Enviar de nuevo la notificación</a>
+                        </ng-container>
+                        <ng-container *ngIf="pushEstado === 'vencido'">
+                            <p class="mfa-sub">La notificación venció.</p>
+                            <a href="javascript:void(0)" (click)="iniciarPush()">Enviar de nuevo la notificación</a>
+                        </ng-container>
+                    </div>
+
+                    <p class="mfa-sub">{{ pushEstado === 'esperando' ? 'O ingrese' : 'Abra su app de autenticación e ingrese' }} el código de 6 dígitos. Se verifica automáticamente al completarlo.</p>
 
                     <div class="mfa-otp" (paste)="onOtpPaste($event)">
                         <input *ngFor="let d of otpDigits; let i = index; trackBy: trackOtp" [id]="'otp-' + i"

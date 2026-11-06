@@ -472,6 +472,58 @@ namespace ofic.Controllers
             return Ok(new DtoMfaStepResponse { Success = true, Token = BuildFinalJwt(d), Message = "Autenticación completada." });
         }
 
+        /// <summary>
+        /// Envía la notificación de ingreso a la app del funcionario (por defecto al llegar al paso del 2FA).
+        /// Si no hay celular con notificaciones, se supera el límite o está deshabilitado → fallback=true (usar TOTP).
+        /// </summary>
+        [HttpPost("MfaPushStart")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> MfaPushStart([FromBody] DtoMfaPushRequest req, CancellationToken ct)
+        {
+            var d = _mfaSession.ValidateToken(req?.MfaSessionToken ?? "");
+            if (d is null)
+                return Unauthorized(new { success = false, fallback = true, message = "Sesión MFA expirada o inválida. Inicie sesión nuevamente." });
+            if (!QrLoginEnabled())
+                return Ok(new { success = false, fallback = true, message = "Use el código de su aplicación de autenticación." });
+
+            var r = await _mfa.PushLoginAsync(d.Identificacion, ct);
+            if (!r.Ok)
+                return Ok(new { success = false, fallback = true, message = r.Mensaje });
+
+            var segundos = r.ExpiraAt.HasValue ? Math.Max(0, (int)(r.ExpiraAt.Value.ToUniversalTime() - DateTime.UtcNow).TotalSeconds) : 300;
+            return Ok(new { success = true, fallback = false, sid = r.Sid, pairing = r.Pairing, webPollToken = r.WebPollToken, expiraSeg = segundos });
+        }
+
+        /// <summary>Consulta si el funcionario aprobó en su celular. Al aprobar devuelve el JWT definitivo.</summary>
+        [HttpPost("MfaPushStatus")]
+        [AllowAnonymous]
+        public async Task<IActionResult> MfaPushStatus([FromBody] DtoMfaPushRequest req, CancellationToken ct)
+        {
+            var d = _mfaSession.ValidateToken(req?.MfaSessionToken ?? "");
+            if (d is null)
+                return Unauthorized(new { success = false, estado = "ERROR", message = "Sesión MFA expirada o inválida. Inicie sesión nuevamente." });
+            if (string.IsNullOrWhiteSpace(req?.Sid) || string.IsNullOrWhiteSpace(req?.WebPollToken))
+                return BadRequest(new { success = false, estado = "ERROR", message = "Solicitud inválida." });
+
+            var r = await _mfa.QrStatusAsync(req!.Sid!, req.WebPollToken!, ct);
+            if (r.ServiceDown) return Ok(new { success = false, estado = "SVCDOWN", message = r.Mensaje });
+            if (!r.Ok) return Ok(new { success = false, estado = "ERROR", message = r.Mensaje });
+
+            if (r.Estado == "APPROVED" && !string.IsNullOrWhiteSpace(r.Token))
+            {
+                // El celular que aprobó debe ser el del MISMO funcionario que pasó usuario y contraseña.
+                var aprobo = ExtraerUsuarioDeJwt(r.Token!);
+                if (!string.Equals(aprobo, d.Usuario, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Push aprobado por {Aprobo} pero la sesión MFA es de {Usuario}", aprobo, d.Usuario);
+                    return Ok(new { success = false, estado = "ERROR", message = "La aprobación no corresponde a su usuario." });
+                }
+                return Ok(new { success = true, estado = "APPROVED", token = BuildFinalJwt(d) });
+            }
+            return Ok(new { success = true, estado = r.Estado });
+        }
+
         [HttpPost("MfaEnrollConfirm")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]

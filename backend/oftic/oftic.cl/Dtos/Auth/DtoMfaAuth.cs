@@ -53,6 +53,14 @@ namespace Comun.Dtos
         public string? DeviceId { get; set; }
     }
 
+    /// <summary>POST /api/Cuenta/MfaPushStart | MfaPushStatus — ingreso por notificación en la app.</summary>
+    public class DtoMfaPushRequest
+    {
+        public string MfaSessionToken { get; set; } = "";
+        public string? Sid { get; set; }
+        public string? WebPollToken { get; set; }
+    }
+
     /// <summary>POST /api/Cuenta/MfaEnrollConfirm — confirmar primer enrolamiento.</summary>
     public class DtoMfaEnrollConfirmRequest
     {

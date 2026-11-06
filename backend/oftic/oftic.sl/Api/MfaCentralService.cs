@@ -378,6 +378,42 @@ namespace Servicios.Api
             }
         }
 
+        public async Task<MfaQrCreateResult> PushLoginAsync(long identificacion, CancellationToken ct = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_hmacSecret))
+                    return new MfaQrCreateResult { Fallback = true, Mensaje = "2FA no configurado." };
+
+                var fechaUtc = DateTimeOffset.UtcNow;
+                var nonce = Guid.NewGuid().ToString("N");
+                var canonical = $"QR-PUSH|{_sistema}|{identificacion}|{fechaUtc:O}|{nonce}";
+                var sig = ComputeHmacSha256Hex(_hmacSecret, canonical);
+
+                var reqBody = new { Sistema = _sistema, Identificacion = identificacion, FechaUtc = fechaUtc, Nonce = nonce, Signature = sig };
+                using var resp = await _http.PostAsync($"{_baseUrl}/api/Qr/PushLogin", Json(reqBody), ct);
+
+                // 404 (sin celular con notificaciones / deshabilitado) y 429 (límite de envíos): se usa el código TOTP.
+                if ((int)resp.StatusCode is 404 or 429)
+                    return new MfaQrCreateResult { Fallback = true, Mensaje = "Use el código de su aplicación de autenticación." };
+                if (!resp.IsSuccessStatusCode)
+                    return new MfaQrCreateResult { Fallback = true, ServiceDown = true, Mensaje = $"Servicio 2FA no disponible (HTTP {(int)resp.StatusCode})." };
+
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                var parsed = JsonSerializer.Deserialize<Resp<QrCreateData>>(body, _jOpts);
+                if (parsed?.CodigoExito != 1 || parsed.Data is null)
+                    return new MfaQrCreateResult { Fallback = true, Mensaje = parsed?.Mensaje ?? "No fue posible enviar la notificación." };
+
+                var d = parsed.Data;
+                return new MfaQrCreateResult { Ok = true, Sid = d.Sid, Pairing = d.Pairing, WebPollToken = d.WebPollToken, ExpiraAt = d.ExpiraAt };
+            }
+            catch (Exception ex) when (IsDown(ex))
+            {
+                _log.LogWarning(ex, "[MFA] Servicio caído en PushLogin");
+                return new MfaQrCreateResult { Fallback = true, ServiceDown = true, Mensaje = "Servicio 2FA no disponible." };
+            }
+        }
+
         public async Task<MfaQrStatusResult> QrStatusAsync(string sid, string webPollToken, CancellationToken ct = default)
         {
             try

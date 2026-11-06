@@ -71,6 +71,8 @@ namespace Servicios.ApiInterfaz
         public string Pairing { get; set; } = "";
         public string WebPollToken { get; set; } = "";
         public DateTime? ExpiraAt { get; set; }
+        /// <summary>Push no disponible (sin celular con notificaciones, límite de envíos o deshabilitado): usar TOTP.</summary>
+        public bool Fallback { get; set; }
     }
 
     /// <summary>Estado de una sesión de login por QR (incluye el JWT del servicio al aprobarse).</summary>
@@ -107,5 +109,8 @@ namespace Servicios.ApiInterfaz
 
         /// <summary>Consulta el estado de una sesión de login por QR (binding por webPollToken).</summary>
         Task<MfaQrStatusResult> QrStatusAsync(string sid, string webPollToken, CancellationToken ct = default);
+
+        /// <summary>Envía la notificación de ingreso (con elección de número) a los celulares del funcionario.</summary>
+        Task<MfaQrCreateResult> PushLoginAsync(long identificacion, CancellationToken ct = default);
     }
 }
