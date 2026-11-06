@@ -65,6 +65,15 @@ namespace Negocio.Gestion.Mfa
         public Task<DtoAccion2FaResult> RevocarDispositivoAsync(long idDevice, string actor, string ip, CancellationToken ct) =>
             _repo.RevocarDispositivoAsync(idDevice, actor, ip, ct);
 
+        public Task<List<DtoCelularApp>> GetCelularesAppAsync(string? filtro, bool soloActivos, CancellationToken ct) =>
+            _repo.GetCelularesAppAsync(filtro, soloActivos, ct);
+
+        public Task<DtoAccion2FaResult> RevocarCelularAppAsync(long idDispositivo, string motivo, string actor, string ip, CancellationToken ct) =>
+            _repo.RevocarCelularAppAsync(idDispositivo, motivo, actor, ip, ct);
+
+        public Task<DtoAccion2FaResult> RevocarCelularesAppUsuarioAsync(long identificacion, string motivo, string actor, string ip, CancellationToken ct) =>
+            _repo.RevocarCelularesAppUsuarioAsync(identificacion, motivo, actor, ip, ct);
+
         public Task<DtoAuditoria2FaPagina> GetAuditoriaAsync(DtoAuditoria2FaFiltro filtro, CancellationToken ct) =>
             _repo.GetAuditoriaAsync(filtro, ct);
 

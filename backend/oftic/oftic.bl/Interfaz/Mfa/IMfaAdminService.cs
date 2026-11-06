@@ -28,6 +28,10 @@ namespace Negocio.Interfaz.Mfa
         Task<List<DtoDispositivo2Fa>> GetDispositivosAsync(long? idMfa, bool soloVigentes, CancellationToken ct);
         Task<DtoAccion2FaResult> RevocarDispositivoAsync(long idDevice, string actor, string ip, CancellationToken ct);
 
+        Task<List<DtoCelularApp>> GetCelularesAppAsync(string? filtro, bool soloActivos, CancellationToken ct);
+        Task<DtoAccion2FaResult> RevocarCelularAppAsync(long idDispositivo, string motivo, string actor, string ip, CancellationToken ct);
+        Task<DtoAccion2FaResult> RevocarCelularesAppUsuarioAsync(long identificacion, string motivo, string actor, string ip, CancellationToken ct);
+
         Task<DtoAuditoria2FaPagina> GetAuditoriaAsync(DtoAuditoria2FaFiltro filtro, CancellationToken ct);
 
         Task<List<DtoParametro2Fa>> GetParametrosAsync(CancellationToken ct);

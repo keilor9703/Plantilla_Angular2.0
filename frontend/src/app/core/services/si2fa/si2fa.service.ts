@@ -67,6 +67,21 @@ export interface Dispositivo2Fa {
   identificacion?: number;
   usuarioInstitucional?: string;
 }
+/** Celular registrado en la app 2FA (llave del login por QR). */
+export interface CelularApp {
+  idDispositivo: number;
+  identificacion: number;
+  usuarioInstitucional: string | null;
+  alias: string | null;
+  modelo: string | null;
+  plataforma: string | null;
+  activo: boolean;
+  creadoAt: string | null;
+  ultimoUsoAt: string | null;
+  revocadoAt: string | null;
+  revocadoPor: string | null;
+}
+
 export interface Usuario2FaDetalle extends Usuario2Fa { dispositivos: Dispositivo2Fa[]; }
 export interface Accion2FaResult { success: boolean; message?: string; }
 
@@ -142,7 +157,9 @@ export const EVENTOS_2FA: Record<string, string> = {
   ADMIN_RESET:           'Un administrador restableció el 2FA',
   ADMIN_TRUST_CLEAR:     'Un administrador eliminó los dispositivos confiables',
   ADMIN_TRUST_REVOKE:    'Un administrador revocó un dispositivo confiable',
-  ADMIN_UNLOCK:          'Un administrador desbloqueó al usuario'
+  ADMIN_UNLOCK:          'Un administrador desbloqueó al usuario',
+  DEVICE_ENROLL_OK:      'Celular registrado en la app',
+  DEVICE_REVOKE:         'Celular de la app revocado por el CSIRT'
 };
 
 /** Traduce un código de evento a texto legible; si no se conoce, lo humaniza. */
@@ -227,6 +244,19 @@ export class Si2faService {
   }
   revocarDispositivo(idDevice: number): Observable<Accion2FaResult> {
     return this.http.delete<Accion2FaResult>(`${this.base}/dispositivos/${idDevice}`);
+  }
+
+  // -------- Celulares de la app (login por QR) --------
+  getCelularesApp(filtro?: string, soloActivos = true): Observable<CelularApp[]> {
+    let params = new HttpParams().set('soloActivos', soloActivos);
+    if (filtro) params = params.set('filtro', filtro);
+    return this.http.get<CelularApp[]>(`${this.base}/celulares`, { params });
+  }
+  revocarCelularApp(idDispositivo: number, motivo: string): Observable<Accion2FaResult> {
+    return this.http.post<Accion2FaResult>(`${this.base}/celulares/${idDispositivo}/revocar`, { motivo });
+  }
+  revocarCelularesDeUsuario(identificacion: number, motivo: string): Observable<Accion2FaResult> {
+    return this.http.post<Accion2FaResult>(`${this.base}/celulares/usuario/${identificacion}/revocar`, { motivo });
   }
 
   // -------- Auditoría --------

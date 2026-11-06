@@ -462,6 +462,85 @@ namespace Datos.Gestion.Mfa
             return new DtoAccion2FaResult { Success = true, Message = "Dispositivo revocado." };
         }
 
+        // ============================ CELULARES REGISTRADOS EN LA APP ============================
+        public async Task<List<DtoCelularApp>> GetCelularesAppAsync(string? filtro, bool soloActivos, CancellationToken ct)
+        {
+            var list = new List<DtoCelularApp>();
+            await using var conn = await AbrirAsync(ct);
+            await using var cmd = conn.CreateCommand();
+            var where = new List<string>();
+            if (soloActivos) where.Add("estado = 1");
+            if (!string.IsNullOrWhiteSpace(filtro))
+            {
+                where.Add("(CAST(identificacion AS text) LIKE @f OR LOWER(usuario_institucional) LIKE @u)");
+                var f = filtro.Trim();
+                cmd.Parameters.AddWithValue("f", f + "%");
+                cmd.Parameters.AddWithValue("u", "%" + f.ToLowerInvariant() + "%");
+            }
+            var whereSql = where.Count > 0 ? " WHERE " + string.Join(" AND ", where) : string.Empty;
+            cmd.CommandText =
+                "SELECT id_dispositivo, identificacion, usuario_institucional, alias, modelo, plataforma, estado, " +
+                "creado_at, ultimo_uso_at, revocado_at, revocado_por FROM mfa_dispositivos_identidad" + whereSql +
+                " ORDER BY creado_at DESC LIMIT 300";
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                list.Add(new DtoCelularApp
+                {
+                    IdDispositivo = GetLong(r, 0),
+                    Identificacion = GetLong(r, 1),
+                    UsuarioInstitucional = GetStrN(r, 2),
+                    Alias = GetStrN(r, 3),
+                    Modelo = GetStrN(r, 4),
+                    Plataforma = GetStrN(r, 5),
+                    Activo = GetLong(r, 6) == 1,
+                    CreadoAt = GetDtN(r, 7),
+                    UltimoUsoAt = GetDtN(r, 8),
+                    RevocadoAt = GetDtN(r, 9),
+                    RevocadoPor = GetStrN(r, 10)
+                });
+            }
+            return list;
+        }
+
+        public Task<DtoAccion2FaResult> RevocarCelularAppAsync(long idDispositivo, string motivo, string actor, string ip, CancellationToken ct) =>
+            RevocarCelularesAsync("id_dispositivo = @k", idDispositivo, motivo, actor, ip, ct);
+
+        public Task<DtoAccion2FaResult> RevocarCelularesAppUsuarioAsync(long identificacion, string motivo, string actor, string ip, CancellationToken ct) =>
+            RevocarCelularesAsync("identificacion = @k", identificacion, motivo, actor, ip, ct);
+
+        private async Task<DtoAccion2FaResult> RevocarCelularesAsync(string filtroSql, long clave, string motivo,
+            string actor, string ip, CancellationToken ct)
+        {
+            // Solo se afectan los activos; el push_token se borra para que el celular deje de recibir solicitudes.
+            await using var conn = await AbrirAsync(ct);
+            var afectados = new List<(long Id, long Ident, string? Usuario, string? Modelo)>();
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText =
+                    "UPDATE mfa_dispositivos_identidad SET estado = 0, revocado_at = NOW(), revocado_por = @actor, " +
+                    "push_token = NULL WHERE estado = 1 AND " + filtroSql +
+                    " RETURNING id_dispositivo, identificacion, usuario_institucional, modelo";
+                cmd.Parameters.AddWithValue("actor", "CSIRT:" + actor);
+                cmd.Parameters.AddWithValue("k", clave);
+                await using var r = await cmd.ExecuteReaderAsync(ct);
+                while (await r.ReadAsync(ct))
+                    afectados.Add((GetLong(r, 0), GetLong(r, 1), GetStrN(r, 2), GetStrN(r, 3)));
+            }
+            if (afectados.Count == 0)
+                return new DtoAccion2FaResult { Success = false, Message = "No hay celulares activos para revocar (puede que ya estén revocados)." };
+
+            foreach (var a in afectados)
+                await Audit(conn, null, a.Ident, a.Usuario, "DEVICE_REVOKE",
+                    $"Celular revocado por CSIRT. id={a.Id} modelo={a.Modelo} motivo=\"{motivo}\" (CSIRT: {actor})", ip, ct);
+
+            return new DtoAccion2FaResult
+            {
+                Success = true,
+                Message = afectados.Count == 1 ? "Celular revocado. Ya no puede aprobar ingresos." : $"{afectados.Count} celulares revocados. Ya no pueden aprobar ingresos."
+            };
+        }
+
         // ============================ AUDITORÍA ============================
         public async Task<DtoAuditoria2FaPagina> GetAuditoriaAsync(DtoAuditoria2FaFiltro filtro, CancellationToken ct)
         {
