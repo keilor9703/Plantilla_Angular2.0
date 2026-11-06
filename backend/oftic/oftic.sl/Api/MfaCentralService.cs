@@ -395,7 +395,13 @@ namespace Servicios.Api
 
                 // 404 (sin celular con notificaciones / deshabilitado) y 429 (límite de envíos): se usa el código TOTP.
                 if ((int)resp.StatusCode is 404 or 429)
+                {
+                    // Se registra el motivo real (p. ej. "El funcionario no tiene dispositivos con notificaciones activas").
+                    var motivo = await resp.Content.ReadAsStringAsync(ct);
+                    _log.LogWarning("[MFA] PushLogin sin envío (HTTP {Status}) para {Id}: {Motivo}", (int)resp.StatusCode, identificacion,
+                        motivo.Length > 300 ? motivo[..300] : motivo);
                     return new MfaQrCreateResult { Fallback = true, Mensaje = "Use el código de su aplicación de autenticación." };
+                }
                 if (!resp.IsSuccessStatusCode)
                     return new MfaQrCreateResult { Fallback = true, ServiceDown = true, Mensaje = $"Servicio 2FA no disponible (HTTP {(int)resp.StatusCode})." };
 
